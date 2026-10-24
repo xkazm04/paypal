@@ -938,7 +938,11 @@
           "revision": 6,
           "changedAt": "2026-09-18",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/session.tsx:62 The approval window gets its channel proof by asking for it over IPC (approval_token, which Rust gates only on the window label) instead of having it injected at bootstrap, so any script running in that window can request the proof again.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:57d60a438fa36d05",
+          "evaluatedRevision": 6
         },
         {
           "subject": "agent-instruction-files",
@@ -2862,7 +2866,11 @@
           "revision": 6,
           "changedAt": "2026-09-18",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/brand/index.ts:2 The context is CSS tokens and presentational SVG components that call no command and make no access decision. A case-insensitive search of apps/desktop/client/src/design and apps/desktop/client/src/shared/brand for permission, authoriz, privileged, capability, grant, invoke and admit found no hit.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:57d60a438fa36d05",
+          "evaluatedRevision": 6
         },
         {
           "subject": "node-boot-and-declarative-bootstrap",
@@ -5387,7 +5395,11 @@
           "revision": 6,
           "changedAt": "2026-09-18",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-verify/src/lib.rs:31 Check is a four-valued verdict (passed / failed / could-not-compare / does-not-apply) but publishes one `ok` boolean that folds every not-checked case into false, and the two `verified()` accessors fold it differently (lib.rs `c.ok || !c.applies`, house.rs `c.ok`), so a new consumer that reads `!check.ok` as 'failed' cannot tell that from 'no claim'.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:57d60a438fa36d05",
+          "evaluatedRevision": 6
         }
       ],
       "governance": "governed"
@@ -7090,7 +7102,11 @@
           "revision": 6,
           "changedAt": "2026-09-18",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-runtime/src/simulate.rs:1 The mandate and wallet-limits what-ifs implemented here (mandate_simulate, envelope_simulate) are classified OPEN, needing no token and no unlock, while the mandate_sign and envelope_sign actions they preview are PRIVILEGED, so the preview sits a tier below its action.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:57d60a438fa36d05",
+          "evaluatedRevision": 6
         },
         {
           "subject": "settings",
