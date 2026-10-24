@@ -119,10 +119,13 @@ export function summarySentence(i: SaysInput): Says {
       const limit = twin.left.v;
       const inside = twin.op === '≥';
       const over = twin.op === '<';
-      const range = limit ? (inside ? `, inside your ${limit} limit` : over ? `, above your ${limit} limit` : '') : '';
+      // The price range is per item: with more than one item the price per item is what it is set against.
+      const many = d.terms.qty > 1;
+      const yours = many ? `limit of ${limit} per item` : `${limit} limit`;
+      const range = limit ? (inside ? `, inside your ${yours}` : over ? `, above your ${yours}` : '') : '';
       return {
         tone: 'need', icon: 'you',
-        text: `${who} offers ${total}${range}. Approving accepts that price; you pay later on PayPal.`,
+        text: `${who} offers ${total}${many ? ` (${d.terms.qty} × ${formatMoney(d.terms.unit_price)})` : ''}${range}. Approving accepts that price; you pay later on PayPal.`,
         ...(over ? { sub: 'This is above the most you said you’d pay, so look closely before you accept.' } : {}),
       };
     }
