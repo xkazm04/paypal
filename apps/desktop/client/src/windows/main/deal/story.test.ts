@@ -5,7 +5,7 @@ import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { SELLER_SAYS_PAID } from '../../../lib/words';
 import { buildMockState } from '../../../mock/fixtures';
 import { readClauses, type Reading } from './model';
-import { CLOSED, dealAnswer, decisionQuestion, decisionWhy, reviewMeans, ruleChecks, rulesBadge, standingFacts, threadRows } from './story';
+import { askingDrop, CLOSED, dealAnswer, decisionQuestion, decisionWhy, reviewMeans, ruleChecks, rulesBadge, standingFacts, threadRows } from './story';
 
 const NOW = 1_800_000_000;
 const world = buildMockState(NOW);
@@ -187,5 +187,37 @@ describe('a buyer’s deal the seller says is paid', () => {
     const a = dealAnswer(d, { need: undefined, them: 'Dan', latest: null, band: null, mayWithdraw: false });
     expect(a.tone).toBe('done');
     expect(a.sub).toContain('Paid, on statement');
+  });
+});
+
+describe('how far their price came down (the haggle’s result, buyer side)', () => {
+  it('reads Dan’s $329 against his own $389 listing, and the room under the $340 most', () => {
+    const e = entry('D-0193');
+    const f = standingFacts(e.deal, e.display.band, last('D-0193'), 'Dan', null, e.transcript);
+    expect(f.find((x) => x.k === 'Dan’s price is down')).toEqual({ k: 'Dan’s price is down', v: '$60.00 from $389.00 (15.42%)', tone: 'ok' });
+    expect(f.find((x) => x.k === 'Room under your most')?.v).toBe('$11.00');
+    // The old facts keep their place in front.
+    expect(f.slice(0, 3).map((x) => x.k)).toEqual(['Dan’s latest', 'Most you’ll pay', 'Offers used']);
+  });
+  it('compares their latest price, never your own bid', () => {
+    const steps = entry('D-0193').transcript;
+    expect(askingDrop(steps)).toMatchObject({ listing: { minor: 38900 }, theirs: { minor: 32900 }, off: { minor: 6000 }, bp: 1542 });
+    // Your own last offer ($327) is not their price.
+    expect(askingDrop(steps.filter((s) => s.seq !== 11))?.theirs.minor).toBe(33300);
+  });
+  it('claims nothing it cannot back: unchecked signatures, no move, no listing, another currency', () => {
+    const steps = entry('D-0193').transcript;
+    expect(askingDrop(steps.map((s) => (s.seq === 1 ? { ...s, verified: false } : s)))).toBeNull();
+    expect(askingDrop(steps.map((s) => (s.seq === 11 ? { ...s, verified: false } : s)))).toBeNull();
+    expect(askingDrop(steps.filter((s) => s.typ !== 'LISTING'))).toBeNull();
+    expect(askingDrop(steps.filter((s) => s.seq <= 2))).toBeNull();
+    expect(askingDrop(steps.map((s) => (s.seq === 11 ? { ...s, price: { minor: 38900, currency: 'USD' as const } } : s)))).toBeNull();
+    expect(askingDrop(steps.map((s) => (s.seq === 11 ? { ...s, price: { minor: 32900, currency: 'EUR' as const } } : s)))).toBeNull();
+  });
+  it('is buyer side only and needs the conversation', () => {
+    const e = entry('D-0193');
+    const seller = standingFacts({ ...e.deal, side: 'seller' }, e.display.band, last('D-0193'), 'Dan', null, e.transcript);
+    expect(seller.some((x) => x.k === 'Dan’s price is down')).toBe(false);
+    expect(standingFacts(e.deal, e.display.band, last('D-0193'), 'Dan').some((x) => x.k === 'Dan’s price is down')).toBe(false);
   });
 });

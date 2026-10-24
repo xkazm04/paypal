@@ -5,10 +5,11 @@
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import type { DisplayBand } from '@bindings/DisplayBand';
+import type { Money } from '@bindings/Money';
 import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { RescueOffer } from '@bindings/RescueOffer';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
-import { formatMoney } from '../../../lib/format';
+import { formatMinor, formatMoney } from '../../../lib/format';
 import { headlineWords, houseWords, MONEY_CHECK_ENDED, MONEY_CHECK_PARKED, marketWords, percentWords, moneyCheckStep, ruleNameOf, shieldRuleWord, sellerSaysOnly, stateWord } from '../../../lib/words';
 import { dealTotal, decidedBy, isTerminal } from '../logic';
 import { latestText, timelineRows, type ClauseReading, type Reading, type TimelineRow } from './model';
@@ -178,7 +179,7 @@ export function threadRows(steps: readonly TranscriptStep[], d: Pick<Deal, 'crea
 export type Fact = { k: string; v: string; tone?: 'ok' | 'gold' | 'red' | 'dim' };
 
 /** The right-hand "where it stands" facts: numbers only, from the signed terms and the band. */
-export function standingFacts(d: Pick<Deal, 'kind' | 'side' | 'terms' | 'market'>, band: DisplayBand | null, latest: TranscriptStep | null, them: string, offer?: RescueOffer | null): Fact[] {
+export function standingFacts(d: Pick<Deal, 'kind' | 'side' | 'terms' | 'market'>, band: DisplayBand | null, latest: TranscriptStep | null, them: string, offer?: RescueOffer | null, steps?: readonly TranscriptStep[]): Fact[] {
   const out: Fact[] = [];
   if (d.kind === 'rescue' && offer) {
     // The same two figures as Rescue and the approval window: what failed, and what the fix invoices.
@@ -190,6 +191,14 @@ export function standingFacts(d: Pick<Deal, 'kind' | 'side' | 'terms' | 'market'
     const limit = band ? (d.side === 'buyer' ? band.ceiling : band.floor) : null;
     if (limit) out.push({ k: d.side === 'buyer' ? 'Most you’ll pay' : 'Least you’ll accept', v: formatMoney(limit) });
     if (band) out.push({ k: 'Offers used', v: `${band.rounds_used} of ${band.max_rounds}` });
+    // What the haggle has done so far, as a buyer reads it: their price against their own listing,
+    // and the room left under the most you'll pay. Signed, checked numbers only; no "saved" claim.
+    const drop = d.side === 'buyer' && steps ? askingDrop(steps) : null;
+    if (drop) {
+      out.push({ k: `${them}’s price is down`, v: `${formatMoney(drop.off)} from ${formatMoney(drop.listing)} (${percentWords(drop.bp)})`, tone: 'ok' });
+      const room = limit && limit.currency === drop.theirs.currency ? limit.minor - drop.theirs.minor : null;
+      if (room !== null && room >= 0) out.push({ k: 'Room under your most', v: formatMinor(room, drop.theirs.currency) });
+    }
   } else {
     out.push({ k: d.terms.qty > 1 ? 'Price each' : 'Price', v: formatMoney(d.terms.unit_price) });
     if (d.terms.qty > 1) out.push({ k: 'Quantity', v: String(d.terms.qty) });
@@ -201,4 +210,22 @@ export function standingFacts(d: Pick<Deal, 'kind' | 'side' | 'terms' | 'market'
     out.push({ k: 'This price is', v: mw.text, tone: mw.tone === 'ok' ? 'ok' : mw.tone === 'gold' ? 'gold' : mw.tone === 'red' ? 'red' : undefined });
   }
   return out;
+}
+
+export type AskingDrop = { listing: Money; theirs: Money; off: Money; bp: number };
+
+/**
+ * How far the other side has come down from their own signed listing: the listing against their
+ * latest signed price, in basis points of the listing (rounded down). Null unless both messages
+ * carry a checked signature and one currency, and their price is below the listing. It measures
+ * their move, not money saved: nothing is paid until the deal settles.
+ */
+export function askingDrop(steps: readonly TranscriptStep[]): AskingDrop | null {
+  const priced = steps.filter((s): s is TranscriptStep & { price: Money } => s.by === 'them' && s.price !== null);
+  const listing = priced.find((s) => s.typ === 'LISTING');
+  const latest = priced.reduce<(TranscriptStep & { price: Money }) | null>((a, s) => (s.typ !== 'LISTING' && (!a || s.seq > a.seq) ? s : a), null);
+  if (!listing || !latest || !listing.verified || !latest.verified) return null;
+  if (listing.price.currency !== latest.price.currency || listing.price.minor <= 0 || latest.price.minor >= listing.price.minor) return null;
+  const off = listing.price.minor - latest.price.minor;
+  return { listing: listing.price, theirs: latest.price, off: { minor: off, currency: listing.price.currency }, bp: Math.floor((off * 10000) / listing.price.minor) };
 }

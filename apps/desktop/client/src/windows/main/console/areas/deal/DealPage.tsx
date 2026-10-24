@@ -144,7 +144,7 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
     }),
     seeAll: sheetView ? { onOpen: toStory } : undefined,
     // Where it stands, in numbers from the signed terms (the story view's own facts, no read).
-    facts: standingFacts(deal, disp.band, latest, them, null).map((f) => [f.k, f.v] as const),
+    facts: standingFacts(deal, disp.band, latest, them, null, tr.data).map((f) => [f.k, f.v] as const),
   } : undefined;
   // And the other deals with the same counterparty, newest first (from the ledger the window holds).
   const allDeals = useDeals().data;
@@ -194,7 +194,7 @@ function StoryPart({ deal, steps, error, clauses, theirName, them, latest, title
   const { display } = useWorldSelector(sel, same);
   const rescue = useQuery('rescue_book', null, { enabled: deal.kind === 'rescue', refreshOn: ['deal:changed'] });
   const offer = deal.kind === 'rescue' ? rescue.data?.cases.find((v) => v.deal_id === deal.id)?.offer ?? null : null;
-  const facts = standingFacts(deal, display(deal).band, latest, them, offer);
+  const facts = standingFacts(deal, display(deal).band, latest, them, offer, steps);
   return <StoryView deal={deal} steps={steps} error={error} clauses={clauses} theirName={theirName} facts={facts} factsTitle={deal.kind === 'haggle' ? DEAL_STORY.factsHaggle : DEAL_STORY.factsOther} title={title} />;
 }
 
