@@ -1,0 +1,52 @@
+{
+ "schema": "conform-run/1",
+ "worker": "fa31e5b9-04d7-44f1-9d19-49f69822a8f5",
+ "subject": "concurrency-guards",
+ "evaluatedAt": "2026-10-24T05:39:32.201258+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "design-system-styles",
+   "subject": "concurrency-guards",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/design/motion.ts:36 This context is CSS tokens, motion constants and pure SVG geometry; the only stateful code is a display-only calm toggle. Searching design/ and shared/brand/ found zero hits for await, Promise, inFlight, idempot, Mutex or setTimeout, so no operation here can run twice concurrently and no guard is owed.",
+   "techniques": [],
+   "absenceTerms": [
+    "await",
+    "Promise",
+    "inFlight",
+    "idempot",
+    "Mutex"
+   ],
+   "registryProposal": "The map matched this context to concurrency-guards on the generic tokens 'design', 'shared' and 'system'. Context-to-subject matching should down-weight such tokens."
+  }
+ ],
+ "declined": [
+  {
+   "subject": "concurrency-guards",
+   "context": "shared-ui-primitives",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "concurrency-guards",
+   "context": "wallet-domain-primitives",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T05:39:32.201258+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "concurrency-guards"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "design-system-styles",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
