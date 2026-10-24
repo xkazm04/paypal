@@ -7278,6 +7278,69 @@
       "worker": "fa31e5b9-04d7-44f1-9d19-49f69822a8f5",
       "techniques": [],
       "registryProposal": "The map matched this context to concurrency-guards on the generic tokens 'design', 'shared' and 'system'. Context-to-subject matching should down-weight such tokens."
+    },
+    "9a477925-2fcc-4133-982d-849ca52dbe7f/concurrent-vcs": {
+      "context": "shared-ui-primitives",
+      "subject": "concurrent-vcs",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T05:51:30.031Z",
+      "worker": "8a11b4b0-c880-4a92-a7cf-bab4f2a1d192",
+      "techniques": [
+        {
+          "technique": "sub-file-claim-scope",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/ui/Inspector.tsx:12 The only 'claim' here is a ref-count of mounted inspector panes deciding whether the host is open. It is not a VCS scope claim."
+        },
+        {
+          "technique": "physical-isolation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/ui/index.ts:1 UI component module. Nothing here creates worktrees or commits."
+        }
+      ]
+    },
+    "877e3281-ae38-485a-a404-4476986454a5/concurrent-vcs": {
+      "context": "shared-surfaces-onboarding-honesty",
+      "subject": "concurrent-vcs",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T05:51:30.031Z",
+      "worker": "8a11b4b0-c880-4a92-a7cf-bab4f2a1d192",
+      "techniques": [
+        {
+          "technique": "intent-ledgers",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/honesty.tsx:70 'Ledger' here is the wallet's tamper-evident records error label. It is not a session-intent registry."
+        },
+        {
+          "technique": "physical-isolation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/honesty.tsx:1 UI module. No checkout, branch or commit mechanics."
+        }
+      ]
+    },
+    "ed618215-bf0a-4dfc-8c2c-3c3a805321b1/concurrent-vcs": {
+      "context": "prototype-dial-shell-and-design-system",
+      "subject": "concurrent-vcs",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T05:51:30.031Z",
+      "worker": "8a11b4b0-c880-4a92-a7cf-bab4f2a1d192",
+      "techniques": [
+        {
+          "technique": "never-lose-work-rules",
+          "verdict": "not-applicable",
+          "evidence": "prototype/build-index.mjs:6 This is an advisory about what generated output to commit. It is not a rule about stashing, staging or resets in a shared checkout."
+        },
+        {
+          "technique": "shared-resource-arbitration",
+          "verdict": "not-applicable",
+          "evidence": "prototype/shared/shell.js:1 'Shared' means a browser-side nav bar reused by pages. It is not a resource contended by concurrent sessions."
+        }
+      ]
     }
   }
 }

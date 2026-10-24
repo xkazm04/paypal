@@ -5913,7 +5913,11 @@
           "revision": 9,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "prototype/build-index.mjs:1 The context is static prototype HTML/CSS/JS plus a gallery generator, and it does no concurrent-session VCS work; a search of prototype/main, prototype/shared and build-index.mjs for worktree, GIT_INDEX_FILE, git stash, pre-commit and read-tree found nothing, and its only git mention is a note to keep locally generated output out of commits.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:de557423d4cf3016",
+          "evaluatedRevision": 9
         }
       ],
       "governance": "governed"
@@ -7459,7 +7463,11 @@
           "revision": 9,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/honesty.tsx:1 These files are product-surface React components (mode badges, money, countdowns, tour, owner key) with no version-control behaviour; a search of src/shared for worktree, GIT_INDEX_FILE, git stash, pre-commit and read-tree found nothing, and the only 'ledger' hits are the product's audit-ledger error code LEDGER_TRUST, not an intent ledger.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:de557423d4cf3016",
+          "evaluatedRevision": 9
         },
         {
           "subject": "eval-harness",
@@ -7610,7 +7618,11 @@
           "revision": 9,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/ui/index.ts:1 This context is a React UI component barrel (sheets, popovers, focus, layers, toasts, error boundaries) and does no version-control work; a search of src/shared/ui and src/shared/boundary for worktree, GIT_INDEX_FILE, git stash, pre-commit and read-tree found nothing, so no concurrent-checkout mechanics live here to judge.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:de557423d4cf3016",
+          "evaluatedRevision": 9
         },
         {
           "subject": "client-fetch-cache",
