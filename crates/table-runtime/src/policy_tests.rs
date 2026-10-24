@@ -406,3 +406,212 @@ async fn a_failed_native_run_names_its_cause_in_the_run_end_audit_row() {
     assert_eq!(finished[0].detail["cause"], "exit:2");
     assert_eq!(finished[0].detail["state"], "failed");
 }
+
+/// The demo haggle as the shipped practice agent plays it (tiger 2026-10-24, scope item C3). The
+/// limits are the film's: the most Maya pays is $340 over six offers, and above $250 she decides.
+/// The market is p25 $300 / median $330. Dan lists at $340 and his counters stay inside her range:
+/// a buyer table cannot open on a listing above the ceiling (the deal's terms are mandate-checked
+/// when it is created), and a counter above it is refused at intake.
+/// The engine runs for real through the wallet's MCP door; the test pumps the actor's messages
+/// itself, so it can sign Dan's next counter between runs. Every price asserted here is what the
+/// wallet signs, so a film built from this list shows what the app does.
+#[tokio::test]
+async fn the_demo_haggle_is_what_the_practice_agent_signs_and_it_stops_at_the_ask_me_line() {
+    let usd = |n| Money::new(n, Currency::USD).unwrap();
+    let (mut r, _, http, _, _) = runtime(true);
+    let mut limits = clauses(Side::Buyer, DealKind::Haggle);
+    if let Clause::PerDeal { max_amount, .. } = &mut limits[2] {
+        *max_amount = usd(50_000);
+    }
+    if let Clause::Band {
+        floor,
+        ceiling,
+        max_rounds,
+        ..
+    } = &mut limits[3]
+    {
+        *floor = None;
+        *ceiling = Some(usd(34_000));
+        *max_rounds = 6;
+    }
+    if let Clause::HumanPresentOver { amount } = &mut limits[5] {
+        *amount = usd(25_000);
+    }
+    let (deal, peer) = setup_priced(
+        &mut r,
+        Side::Buyer,
+        Delivery::DigitalNow,
+        limits,
+        usd(34_000),
+    );
+    let comparables = [30_000, 30_000, 33_000, 36_000, 36_000].map(usd);
+    r.pipeline
+        .wallet
+        .ledger
+        .store_market_reference(
+            deal.id,
+            &MarketRef::certified_prices("monitor", H256::digest(b"similar"), &comparables, 100)
+                .unwrap(),
+            100,
+        )
+        .unwrap();
+
+    // The run's MCP door, bridged to a channel this test drains as the actor loop does.
+    let loopback = install(&mut r);
+    let (tx, mut rx) = tokio::sync::mpsc::channel(64);
+    r.actor_sender = Some(tx.downgrade());
+    let server = table_mcp::Server::with_async(
+        Arc::new(crate::engines::ActorBridge(tx.downgrade())),
+        8765,
+        Arc::new(FixedClock(100)),
+    )
+    .unwrap();
+    *loopback.0.lock().unwrap() = Some(server.clone().router());
+    r.mcp = Some((server, "http://127.0.0.1:8765/mcp".into()));
+    let ours = |r: &Runtime| -> Vec<i64> {
+        r.pipeline
+            .wallet
+            .ledger
+            .deal_transcript(deal.id)
+            .unwrap()
+            .iter()
+            .filter(|s| s.by == TranscriptBy::You)
+            .filter_map(|s| s.price.map(|p| p.minor()))
+            .collect()
+    };
+
+    let raw = envelope(
+        &r,
+        &deal,
+        &peer,
+        1,
+        Body::Listing {
+            item_ref: deal.terms.item_ref.clone(),
+            ask: deal.terms.unit_price,
+            qty: Some(deal.terms.qty),
+            delivery: deal.terms.delivery.clone(),
+        },
+        table_proto::MsgType::Listing,
+    );
+    r.pipeline
+        .wallet
+        .receive_haggle(deal.id, &raw, Category::Parts, 100)
+        .unwrap();
+    // Maya presses Start agent: it opens at the low end of the typical price.
+    r.start_agent(deal.id).unwrap();
+    pump(&mut r, &mut rx).await;
+    assert_eq!(ours(&r), [30_000]);
+
+    // Dan comes down; each counter re-arms one run that answers on the agent's line, which climbs
+    // from $300 toward the typical price ($330) over its five answers.
+    let dan = [33_900, 33_600, 33_400, 33_300, 32_900];
+    for price in dan {
+        let seq = r
+            .pipeline
+            .wallet
+            .ledger
+            .deal_transcript(deal.id)
+            .unwrap()
+            .iter()
+            .map(|s| s.seq)
+            .max()
+            .unwrap()
+            + 1;
+        let raw = envelope(
+            &r,
+            &deal,
+            &peer,
+            seq,
+            Body::Counter {
+                price: usd(price),
+                delivery: deal.terms.delivery.clone(),
+            },
+            table_proto::MsgType::Counter,
+        );
+        r.pipeline
+            .wallet
+            .receive_haggle(deal.id, &raw, Category::Parts, 100)
+            .unwrap_or_else(|e| panic!("{price}: {e:?}, ours {:?}", ours(&r)));
+        r.tick().await.unwrap();
+        assert_eq!(r.runs.len(), 1, "Dan's counter {price} arms one run");
+        pump(&mut r, &mut rx).await;
+    }
+    // Five offers signed, all inside her range. The agent would take Dan's $329 (its line has
+    // reached $330), but $329 is above $250, so the wallet refuses its ACCEPT and asks Maya.
+    assert_eq!(ours(&r), [30_000, 30_600, 31_200, 31_800, 32_400]);
+    let (rows, _) = r.pipeline.wallet.ledger.audit_page(None, u16::MAX).unwrap();
+    let refused: Vec<_> = rows
+        .iter()
+        .filter(|a| a.action == "intent.refused" && a.deal_id == Some(deal.id))
+        .filter(|a| a.detail["layer"] == "wallet")
+        .collect();
+    assert_eq!(refused.len(), 1, "{refused:#?}");
+    assert_eq!(refused[0].detail["tool"], "accept_offer");
+    assert_eq!(refused[0].detail["clause"], 6);
+    let attention: table_attention::AttentionSnapshot = serde_json::from_value(
+        r.execute(caller("main", None), Action::Attention)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    let gate = attention
+        .items
+        .iter()
+        .find(|i| i.deal_id == deal.id)
+        .expect("a gate for Maya");
+    assert_eq!(gate.clause.as_ref().map(|c| c.number), Some(6));
+    let after = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
+    assert_eq!(after.state, DealState::Negotiating);
+    assert_eq!(after.terms.unit_price, usd(32_900));
+    // Nothing reached PayPal, and nothing was agreed for her.
+    assert!(http.0.lock().unwrap().paths.is_empty());
+}
+
+/// Drains the messages a policy run sends the actor, handled by the same runtime methods the
+/// actor loop calls, until no run is left.
+async fn pump(r: &mut Runtime, rx: &mut tokio::sync::mpsc::Receiver<crate::actor::Message>) {
+    use crate::actor::Message as M;
+    while !r.runs.is_empty() {
+        let message = tokio::time::timeout(std::time::Duration::from_secs(10), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        match message {
+            M::Agent(run, scope, request, reply) => {
+                let _ = reply.send(r.agent_intent(run, &scope, request));
+            }
+            M::AgentRefused(scope, tool, code, reply) => {
+                let now = r.clock.now();
+                let _ = reply.send(table_app::AgentService::record_refusal(
+                    &mut r.pipeline.wallet,
+                    &scope,
+                    &tool,
+                    code,
+                    now,
+                ));
+            }
+            M::AgentMcpOutcome(scope, tool, outcome, reply) => {
+                let now = r.clock.now();
+                let _ = reply.send(table_app::AgentService::record_mcp_outcome(
+                    &mut r.pipeline.wallet,
+                    &scope,
+                    &tool,
+                    outcome,
+                    now,
+                ));
+            }
+            M::Engine(run, event) => {
+                r.engine_event(run, event).unwrap();
+            }
+            M::EngineFinished(run, result) => {
+                let state = if matches!(result, Ok(table_engine::TerminalVerdict::Clean)) {
+                    RunState::Clean
+                } else {
+                    RunState::Failed
+                };
+                r.finish_run_because(run, state, None).unwrap();
+            }
+            _ => {}
+        }
+    }
+}
