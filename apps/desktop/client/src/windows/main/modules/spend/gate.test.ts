@@ -87,7 +87,24 @@ describe('lanes', () => {
     const cells = laneCells(deal({ state: 'AGREED', price: 64 }), cols);
     expect(cells.map((c) => c.kind)).toEqual(['pass', 'pass', 'pass', 'pass', 'pass']);
     expect(cells.every((c) => c.computed)).toBe(true);
-    expect(ruleLine(cells, cols)).toEqual({ kind: 'pass', text: 'Passed your rules' });
+    expect(ruleLine(cells, cols)).toEqual({ kind: 'pass', text: 'Passed your rules when cleared' });
+  });
+  it('says which version a waiting purchase cleared under, when it matches the drawn rules', () => {
+    const cells = laneCells({ ...deal({ state: 'AGREED' }), mandate_version: 3 }, cols, null, { version: 3 });
+    expect(cells.map((c) => c.kind)).toEqual(['pass', 'pass', 'pass', 'pass', 'pass']);
+    expect(cells[0]?.text).toBe('passed when cleared, under version 3 of your rules');
+    expect(ruleLine(cells, cols)).toEqual({ kind: 'pass', text: 'Passed your rules when cleared (version 3)' });
+  });
+  it('never calls a waiting purchase passed against rules it was cleared before (an older version)', () => {
+    const cells = laneCells({ ...deal({ state: 'AGREED', qty: 3, price: 90 }), mandate_version: 2 }, cols, null, { version: 3 });
+    expect(cells.some((c) => c.kind === 'pass' || c.kind === 'you')).toBe(false);
+    expect(cells.map((c) => c.kind)).toEqual(['unknown', 'unknown', 'unknown', 'unknown', 'unknown']);
+    expect(cells[0]?.text).toBe('cleared under an earlier version of your rules; not checked against these');
+    expect(ruleLine(cells, cols)).toEqual({ kind: 'unknown', text: 'Cleared under an earlier version of your rules; not checked against these' });
+  });
+  it('keeps the attention item’s clause as Rust’s word even for an earlier-version purchase', () => {
+    const cells = laneCells({ ...deal({ state: 'AGREED' }), mandate_version: 2 }, cols, { clause: { mandate_id: 'M', number: 7 } }, { version: 3 });
+    expect(cells.map((c) => c.kind)).toEqual(['unknown', 'unknown', 'unknown', 'unknown', 'you']);
   });
   it('marks the ask-me rule on a cleared purchase only above its limit, as the wallet applies it', () => {
     // mandate.rs: the ask-me rule asks only when the total is above its amount, never at it.

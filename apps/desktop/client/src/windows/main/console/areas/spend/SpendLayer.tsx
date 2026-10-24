@@ -107,7 +107,9 @@ export function SpendLayer({ nav }: LayerProps) {
       const entry = byVersion.get(`${d.mandate_id}|${d.mandate_version}`) ?? byId.get(d.mandate_id);
       let laneCols = own ? cols : entry ? colsOf.get(entry.payload.id) : undefined;
       if (!laneCols && entry) { laneCols = gateColumns(entry.payload.clauses); colsOf.set(entry.payload.id, laneCols); }
-      const cells = laneCols ? laneCells(d, laneCols, needOf(d.id)) : [];
+      // The rule set the columns are drawn from: a cleared purchase made under another version of it is not claimed to pass.
+      const drawn = own ? m : entry;
+      const cells = laneCols ? laneCells(d, laneCols, needOf(d.id), drawn ? { version: drawn.payload.version } : null) : [];
       return { deal: d, cells, cols: laneCols ?? [], own, slot: entry?.agent ?? null, rules: entry ?? null };
     }).sort((a, b) => (b.deal.created_at ?? 0) - (a.deal.created_at ?? 0));
   }, [deals, cols, m, mq.data, needOf]);

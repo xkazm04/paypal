@@ -32,6 +32,13 @@ describe('the rules a purchase met', () => {
     expect(container.textContent).toContain(SPEND.allPassedWaiting);
     expect(container.textContent).not.toContain(SPEND.allPassed);
   });
+  it('one cleared under an earlier version of the rules is not shown as passed these', () => {
+    const d = { ...deal('AGREED'), mandate_version: 2 };
+    const { container } = render(<Trace cells={laneCells(d, cols, null, { version: 3 })} cols={cols} waiting />);
+    expect([...container.querySelectorAll('.sp-trace li')].map((li) => li.className)).toEqual(['unknown', 'unknown', 'unknown', 'unknown']);
+    expect(container.textContent).toContain(SPEND.clearedEarlierLine);
+    expect(container.textContent).not.toContain(SPEND.allPassedWaiting);
+  });
   it('one that reached PayPal says it passed before PayPal was asked', () => {
     const d = deal('CAPTURED', { ...NONE, order: 'O', authorization: 'A', capture: 'C' });
     const { container } = render(<Trace cells={laneCells(d, cols)} cols={cols} />);

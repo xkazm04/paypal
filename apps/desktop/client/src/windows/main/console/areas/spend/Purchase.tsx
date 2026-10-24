@@ -137,6 +137,7 @@ export function Trace({ cells, cols, onRule, waiting }: { cells: readonly Cell[]
           );
         })}
       </ol>
+      {cells.some((c) => c.earlier) ? <Hint>{SPEND.clearedEarlierLine}</Hint> : null}
       {allPassed ? <Hint>{waiting ? SPEND.allPassedWaiting : SPEND.allPassed}</Hint> : null}
     </>
   );
