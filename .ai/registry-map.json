@@ -4193,14 +4193,13 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "crates/table-ledger/src/audit.rs:176 stores the caller's entry.at (door at :169 checks only at>=0), which write-chokepoint and append-only-design name a failure: chain order and time can disagree; no stated horizon or origin tag at the door (:185). Sanitization now realized (:173, crates/table-ledger/src/audit_detail.rs:295)",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:1fadfb8d9819f243",
-          "evaluatedRevision": 9,
+          "evidence": "crates/table-ledger/src/audit.rs:176 The one append door hashes and stores whatever time the caller passes. The only check is at>=0 (:169), and relay_clock_tests.rs exercises a clock that steps backwards, so seq order and `at` can disagree. append-only-design names this failure: the time should come from one clock assigned at insert. The door also states no retention horizon and validates no origin tag.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:154304c5d9578971",
+          "evaluatedRevision": 10,
           "source": "conform",
           "adoptedFrom": "Money Pipeline & Persistence/ledger",
-          "revisionsBehind": 1,
-          "stale": true
+          "revisionsBehind": 1
         },
         {
           "subject": "supply-chain",
@@ -6503,7 +6502,11 @@
           "revision": 10,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/rewind/RewindLayer.tsx:109 The tape's empty message ('Nothing happened this week. If you do nothing, no money moves.') is passed unconditionally. When deal_history fails or is still loading (steps = []), the tape still claims nothing happened, even though the header says the record couldn't be read. Separately, steps whose deal is not in the loaded list are silently dropped (:122). audit-querying forbids both: an empty result must not look like a broken query, and a filtered listing must say it is filtered.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:154304c5d9578971",
+          "evaluatedRevision": 10
         },
         {
           "subject": "agent-memory",
