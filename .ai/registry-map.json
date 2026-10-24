@@ -2725,7 +2725,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/design/tokens.test.ts:56 The 'every token is read' walk searches raw file text with comments left in, so prose like the tokens.css:86 comment `font-stretch: var(--label-stretch)` (and the one at fonts.css:7) counts as a read: delete every real use of a token and the test still passes as long as a comment mentions it.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27
         },
         {
           "subject": "agent-memory",
@@ -5158,7 +5162,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-verify/src/acceptance.rs:2 The acceptance matrix only sees tests in the cargo workspace graph, so the vitest tests that carry U2, U3, U4, W1 and W7 (fontFloor.test.ts, modeBadge*.test.tsx, NoteChip.test.tsx, routeRestore.test.tsx, withdraw.render.test.tsx) are outside its population, and the CI-published matrix shows those IDs as having no test even though tests exist.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27
         },
         {
           "subject": "supply-chain",

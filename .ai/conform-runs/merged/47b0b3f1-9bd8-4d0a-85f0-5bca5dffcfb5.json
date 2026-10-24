@@ -1,0 +1,115 @@
+{
+ "schema": "conform-run/1",
+ "worker": "47b0b3f1-9bd8-4d0a-85f0-5bca5dffcfb5",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-10-24T00:41:09.164751+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "offline-proof-verifier",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-verify/src/acceptance.rs:2 The acceptance matrix only sees tests in the cargo workspace graph, so the vitest tests that carry U2, U3, U4, W1 and W7 (fontFloor.test.ts, modeBadge*.test.tsx, NoteChip.test.tsx, routeRestore.test.tsx, withdraw.render.test.tsx) are outside its population, and the CI-published matrix shows those IDs as having no test even though tests exist.",
+   "techniques": [
+    {
+     "technique": "out-of-graph-artifacts",
+     "verdict": "deviation",
+     "evidence": "crates/table-verify/src/acceptance.rs:2 The matrix reads `--workspace` as if it covered the whole repo, but apps/desktop/client tests are not cargo members. A grep found no Rust test named u2_/u3_/u4_/w1_/w7_, so those rows read 'none'."
+    },
+    {
+     "technique": "suite-partitioning",
+     "verdict": "deviation",
+     "evidence": "crates/table-verify/src/acceptance.rs:174 The headline count does not name the suite it was measured over (Rust cargo tests only), so it reads as covering every test the repo has."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/acceptance_main.rs:13 Membership comes from test names. An input that lists zero tests exits 2 instead of green, which is the floor the technique asks for."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/acceptance.rs:310 The text walk of the design docs checks the ID list in both directions and declares a floor on what it found."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/authority_tests.rs:449 The enumeration publishes its engagement: the agreement test proves it ran on every cell, not on an empty set."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/authority_tests.rs:211 The failing case is paired with the same step passing once its one precondition holds, so the assertion is shown to discriminate. This is an input-side control, not a production mutation."
+    }
+   ]
+  },
+  {
+   "context": "design-system-styles",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/design/tokens.test.ts:56 The 'every token is read' walk searches raw file text with comments left in, so prose like the tokens.css:86 comment `font-stretch: var(--label-stretch)` (and the one at fonts.css:7) counts as a read: delete every real use of a token and the test still passes as long as a comment mentions it.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.test.ts:56 The search space holds both code and prose about the code: comments are not stripped here, though the colour-literal walk in the same file does strip them. Also, the SCALE_OR_PINNED exemption list (line 45) is never checked in the reverse direction, and the CSS walks declare no floor."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "safety-and-setup",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "wallet-app-services",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T00:41:09.164751+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "derived-selection-must-be-measured",
+    "negative-control-tests",
+    "out-of-graph-artifacts",
+    "pin-the-call-not-the-name",
+    "suite-partitioning",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "offline-proof-verifier",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T00:41:09.164751+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "pin-the-call-not-the-name"
+   ],
+   "deviations": 1,
+   "context": "design-system-styles",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
