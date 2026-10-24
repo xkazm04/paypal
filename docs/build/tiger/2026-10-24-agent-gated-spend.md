@@ -138,3 +138,48 @@ At the end of the run, in this worktree, the client ran after `pnpm install --fr
 
 No crate and no Rust test was touched, so cargo fmt, clippy and test were not run for this pass. The
 merge gate runs `cargo test --workspace`. It doesn't run tsc or vitest.
+
+## Round 3 must-address: a waiting row never claims a pass against rules it was not checked against
+
+Council-lite r3 (craft): C2 marked a waiting purchase "passed" against the current rule set even when
+it was cleared under a superseded version.
+
+**Rust, read only (not changed).** (a) `Deal.mandate_version` is the version `agent.rs` ran
+`mandate_check` against before `ledger.propose_purchase`, so at clearing it names the clearing version.
+(b) The `purchase.proposed` audit row records only `{amount}`: no version, no hash. (c) The owner can
+rebind a deal before settlement (`mandates.rs`: `UPDATE deals SET mandate_version`, audit
+`deal.mandate_rebound {version}`), and an AGREED purchase with no PayPal order qualifies. After a rebind
+the deal's version no longer names the clearing version, and nothing durable does.
+
+**Client findings.** The Spend page draws its columns from the first governing purchase rule set
+(`mandatesGoverning(...)[0]`); other lanes use the set their deal's `(mandate_id, mandate_version)` finds
+in `mandate_list`. The client reads audit rows only through the Book's `audit_page` (a paged, owner-wide
+read), which the Spend page does not use, so **a `deal.mandate_rebound` entry is not visible to the
+Spend page and is not handled**: a purchase rebound to the drawn version after clearing still reads
+"passed when cleared, under version N", which can name the wrong version. This is the residual gap; it
+closes only with the Rust change below.
+
+**What changed.**
+- `laneCells` takes the drawn rule set's version. A cleared purchase (kind purchase, AGREED, not at
+  PayPal) whose `mandate_version` differs gets `unknown` cells ("cleared under an earlier version of
+  your rules; not checked against these"), including for the ask-me clause; an open attention item's
+  clause still shows `you` (Rust's own word). `ruleLine` says the same in one line, and `Trace` adds
+  it as a hint instead of "every rule passed".
+- Where versions match, cells and the line say "passed when cleared", naming the version; the trace
+  hint says "passed when it was cleared". A date is not held on the deal for the clearing, so none is shown.
+- `SpendLayer` passes the version of the set each lane is drawn from. All words are in `lib/words/spend.ts`.
+
+**Tests (fail on the old code).** `gate.test.ts`: "never calls a waiting purchase passed against rules
+it was cleared before" (old: `expected true to be false`, it returned pass cells), "says which version a
+waiting purchase cleared under" (old: `expected 'passed' to be 'passed when cleared, under version 3 …'`),
+the attention-clause case, and the updated cleared-purchase line. `trace.test.tsx` (render): an
+earlier-version purchase shows `unknown` rows and the earlier-version hint, not the all-passed hint.
+Five tests failed on the old code, all pass now. `tsc --noEmit` clean; spend, gate and lib vitest
+files pass (36 files, 332 tests). The merge gate does not run tsc or vitest.
+
+**Waits on the operator.** Record the mandate version (and hash) at clearing on the `purchase.proposed`
+audit row or the deal, so a waiting purchase can say exactly which rules cleared it (a Rust change, not
+made here). It would also let the client handle a rebind.
+
+**STATUS line to add** (for the master, after the rescue merges):
+`- agent-gated-spend r3: a waiting purchase cleared under an earlier rule version reads "not checked against these", never "passed"; matching versions say "passed when cleared (version N)"; rebind not visible client-side (waits on Rust recording the clearing version).`
