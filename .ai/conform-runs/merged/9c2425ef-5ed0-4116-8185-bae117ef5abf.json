@@ -1,0 +1,47 @@
+{
+  "schema": "conform-run/1",
+  "worker": "9c2425ef-5ed0-4116-8185-bae117ef5abf",
+  "subject": "guest-execution-bounding",
+  "evaluatedAt": "2026-10-24T21:19:52.075931+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "guest-execution-bounding",
+      "context": "counter-and-tables-modules",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor ladder.ts:3 is a header comment saying the module has no React and no IPC. It says nothing about interpreters or guest engines, and it covers one file out of the twelve in the context, so it is an incidental anchor for a not-applicable verdict."
+    },
+    {
+      "subject": "guest-execution-bounding",
+      "context": "safety-and-setup",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor joinRetry.ts:7 is a retry-attempts constant, which does not show that no guest code runs. The file is also under console/areas/connections, which is not among this context's listed files."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-24T21:19:52.075931+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "guest-execution-bounding"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "counter-and-tables-modules",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T21:19:52.075931+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "guest-execution-bounding"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "safety-and-setup",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

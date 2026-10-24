@@ -7488,6 +7488,36 @@
           "evidence": "crates/table-client/src/authority_table.rs:232 Signing ceilings and limits is approval-window only and privileged. settings_write (line 239) is an open UI command. Different kinds get different write paths."
         }
       ]
+    },
+    "d477836b-8d3f-42dd-93ce-bf0a9f5bbf53/guest-execution-bounding": {
+      "context": "counter-and-tables-modules",
+      "subject": "guest-execution-bounding",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T21:19:52.075Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "9c2425ef-5ed0-4116-8185-bae117ef5abf",
+        "state": "not-applicable",
+        "at": "2026-10-24T21:20:12.559958+00:00",
+        "reason": "reviewer (sonnet): The anchor ladder.ts:3 is a header comment saying the module has no React and no IPC. It says nothing about interpreters or guest engines, and it covers one file out of the twelve in the context, so it is an incidental anchor for a not-applicable verdict."
+      }
+    },
+    "68496392-9930-4018-bc06-41c2f3e3c286/guest-execution-bounding": {
+      "context": "safety-and-setup",
+      "subject": "guest-execution-bounding",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T21:19:52.075Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "9c2425ef-5ed0-4116-8185-bae117ef5abf",
+        "state": "not-applicable",
+        "at": "2026-10-24T21:20:12.609719+00:00",
+        "reason": "reviewer (sonnet): The anchor joinRetry.ts:7 is a retry-attempts constant, which does not show that no guest code runs. The file is also under console/areas/connections, which is not among this context's listed files."
+      }
     }
   }
 }
