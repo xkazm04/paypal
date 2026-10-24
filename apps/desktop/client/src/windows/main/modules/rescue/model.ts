@@ -13,6 +13,7 @@ import type { Money } from '@bindings/Money';
 import type { RescueBook } from '@bindings/RescueBook';
 import type { RescueOffer } from '@bindings/RescueOffer';
 import type { RescueView } from '@bindings/RescueView';
+import type { RescueWatchHold } from '@bindings/RescueWatchHold';
 import { dealTotal, isLive } from '../../logic';
 
 export type LeverKey = 'DISCOUNT_THIS_CYCLE' | 'PAUSE' | 'RETRY_AFTER_FIX' | 'DOWNGRADE';
@@ -185,6 +186,26 @@ export const viewFor = (book: Pick<RescueBook, 'cases'> | null | undefined, id: 
  *  (Rescue's strip, answer and card, Book's "Needs attention") uses this, so they agree. Without the
  *  wallet's rescue read it falls back to the deal's own terms. */
 export const atRiskOf = (d: Deal, book: Pick<RescueBook, 'cases'> | null | undefined): Money => viewFor(book, d.id)?.offer.cycle ?? dealTotal(d);
+
+// ---- watching ------------------------------------------------------------------------------------
+
+/** Whether the wallet is checking the watched subscriptions right now. A hold is the one reason the
+ *  watch pass stops (Runtime::rescue_watch_hold, the same on every watch); past the day's reads it
+ *  reads nothing until the next UTC day (table-ledger reserve_rescue_watch_read, the tick's budget
+ *  check). Only when neither applies is it checking. */
+export type WatchStatus =
+  | { kind: 'none' }
+  | { kind: 'held'; held: RescueWatchHold }
+  | { kind: 'spent'; resumes: number }
+  | { kind: 'checking'; failing: number };
+
+export function watchStatus(book: Pick<RescueBook, 'watching' | 'watch_reads_today' | 'watch_reads_max'>, now: number): WatchStatus {
+  if (!book.watching.length) return { kind: 'none' };
+  const held = book.watching.find((w) => w.held)?.held;
+  if (held) return { kind: 'held', held };
+  if (book.watch_reads_today >= book.watch_reads_max) return { kind: 'spent', resumes: (Math.floor(now / DAY) + 1) * DAY };
+  return { kind: 'checking', failing: book.watching.filter((w) => w.state === 'fix_opened' || w.state === 'failed_no_fix').length };
+}
 
 // ---- keyboard movement in the matrix --------------------------------------------------------------
 
