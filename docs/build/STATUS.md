@@ -2660,3 +2660,15 @@ Rows U2 and U4 only; every other row is as round 4 left it.
 - Also: `withdraw.render.test.tsx` line 82 read `sent('deal_withdraw')[0].args` and failed `tsc` under noUncheckedIndexedAccess (TS2532); changed to `[0]?.args`, test-only.
 
 Client run (worktree, `pnpm install --frozen-lockfile` in apps/desktop/client): `npx vitest run` 204 files / 1963 tests, all passed (round 4: 200 / 1945; +4 files, +18 tests); `npx tsc --noEmit` clean. No production code changed. The merge gate (cargo check + cargo test) does not run tsc or vitest.
+
+## Tiger deepening: agent-negotiation-run (2026-10-24)
+
+Record: `docs/build/tiger/2026-10-24-agent-negotiation-run.md` (thesis, seats, scope, what waits on the operator). Three seats ran (agy gemini, codex gpt, claude opus; grok skipped on its probe), two rounds, 20 proposals. Built under the operator's 2026-10-24 standup authorisation, no IPC, gate or money path change:
+
+- 7c6ae49 the deal page names the run that acted (live, else newest), not the deal's oldest (DECISIONS.md section 21's open condition). Test: `model.test.ts` "actingRun".
+- 872b6a6 a buyer haggle shows how far their price came down from their own signed listing, and the room under the most you'll pay (D-0193: "$60.00 from $389.00 (15.42%)", "$11.00"). Test: `story.test.ts` "how far their price came down".
+- 614ed59 golden runtime test `the_demo_haggle_is_what_the_practice_agent_signs_and_it_stops_at_the_ask_me_line`: on the demo's limits the practice agent signs $300 / $306 / $312 / $318 / $324 and the wallet refuses its ACCEPT of $329 on the ask-me rule, with a gate and zero PayPal calls. The film's current offers ($290 / $305 / $314 / $321 / $327) fail it.
+
+Found: a buyer table cannot open on a listing above its ceiling (the deal's terms are mandate-checked at creation), so the film's $389-against-$340 cannot happen in the app; each practice-agent run leaves one `session_not_enabled` refusal row while its grant is enabled, counted by the safety record as "out of turn". Both wait on the operator with the scope's C4-L3.
+
+Gates (worktree): `cargo fmt --all --check` clean; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo test --workspace` 914 passed / 0 failed / 10 ignored. Client (`pnpm install --frozen-lockfile` in apps/desktop/client): `npx tsc --noEmit` clean, `npx vitest run` 204 files / 1970 tests passed (was 204 / 1963). The merge gate does not run tsc or vitest.
