@@ -1,0 +1,136 @@
+{
+ "schema": "conform-run/1",
+ "worker": "8a11b4b0-c880-4a92-a7cf-bab4f2a1d192",
+ "subject": "concurrent-vcs",
+ "evaluatedAt": "2026-10-24T05:51:30.031644+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "shared-ui-primitives",
+   "subject": "concurrent-vcs",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/shared/ui/index.ts:1 This context is a React UI component barrel (sheets, popovers, focus, layers, toasts, error boundaries) and does no version-control work; a search of src/shared/ui and src/shared/boundary for worktree, GIT_INDEX_FILE, git stash, pre-commit and read-tree found nothing, so no concurrent-checkout mechanics live here to judge.",
+   "techniques": [
+    {
+     "technique": "sub-file-claim-scope",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/shared/ui/Inspector.tsx:12 The only 'claim' here is a ref-count of mounted inspector panes deciding whether the host is open. It is not a VCS scope claim."
+    },
+    {
+     "technique": "physical-isolation",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/shared/ui/index.ts:1 UI component module. Nothing here creates worktrees or commits."
+    }
+   ],
+   "absenceTerms": [
+    "worktree",
+    "GIT_INDEX_FILE",
+    "git stash",
+    "pre-commit",
+    "read-tree"
+   ]
+  },
+  {
+   "context": "shared-surfaces-onboarding-honesty",
+   "subject": "concurrent-vcs",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/shared/honesty.tsx:1 These files are product-surface React components (mode badges, money, countdowns, tour, owner key) with no version-control behaviour; a search of src/shared for worktree, GIT_INDEX_FILE, git stash, pre-commit and read-tree found nothing, and the only 'ledger' hits are the product's audit-ledger error code LEDGER_TRUST, not an intent ledger.",
+   "techniques": [
+    {
+     "technique": "intent-ledgers",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/shared/honesty.tsx:70 'Ledger' here is the wallet's tamper-evident records error label. It is not a session-intent registry."
+    },
+    {
+     "technique": "physical-isolation",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/shared/honesty.tsx:1 UI module. No checkout, branch or commit mechanics."
+    }
+   ],
+   "absenceTerms": [
+    "worktree",
+    "GIT_INDEX_FILE",
+    "git stash",
+    "pre-commit",
+    "read-tree"
+   ]
+  },
+  {
+   "context": "prototype-dial-shell-and-design-system",
+   "subject": "concurrent-vcs",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "prototype/build-index.mjs:1 The context is static prototype HTML/CSS/JS plus a gallery generator, and it does no concurrent-session VCS work; a search of prototype/main, prototype/shared and build-index.mjs for worktree, GIT_INDEX_FILE, git stash, pre-commit and read-tree found nothing, and its only git mention is a note to keep locally generated output out of commits.",
+   "techniques": [
+    {
+     "technique": "never-lose-work-rules",
+     "verdict": "not-applicable",
+     "evidence": "prototype/build-index.mjs:6 This is an advisory about what generated output to commit. It is not a rule about stashing, staging or resets in a shared checkout."
+    },
+    {
+     "technique": "shared-resource-arbitration",
+     "verdict": "not-applicable",
+     "evidence": "prototype/shared/shell.js:1 'Shared' means a browser-side nav bar reused by pages. It is not a resource contended by concurrent sessions."
+    }
+   ],
+   "absenceTerms": [
+    "worktree",
+    "GIT_INDEX_FILE",
+    "git stash",
+    "pre-commit",
+    "read-tree"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-24T05:51:30.031644+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "concurrent-vcs"
+   ],
+   "techniques": [
+    "physical-isolation",
+    "sub-file-claim-scope"
+   ],
+   "deviations": 0,
+   "context": "shared-ui-primitives",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:51:30.031644+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "concurrent-vcs"
+   ],
+   "techniques": [
+    "intent-ledgers",
+    "physical-isolation"
+   ],
+   "deviations": 0,
+   "context": "shared-surfaces-onboarding-honesty",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:51:30.031644+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "concurrent-vcs"
+   ],
+   "techniques": [
+    "never-lose-work-rules",
+    "shared-resource-arbitration"
+   ],
+   "deviations": 0,
+   "context": "prototype-dial-shell-and-design-system",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
