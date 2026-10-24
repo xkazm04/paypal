@@ -12,21 +12,32 @@ covers the wallet limits: one owner-signed cap above every agent's rules.
 
 **Main window, Spend page** (`apps/desktop/client/src/windows/main/console/areas/spend/SpendLayer.tsx`):
 
-- An answer bar, then a first-visit explainer: "Agents ask to buy", "Your rules check it",
-  "You pay or release".
-- A decision card per purchase that needs the owner. The one gold option hands off to the
+- An answer bar, then a first-visit explainer, "How buying works": "Your agent finds something
+  and asks to buy it. It can only ask: it never pays.", "Your rules check it first: limits and
+  approved payees, before PayPal hears of it.", "You pay. Each step at PayPal waits for you in the
+  approval window; if you do nothing, nothing is paid."
+- A decision card per purchase that needs the owner. Its reason says why it waits: "Every purchase
+  waits for you. Your agent can only ask; nothing is paid until you confirm it in the approval
+  window." (no rule can pay a purchase), "It is above the $250.00 you asked to approve yourself."
+  (the ask-me rule), or that the money is on hold. The one gold option hands off to the
   approval window: "Review ↗" for a cleared purchase, "Review & pay ↗" for one on hold. Quieter
   options: "Release hold…" ("Gives the money back"), "Let it lapse" ("It lapses at its deadline
   and nothing is paid"), "Withdraw" ("Cancels the purchase. No money moves.").
 - "This week": one plain line per purchase with the rules' verdict: "Passed your rules",
-  "Over the per-deal limit ($200.00)", or "Stopped by your … rule". A refused purchase says
-  "PayPal was never asked, so there is nothing to undo."
+  "Over the per-deal limit ($200)" (only when the amount is over it), or "Stopped by your … rule"
+  (a per-deal refusal within the limit reads "Stopped by your “Limit per deal” rule": that rule
+  also refuses a category). A refused purchase says "PayPal was never asked, so there is nothing
+  to undo." A cleared purchase waiting for the owner reads "Passed your rules" (it waits only after
+  its rules passed), and its checklist says "Every rule passed. PayPal hasn’t been asked yet: that
+  waits for you."
 - With no rules covering purchases: "No signed rules cover purchases, so every agent purchase is
   refused before PayPal is asked."
 - **Detailed** view, "the gate" (`modules/spend/gate.ts`): one lane per purchase, running left to
   right through the signed rules as columns (Allowed, Per purchase, Daily limit, Ask me, Payees)
   toward PayPal. Each cell is passed, "Asks you", refused, not applicable, or dashed "Not known"
-  when the wallet recorded nothing for it (never drawn as passed). The Daily limit column carries
+  when the wallet recorded nothing for it (never drawn as passed). A purchase at Agreed passed
+  every rule (Rust clears a purchase into Agreed only after the mandate check); its Ask me cell is
+  "Asks you" only when the total is above the amount. The Daily limit column carries
   a meter "Spent today against your daily limit".
 
 **Wallet limits** appear outside the Spend page: the approval window's owner configuration has a
@@ -147,7 +158,8 @@ IPC commands (rows in `crates/table-client/src/authority_table.rs`):
 - `the_wallet_limit_refuses_the_third_purchase_across_mandates_before_any_paypal_call`,
   `wide_wallet_limits_never_loosen_a_mandate`,
   `expired_or_forged_limits_refuse_money_out_and_never_money_in` (`crates/table-runtime/src/limits_tests.rs`)
-- Client: `windows/main/modules/spend/gate.test.ts`, `src/lib/limits.test.ts`, `src/mock/exposure.test.ts`
+- Client: `windows/main/modules/spend/gate.test.ts`, `console/areas/spend/trace.test.tsx`,
+  `console/areas/spend/why.test.ts`, `src/lib/limits.test.ts`, `src/mock/exposure.test.ts`
 
 ## Known gaps and UNVERIFIED
 

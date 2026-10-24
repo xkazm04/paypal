@@ -1369,6 +1369,22 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
 - Mechanism: `DealEvent::PurchaseCleared` (Pairing to Agreed), applied by `propose_purchase` (buyer purchases only) in its own transaction with the `deal.transition` audit row; the scheduler no longer creates orders for purchases. The text of the Shopper slot in `configuration.rs` now says money moves only when the owner decides.
 - A purchase under a mandate with no Band gets a 24 h decision window (`PURCHASE_DECISION_WINDOW_SECS`, DECISIONS section 8): at the deadline it lapses to WITHDRAWN with `SafeDefault` and no PayPal call (test `a_purchase_without_a_band_lapses_after_a_day_and_a_band_deadline_still_wins`). A proposal writes one `purchase.proposed` audit row (test `one_purchase_proposal_writes_exactly_one_audit_row_and_the_chain_verifies`). The mock Shopper copy in `backend.ts` now matches `configuration.rs`.
 
+### 2026-10-24: tiger value pass on the Spend page (agent-gated-spend)
+
+Record: [tiger/2026-10-24-agent-gated-spend.md](tiger/2026-10-24-agent-gated-spend.md). A headless, single-family pass. Three display-only items were built in `apps/desktop/client` (no IPC, no Rust, no money path):
+- **C1** (ddbaef7): a row says "Over the per-deal limit" only when the amount is over it. The per-deal rule also refuses a category (`mandate.rs:458-459`), so a refusal within the limit reads "Stopped by your “Limit per deal” rule".
+- **C2** (f9f0d1e): a cleared purchase waiting at Agreed passes every rule in its lane, instead of "?" everywhere. Rust clears a purchase into Agreed only after the mandate check (`deal.rs:373`, `agent.rs:695-699`). The ask-me rule shows "Asks you" only above its amount, and the pane says PayPal hasn't been asked yet.
+- **C3** (2610405): the decision card says every purchase waits for the owner because no rule can pay one (`pipeline.rs:408-412`). Before, it said "Your rules leave this decision to you". The explainer now says the agent can only ask.
+
+Waits on the operator:
+- S1: a per-deal rule for another kind is drawn as "does not apply", where Rust refuses.
+- S2: the pane's daily limit omits its money.
+- S3: "you decided" on a paid purchase above the ask-me limit.
+- L1: the wallet's recorded refusal reason per purchase (needs a Rust read).
+- L2: the daily meter in the native build (`meters_available: false`).
+
+Client gates in the worktree: tsc clean; vitest 209 files / 2010 tests passed (adds 2 files and 8 tests). The merge gate runs `cargo test --workspace` only; no crate was touched.
+
 ## H5 seller money in (2026-10-07, shield-screening rework slice 1)
 
 Operator decision on H5 (ask c9f99185): money in needs no click. Council-lite run 3ff9d92d's
