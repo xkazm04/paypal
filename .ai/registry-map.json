@@ -3940,7 +3940,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-client/src/lib.rs:332 The only preferences write command takes the whole TumblerPreferences record. Every caller therefore has to read, modify and write back the full stored document instead of writing one named member, so callers can overwrite each other's changes.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "browser-credential-boundary",
@@ -9597,7 +9601,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx:383 To flip one notice switch, the surface has to read the whole preferences record fresh and write all of it back. Any change the mini window makes between that read and the write is overwritten. This is the whole-document write that in-place-document-patch rules out (a write should touch only its own subtree).",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "voice-io",
