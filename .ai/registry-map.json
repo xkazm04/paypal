@@ -8326,7 +8326,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:3 The Tumbler is a UI projection with no instruction file, generator, skill or rules asset; a search of apps/desktop/client/src/windows/tumbler for CLAUDE.md, AGENTS.md, SKILL.md and cursorrules found nothing, and the only 'instructions' hit is a prompt-injection test string in logic.test.ts:404. The map matched this context only on shared tokens ('harness', 'always', 'has').",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "settings",

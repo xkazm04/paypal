@@ -6414,6 +6414,16 @@
           "evidence": "apps/desktop/client/src/shared/tour.tsx:1 The coach-mark tour has no read-aloud control and no narration."
         }
       ]
+    },
+    "78691638-b912-45fd-98f8-083cec08e3a9/agent-instruction-files": {
+      "context": "tumbler-window",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:15:41.206Z",
+      "worker": "bb442278-9355-4804-9250-7af31bd43cf2",
+      "techniques": []
     }
   }
 }

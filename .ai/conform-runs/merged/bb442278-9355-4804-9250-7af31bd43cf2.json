@@ -1,0 +1,60 @@
+{
+ "schema": "conform-run/1",
+ "worker": "bb442278-9355-4804-9250-7af31bd43cf2",
+ "subject": "agent-instruction-files",
+ "evaluatedAt": "2026-10-24T02:15:41.206847+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "tumbler-window",
+   "subject": "agent-instruction-files",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:3 The Tumbler is a UI projection with no instruction file, generator, skill or rules asset; a search of apps/desktop/client/src/windows/tumbler for CLAUDE.md, AGENTS.md, SKILL.md and cursorrules found nothing, and the only 'instructions' hit is a prompt-injection test string in logic.test.ts:404. The map matched this context only on shared tokens ('harness', 'always', 'has').",
+   "techniques": [],
+   "absenceTerms": [
+    "CLAUDE.md",
+    "AGENTS.md",
+    "SKILL.md",
+    "cursorrules"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-instruction-files",
+   "context": "offline-proof-verifier",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-instruction-files",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-instruction-files",
+   "context": "owner-mandate-config",
+   "reason": "evidence leans on owner/replay.test.ts, which is not a tracked file"
+  },
+  {
+   "subject": "agent-instruction-files",
+   "context": "agent-tool-surface",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T02:15:41.206847+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-instruction-files"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "tumbler-window",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
