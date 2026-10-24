@@ -14,6 +14,7 @@ import type { Money } from '@bindings/Money';
 import type { ReceiptEvidence } from '@bindings/ReceiptEvidence';
 import type { Reconciliation } from '@bindings/Reconciliation';
 import type { Role } from '@bindings/Role';
+import type { RunSnapshot } from '@bindings/RunSnapshot';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { TranscriptType } from '@bindings/TranscriptType';
 import { formatMinor, formatMoney } from '../../../lib/format';
@@ -348,4 +349,13 @@ export function latestText(steps: readonly TranscriptStep[], theirName: string):
   if (!last) return null;
   const w = stepWords(last, theirName);
   return `${w.who} ${w.verb}${last.price ? ` ${formatMoney(last.price)}` : ''}`;
+}
+
+/** The run that acts for this deal (DECISIONS.md section 21): the live one, else the newest.
+ *  `agent_runs` lists finished runs oldest first, then live ones, and the practice agent starts a
+ *  fresh run for every message, so the first match is the deal's oldest run, not the one that
+ *  answered last. */
+export function actingRun<R extends Pick<RunSnapshot, 'deal_id' | 'state'>>(runs: readonly R[] | null | undefined, dealId: string): R | null {
+  const mine = (runs ?? []).filter((r) => r.deal_id === dealId);
+  return mine.find((r) => r.state === 'running' || r.state === 'starting') ?? mine.at(-1) ?? null;
 }
