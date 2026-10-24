@@ -1,0 +1,132 @@
+diff --git a/crates/table-relay/src/lib.rs b/crates/table-relay/src/lib.rs
+index 583974a..f92ad50 100644
+--- a/crates/table-relay/src/lib.rs
++++ b/crates/table-relay/src/lib.rs
+@@ -41,6 +41,8 @@ pub const MAX_MESSAGE_BYTES: usize = table_proto::MAX_JWS_BYTES;
+ pub const MAX_MESSAGES: usize = 256;
+ /// The longest long-poll a caller may ask for, in seconds.
+ pub const MAX_WAIT_SECS: u8 = 25;
++/// A mailbox generation: 16 random bytes as lowercase hex, issued by the relay.
++pub const GENERATION_LEN: usize = 32;
+ 
+ /// Maps a non-2xx answer to an error. Only 429 and other 4xx mean the host answered; 5xx and
+ /// anything else stay `Unavailable`. The body is read only for its fixed refusal code.
+@@ -66,7 +68,7 @@ pub struct Batch {
+ }
+ impl Batch {
+     pub fn validate(&self) -> Result<(), Error> {
+-        if self.generation.len() != 32
++        if self.generation.len() != GENERATION_LEN
+             || !self.generation.bytes().all(|b| b.is_ascii_hexdigit())
+             || self.messages.len() > MAX_MESSAGES
+             || self.after > MAX_MESSAGES as u64
+diff --git a/services/rendezvous/tests/relay.rs b/services/rendezvous/tests/relay.rs
+index 0df48f8..88caaf0 100644
+--- a/services/rendezvous/tests/relay.rs
++++ b/services/rendezvous/tests/relay.rs
+@@ -422,3 +422,105 @@ async fn a_caller_turned_away_for_its_allowance_leaves_one_rate_limited_line_wit
+     assert!(s.create_as(&hash(2000), a).await.is_err());
+     assert_eq!(lines.0.lock().unwrap().len(), 2);
+ }
++#[tokio::test]
++async fn every_store_refusal_reads_in_process_as_the_http_client_reads_its_status() {
++    use table_relay::RelayApi;
++    let s = MemoryStore::new(Arc::new(table_core::FixedClock(0)));
++    let known = table_core::H256::digest(b"known");
++    Mailbox::create(&s, &known.hex()).await.unwrap();
++    // What a wallet's HTTP client makes of the status this store error is served with.
++    let wire = |e: Error| format!("{:?}", table_relay::answer_error(StatusCode::from(e).as_u16(), b""));
++    // A body that is not a compact JWS is served as 400.
++    let local = RelayApi::send(&s, known, "not-a-jws").await.unwrap_err();
++    assert_eq!(format!("{local:?}"), wire(Error::Invalid));
++    // So is a cursor past the end of the mailbox, in its current generation.
++    let generation = RelayApi::poll(&s, known, "", 0, 0).await.unwrap().generation;
++    let local = RelayApi::poll(&s, known, &generation, 5, 0).await.unwrap_err();
++    assert_eq!(format!("{local:?}"), wire(Error::Invalid));
++    // A mailbox that is not there is served as 404.
++    let missing = table_core::H256::digest(b"missing");
++    let local = RelayApi::send(&s, missing, "a.b.c").await.unwrap_err();
++    assert_eq!(format!("{local:?}"), wire(Error::Missing));
++}
++#[tokio::test]
++async fn a_poll_with_a_generation_no_relay_issues_is_refused_before_any_request() {
++    use table_relay::RelayApi;
++    // Nothing listens on loopback port 9: a request that went out would come back Unavailable.
++    let client = table_relay::Client::new("https://127.0.0.1:9/").unwrap();
++    let mailbox = table_core::H256::digest(b"m");
++    let long = "a".repeat(table_relay::GENERATION_LEN + 1);
++    assert!(matches!(
++        client.poll(mailbox, &long, 0, 0).await,
++        Err(table_relay::Error::Invalid)
++    ));
++}
++async fn status(app: &axum::Router, method: &str, uri: String) -> StatusCode {
++    app.clone()
++        .oneshot(
++            Request::builder()
++                .method(method)
++                .uri(uri)
++                .body(Body::empty())
++                .unwrap(),
++        )
++        .await
++        .unwrap()
++        .status()
++}
++#[tokio::test]
++async fn the_poll_routes_refuse_every_out_of_bound_query_and_accept_the_bound() {
++    use table_relay::{GENERATION_LEN, MAX_MESSAGES, MAX_WAIT_SECS};
++    let app = router(Arc::new(MemoryStore::new(Arc::new(
++        table_core::FixedClock(0),
++    ))));
++    let h = hash(11);
++    let base = format!("/v1/mailbox/{h}");
++    assert_eq!(status(&app, "PUT", base.clone()).await, StatusCode::CREATED);
++    let at_bound = "a".repeat(GENERATION_LEN);
++    let past = "a".repeat(GENERATION_LEN + 1);
++    // A generation the relay never issued resets the cursor to 0, so `after` at its bound is read.
++    for ok in [
++        format!("sync?wait=0&after={MAX_MESSAGES}&generation={at_bound}"),
++        "envelopes?wait=0&after=0".to_owned(),
++    ] {
++        assert_eq!(status(&app, "GET", format!("{base}/{ok}")).await, StatusCode::OK, "{ok}");
++    }
++    for bad in [
++        format!("sync?wait={}", MAX_WAIT_SECS + 1),
++        format!("sync?after={}&generation={at_bound}", MAX_MESSAGES + 1),
++        format!("sync?generation={past}"),
++        "sync?cursor=0".to_owned(),
++        format!("envelopes?wait={}", MAX_WAIT_SECS + 1),
++        "envelopes?after=1".to_owned(),
++    ] {
++        assert_eq!(
++            status(&app, "GET", format!("{base}/{bad}")).await,
++            StatusCode::BAD_REQUEST,
++            "{bad}"
++        );
++    }
++}
++#[tokio::test]
++async fn a_long_poll_on_a_mailbox_that_expires_ends_when_the_relay_drops_it() {
++    let clock = Arc::new(Time(AtomicI64::new(0)));
++    let s = Arc::new(MemoryStore::new(clock.clone()));
++    let h = hash(12);
++    s.create(&h).await.unwrap();
++    let generation = s.batch(&h, "", 0).await.unwrap().generation;
++    let app = router(s.clone());
++    let poll = tokio::spawn(status_owned(
++        app,
++        format!("/v1/mailbox/{h}/sync?generation={generation}&after=0&wait=25"),
++    ));
++    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
++    // A day on, any other create sweeps the expired mailbox away.
++    clock.0.store(86400, Ordering::SeqCst);
++    s.create(&hash(13)).await.unwrap();
++    let answered = tokio::time::timeout(std::time::Duration::from_secs(5), poll)
++        .await
++        .expect("the poll waited out its 25 s after its mailbox was dropped");
++    assert_eq!(answered.unwrap(), StatusCode::NOT_FOUND);
++}
++async fn status_owned(app: axum::Router, uri: String) -> StatusCode {
++    status(&app, "GET", uri).await
++}
