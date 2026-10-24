@@ -2725,3 +2725,20 @@ Waits on the operator:
 Gates (worktree, `pnpm install --frozen-lockfile` in apps/desktop/client): `npx tsc --noEmit` clean,
 `npx vitest run` 207 files / 2002 tests passed. No crate was touched, so cargo was not run for this
 pass. The merge gate (cargo) does not run tsc or vitest.
+
+## Tiger deepening: subscription-rescue (2026-10-24)
+
+Record: [tiger/2026-10-24-subscription-rescue.md](tiger/2026-10-24-subscription-rescue.md). A headless, single-family pass (no council: convening needs a seats worktree, which this brief forbids). Four display-only items were built in `apps/desktop/client` (no IPC, no Rust, no executor or money path):
+- **C1** (1d96af9): "PayPal retries …" is said only on PayPal's own retry time (`RescueView.next_retry_at`), never the fix's deadline. Rust sets that deadline to PayPal's retry when known, else 5 days of its own (`rescue.rs:224-227`), and every path today opens with none. Without it the page says PayPal retries on its own, not "no retry set". A new line says when the fix closes and that nothing is sent then (`deal.rs:393`).
+- **C2** (7cb0036): a replayed failure (the demo's D-0188) no longer promises a PayPal retry on its summary, card, preview, Why? or "If you do nothing" line; it has no failed payment at PayPal.
+- **C3** (46293b7): the Rescue page's Watching view and card say why nothing is checked while the wallet's watch pass is held (`rescue_watch_hold`) or today's checks are used up, instead of "checked every few hours".
+- **C4** (3d5d12c): "Stop watching" says a fix the watch already suggested stays open (`stop_watching` leaves it untouched).
+
+Waits on the operator:
+- W1: Rust's `RESCUE_SILENCE` names a PayPal retry for a replay too (`table-attention`).
+- W2: read PayPal's next retry time into the fix (detection; the field path is UNVERIFIED).
+- W3: mock parity: a replay with a retry date, a retry unrelated to the deadline, and no `held` (`mock/fixtures.ts`, `scale.ts`, `backend.ts`).
+- W4: the "not checked yet" chip's explanation while held (`lib/words.ts`).
+- W5: `docs/features/rescue.md` still says doing nothing means PayPal retries, and it predates C3 and C4.
+
+Client gates in the worktree: tsc clean; vitest 211 files / 2022 tests passed (adds 2 files and 12 tests); gitleaks over the branch's commits found no leaks. The merge gate runs `cargo test --workspace` only; no crate was touched.
