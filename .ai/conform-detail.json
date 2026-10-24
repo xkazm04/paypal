@@ -6327,6 +6327,93 @@
           "evidence": "apps/desktop/client/src/lib/data/invoke.ts:1 The cache keys and read budget here govern query results, not prompt prefixes."
         }
       ]
+    },
+    "68496392-9930-4018-bc06-41c2f3e3c286/voice-io": {
+      "context": "safety-and-setup",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T01:58:32.864Z",
+      "worker": "f1325346-9126-490f-ae50-69e438dacd1a",
+      "techniques": [
+        {
+          "technique": "voice-setup-experience",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/setup/pairing.ts:2 The first-run setup pairs an agent engine. It does not pair a speech engine, and it never asks for a microphone."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "precondition unmet: the product neither listens nor speaks; apps/desktop/client/package.json:15 lists no speech/audio engine and apps/desktop/client/src/windows/main/setup/pairing.ts:2 pairs by code and shown words, precision input voice-io.md:64 says to keep typed",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by f1325346-9126-490f-ae50-69e438dacd1a"
+        }
+      ]
+    },
+    "82440528-c2ad-4c04-b22b-0874f0723589/voice-io": {
+      "context": "money-guidance-and-onboarding",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T01:58:32.864Z",
+      "worker": "f1325346-9126-490f-ae50-69e438dacd1a",
+      "techniques": [
+        {
+          "technique": "voice-setup-experience",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/tour.ts:1 Visual first-run tour with no voice onboarding. The context matched on the words onboarding and first-run, not on anything voice-related."
+        },
+        {
+          "technique": "voice-ux-integration",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/readEach.ts:1 Here \"read\" means a backend read fan-out. Nothing narrates content."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "precondition unmet: the product neither listens nor speaks; apps/desktop/client/src/lib/tour.ts:1 onboarding is on-screen stops with written sentences and apps/desktop/client/package.json:15 lists no speech/audio engine - lexical match on onboarding/first",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by f1325346-9126-490f-ae50-69e438dacd1a"
+        }
+      ]
+    },
+    "6ad8f933-5c5e-4ed6-8ace-f642dffc558f/voice-io": {
+      "context": "table-engine-agent-process",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T01:58:32.864Z",
+      "worker": "f1325346-9126-490f-ae50-69e438dacd1a",
+      "techniques": [
+        {
+          "technique": "engine-abstraction",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/lib.rs:1 Same word, different thing: this is an agent-process engine, not a transcription or synthesis engine."
+        }
+      ]
+    },
+    "877e3281-ae38-485a-a404-4476986454a5/voice-io": {
+      "context": "shared-surfaces-onboarding-honesty",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T01:58:32.864Z",
+      "worker": "f1325346-9126-490f-ae50-69e438dacd1a",
+      "techniques": [
+        {
+          "technique": "voice-ux-integration",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:1 The coach-mark tour has no read-aloud control and no narration."
+        }
+      ]
     }
   }
 }

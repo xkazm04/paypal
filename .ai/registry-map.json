@@ -4921,12 +4921,11 @@
           "changedAt": "2026-10-18",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "precondition unmet: the product neither listens nor speaks; apps/desktop/client/src/lib/tour.ts:1 onboarding is on-screen stops with written sentences and apps/desktop/client/package.json:15 lists no speech/audio engine - lexical match on onboarding/first",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:fa1c8ca716f872dc",
-          "evaluatedRevision": 20,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "apps/desktop/client/src/lib/tour.ts:1 Onboarding is on-screen coach-mark stops with written sentences, and readEach.ts is a concurrency and timeout helper for reads, not read-aloud. Searching src/lib for speechSynthesis, SpeechRecognition, getUserMedia, AudioContext and audio found nothing, so the subject's precondition is unmet.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
+          "evaluatedRevision": 23,
+          "revisionsBehind": 3
         },
         {
           "subject": "test-harness",
@@ -7077,12 +7076,11 @@
           "changedAt": "2026-10-18",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "precondition unmet: the product neither listens nor speaks; apps/desktop/client/package.json:15 lists no speech/audio engine and apps/desktop/client/src/windows/main/setup/pairing.ts:2 pairs by code and shown words, precision input voice-io.md:64 says to keep typed",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:fa1c8ca716f872dc",
-          "evaluatedRevision": 20,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "apps/desktop/client/src/windows/main/setup/pairing.ts:2 Pairing and setup run on a code and words shown on screen, read and typed. A case-insensitive search of src/windows/main, src/lib and the console areas for speechSynthesis, SpeechRecognition, getUserMedia, AudioContext and audio found nothing, so this context neither listens nor speaks and voice-io's precondition is unmet.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
+          "evaluatedRevision": 23,
+          "revisionsBehind": 3
         },
         {
           "subject": "test-harness",
@@ -7239,8 +7237,12 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "not-applicable",
+          "priorNotApplicable": 2,
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:1 The shared onboarding and honesty surfaces are visual: coach marks, badges and countdowns. Searching src/shared for speechSynthesis, SpeechRecognition, getUserMedia, AudioContext and audio found nothing, so no capture or playback exists for voice-io to govern.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
+          "evaluatedRevision": 23
         },
         {
           "subject": "agent-memory",
@@ -7819,8 +7821,12 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "not-applicable",
+          "priorNotApplicable": 2,
+          "evidence": "crates/table-engine/src/lib.rs:1 In this crate \"engine\" means a coding-agent CLI child process whose JSONL stdout is parsed. Cargo.toml lists no audio or speech crate, and searching crates/table-engine for speechSynthesis, SpeechRecognition, getUserMedia, AudioContext and audio found nothing, so engine-abstraction's speech-engine premise does not hold.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:29f8b158c4d44054",
+          "evaluatedRevision": 23
         },
         {
           "subject": "test-harness",
