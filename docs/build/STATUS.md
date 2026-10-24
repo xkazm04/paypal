@@ -1375,6 +1375,7 @@ Record: [tiger/2026-10-24-agent-gated-spend.md](tiger/2026-10-24-agent-gated-spe
 - **C1** (ddbaef7): a row says "Over the per-deal limit" only when the amount is over it. The per-deal rule also refuses a category (`mandate.rs:458-459`), so a refusal within the limit reads "Stopped by your “Limit per deal” rule".
 - **C2** (f9f0d1e): a cleared purchase waiting at Agreed passes every rule in its lane, instead of "?" everywhere. Rust clears a purchase into Agreed only after the mandate check (`deal.rs:373`, `agent.rs:695-699`). The ask-me rule shows "Asks you" only above its amount, and the pane says PayPal hasn't been asked yet.
 - **C3** (2610405): the decision card says every purchase waits for the owner because no rule can pay one (`pipeline.rs:408-412`). Before, it said "Your rules leave this decision to you". The explainer now says the agent can only ask.
+- agent-gated-spend r3 (07763cd, 86f1111): a waiting purchase cleared under an earlier rule version reads "not checked against these", never "passed"; matching versions say "passed when cleared (version N)"; rebind not visible client-side (waits on Rust recording the clearing version).
 
 Waits on the operator:
 - S1: a per-deal rule for another kind is drawn as "does not apply", where Rust refuses.
