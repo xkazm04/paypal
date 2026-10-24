@@ -3990,9 +3990,10 @@
           "adoptedFrom": "Desktop Shell/ipc-contract",
           "changedAt": "2026-10-14",
           "state": "deviation",
-          "evidence": "crates/table-client/src/lib.rs:14 closes the error taxonomy with no catch-all and no transient/permanent split, so apps/desktop/client/src/lib/contract.ts:60 folds every unknown failure (transport, bad args) into UNAVAILABLE and renders permanent faults as 'not available yet' (taxonomy-design)",
-          "evaluatedAt": "2026-10-14",
-          "stale": true
+          "evidence": "crates/table-client/src/lib.rs:70 The contract's CommandError carries only a closed code plus the Rust error's Display text, so the refusal reason (typed Refusal/RefusalCode in table_app::Error) crosses the IPC boundary as prose, and the client recovers it by regex-stripping 'mandate clause N: ' and looking the remaining text up in a word table (apps/desktop/client/src/windows/approval/mandateDraft.ts:302); the taxonomy also has no catch-all or transience axis.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:d811928687fd4faf",
+          "evaluatedRevision": 17
         }
       ],
       "governance": "governed"

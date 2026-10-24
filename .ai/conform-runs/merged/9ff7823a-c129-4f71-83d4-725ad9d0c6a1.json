@@ -1,0 +1,90 @@
+{
+ "schema": "conform-run/1",
+ "worker": "9ff7823a-c129-4f71-83d4-725ad9d0c6a1",
+ "subject": "error-handling",
+ "evaluatedAt": "2026-10-24T06:13:43.946151+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "ipc-contract-and-authority-table",
+   "subject": "error-handling",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-client/src/lib.rs:70 The contract's CommandError carries only a closed code plus the Rust error's Display text, so the refusal reason (typed Refusal/RefusalCode in table_app::Error) crosses the IPC boundary as prose, and the client recovers it by regex-stripping 'mandate clause N: ' and looking the remaining text up in a word table (apps/desktop/client/src/windows/approval/mandateDraft.ts:302); the taxonomy also has no catch-all or transience axis.",
+   "techniques": [
+    {
+     "technique": "structured-propagation",
+     "verdict": "deviation",
+     "evidence": "crates/table-client/src/lib.rs:70 Code survives the boundary, but category-specific data (the refusal reason) is flattened to Display text. The far side then classifies prose: refusalWords() regex-strips the message and looks it up, which is the stringification-at-a-boundary bug the technique names."
+    },
+    {
+     "technique": "taxonomy-design",
+     "verdict": "deviation",
+     "evidence": "crates/table-client/src/lib.rs:32 Closed and small (8 members) with a stable spelling, but it has no explicit unknown/catch-all member and no transient-vs-permanent axis. table_app::Error::Ledger(_) falls through to LedgerTrust as the default branch (lib.rs:66). The TS side folds unrecognised failures into UNAVAILABLE."
+    },
+    {
+     "technique": "reclassification-is-not-repair",
+     "verdict": "deviation",
+     "evidence": "crates/table-client/src/lib.rs:56 There is no internal class. DomainError (InvalidTransition, Json decode of stored data, InvalidTerms) and ProtocolError are folded into Invalid, a user-input class. Impossible states then read as the caller's fault, and the zero-rate detector is lost."
+    },
+    {
+     "technique": "cancellation-attribution",
+     "verdict": "deviation",
+     "evidence": "crates/table-client/src/run_state.rs:27 Cancelled is correctly kept apart from Failed, but RunSnapshot carries it as a bare name with no cause. Owner pause, quit_confirm and actor shutdown (table-runtime dispatcher.rs:774/782, actor.rs:639) all produce the same causeless value on the wire."
+    },
+    {
+     "technique": "consumer-decides-error-shape",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/lib.rs:31 Across the published Rust-to-TS boundary, the failure is a closed enum with a stable serialized spelling, exported via ts-rs (generate-bindings.rs:18) and drift-tested. That is the shape the technique prescribes for a cross-boundary consumer."
+    },
+    {
+     "technique": "error-doors",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/lib.rs:393 The contract publishes a typed wallet:error event, so background runtime faults have a defined door to the UI rather than dying in the runtime."
+    },
+    {
+     "technique": "parse-failure-keeps-identity",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-client/src/lib.rs:256 The only decode in the context reads a single owner-picked file, where the item is the whole input. This crate reads no externally-owned collection item by item."
+    },
+    {
+     "technique": "exit-contract-is-a-taxonomy-projection",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-client/src/bin/generate-bindings.rs:2 The only binary is a build-time bindings generator whose callers branch only on zero vs non-zero, so there is no multi-code exit contract."
+    },
+    {
+     "technique": "crash-capture",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-client/src/lib.rs:1 This is a DTO/contract library with no process or execution-context edge of its own. Last-resort handlers belong to the shell and runtime contexts."
+    }
+   ],
+   "registryProposal": "consumer-decides-error-shape and taxonomy-design say the category must cross a published boundary as a value. They do not say that category-specific payload (here a typed refusal reason) must too. A contract can have a perfectly closed code enum while a sub-reason travels only in the message, forcing the far side into prose matching. Consider stating that any sub-classification a consumer branches on is part of the published enumeration, not of the message."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-24T06:13:43.946151+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "error-handling"
+   ],
+   "techniques": [
+    "cancellation-attribution",
+    "consumer-decides-error-shape",
+    "crash-capture",
+    "error-doors",
+    "exit-contract-is-a-taxonomy-projection",
+    "parse-failure-keeps-identity",
+    "reclassification-is-not-repair",
+    "structured-propagation",
+    "taxonomy-design"
+   ],
+   "deviations": 1,
+   "context": "ipc-contract-and-authority-table",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
