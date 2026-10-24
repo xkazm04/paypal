@@ -627,3 +627,69 @@ async fn one_engine_workspace_failure_leaves_the_other_engine_attached() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// An engine event the run cannot take ends the run Failed. The owner hears the engine's fault
+/// and the ended run, and a failed `run.finish` write is a second fault, not silence.
+#[tokio::test]
+async fn a_failed_engine_event_reports_the_failed_run_and_a_failed_finish_write() {
+    let (mut r, _, _, _, _) = runtime(true);
+    let (deal, _) = setup(&mut r, Side::Seller);
+    r.engines.push((
+        Arc::new(WaitingEngine {
+            cancellations: AtomicUsize::new(0),
+        }),
+        table_engine::EngineInfo {
+            id: table_engine::EngineId::ClaudeCode,
+            available: true,
+            version: Some("offline-fixture".into()),
+            reason: None,
+        },
+    ));
+    r.engine = table_engine::EngineId::ClaudeCode;
+    r.fail_run_audit = true;
+    let (actor, mut events) = spawn(r);
+    let server = table_mcp::Server::with_async(
+        Arc::new(crate::engines::ActorBridge(actor.sender.downgrade())),
+        8765,
+        Arc::new(FixedClock(100)),
+    )
+    .unwrap();
+    actor
+        .sender
+        .send(crate::actor::Message::AttachMcp(
+            server,
+            "http://127.0.0.1:8765/mcp".into(),
+        ))
+        .await
+        .unwrap();
+    let run: RunSnapshot = actor
+        .execute(caller("main", None), Action::Start(deal.id))
+        .await
+        .unwrap();
+    // A second Init on a run already past Starting is the engine event the runtime refuses.
+    actor
+        .sender
+        .send(crate::actor::Message::Engine(
+            run.run,
+            table_engine::EngineEvent::Init {
+                engine: table_engine::EngineId::ClaudeCode,
+            },
+        ))
+        .await
+        .unwrap();
+    let (mut faults, mut failed) = (0, false);
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        while faults < 2 || !failed {
+            match events.recv().await.unwrap() {
+                WalletEvent::Fault(_) => faults += 1,
+                WalletEvent::Agent(RunSnapshot {
+                    state: RunState::Failed,
+                    ..
+                }) => failed = true,
+                _ => {}
+            }
+        }
+    })
+    .await
+    .expect("the engine fault, the run.finish fault and the Failed snapshot all arrive");
+}
