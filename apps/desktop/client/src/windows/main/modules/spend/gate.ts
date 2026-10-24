@@ -6,6 +6,9 @@
 // facts the client holds:
 //   - a deal that reached PayPal passed every clause before its first call (the mandate check runs
 //     before any network call, AGENTS.md) → "pass";
+//   - a purchase at AGREED was cleared by the rules (deal.rs: only PurchaseCleared moves a purchase
+//     there, and agent.rs applies it only after the mandate check passed) → "pass", except the
+//     ask-me clause, which asks when the total is above its amount (mandate.rs) → "you";
 //   - a REFUSED ask whose decided_by names a policy clause → "fail" at that clause (Rust's recorded
 //     decision), "pass" for the clauses Rust checked before it, "skip" after it;
 //   - the clause an open attention item names → "you" (Rust says that clause kept the decision);
@@ -99,6 +102,7 @@ export function laneCells(d: Pick<Deal, 'kind' | 'terms' | 'state' | 'paypal'> &
   const youAt = need?.clause?.number ?? null;
   const refused = d.state === 'REFUSED';
   const reached = reachedPaypal(d);
+  const cleared = d.kind === 'purchase' && d.state === 'AGREED';
   // The clause Rust recorded as refusing this ask, and its column (absent when it is not drawn).
   const recorded = refused && d.decided_by?.type === 'policy' ? d.decided_by.clause : null;
   const recordedCol = recorded === null ? undefined : cols.find((c) => CLAUSE_NO[c.clause.type] === recorded);
@@ -125,7 +129,12 @@ export function laneCells(d: Pick<Deal, 'kind' | 'terms' | 'state' | 'paypal'> &
       const r = perDealCheck(d, overCol.clause as Extract<Clause, { type: 'per_deal' }>);
       return { n, kind: 'fail', text: r?.text ?? '', computed: true, over: true };
     }
-    if (reached) return { n, kind: 'pass', text: 'passed', computed: true };
+    if (cleared && clause.type === 'human_present_over') {
+      const t = dealTotal(d);
+      if (t.currency !== clause.amount.currency) return { n, kind: 'unknown', text: `priced in ${t.currency}, the limit is in ${clause.amount.currency}`, computed: false };
+      if (t.minor > clause.amount.minor) return { n, kind: 'you', text: `${formatMinor(t.minor, t.currency)} is above ${formatMinor(clause.amount.minor, clause.amount.currency)}, so this rule leaves it to you`, computed: true };
+    }
+    if (reached || cleared) return { n, kind: 'pass', text: 'passed', computed: true };
     return { n, kind: 'unknown', text: refused ? 'not known: the refusal did not name a rule' : 'not checked yet', computed: false };
   });
 }

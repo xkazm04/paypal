@@ -77,7 +77,27 @@ describe('lanes', () => {
   });
   it('says unknown, never passed, when a refusal is not explained by the amount', () => {
     expect(laneCells(deal({ state: 'REFUSED', price: 50 }), cols).every((c) => c.kind === 'unknown')).toBe(true);
-    expect(laneCells(deal({ state: 'AGREED' }), cols).every((c) => c.kind === 'unknown')).toBe(true);
+    expect(laneCells(deal({ state: 'PAIRING' }), cols).every((c) => c.kind === 'unknown')).toBe(true);
+    // Only a purchase is cleared into Agreed by the rules; another kind there stays unknown.
+    expect(laneCells(deal({ kind: 'haggle', state: 'AGREED' }), cols).filter((c) => c.kind !== 'na').every((c) => c.kind === 'unknown')).toBe(true);
+  });
+  it('passes every rule for a purchase the wallet cleared and that waits for you', () => {
+    // deal.rs: a purchase reaches Agreed only by PurchaseCleared, which agent.rs applies only after
+    // the mandate check passed. So a waiting purchase met every rule, before PayPal is asked.
+    const cells = laneCells(deal({ state: 'AGREED', price: 64 }), cols);
+    expect(cells.map((c) => c.kind)).toEqual(['pass', 'pass', 'pass', 'pass', 'pass']);
+    expect(cells.every((c) => c.computed)).toBe(true);
+    expect(ruleLine(cells, cols)).toEqual({ kind: 'pass', text: 'Passed your rules' });
+  });
+  it('marks the ask-me rule on a cleared purchase only above its limit, as the wallet applies it', () => {
+    // mandate.rs: the ask-me rule asks only when the total is above its amount, never at it.
+    const wide = gateColumns(CLAUSES.map((c) => (c.type === 'per_deal' ? { ...c, max_amount: usd(400) } : c)));
+    const above = laneCells(deal({ state: 'AGREED', qty: 3, price: 90 }), wide);
+    expect(above.map((c) => c.kind)).toEqual(['pass', 'pass', 'pass', 'you', 'pass']);
+    expect(above[3]).toMatchObject({ computed: true, text: '$270.00 is above $250.00, so this rule leaves it to you' });
+    expect(ruleLine(above, wide)).toEqual({ kind: 'ask', text: 'Your “Ask me above” rule asks you' });
+    const at = laneCells(deal({ state: 'AGREED', qty: 2, price: 125 }), wide);
+    expect(at[3]?.kind).toBe('pass');
   });
   it('marks per-deal clauses for another kind as not applicable', () => {
     const extra = gateColumns([...CLAUSES, { type: 'per_deal', kind: 'haggle', max_amount: usd(340), categories: [] }]);
@@ -122,7 +142,7 @@ describe('the one-line rules verdict', () => {
   it('shows the rule that asks you, and never passes an unknown', () => {
     const held = laneCells(deal({ state: 'AUTHORIZED', paypal: { ...NONE, authorization: 'A' } }), cols, { clause: { mandate_id: 'M', number: 7 } });
     expect(ruleLine(held, cols)).toEqual({ kind: 'ask', text: 'Your “Approved payees” rule asks you' });
-    expect(ruleLine(laneCells(deal({ state: 'AGREED' }), cols), cols).kind).toBe('unknown');
+    expect(ruleLine(laneCells(deal({ state: 'PAIRING' }), cols), cols).kind).toBe('unknown');
     expect(ruleLine([], cols).kind).toBe('unknown');
   });
 });
