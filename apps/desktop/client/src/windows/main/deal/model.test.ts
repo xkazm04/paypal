@@ -7,7 +7,7 @@ import { unconfirmedMeans } from '../../../lib/words';
 import { stripFor } from '../logic';
 import { buildMockState, usd } from '../../../mock/fixtures';
 import {
-  attestOf, CLAUSE_NUMBER, envelopeLink, evidenceLabel, latestText, mayWithdraw, milestones, mirrorStrip, readClauses, reconciliationLabel,
+  actingRun, attestOf, CLAUSE_NUMBER, envelopeLink, evidenceLabel, latestText, mayWithdraw, milestones, mirrorStrip, readClauses, reconciliationLabel,
   roleFor, statementLabel, stateTone, stepLabel, timelineRows, withdrawWhat,
 } from './model';
 
@@ -236,5 +236,22 @@ describe('mirrorStrip and stripFor read one set of strip tables (logic.ts)', () 
       const strip = mirror.term ? all.slice(0, -1) : all;
       expect(mirror.steps.map((s) => [s.key, s.status]), `${kind}/${side}/${state}`).toEqual(strip.map((s) => [s.state, s.status]));
     }
+  });
+});
+
+describe('actingRun: the deal page names the run that acted (DECISIONS.md section 21)', () => {
+  // agent_runs order: finished runs oldest first, then live ones (engines.rs run_snapshots).
+  const run = (run: string, deal_id: string, state: 'starting' | 'running' | 'clean' | 'failed' | 'cancelled') => ({ run, deal_id, state });
+  it('takes the newest finished run, not the first one listed', () => {
+    const runs = [run('r1', 'D', 'clean'), run('r2', 'X', 'clean'), run('r3', 'D', 'failed'), run('r4', 'D', 'clean')];
+    expect(actingRun(runs, 'D')?.run).toBe('r4');
+  });
+  it('prefers a live run over any finished one, wherever it sits', () => {
+    expect(actingRun([run('r1', 'D', 'clean'), run('r2', 'D', 'running'), run('r3', 'D', 'clean')], 'D')?.run).toBe('r2');
+    expect(actingRun([run('r1', 'D', 'clean'), run('r2', 'D', 'starting')], 'D')?.run).toBe('r2');
+  });
+  it('is null when the deal has no run, or no list was read yet', () => {
+    expect(actingRun([run('r1', 'X', 'clean')], 'D')).toBeNull();
+    expect(actingRun(undefined, 'D')).toBeNull();
   });
 });

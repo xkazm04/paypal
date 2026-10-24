@@ -26,7 +26,7 @@ import {
 import { RunBadge, WalletNotice } from '../../../../../shared/honesty';
 import { MODULE } from '../../../../../shared/modules';
 import { Btn, Chip, Hint, Kv, Popover, Silence } from '../../../../../shared/ui';
-import { heldRefs, latestText, mayWithdraw, mirrorStrip, readClauses, stepWords, timelineRows } from '../../../deal/model';
+import { actingRun, heldRefs, latestText, mayWithdraw, mirrorStrip, readClauses, stepWords, timelineRows } from '../../../deal/model';
 import { dealAnswer, ruleChecks, rulesBadge, standingFacts } from '../../../deal/story';
 import { canStartAgent, isLive, isTerminal, pairingFact } from '../../../logic';
 import { useCpLookup, useToast } from '../../../ui';
@@ -202,7 +202,7 @@ function StoryPart({ deal, steps, error, clauses, theirName, them, latest, title
 function PageActions({ deal, label, entryAgent, needs, onSheet }: { deal: Deal; label: string; entryAgent: string | null; needs: boolean; onSheet: (s: 'transcript' | 'instructions') => void }) {
   const runs = useRuns().data;
   const [facts, setFacts] = useState<HTMLElement | null>(null);
-  const run = (runs ?? []).find((r) => r.deal_id === deal.id);
+  const run = actingRun(runs, deal.id);
   return (
     <>
       <AgentAction deal={deal} label={label} needs={needs} />
@@ -225,7 +225,7 @@ function PageActions({ deal, label, entryAgent, needs, onSheet }: { deal: Deal; 
 }
 
 function InstructionsFor({ dealId, onClose }: { dealId: string; onClose: () => void }) {
-  const run = (useRuns().data ?? []).find((r) => r.deal_id === dealId);
+  const run = actingRun(useRuns().data, dealId);
   if (!run?.playbook) return null;
   return <InstructionsSheet playbook={run.playbook} onClose={onClose} />;
 }
