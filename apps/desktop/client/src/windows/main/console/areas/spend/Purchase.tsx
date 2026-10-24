@@ -33,10 +33,12 @@ export type Lane = {
 
 const cap = (s: string) => `${s.charAt(0).toUpperCase()}${s.slice(1)}`;
 
-/** Why the owner is asked, in a sentence: the rule the attention item names, in plain words. */
-function whyAsked(deal: Deal, need: AttentionItem, m: MandateListEntry | null, cp: { name: string; entry?: { declared_payee: string | null } }): string {
+/** Why the owner is asked, in a sentence: the rule the attention item names, in plain words. Without
+ *  one, a purchase waits because no rule can pay for it (Rust refuses Policy authority for every
+ *  purchase step, table-app pipeline.rs), not because the rules chose to leave it to the owner. */
+export function whyAsked(deal: Deal, need: AttentionItem, m: MandateListEntry | null, cp: { name: string; entry?: { declared_payee: string | null } }): string {
   const cl = need.clause ? m?.payload.clauses.find((c) => CLAUSE_NO[c.type] === need.clause?.number) : undefined;
-  if (!cl) return deal.state === 'AUTHORIZED' && !need.money_check ? SPEND.whyHeld : SPEND.whyRules;
+  if (!cl) return deal.state === 'AUTHORIZED' && !need.money_check ? SPEND.whyHeld : deal.kind === 'purchase' ? SPEND.whyPurchase : SPEND.whyRules;
   if (cl.type === 'payees' && cp.entry?.declared_payee && !cl.payees.includes(cp.entry.declared_payee)) return SPEND.whyPayee(cp.name);
   if (cl.type === 'human_present_over') return SPEND.whyOver(formatMinor(cl.amount.minor, cl.amount.currency));
   return SPEND.whyRule(RULE_NAME[cl.type], ruleSentence(cl));

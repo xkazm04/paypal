@@ -45,9 +45,9 @@ export const SPEND = {
   // explanation
   whyTitle: 'How buying works',
   why: [
-    'Your agent finds something and asks to pay for it.',
+    'Your agent finds something and asks to buy it. It can only ask: it never pays.',
     'Your rules check it first: limits and approved payees, before PayPal hears of it.',
-    'PayPal holds the money until you pay or let it go.',
+    'You pay. Each step at PayPal waits for you in the approval window; if you do nothing, nothing is paid.',
   ],
   // lists
   needList: 'Purchases waiting for you',
@@ -81,6 +81,7 @@ export const SPEND = {
   whatQ: (title: string, who: string): string => `What should happen with “${title}” from ${who}?`,
   whyHeld: 'The money is on hold at PayPal. Paying it out waits for you.',
   whyRules: 'Your rules leave this decision to you.',
+  whyPurchase: 'Every purchase waits for you. Your agent can only ask; nothing is paid until you confirm it in the approval window.',
   whyPayee: (who: string): string => `${who} isn’t on your approved payees.`,
   whyOver: (amount: string): string => `It is above the ${amount} you asked to approve yourself.`,
   whyRule: (name: string, sentence: string): string => `Your “${name}” rule asks you first: ${sentence}.`,
