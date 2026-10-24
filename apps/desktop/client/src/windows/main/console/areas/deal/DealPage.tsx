@@ -26,7 +26,7 @@ import {
 import { RunBadge, WalletNotice } from '../../../../../shared/honesty';
 import { MODULE } from '../../../../../shared/modules';
 import { Btn, Chip, Hint, Kv, Popover, Silence } from '../../../../../shared/ui';
-import { actingRun, heldRefs, latestText, mayWithdraw, mirrorStrip, readClauses, stepWords, timelineRows } from '../../../deal/model';
+import { actingRun, heldRefs, lastFinishedRun, latestText, mayWithdraw, mirrorStrip, readClauses, stepWords, timelineRows } from '../../../deal/model';
 import { dealAnswer, ruleChecks, rulesBadge, standingFacts } from '../../../deal/story';
 import { canStartAgent, isLive, isTerminal, pairingFact } from '../../../logic';
 import { useCpLookup, useToast } from '../../../ui';
@@ -241,8 +241,10 @@ function AgentAction({ deal, label, needs }: { deal: Deal; label: string; needs:
   const paused = !!s?.agents_paused;
   const run = (runs ?? []).find((r) => r.deal_id === deal.id && (r.state === 'running' || r.state === 'starting'));
   if (run) return <><Chip tone="ok" title={DEAL_ACT.agentRunTitle(run.engine)}>{DEAL_ACT.agentRun(run.state)}</Chip><RunBadge run={run} /></>;
+  const ended = lastFinishedRun(runs, deal.id);
   return (
     <>
+      {ended ? <Chip tone={ended.state === 'clean' ? 'ok' : ended.state === 'failed' ? 'gold' : 'line'}>{DEAL_ACT.lastRun[ended.state as 'clean' | 'failed' | 'cancelled']}</Chip> : null}
       <Btn sm kind={needs ? undefined : 'primary'} disabled={paused || start.pending} title={paused ? DEAL_ACT.agentsPausedTitle : DEAL_ACT.startAgentTitle}
         onClick={async () => { const r = await start.run({ deal_id: deal.id }); if (r) toast(DEAL_ACT.agentIs(r.state, label), 'ok'); }}>
         {paused ? DEAL_ACT.agentsPaused : DEAL_ACT.startAgent}

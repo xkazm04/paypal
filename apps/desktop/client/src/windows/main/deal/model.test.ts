@@ -4,10 +4,11 @@ import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { unconfirmedMeans } from '../../../lib/words';
+import { DEAL_ACT } from '../../../lib/words/deal';
 import { stripFor } from '../logic';
 import { buildMockState, usd } from '../../../mock/fixtures';
 import {
-  actingRun, attestOf, CLAUSE_NUMBER, envelopeLink, evidenceLabel, latestText, mayWithdraw, milestones, mirrorStrip, readClauses, reconciliationLabel,
+  actingRun, attestOf, CLAUSE_NUMBER, envelopeLink, evidenceLabel, lastFinishedRun, latestText, mayWithdraw, milestones, mirrorStrip, readClauses, reconciliationLabel,
   roleFor, statementLabel, stateTone, stepLabel, timelineRows, withdrawWhat,
 } from './model';
 
@@ -253,5 +254,23 @@ describe('actingRun: the deal page names the run that acted (DECISIONS.md sectio
   it('is null when the deal has no run, or no list was read yet', () => {
     expect(actingRun([run('r1', 'X', 'clean')], 'D')).toBeNull();
     expect(actingRun(undefined, 'D')).toBeNull();
+  });
+});
+
+describe('lastFinishedRun: how the agent last run ended (value-1)', () => {
+  const run = (run: string, deal_id: string, state: 'starting' | 'running' | 'clean' | 'failed' | 'cancelled') => ({ run, deal_id, state });
+  it('is null while a run is live', () => {
+    expect(lastFinishedRun([run('r1', 'D', 'clean'), run('r2', 'D', 'running')], 'D')).toBeNull();
+    expect(lastFinishedRun([run('r1', 'D', 'starting')], 'D')).toBeNull();
+  });
+  it('takes the newest finished run and ignores other deals', () => {
+    expect(lastFinishedRun([run('r1', 'D', 'clean'), run('r2', 'D', 'failed'), run('r3', 'X', 'clean')], 'D')?.run).toBe('r2');
+    expect(lastFinishedRun([run('r1', 'X', 'failed')], 'D')).toBeNull();
+    expect(lastFinishedRun(undefined, 'D')).toBeNull();
+  });
+  it.each([['clean', 'finished'], ['failed', 'error'], ['cancelled', 'stopped']] as const)('%s maps to its line', (state, word) => {
+    const ended = lastFinishedRun([run('r1', 'D', state)], 'D');
+    expect(ended?.state).toBe(state);
+    expect(DEAL_ACT.lastRun[state]).toContain(word);
   });
 });
