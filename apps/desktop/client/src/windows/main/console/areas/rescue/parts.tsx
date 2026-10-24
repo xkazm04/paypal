@@ -17,7 +17,7 @@ import { APPROVAL_LOCKED_TITLE, notOfferedLine, percentWords, RESCUE, RESCUE_APP
 import { ModeBadge, WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Hourglass, Icon, Kv, Why, type ChipTone } from '../../../../../shared/ui';
 import { chipClass, dealTotal, moneyNow, type ChipClass } from '../../../logic';
-import { cellState, COLS, leverOf, moveCell, paypalRetry, pickable, rulesFor, splitFixes, splitRows, viewFor, type Col, type LeverKey, type Rows } from '../../../modules/rescue/model';
+import { cellState, COLS, isReplay, leverOf, moveCell, paypalRetry, pickable, rulesFor, splitFixes, splitRows, viewFor, type Col, type LeverKey, type Rows } from '../../../modules/rescue/model';
 import { FixGet, FixGetOff, FixWhy } from '../../../modules/rescue/Panels';
 import { fixQuestion, fixWhy, previewFor } from '../../../modules/rescue/preview';
 import { useCpLookup } from '../../../ui';
@@ -116,15 +116,15 @@ export function HandOff({ deal, lever, quiet, sm }: { deal: Deal; lever?: LeverK
 const coarse = (deadline: number, now: number) => timeLeftWords(deadline - now).replace(/ \d+ h$/, '');
 
 /** The fixes this renewal can't have, as one quiet line; Why? lists each one with its reason. */
-function NotOffered({ off, amount, retryAt, offer }: { off: ReturnType<typeof splitFixes>['off']; amount: Money; retryAt: number | null; offer: RescueOffer | undefined }) {
+function NotOffered({ off, amount, retryAt, replay, offer }: { off: ReturnType<typeof splitFixes>['off']; amount: Money; retryAt: number | null; replay: boolean; offer: RescueOffer | undefined }) {
   return (
     <div className="rs-notoff">
       <span>{notOfferedLine(off.map((o) => RESCUE.pick[o.col].name))}</span>
       <Why question={RESCUE.whyNotOffered}>
         <ul className="rs-notoff-list">
-          {off.map((o) => <li key={o.col}><b>{RESCUE.pick[o.col].name}</b> · {fixWhy(o.col, { amount, retryAt, offCode: o.code, offer })[0]}</li>)}
+          {off.map((o) => <li key={o.col}><b>{RESCUE.pick[o.col].name}</b> · {fixWhy(o.col, { amount, retryAt, replay, offCode: o.code, offer })[0]}</li>)}
         </ul>
-        <p>{RESCUE.nothingSafe}</p>
+        <p>{replay ? RESCUE.nothingSafeReplay : RESCUE.nothingSafe}</p>
       </Why>
     </div>
   );
@@ -143,6 +143,7 @@ const MARK: Record<Col, ReactNode> = {
 function Picks({ deal, view, col, onPick }: { deal: Deal; view: RescueView | undefined; col: Col; onPick: (c: Col) => void }) {
   const now = useNow();
   const retry = paypalRetry(view, now);
+  const replay = isReplay(deal, view);
   const box = useRef<HTMLDivElement>(null);
   const off = (c: Col) => !pickable(cellState(deal, c, retry, now, view));
   const go = (to: Col) => { onPick(to); box.current?.querySelector<HTMLButtonElement>(`[data-col="${to}"]`)?.focus(); };
@@ -166,7 +167,7 @@ function Picks({ deal, view, col, onPick }: { deal: Deal; view: RescueView | und
           const st = cellState(deal, c, retry, now, view);
           const isOff = !pickable(st);
           const on = c === col && !isOff;
-          const does = c === 'NONE' ? (retry ? RESCUE.retriesIn(coarse(retry, now)) : RESCUE.retriesOwn)
+          const does = c === 'NONE' ? (replay ? RESCUE.replayNoRetry : retry ? RESCUE.retriesIn(coarse(retry, now)) : RESCUE.retriesOwn)
             : st.kind === 'offer' ? RESCUE.offerLine(percentWords(st.offer.discount_bp), formatMoney(st.offer.invoice), formatMoney(st.offer.cycle))
               : st.kind === 'off' ? RESCUE.whyOff[st.code as keyof typeof RESCUE.whyOff] ?? st.why : st.kind === 'unknown' ? st.why : '';
           return (
@@ -179,13 +180,13 @@ function Picks({ deal, view, col, onPick }: { deal: Deal; view: RescueView | und
                 <span className="m">{does}</span>
                 {on ? <span className="tick"><Icon name="check" size={14} label={RESCUE.selected} /></span> : null}
               </button>
-              {isOff ? <FixGetOff /> : <FixGet preview={previewFor(c, { item: deal.terms.item_ref, amount, retryAt: retry, view })} />}
-              <div className="rs-why"><FixWhy question={fixQuestion(c)} lines={fixWhy(c, { amount, retryAt: retry, offCode: st.kind === 'off' ? st.code : undefined, offer: view?.offer })} /></div>
+              {isOff ? <FixGetOff /> : <FixGet preview={previewFor(c, { item: deal.terms.item_ref, amount, retryAt: retry, replay, view })} />}
+              <div className="rs-why"><FixWhy question={fixQuestion(c)} lines={fixWhy(c, { amount, retryAt: retry, replay, offCode: st.kind === 'off' ? st.code : undefined, offer: view?.offer })} /></div>
             </div>
           );
         })}
       </div>
-      {fixes.off.length ? <NotOffered off={fixes.off} amount={amount} retryAt={retry} offer={view?.offer} /> : null}
+      {fixes.off.length ? <NotOffered off={fixes.off} amount={amount} retryAt={retry} replay={replay} offer={view?.offer} /> : null}
     </>
   );
 }
@@ -198,7 +199,7 @@ function FixDetail({ deal, view, col }: { deal: Deal; view: RescueView | undefin
     return (
       <ul className="rs-rules">
         <li className="ok">{RESCUE.nothingDoes.sent}</li>
-        <li className="ok">{retry ? RESCUE.nothingDoes.retry(timeLeftWords(retry - now), clockLabel(retry)) : RESCUE.nothingDoes.noRetry}</li>
+        <li className="ok">{isReplay(deal, view) ? RESCUE.nothingDoes.replay : retry ? RESCUE.nothingDoes.retry(timeLeftWords(retry - now), clockLabel(retry)) : RESCUE.nothingDoes.noRetry}</li>
         <li className="ok">{RESCUE.nothingDoes.never}</li>
       </ul>
     );
@@ -249,7 +250,7 @@ export function FixPanel({ deal, r, col, onPick, onDeal }: { deal: Deal; r: Resc
         <Btn kind="plain" onClick={onDeal}>{RESCUE.openDeal}</Btn>
       </div>
       {need ? <p className="ui-hint">{RESCUE_APPROVE_DOES}</p> : null}
-      <p className="rs-sil"><Hourglass /> <span>{RESCUE.ifNothing}: <b>{need ? silenceWords(need.on_silence) : RESCUE.defaultSilence}</b></span></p>
+      <p className="rs-sil"><Hourglass /> <span>{RESCUE.ifNothing}: <b>{isReplay(deal, view) ? RESCUE.replaySilence : need ? silenceWords(need.on_silence) : RESCUE.defaultSilence}</b></span></p>
       {deadline ? <p className="ui-hint rs-close">{RESCUE.closes(clockLabel(deadline), timeLeftWords(deadline - now))}</p> : null}
       <details className="ui-disclosure rs-more"><summary>{col === 'NONE' ? RESCUE.fix.aboutNone : RESCUE.fix.about(RESCUE.pick[col].name)}</summary>
         <div className="ui-disclosure-body"><FixDetail deal={deal} view={view} col={col} /></div>
@@ -291,7 +292,7 @@ export function CompareCells({ deal, r }: { deal: Deal; r: RescueWorld }) {
     <>
       {COLS.map((c) => {
         const st = cellState(deal, c, retry, now, view);
-        const [v, s] = st.kind === 'default' ? [RESCUE.cmp.nothingSent, retry ? RESCUE.cmp.retry(coarse(retry, now)) : RESCUE.cmp.noRetry]
+        const [v, s] = st.kind === 'default' ? [RESCUE.cmp.nothingSent, isReplay(deal, view) ? RESCUE.cmp.replay : retry ? RESCUE.cmp.retry(coarse(retry, now)) : RESCUE.cmp.noRetry]
           : st.kind === 'offer' ? [formatMoney(st.offer.invoice), RESCUE.cmp.off(percentWords(st.offer.discount_bp))]
             : st.kind === 'off' && st.code !== 'NOT_BUILT' ? [RESCUE.cmp.notNow, st.code === 'REPLAY' ? RESCUE.cmp.replay : RESCUE.cmp.retrySoon] : [RESCUE.cmp.notYet, RESCUE.cmp.gist[c as LeverKey]];
         return <span key={c} className={`rs-cell k-${st.kind}`} title={st.kind === 'off' || st.kind === 'unknown' ? st.why : undefined}><small className="h">{RESCUE.cmp.head[c]}</small><b>{v}</b><small>{s}</small></span>;

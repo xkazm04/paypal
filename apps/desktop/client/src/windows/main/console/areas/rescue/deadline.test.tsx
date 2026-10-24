@@ -11,7 +11,9 @@ import { clockLabel, nowUnix } from '../../../../../lib/format';
 import { RESCUE } from '../../../../../lib/words';
 import { invoiceText, proposeDiscount } from '../../../../../mock/rescue';
 import { splitRows } from '../../../modules/rescue/model';
+import { fixWhy, previewFor } from '../../../modules/rescue/preview';
 import { FixPanel, type RescueWorld } from './parts';
+import { answerOf } from './RescueLayer';
 
 afterEach(cleanup);
 
@@ -51,5 +53,34 @@ describe('a failed renewal’s retry and deadline', () => {
     const c = panel(deal(), view({ next_retry_at: now + 2 * DAY + 3600 }), due);
     expect(c.querySelector('[data-col="NONE"]')?.textContent).toContain('PayPal retries in 2 days');
     expect(c.querySelector('.rs-close')?.textContent).toContain(clockLabel(due));
+  });
+});
+
+// A replayed failure (D-0188 in the sample world) is one the owner recorded because PayPal can't fail
+// a test renewal: there is no failed payment at PayPal, and Rust records no retry for it (table-app
+// rescue.rs, rescue_replay). Nothing on the screen may promise that PayPal retries it.
+describe('a replayed failure', () => {
+  const replayDeal = deal({ mode: 'replay' });
+  // The sample world gives D-0188 a retry date; Rust never does for a replay. Either way none is shown.
+  const replayView = view({ source: 'replay', next_retry_at: nowUnix() + 4 * DAY });
+
+  it('promises no PayPal retry on its panel', () => {
+    const c = panel(replayDeal, replayView, nowUnix() + 5 * DAY);
+    expect(c.textContent).not.toMatch(/PayPal retries/);
+    expect(c.querySelector('[data-col="NONE"]')?.textContent).toContain(RESCUE.replayNoRetry);
+    expect(c.querySelector('.rs-sil')?.textContent).toContain(RESCUE.replaySilence);
+  });
+
+  it('says on the summary that doing nothing sends nothing, not that PayPal retries', () => {
+    const due = nowUnix() + 5 * DAY;
+    expect(answerOf(world(replayDeal, replayView, due)).sub).toBe(RESCUE.answer.replay);
+    expect(answerOf(world(deal(), view(), due)).sub).toBe(RESCUE.answer.retries);
+  });
+
+  it('its preview and Why? name no PayPal retry', () => {
+    const amount = { minor: 1200, currency: 'USD' as const };
+    expect(previewFor('NONE', { item: 'care-plan', amount, retryAt: null, replay: true }).line).not.toMatch(/PayPal retries/);
+    expect(fixWhy('NONE', { amount, retryAt: null, replay: true }).join(' ')).not.toMatch(/PayPal retries/);
+    expect(fixWhy('PAUSE', { amount, retryAt: null, replay: true, offCode: 'NOT_BUILT' }).join(' ')).not.toMatch(/PayPal retries/);
   });
 });
