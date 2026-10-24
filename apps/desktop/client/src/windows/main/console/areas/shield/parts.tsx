@@ -16,7 +16,7 @@ import { canWithdraw, dealTotal, stateLabel } from '../../../logic';
 import { NoteChip } from '../shared/NoteChip';
 import { CheckLights, ComparePanel, ReasonWhy } from '../../../modules/shield/Panels';
 import { knownPayees } from '../../../modules/shield/normal';
-import { paypalLine, reasonsFor, releasable } from '../../../modules/shield/matrix';
+import { paypalLine, reasonsFor, releasable, releaseCase } from '../../../modules/shield/matrix';
 import { useCpLookup } from '../../../ui';
 import { useDeals, useLocked, useNeeds, useWorldSelector, type World } from '../../../world';
 import { Amount, Countdown } from '../../rows';
@@ -78,7 +78,7 @@ export function ReleaseHandoff({ deal, need, sm }: { deal: Deal; need: Attention
   const live = releasable(deal);
   const go = async () => {
     const r = await open.run({ deal_id: deal.id });
-    if (r !== undefined && live) toast(SHIELD.opened, 'gold');
+    if (r !== undefined && live) toast(SHIELD.opened[releaseCase(deal)], 'gold');
   };
   if (!live && !need.actions.includes('review')) return null;
   return (
@@ -154,7 +154,7 @@ export function PausedDecision({ deal, s, onDeal }: { deal: Deal; s: ShieldWorld
         <ReleaseHandoff deal={deal} need={need} />
         <RefuseButton deal={deal} need={need} title={s.title(deal)} />
       </div>
-      <p className="ui-hint">{live ? SHIELD.releaseMeans : SHIELD.reviewMeans}</p>
+      <p className="ui-hint">{live ? SHIELD.releaseMeans[releaseCase(deal)] : SHIELD.reviewMeans}</p>
     </div>
   );
 }

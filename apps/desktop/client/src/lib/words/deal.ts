@@ -85,7 +85,11 @@ export const DEAL_DECIDE = {
   review: 'Review & approve ↗',
   reviewTitle: 'Opens the approval window: the only place money can be released',
   release: 'Review & release ↗',
-  releaseMeans: 'Opens the approval window. You type the payee’s name there to release it. Releasing doesn’t pay.',
+  releaseMeans: {
+    buyer: 'Opens the approval window. You type the payee’s name there to release it. Releasing doesn’t pay.',
+    'seller-approved': 'Opens the approval window. You type the payee’s name there to release it. The buyer already approved at PayPal, so releasing is the last step: the money is taken in on the wallet’s next check, with no other click.',
+    'seller-waiting': 'Opens the approval window. You type the payee’s name there to release it. Releasing doesn’t take the money yet: it comes in after the buyer approves at PayPal, with no other click from you.',
+  },
   releaseTitle: 'Opens the approval window, where you type the payee’s name to release it',
   lapse: 'Let it lapse',
   lapseMeans: 'Hides this until its deadline. It never agrees to anything and never cancels early.',

@@ -18,7 +18,7 @@ import { milestones, stateTone, withdrawWhat, type ClauseReading, type MirrorStr
 import { decisionQuestion, decisionWhy, reviewMeans } from '../../../deal/story';
 import { shortTitle } from '../../../home/model';
 import { amountNote, amountTone, dealTotal, isTerminal, moneyNow } from '../../../logic';
-import { releasable } from '../../../modules/shield/matrix';
+import { releasable, releaseCase } from '../../../modules/shield/matrix';
 import { useToast } from '../../../ui';
 import { useDisplayOf, useLocked, useSettings } from '../../../world';
 
@@ -127,7 +127,7 @@ export function DealDecision({ deal, need, canWithdraw, theirName, them, reading
   if (need && !review && releasable(deal)) {
     options.push({
       kind: 'gold', onClick: () => void open.run({ deal_id: deal.id }), disabled: open.pending,
-      label: <>{lock} {DEAL_DECIDE.release}</>, means: DEAL_DECIDE.releaseMeans, title: locked ? APPROVAL_LOCKED_TITLE : DEAL_DECIDE.releaseTitle,
+      label: <>{lock} {DEAL_DECIDE.release}</>, means: DEAL_DECIDE.releaseMeans[releaseCase(deal)], title: locked ? APPROVAL_LOCKED_TITLE : DEAL_DECIDE.releaseTitle,
     });
   }
   if (need && mayLapse) {
