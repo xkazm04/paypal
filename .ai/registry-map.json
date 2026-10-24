@@ -2026,7 +2026,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/lib/pending.ts:1 pending.ts is a pure pass-through that re-exports four generated binding types and adds no behaviour. 6 files import through it while 13 others import @bindings/CounterpartyDisplay directly, so the claimed single import point does not hold and callers have one more name to learn.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "ipc-contract",
@@ -3245,7 +3249,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/director/takes.ts:753 takes.ts says at line 6 that everything in it is pure (the director gathers what it shows, takes.ts only checks), but readChapterRecord fetches the mock world through core.invoke and reads the clock with nowUnix() at line 776. Effectful reading now lives inside the module described as the pure core, and the module's stated contract is false.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         }
       ],
       "governance": "governed"
@@ -6382,7 +6390,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/modules/shield/matrix.ts:79 The shield's pause-line decision is encoded twice, in Rust (crates/table-core/src/market.rs:443 over_forty_percent) and here, and the client tests (matrix.test.ts, normal.test.ts) check this copy only against its own formula. A change to the Rust threshold would leave every client test green while the panel states the wrong line.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "supply-chain",
@@ -7591,7 +7603,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/layers.ts:95 The kit's shared behaviours (the Esc layer stack, the modal focus guard, the stale-banner wording) each sit behind one small interface that every Sheet, Popover and boundary reuses. A grep found no second copy of the focus selector, the experiment key or the capture-phase Esc rule anywhere in the client.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "render-mount-pipeline",
