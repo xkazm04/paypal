@@ -514,6 +514,22 @@ fn setup_with(
     delivery: Delivery,
     clauses: Vec<Clause>,
 ) -> (Deal, AgentSigner) {
+    setup_priced(
+        r,
+        side,
+        delivery,
+        clauses,
+        Money::new(1200, Currency::USD).unwrap(),
+    )
+}
+/// [`setup_with`] at this listing price.
+fn setup_priced(
+    r: &mut Runtime,
+    side: Side,
+    delivery: Delivery,
+    clauses: Vec<Clause>,
+    unit_price: Money,
+) -> (Deal, AgentSigner) {
     let mandate = r
         .sign_mandate(MandateSignArgs {
             id: None,
@@ -549,7 +565,7 @@ fn setup_with(
             terms: Terms {
                 item_ref: ItemRef::new("monitor").unwrap(),
                 qty: 1,
-                unit_price: Money::new(1200, Currency::USD).unwrap(),
+                unit_price,
                 currency: Currency::USD,
                 delivery,
             },
