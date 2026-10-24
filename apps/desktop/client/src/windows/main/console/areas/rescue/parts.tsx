@@ -17,7 +17,7 @@ import { APPROVAL_LOCKED_TITLE, notOfferedLine, percentWords, RESCUE, RESCUE_APP
 import { ModeBadge, WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Hourglass, Icon, Kv, Why, type ChipTone } from '../../../../../shared/ui';
 import { chipClass, dealTotal, moneyNow, type ChipClass } from '../../../logic';
-import { cellState, COLS, leverOf, moveCell, pickable, rulesFor, splitFixes, splitRows, viewFor, type Col, type LeverKey, type Rows } from '../../../modules/rescue/model';
+import { cellState, COLS, leverOf, moveCell, paypalRetry, pickable, rulesFor, splitFixes, splitRows, viewFor, type Col, type LeverKey, type Rows } from '../../../modules/rescue/model';
 import { FixGet, FixGetOff, FixWhy } from '../../../modules/rescue/Panels';
 import { fixQuestion, fixWhy, previewFor } from '../../../modules/rescue/preview';
 import { useCpLookup } from '../../../ui';
@@ -116,13 +116,13 @@ export function HandOff({ deal, lever, quiet, sm }: { deal: Deal; lever?: LeverK
 const coarse = (deadline: number, now: number) => timeLeftWords(deadline - now).replace(/ \d+ h$/, '');
 
 /** The fixes this renewal can't have, as one quiet line; Why? lists each one with its reason. */
-function NotOffered({ off, amount, deadline, offer }: { off: ReturnType<typeof splitFixes>['off']; amount: Money; deadline: number | null; offer: RescueOffer | undefined }) {
+function NotOffered({ off, amount, retryAt, offer }: { off: ReturnType<typeof splitFixes>['off']; amount: Money; retryAt: number | null; offer: RescueOffer | undefined }) {
   return (
     <div className="rs-notoff">
       <span>{notOfferedLine(off.map((o) => RESCUE.pick[o.col].name))}</span>
       <Why question={RESCUE.whyNotOffered}>
         <ul className="rs-notoff-list">
-          {off.map((o) => <li key={o.col}><b>{RESCUE.pick[o.col].name}</b> · {fixWhy(o.col, { amount, retryAt: deadline, offCode: o.code, offer })[0]}</li>)}
+          {off.map((o) => <li key={o.col}><b>{RESCUE.pick[o.col].name}</b> · {fixWhy(o.col, { amount, retryAt, offCode: o.code, offer })[0]}</li>)}
         </ul>
         <p>{RESCUE.nothingSafe}</p>
       </Why>
@@ -138,11 +138,13 @@ const MARK: Record<Col, ReactNode> = {
   DOWNGRADE: <span className="mk">↓</span>,
 };
 
-/** The fixes of one renewal as a radio group: arrow keys and 0-4 move between the open ones. */
-function Picks({ deal, view, deadline, col, onPick }: { deal: Deal; view: RescueView | undefined; deadline: number | null; col: Col; onPick: (c: Col) => void }) {
+/** The fixes of one renewal as a radio group: arrow keys and 0-4 move between the open ones. Every
+ *  "PayPal retries" claim reads PayPal's own retry time (`retry`), never the fix's deadline. */
+function Picks({ deal, view, col, onPick }: { deal: Deal; view: RescueView | undefined; col: Col; onPick: (c: Col) => void }) {
   const now = useNow();
+  const retry = paypalRetry(view, now);
   const box = useRef<HTMLDivElement>(null);
-  const off = (c: Col) => !pickable(cellState(deal, c, deadline, now, view));
+  const off = (c: Col) => !pickable(cellState(deal, c, retry, now, view));
   const go = (to: Col) => { onPick(to); box.current?.querySelector<HTMLButtonElement>(`[data-col="${to}"]`)?.focus(); };
   const onKey = (e: KeyboardEvent<HTMLButtonElement>, from: Col) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -156,15 +158,15 @@ function Picks({ deal, view, deadline, col, onPick }: { deal: Deal; view: Rescue
     if (to && !off(to)) go(to);
   };
   const amount = view?.offer.cycle ?? dealTotal(deal);
-  const fixes = splitFixes(deal, deadline, now, view);
+  const fixes = splitFixes(deal, retry, now, view);
   return (
     <>
       <div className="rs-picks" role="radiogroup" aria-label={RESCUE.picksLabel} ref={box}>
         {fixes.open.map((c) => {
-          const st = cellState(deal, c, deadline, now, view);
+          const st = cellState(deal, c, retry, now, view);
           const isOff = !pickable(st);
           const on = c === col && !isOff;
-          const does = c === 'NONE' ? (deadline ? RESCUE.retriesIn(coarse(deadline, now)) : RESCUE.staysUnpaid)
+          const does = c === 'NONE' ? (retry ? RESCUE.retriesIn(coarse(retry, now)) : RESCUE.retriesOwn)
             : st.kind === 'offer' ? RESCUE.offerLine(percentWords(st.offer.discount_bp), formatMoney(st.offer.invoice), formatMoney(st.offer.cycle))
               : st.kind === 'off' ? RESCUE.whyOff[st.code as keyof typeof RESCUE.whyOff] ?? st.why : st.kind === 'unknown' ? st.why : '';
           return (
@@ -177,37 +179,38 @@ function Picks({ deal, view, deadline, col, onPick }: { deal: Deal; view: Rescue
                 <span className="m">{does}</span>
                 {on ? <span className="tick"><Icon name="check" size={14} label={RESCUE.selected} /></span> : null}
               </button>
-              {isOff ? <FixGetOff /> : <FixGet preview={previewFor(c, { item: deal.terms.item_ref, amount, retryAt: deadline, view })} />}
-              <div className="rs-why"><FixWhy question={fixQuestion(c)} lines={fixWhy(c, { amount, retryAt: deadline, offCode: st.kind === 'off' ? st.code : undefined, offer: view?.offer })} /></div>
+              {isOff ? <FixGetOff /> : <FixGet preview={previewFor(c, { item: deal.terms.item_ref, amount, retryAt: retry, view })} />}
+              <div className="rs-why"><FixWhy question={fixQuestion(c)} lines={fixWhy(c, { amount, retryAt: retry, offCode: st.kind === 'off' ? st.code : undefined, offer: view?.offer })} /></div>
             </div>
           );
         })}
       </div>
-      {fixes.off.length ? <NotOffered off={fixes.off} amount={amount} deadline={deadline} offer={view?.offer} /> : null}
+      {fixes.off.length ? <NotOffered off={fixes.off} amount={amount} retryAt={retry} offer={view?.offer} /> : null}
     </>
   );
 }
 
 /** What the picked fix does, its checks and what the subscriber sees (one level down). */
-function FixDetail({ deal, view, col, deadline }: { deal: Deal; view: RescueView | undefined; col: Col; deadline: number | null }) {
+function FixDetail({ deal, view, col }: { deal: Deal; view: RescueView | undefined; col: Col }) {
   const now = useNow();
+  const retry = paypalRetry(view, now);
   if (col === 'NONE') {
     return (
       <ul className="rs-rules">
         <li className="ok">{RESCUE.nothingDoes.sent}</li>
-        <li className="ok">{deadline ? RESCUE.nothingDoes.retry(timeLeftWords(deadline - now), clockLabel(deadline)) : RESCUE.nothingDoes.noRetry}</li>
+        <li className="ok">{retry ? RESCUE.nothingDoes.retry(timeLeftWords(retry - now), clockLabel(retry)) : RESCUE.nothingDoes.noRetry}</li>
         <li className="ok">{RESCUE.nothingDoes.never}</li>
       </ul>
     );
   }
   const lever = leverOf(col);
-  const st = cellState(deal, col, deadline, now, view);
+  const st = cellState(deal, col, retry, now, view);
   const offer = st.kind === 'offer' ? st.offer : null;
   return (
     <div className="rs-fixdetail">
       <p>{offer ? RESCUE.fix.does(formatMoney(offer.invoice), formatMoney(offer.cycle), percentWords(offer.discount_bp)) : st.kind === 'off' || st.kind === 'unknown' ? `${lever.effect}. ${st.why}.` : `${lever.effect}.`}</p>
       <p className="rs-h">{RESCUE.fix.checks}</p>
-      <ul className="rs-rules">{rulesFor(deal, col, deadline, now, view).map(([k, t]) => <li key={t} className={k}>{t}</li>)}</ul>
+      <ul className="rs-rules">{rulesFor(deal, col, retry, now, view).map(([k, t]) => <li key={t} className={k}>{t}</li>)}</ul>
       <p className="rs-h">{RESCUE.fix.sees}</p>
       {offer && view ? (
         <div className="rs-inv" aria-label={RESCUE.fix.wording}>
@@ -230,7 +233,7 @@ export function FixPanel({ deal, r, col, onPick, onDeal }: { deal: Deal; r: Resc
   const view = r.view(deal);
   const deadline = r.deadline(deal);
   const t = view?.offer.cycle ?? dealTotal(deal);
-  const lever = col !== 'NONE' && pickable(cellState(deal, col, deadline, now, view)) ? col : undefined;
+  const lever = col !== 'NONE' && pickable(cellState(deal, col, paypalRetry(view, now), now, view)) ? col : undefined;
   return (
     <div className="rs-panel">
       <p className="kicker"><span className="rs-ctx" title={r.title(deal)}>{r.title(deal)}</span>{deal.mode !== 'sandbox' ? <ModeBadge mode={deal.mode} /> : null}
@@ -240,15 +243,16 @@ export function FixPanel({ deal, r, col, onPick, onDeal }: { deal: Deal; r: Resc
         <span className="rs-amt num">{formatMinor(t.minor, t.currency)}</span>
       </div>
       <p className="rs-why-l">{RESCUE.whyLine}{view ? <> {RESCUE.invoiceTo} <span className="mono">{view.recipient}</span>.</> : null}</p>
-      <Picks deal={deal} view={view} deadline={deadline} col={col} onPick={onPick} />
+      <Picks deal={deal} view={view} col={col} onPick={onPick} />
       <div className="cs-acts rs-acts">
         {need ? <HandOff deal={deal} lever={lever} /> : null}
         <Btn kind="plain" onClick={onDeal}>{RESCUE.openDeal}</Btn>
       </div>
       {need ? <p className="ui-hint">{RESCUE_APPROVE_DOES}</p> : null}
       <p className="rs-sil"><Hourglass /> <span>{RESCUE.ifNothing}: <b>{need ? silenceWords(need.on_silence) : RESCUE.defaultSilence}</b></span></p>
+      {deadline ? <p className="ui-hint rs-close">{RESCUE.closes(clockLabel(deadline), timeLeftWords(deadline - now))}</p> : null}
       <details className="ui-disclosure rs-more"><summary>{col === 'NONE' ? RESCUE.fix.aboutNone : RESCUE.fix.about(RESCUE.pick[col].name)}</summary>
-        <div className="ui-disclosure-body"><FixDetail deal={deal} view={view} col={col} deadline={deadline} /></div>
+        <div className="ui-disclosure-body"><FixDetail deal={deal} view={view} col={col} /></div>
       </details>
     </div>
   );
@@ -282,12 +286,12 @@ export function DeskDetail({ deal, r, onDeal }: { deal: Deal; r: RescueWorld; on
 export function CompareCells({ deal, r }: { deal: Deal; r: RescueWorld }) {
   const now = useNow();
   const view = r.view(deal);
-  const deadline = r.deadline(deal);
+  const retry = paypalRetry(view, now);
   return (
     <>
       {COLS.map((c) => {
-        const st = cellState(deal, c, deadline, now, view);
-        const [v, s] = st.kind === 'default' ? [RESCUE.cmp.nothingSent, deadline ? RESCUE.cmp.retry(coarse(deadline, now)) : RESCUE.cmp.noRetry]
+        const st = cellState(deal, c, retry, now, view);
+        const [v, s] = st.kind === 'default' ? [RESCUE.cmp.nothingSent, retry ? RESCUE.cmp.retry(coarse(retry, now)) : RESCUE.cmp.noRetry]
           : st.kind === 'offer' ? [formatMoney(st.offer.invoice), RESCUE.cmp.off(percentWords(st.offer.discount_bp))]
             : st.kind === 'off' && st.code !== 'NOT_BUILT' ? [RESCUE.cmp.notNow, st.code === 'REPLAY' ? RESCUE.cmp.replay : RESCUE.cmp.retrySoon] : [RESCUE.cmp.notYet, RESCUE.cmp.gist[c as LeverKey]];
         return <span key={c} className={`rs-cell k-${st.kind}`} title={st.kind === 'off' || st.kind === 'unknown' ? st.why : undefined}><small className="h">{RESCUE.cmp.head[c]}</small><b>{v}</b><small>{s}</small></span>;

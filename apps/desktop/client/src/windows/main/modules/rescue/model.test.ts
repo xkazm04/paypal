@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
-import { atRiskOf, cellState, COLS, moveCell, NOT_BUILT, pickable, recovered, retryLeft, rulesFor, splitFixes, splitRows } from './model';
+import { atRiskOf, cellState, COLS, moveCell, NOT_BUILT, paypalRetry, pickable, recovered, retryLeft, rulesFor, splitFixes, splitRows } from './model';
 import { invoiceText, proposeDiscount } from '../../../../mock/rescue';
 import type { RescueView } from '@bindings/RescueView';
 
@@ -19,7 +19,21 @@ const view = (id: string, o: Partial<RescueView> = {}): RescueView => ({ deal_id
 describe('lever cells', () => {
   it('"do nothing" is always the default and names PayPal’s retry', () => {
     expect(cellState(deal('a'), 'NONE', NOW + 4 * 86400, NOW)).toEqual({ kind: 'default', sub: 'retry 4 d' });
-    expect(cellState(deal('a'), 'NONE', null, NOW)).toEqual({ kind: 'default', sub: 'cycle unpaid' });
+    expect(cellState(deal('a'), 'NONE', null, NOW)).toEqual({ kind: 'default', sub: 'retry time not known' });
+  });
+  it('reads PayPal’s retry from the wallet’s rescue read only, never from the fix’s deadline', () => {
+    // Rust opens every fix with a deadline (PayPal's retry, else a 5-day window of its own); only
+    // RescueView.next_retry_at is PayPal's. Without it, no PayPal retry date is shown.
+    expect(paypalRetry(view('a'), NOW)).toBeNull();
+    expect(paypalRetry(view('a', { next_retry_at: null }), NOW)).toBeNull();
+    expect(paypalRetry(view('a', { next_retry_at: NOW - 1 }), NOW)).toBeNull();
+    expect(paypalRetry(view('a', { next_retry_at: NOW + 2 * 86400 }), NOW)).toBe(NOW + 2 * 86400);
+    expect(paypalRetry(undefined, NOW)).toBeNull();
+  });
+  it('an unknown PayPal retry is not checked as more than a day away (Rust check_lever lets it pass, and so it is unknown here)', () => {
+    const r = rulesFor(deal('a'), 'RETRY_AFTER_FIX', null, NOW);
+    expect(r.find(([, t]) => /PayPal’s own retry/.test(t))?.[0]).toBe('unk');
+    expect(rulesFor(deal('a'), 'RETRY_AFTER_FIX', NOW + 3600, NOW).find(([, t]) => /PayPal’s own retry/.test(t))?.[0]).toBe('x');
   });
   it('offers the wallet’s discount, turns RETRY_AFTER_FIX off on REPLAY rows and near a retry, and the rest are not built', () => {
     expect(cellState(deal('a', { mode: 'replay' }), 'RETRY_AFTER_FIX', NOW + 5 * 86400, NOW)).toMatchObject({ kind: 'off', code: 'REPLAY' });
