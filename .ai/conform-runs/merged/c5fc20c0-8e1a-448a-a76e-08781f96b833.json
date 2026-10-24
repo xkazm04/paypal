@@ -1,0 +1,119 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c5fc20c0-8e1a-448a-a76e-08781f96b833",
+ "subject": "decentralized-artifact-distribution",
+ "evaluatedAt": "2026-10-24T06:01:41.268583+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "deal-review",
+   "subject": "decentralized-artifact-distribution",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/approval/listingCode.ts:15 A 'listing' in this context is a seller's deal for goods or services (office, parts, compute, service, other) that the owner approves or rejects, not a third-party artifact that gets installed. A search of apps/desktop/client/src/windows/approval for plugin, marketplace, takedown, moderator and attestation found nothing, so the subject's precondition does not hold.",
+   "techniques": [
+    {
+     "technique": "verdict-bound-to-the-exact-revision",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/listingCode.ts:5 The code checks that the seller's signed listing matches the same terms. That is two-party consent to deal terms, not a third party's approval bound to an artifact revision."
+    }
+   ],
+   "absenceTerms": [
+    "plugin",
+    "marketplace",
+    "takedown",
+    "moderator",
+    "attestation"
+   ]
+  },
+  {
+   "context": "table-wire-protocol",
+   "subject": "decentralized-artifact-distribution",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-proto/src/house.rs:26 The only 'release' in the protocol is one first-party house counterparty identity, pinned at compile time from a build env var. There is no index, catalogue or third-party statement source. A search of crates/table-proto for plugin, marketplace, takedown, moderator and attestation found nothing, so the subject's precondition does not hold.",
+   "techniques": [
+    {
+     "technique": "fail-closed-trust-dependency",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/src/house.rs:28 The pinned release is verified locally against a compiled-in value. No live third-party trust source exists whose outage could matter."
+    }
+   ],
+   "absenceTerms": [
+    "plugin",
+    "marketplace",
+    "takedown",
+    "moderator",
+    "attestation"
+   ]
+  },
+  {
+   "context": "house-seller-service",
+   "subject": "decentralized-artifact-distribution",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "services/house-seller/src/environment.rs:116 The house's 'release' is its own owner publishing the house's public keys and signed mandate, and its 'floor' is a negotiation price floor, so no third-party artifact is distributed. A search of services/house-seller for plugin, marketplace, takedown, moderator and attestation found nothing, so the subject's precondition does not hold.",
+   "techniques": [
+    {
+     "technique": "publisher-declared-verification-floor",
+     "verdict": "not-applicable",
+     "evidence": "services/house-seller/src/bin/house-sign.rs:1 The owner signs a price mandate offline. There is no build-provenance or attestation requirement, and no third-party publisher being checked."
+    }
+   ],
+   "absenceTerms": [
+    "plugin",
+    "marketplace",
+    "takedown",
+    "moderator",
+    "attestation"
+   ],
+   "registryProposal": "The map matched this subject to these contexts on shared words that mean something else here: 'review', 'approval', 'listing' and 'floor' are about deals, and 'floor' is a price floor rather than a verification floor. Requiring a term like plugin, extension or artifact before matching would cut these false matches."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-24T06:01:41.268583+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "decentralized-artifact-distribution"
+   ],
+   "techniques": [
+    "verdict-bound-to-the-exact-revision"
+   ],
+   "deviations": 0,
+   "context": "deal-review",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T06:01:41.268583+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "decentralized-artifact-distribution"
+   ],
+   "techniques": [
+    "fail-closed-trust-dependency"
+   ],
+   "deviations": 0,
+   "context": "table-wire-protocol",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T06:01:41.268583+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "decentralized-artifact-distribution"
+   ],
+   "techniques": [
+    "publisher-declared-verification-floor"
+   ],
+   "deviations": 0,
+   "context": "house-seller-service",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
