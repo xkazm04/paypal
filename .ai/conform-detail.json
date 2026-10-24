@@ -6439,6 +6439,56 @@
         "at": "2026-10-24T02:32:51.319010+00:00",
         "reason": "reviewer (sonnet): The anchor (says.ts:2) is only a comment saying that one file is pure and display-only. It doesn't show that the supply-chain precondition is absent from the context, and DealReview.tsx isn't display-only: it calls backend().invoke('approval_summary') and runs approval actions followed by refetch()."
       }
+    },
+    "3be5eb78-fe5d-4f61-ae53-ffceafebc9a6/eval-harness": {
+      "context": "offline-proof-verifier",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:48:48.146Z",
+      "worker": "c408b22c-a0d9-43ef-9ccf-9640e0fcdbc5",
+      "techniques": []
+    },
+    "1b4ef14a-5a8a-438c-988d-365c439b153d/eval-harness": {
+      "context": "deal-review",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:48:48.146Z",
+      "worker": "c408b22c-a0d9-43ef-9ccf-9640e0fcdbc5",
+      "techniques": []
+    },
+    "97ce9cef-2512-4583-a3a5-6ee0b27f287d/eval-harness": {
+      "context": "browser-mock-backend",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:48:48.146Z",
+      "worker": "c408b22c-a0d9-43ef-9ccf-9640e0fcdbc5",
+      "techniques": []
+    },
+    "dfb10fbf-b52a-4c2d-a63f-c8203148b8fa/eval-harness": {
+      "context": "design-system-styles",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:48:48.146Z",
+      "worker": "c408b22c-a0d9-43ef-9ccf-9640e0fcdbc5",
+      "techniques": []
+    },
+    "30af9627-32b0-465d-97de-4949dd83af41/eval-harness": {
+      "context": "wallet-app-services",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:48:48.146Z",
+      "worker": "c408b22c-a0d9-43ef-9ccf-9640e0fcdbc5",
+      "techniques": []
     }
   }
 }
