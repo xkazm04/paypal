@@ -8642,7 +8642,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "crates/table-app/src/auth.rs:177 Every owner-authority money step validates a short-lived owner ticket bound to deal, terms hash, attempt, session and re-auth generation, so the gate lives in the substrate and an approval of one version never covers another.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         },
         {
           "subject": "agent-cli-transport",
