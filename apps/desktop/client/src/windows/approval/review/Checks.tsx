@@ -8,7 +8,7 @@ import type { ApprovalCheckStatus } from '@bindings/ApprovalCheckStatus';
 import { useState } from 'react';
 import { CHECK_STATUS_WORD } from '../../../lib/words';
 import { Icon, Why, type IconName } from '../../../shared/ui';
-import { checksTally } from '../model';
+import { checksTally, type DecisionCmd } from '../model';
 
 const CLASS: Record<ApprovalCheckStatus, string> = { pass: 'pass', fail: 'fail', wait: 'unknown', not_applicable: 'na' };
 const ICON: Record<ApprovalCheckStatus, IconName | null> = { pass: 'check', fail: 'block', wait: 'clock', not_applicable: null };
@@ -18,6 +18,20 @@ export function checksLine(checks: readonly ApprovalCheck[]): string {
   const t = checksTally(checks);
   return [`${t.pass} of ${t.total} passed`, t.fail ? `${t.fail} failed` : null, t.wait ? `${t.wait} checked later` : null].filter(Boolean).join(' · ');
 }
+
+/** After a decision the wallet carried out, the checklist it was bound to: the one the owner saw.
+ *  The wallet recomputes the checklist and refuses a different one before any ticket, write or
+ *  PayPal call, then records the owner's decision with that checklist (table-runtime service.rs
+ *  decide / record_decision). A release of a hold needs no checklist, and the read of a lost hold
+ *  decides nothing, so neither gets the line. */
+export function boundLine(cmd: DecisionCmd, saw: readonly ApprovalCheck[], read: boolean): string | null {
+  if (cmd === 'deal_void' || read) return null;
+  return `Before it went ahead, the wallet checked again that these are the checks you saw (${checksLine(saw)}), and recorded them with your decision.`;
+}
+
+/** The fold over the checklist once the deal is past the decision: it is the wallet's list as it
+ *  reads now, which is not the one a decision was bound to, and a deal can get here undecided. */
+export const checksNowLabel = (checks: readonly ApprovalCheck[]): string => `The wallet’s checks now · ${checksLine(checks)} ›`;
 
 export function WalletChecks({ checks, revealed }: { checks: readonly ApprovalCheck[]; revealed?: number }) {
   const t = checksTally(checks);

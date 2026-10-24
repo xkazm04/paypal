@@ -30,7 +30,7 @@ import { PriceCheck } from './PriceCheck';
 import { decisionArgs, deriveGates, isLocked, isTerminal, namesMatch, ownerAcceptArgs, readsLostAuthorize, type Gate, type Gates } from './gating';
 import { buildStrip, dealTotal, derivePhase, OFFER_NOT_HERE, failureShown, footerNoticeText, outcomeText, reachedPaypal, refusalText, stateWord, UNLOCK_HEADING, unconfirmedHeading, type DecisionCmd, type Phase } from './model';
 import { buildDiff, buildEvidence, lastAmount, type DiffRow } from './review/diff';
-import { WalletChecks, checksLine } from './review/Checks';
+import { WalletChecks, boundLine, checksNowLabel } from './review/Checks';
 import { DetailsSheet, RowDetail } from './review/Details';
 import { DiffTable, Due, MarketLine, MarketTrack, ReviewBar, ROW_SELECTOR, StateChip, StateList, TwinHeader, type RowSet } from './review/Parts';
 import { nextSteps } from './review/next';
@@ -73,6 +73,8 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const [typed, setTyped] = useState('');
   const [failure, setFailure] = useState<{ what: string; error: WalletError; from: string | null } | null>(null);
   const [outcome, setOutcome] = useState<string | null>(null);
+  // After a decision the wallet carried out: the checklist the owner saw, which the wallet bound it to.
+  const [bound, setBound] = useState<string | null>(null);
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
   const [details, setDetails] = useState(false);
   const [pop, setPop] = useState<Pop | null>(null);
@@ -230,6 +232,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
     if (!summary) return;
     setFailure(null);
     setOutcome(null);
+    setBound(null);
     // Owner ACCEPT binds the exact counter Rust reported; every other decision the terms only.
     const args = cmd === 'deal_owner_accept' ? ownerAcceptArgs(summary) : decisionArgs(summary);
     if (!args) {
@@ -237,8 +240,10 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
       return;
     }
     const r = await s.call<DecisionCmd>(cmd, args, true);
-    if (r.ok) setOutcome(outcomeText(cmd, r.value, cpName));
-    else if (cmd === 'deal_countersign' && reachedPaypal(r.error) && readsLostAuthorize(summary)) setFailure({ what: READ_FAILED, error: r.error, from: summary.deal.state });
+    if (r.ok) {
+      setOutcome(outcomeText(cmd, r.value, cpName));
+      setBound(boundLine(cmd, summary.checks, cmd === 'deal_countersign' && readsLostAuthorize(summary)));
+    } else if (cmd === 'deal_countersign' && reachedPaypal(r.error) && readsLostAuthorize(summary)) setFailure({ what: READ_FAILED, error: r.error, from: summary.deal.state });
     else if (reachedPaypal(r.error)) setFailure({ what: unconfirmedHeading(cmd, summary.deal, r.error), error: r.error, from: summary.deal.state });
     else setFailure({ what: stale(r.error) ? 'Nothing was done' : what, error: r.error, from: null });
     if (cmd === 'shield_release' && r.ok) setTyped('');
@@ -248,6 +253,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
     if (!summary) return;
     setFailure(null);
     setOutcome(null);
+    setBound(null);
     const r = await s.call('open_paypal_in_browser', decisionArgs(summary), true);
     if (r.ok) {
       setInBrowser(true);
@@ -271,6 +277,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const withdraw = async () => {
     setFailure(null);
     setOutcome(null);
+    setBound(null);
     setConfirmWithdraw(false);
     // Withdraw needs no unlock and no capability: it only moves toward the default.
     const r = await s.call('deal_withdraw', { deal_id: dealId });
@@ -436,12 +443,18 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
             <span className="t" title={outcome}>{outcome}</span>
           </div>
         ) : null}
+        {bound ? (
+          <p className="dr-bound" data-testid="bound">
+            <MarkIcon mark="✓" />
+            <span className="t">{bound}</span>
+          </p>
+        ) : null}
 
         {evidence ? <DiffTable heads={evidence.heads} rows={evidence.rows} set="ev" onOpen={openRow} open={openKey} /> : null}
 
         {decided ? (
           <Btn kind="plain" sm className="dr-fold" onClick={() => { setPop(null); setDetails(true); }}>
-            Your checks before you decided · {checksLine(checks)} ›
+            {checksNowLabel(checks)}
           </Btn>
         ) : (
           <section className="dr-checks" aria-label="Safety checks">
@@ -558,6 +571,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
           steps={steps}
           countdown={approveCountdown}
           summary={summary}
+          decided={decided}
           transcript={transcript}
           transcriptError={transcriptQ.error}
         />
