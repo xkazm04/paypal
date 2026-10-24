@@ -132,7 +132,12 @@ export const SPEND = {
   whyRefused: 'Why refused?',
   whyRefusedTitle: (title: string): string => `Why “${title}” was refused`,
   allPassed: '✓ Every rule passed before PayPal was asked.',
-  allPassedWaiting: '✓ Every rule passed. PayPal hasn’t been asked yet: that waits for you.',
+  allPassedWaiting: '✓ Every rule passed when it was cleared. PayPal hasn’t been asked yet: that waits for you.',
+  // A cleared purchase is checked once, when it is cleared; the rules may have changed since.
+  clearedPass: (version: number | null): string => (version === null ? 'passed when cleared' : `passed when cleared, under version ${version} of your rules`),
+  clearedPassLine: (version: number | null): string => (version === null ? 'Passed your rules when cleared' : `Passed your rules when cleared (version ${version})`),
+  clearedEarlier: 'cleared under an earlier version of your rules; not checked against these',
+  clearedEarlierLine: 'Cleared under an earlier version of your rules; not checked against these',
   otherRules: 'Checked under other rules. Open the deal to see.',
   otherRulesCell: 'covered by other rules · open the deal',
   neverAsked: ' · PayPal was never asked',

@@ -7,8 +7,12 @@
 //   - a deal that reached PayPal passed every clause before its first call (the mandate check runs
 //     before any network call, AGENTS.md) → "pass";
 //   - a purchase at AGREED was cleared by the rules (deal.rs: only PurchaseCleared moves a purchase
-//     there, and agent.rs applies it only after the mandate check passed) → "pass", except the
-//     ask-me clause, which asks when the total is above its amount (mandate.rs) → "you";
+//     there, and agent.rs applies it only after the mandate check passed) → "pass" ("passed when
+//     cleared", naming the version), except the ask-me clause, which asks when the total is above its
+//     amount (mandate.rs) → "you". That holds only against the version it was cleared under: the deal's
+//     mandate_version names it until the owner rebinds the deal, and nothing durable records the
+//     clearing version (the purchase.proposed audit row holds only the amount). So when the deal's
+//     version differs from the drawn rule set's, its cells are "unknown", never "pass";
 //   - a REFUSED ask whose decided_by names a policy clause → "fail" at that clause (Rust's recorded
 //     decision), "pass" for the clauses Rust checked before it, "skip" after it;
 //   - the clause an open attention item names → "you" (Rust says that clause kept the decision);
@@ -23,12 +27,15 @@ import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
 import { formatMinor } from '../../../../lib/format';
 import { CLAUSE_NUMBER } from '../../../../lib/mandateRules';
-import { kindWord, RULE_NAME, sellerSaysOnly, stateWord } from '../../../../lib/words';
+import { kindWord, RULE_NAME, sellerSaysOnly, SPEND, stateWord } from '../../../../lib/words';
 import { dealTotal } from '../../logic';
 
 export type GateColumn = { n: number; clause: Clause };
 export type CellKind = 'pass' | 'you' | 'fail' | 'skip' | 'na' | 'unknown';
-export type Cell = { n: number; kind: CellKind; text: string; computed: boolean; over?: boolean };
+/** `cleared`: a "pass" that rests only on the purchase having been cleared (version: the rule set it was
+ *  cleared under, when the client holds it). `earlier`: the purchase was cleared under another version of
+ *  the rules than the one drawn, so it is not claimed against these. */
+export type Cell = { n: number; kind: CellKind; text: string; computed: boolean; over?: boolean; cleared?: { version: number | null }; earlier?: boolean };
 
 /** Clauses that gate a purchase, numbered as the mandate lists them (1-based position), drawn in the
  *  order Rust checks them (by Clause::number: check() sorts before it checks, and a signed list
@@ -98,11 +105,14 @@ function perDealRefusal(d: Pick<Deal, 'kind' | 'terms'>, c: Extract<Clause, { ty
 export const CLAUSE_NO: Readonly<Record<Clause['type'], number>> = CLAUSE_NUMBER;
 
 /** One lane: what the ask can be said to have met at each gate column. */
-export function laneCells(d: Pick<Deal, 'kind' | 'terms' | 'state' | 'paypal'> & Partial<Pick<Deal, 'decided_by'>>, cols: readonly GateColumn[], need?: Pick<AttentionItem, 'clause'> | null): Cell[] {
+export function laneCells(d: Pick<Deal, 'kind' | 'terms' | 'state' | 'paypal'> & Partial<Pick<Deal, 'decided_by' | 'mandate_version'>>, cols: readonly GateColumn[], need?: Pick<AttentionItem, 'clause'> | null, drawn?: { version: number } | null): Cell[] {
   const youAt = need?.clause?.number ?? null;
   const refused = d.state === 'REFUSED';
   const reached = reachedPaypal(d);
   const cleared = d.kind === 'purchase' && d.state === 'AGREED';
+  // A cleared purchase waiting for the owner, read against a rule set other than the one it was checked against.
+  const earlier = cleared && !reached && drawn != null && d.mandate_version != null && d.mandate_version !== drawn.version;
+  const under = cleared && !reached && !earlier ? { version: d.mandate_version ?? null } : null;
   // The clause Rust recorded as refusing this ask, and its column (absent when it is not drawn).
   const recorded = refused && d.decided_by?.type === 'policy' ? d.decided_by.clause : null;
   const recordedCol = recorded === null ? undefined : cols.find((c) => CLAUSE_NO[c.clause.type] === recorded);
@@ -129,11 +139,13 @@ export function laneCells(d: Pick<Deal, 'kind' | 'terms' | 'state' | 'paypal'> &
       const r = perDealCheck(d, overCol.clause as Extract<Clause, { type: 'per_deal' }>);
       return { n, kind: 'fail', text: r?.text ?? '', computed: true, over: true };
     }
+    if (earlier) return { n, kind: 'unknown', text: SPEND.clearedEarlier, computed: true, earlier: true };
     if (cleared && clause.type === 'human_present_over') {
       const t = dealTotal(d);
       if (t.currency !== clause.amount.currency) return { n, kind: 'unknown', text: `priced in ${t.currency}, the limit is in ${clause.amount.currency}`, computed: false };
       if (t.minor > clause.amount.minor) return { n, kind: 'you', text: `${formatMinor(t.minor, t.currency)} is above ${formatMinor(clause.amount.minor, clause.amount.currency)}, so this rule leaves it to you`, computed: true };
     }
+    if (under) return { n, kind: 'pass', text: SPEND.clearedPass(under.version), computed: true, cleared: under };
     if (reached || cleared) return { n, kind: 'pass', text: 'passed', computed: true };
     return { n, kind: 'unknown', text: refused ? 'not known: the refusal did not name a rule' : 'not checked yet', computed: false };
   });
@@ -171,8 +183,10 @@ export function ruleLine(cells: readonly Cell[], cols: readonly GateColumn[]): R
     const cl = clauseOf(you);
     return { kind: 'ask', text: cl ? `Your “${RULE_NAME[cl.type]}” rule asks you` : 'Your rules ask you' };
   }
+  if (cells.some((c) => c.earlier)) return { kind: 'unknown', text: SPEND.clearedEarlierLine };
   if (!cells.length || cells.some((c) => c.kind === 'unknown' || c.kind === 'skip')) return { kind: 'unknown', text: 'Not every rule could be shown here' };
-  return { kind: 'pass', text: 'Passed your rules' };
+  const at = cells.find((c) => c.cleared)?.cleared;
+  return { kind: 'pass', text: at ? SPEND.clearedPassLine(at.version) : 'Passed your rules' };
 }
 
 export type ClauseGroups =Record<'fail' | 'you' | 'pass' | 'unknown', string[]>;
