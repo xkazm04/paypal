@@ -2315,7 +2315,11 @@
           "revision": 28,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/DealPage.tsx:242 An unread or failed runs projection (`runs` undefined) is turned into 'no run on this deal', and an enabled Start-agent button is rendered instead of passing the unknown through (the runtime's ALREADY_RUNNING refusal is the only backstop).",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28
         },
         {
           "subject": "mcp-tools",
@@ -3462,7 +3466,11 @@
           "revision": 28,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/home/away.ts:2 Home summarises verified deal history and attention counts and never reads agent-run state; a search of the home directory for RunSnapshot, useRuns, agent_start, RunState and agent_runs found no hits.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28
         },
         {
           "subject": "voice-io",
@@ -5773,7 +5781,11 @@
           "revision": 28,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "prototype/main/fixtures.js:1 The prototype is static fixture data plus a page-gallery shell with no agent-run registry, dispatch or lifecycle; a search of prototype/ for RunSnapshot, useRuns, agent_start, RunState and agent_runs found no hits.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28
         },
         {
           "subject": "design-tokens",
