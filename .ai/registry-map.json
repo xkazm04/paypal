@@ -2814,7 +2814,11 @@
           "revision": 16,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/design/motion.ts:36 This context is CSS tokens, motion constants and pure SVG geometry; the only stateful code is a display-only calm toggle. Searching design/ and shared/brand/ found zero hits for await, Promise, inFlight, idempot, Mutex or setTimeout, so no operation here can run twice concurrently and no guard is owed.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ccc991958e998a93",
+          "evaluatedRevision": 16
         },
         {
           "subject": "eval-harness",

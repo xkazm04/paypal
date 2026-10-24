@@ -7267,6 +7267,17 @@
       "evaluatedTs": "2026-10-24T05:25:00.189Z",
       "worker": "8a05d9a7-b73a-4ea0-9100-b878a387463c",
       "techniques": []
+    },
+    "dfb10fbf-b52a-4c2d-a63f-c8203148b8fa/concurrency-guards": {
+      "context": "design-system-styles",
+      "subject": "concurrency-guards",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T05:39:32.201Z",
+      "worker": "fa31e5b9-04d7-44f1-9d19-49f69822a8f5",
+      "techniques": [],
+      "registryProposal": "The map matched this context to concurrency-guards on the generic tokens 'design', 'shared' and 'system'. Context-to-subject matching should down-weight such tokens."
     }
   }
 }
