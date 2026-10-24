@@ -14,6 +14,10 @@ import { useSession } from '../session';
 import { rescueRules } from './replay';
 import { buildWatch, nextCheckWords, type WatchDraft } from './watch';
 
+/** Stopping a watch only ends its checks (table-ledger stop_watching: a rescue it already opened is
+ *  not touched); that fix still waits for the owner, or lapses at its deadline with nothing sent. */
+export const STOP_KEEPS_FIX = 'Stopping only ends the checks. A fix this subscription already has stays open for you to approve, or it closes on its own with nothing sent.';
+
 export function RescueWatch({ entries, watching, locked, onClose, onChanged }: {
   entries: readonly MandateListEntry[]; watching: readonly RescueWatchView[]; locked: boolean; onClose: () => void; onChanged: () => void;
 }) {
@@ -81,13 +85,14 @@ export function RescueWatch({ entries, watching, locked, onClose, onChanged }: {
             <Row key={w.subscription_id} title={<><span className="mono">{w.subscription_id}</span> · {w.plan}</>}
               sub={`${w.recipient} · ${w.held ? RESCUE_WATCH_HOLD[w.held] : nextCheckWords(w, now)}`}>
               <Chip tone={st.tone} title={st.means}>{st.text}</Chip>
-              <Btn sm disabled={locked || busy} onClick={() => void stop(w.subscription_id)}>
+              <Btn sm disabled={locked || busy} onClick={() => void stop(w.subscription_id)} title={STOP_KEEPS_FIX}>
                 {s.pending === 'rescue_watch_stop' && stopping === w.subscription_id ? 'Stopping…' : 'Stop watching'}
               </Btn>
             </Row>
           );
         })}
       </Group>
+      {list.some((w) => w.state === 'fix_opened') ? <Hint>{STOP_KEEPS_FIX}</Hint> : null}
       {rules ? (
         <>
           <div className="ow-lim-form">
