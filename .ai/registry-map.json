@@ -2259,12 +2259,11 @@
           "changedAt": "2026-10-14",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "precondition unmet: the subject governs systems that own their assembler (prompt-assembly.md:127); apps/desktop/client/src/windows/main/deal/Instructions.tsx:19 only displays the compiled PLAYBOOKS constant read-only, the client assembles and sends no prompt",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:7436fd55a7cb2500",
-          "evaluatedRevision": 43,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/Instructions.tsx:2 The deal view only shows, read-only, the playbook text that the native engine already wrote as the system prompt. The text comes from the generated @bindings/playbooks constant, so this context owns no assembler. The golden path says the subject 'governs systems that own their assembler'. A search of the client for systemPrompt, max_tokens, tokenBudget, contextWindow and buildPrompt found nothing. 'prompt' appears only in this comment, and 'anthropic' only in negative test assertions.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-memory",
@@ -4526,12 +4525,11 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "precondition unmet: no assembler is owned here (prompt-assembly.md:127); apps/desktop/client/src/windows/main/App.tsx:1 is window routing between Dial, modules and deal detail, the client builds no model prompt",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:7436fd55a7cb2500",
-          "evaluatedRevision": 43,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/windows/main/logic.ts:3 The shell handles window routing, layout, shortcuts and quit confirmation. Its logic module states that it does no IPC, and none of these files builds a model prompt. A search of the client for systemPrompt, max_tokens, tokenBudget, contextWindow and buildPrompt found nothing.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44,
+          "revisionsBehind": 1
         },
         {
           "subject": "app-shell",
@@ -4902,12 +4900,11 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "precondition unmet: no assembler is owned here (prompt-assembly.md:127); apps/desktop/client/src/lib/fairPrice.ts:1 and lib/firstRun.ts:1 are pure ports and first-run facts, the client builds no model prompt",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:7436fd55a7cb2500",
-          "evaluatedRevision": 43,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/lib/fairPrice.ts:3 These files are pure money calculations, first-run steps and read fan-out helpers. None of them builds, budgets or sends a model prompt. A search of the client for systemPrompt, max_tokens, tokenBudget, contextWindow and buildPrompt found nothing, so the subject's precondition (an owned assembler) does not hold.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44,
+          "revisionsBehind": 1
         },
         {
           "subject": "voice-io",
@@ -8947,8 +8944,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 6
+          "state": "not-applicable",
+          "priorNotApplicable": 6,
+          "evidence": "apps/desktop/client/src/windows/main/console/route.ts:8 The console framework derives UI layers from the route and holds a layer registry. Its 'layers' are view stacks, not prompt layers, and no file here assembles or sends a model prompt. A search of the client for systemPrompt, max_tokens, tokenBudget, contextWindow and buildPrompt found nothing.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-memory",
@@ -9311,8 +9312,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 6
+          "state": "not-applicable",
+          "priorNotApplicable": 6,
+          "evidence": "apps/desktop/client/src/lib/data/invoke.ts:2 The data layer wraps typed Tauri reads with time limits, cache keys and invalidation from the event bus. The 'budget' here is a read budget, not a token budget, and nothing composes a prompt. A search of the client for systemPrompt, max_tokens, tokenBudget, contextWindow and buildPrompt found nothing.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "table",

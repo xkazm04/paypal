@@ -1,0 +1,188 @@
+{
+ "schema": "conform-run/1",
+ "worker": "f4544d34-8a38-4795-9bba-56ef27baea36",
+ "subject": "prompt-assembly",
+ "evaluatedAt": "2026-10-24T01:40:02.184237+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "deal-detail",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/Instructions.tsx:2 The deal view only shows, read-only, the playbook text that the native engine already wrote as the system prompt. The text comes from the generated @bindings/playbooks constant, so this context owns no assembler. The golden path says the subject 'governs systems that own their assembler'. A search of the client for systemPrompt, max_tokens, tokenBudget, contextWindow and buildPrompt found nothing. 'prompt' appears only in this comment, and 'anthropic' only in negative test assertions.",
+   "techniques": [
+    {
+     "technique": "layered-composition",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/Instructions.tsx:16 Shows one finished playbook string verbatim. Nothing here composes layers or sends the result to a model."
+    }
+   ],
+   "absenceTerms": [
+    "systemPrompt",
+    "max_tokens",
+    "tokenBudget",
+    "contextWindow",
+    "buildPrompt"
+   ]
+  },
+  {
+   "context": "money-guidance-and-onboarding",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/lib/fairPrice.ts:3 These files are pure money calculations, first-run steps and read fan-out helpers. None of them builds, budgets or sends a model prompt. A search of the client for systemPrompt, max_tokens, tokenBudget, contextWindow and buildPrompt found nothing, so the subject's precondition (an owned assembler) does not hold.",
+   "techniques": [
+    {
+     "technique": "layered-composition",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/readEach.ts:1 A data-read helper. It composes no prompt."
+    }
+   ],
+   "absenceTerms": [
+    "systemPrompt",
+    "max_tokens",
+    "tokenBudget",
+    "contextWindow",
+    "buildPrompt"
+   ]
+  },
+  {
+   "context": "main-window-shell",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/logic.ts:3 The shell handles window routing, layout, shortcuts and quit confirmation. Its logic module states that it does no IPC, and none of these files builds a model prompt. A search of the client for systemPrompt, max_tokens, tokenBudget, contextWindow and buildPrompt found nothing.",
+   "techniques": [
+    {
+     "technique": "layered-composition",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/App.tsx:1 The app root wires providers and routing. It does no prompt composition."
+    }
+   ],
+   "absenceTerms": [
+    "systemPrompt",
+    "max_tokens",
+    "tokenBudget",
+    "contextWindow",
+    "buildPrompt"
+   ]
+  },
+  {
+   "context": "console-framework",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/console/route.ts:8 The console framework derives UI layers from the route and holds a layer registry. Its 'layers' are view stacks, not prompt layers, and no file here assembles or sends a model prompt. A search of the client for systemPrompt, max_tokens, tokenBudget, contextWindow and buildPrompt found nothing.",
+   "techniques": [
+    {
+     "technique": "layered-composition",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/Console.tsx:1 The 'stack of layers' here is a UI sheet stack. It is not a prompt layer stack."
+    }
+   ],
+   "absenceTerms": [
+    "systemPrompt",
+    "max_tokens",
+    "tokenBudget",
+    "contextWindow",
+    "buildPrompt"
+   ]
+  },
+  {
+   "context": "client-data-layer",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/lib/data/invoke.ts:2 The data layer wraps typed Tauri reads with time limits, cache keys and invalidation from the event bus. The 'budget' here is a read budget, not a token budget, and nothing composes a prompt. A search of the client for systemPrompt, max_tokens, tokenBudget, contextWindow and buildPrompt found nothing.",
+   "techniques": [
+    {
+     "technique": "fingerprinting-and-cache-keys",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/data/invoke.ts:1 The cache keys and read budget here govern query results, not prompt prefixes."
+    }
+   ],
+   "absenceTerms": [
+    "systemPrompt",
+    "max_tokens",
+    "tokenBudget",
+    "contextWindow",
+    "buildPrompt"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-24T01:40:02.184237+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [
+    "layered-composition"
+   ],
+   "deviations": 0,
+   "context": "deal-detail",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T01:40:02.184237+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [
+    "layered-composition"
+   ],
+   "deviations": 0,
+   "context": "money-guidance-and-onboarding",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T01:40:02.184237+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [
+    "layered-composition"
+   ],
+   "deviations": 0,
+   "context": "main-window-shell",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T01:40:02.184237+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [
+    "layered-composition"
+   ],
+   "deviations": 0,
+   "context": "console-framework",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T01:40:02.184237+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [
+    "fingerprinting-and-cache-keys"
+   ],
+   "deviations": 0,
+   "context": "client-data-layer",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
