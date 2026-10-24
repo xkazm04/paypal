@@ -2778,7 +2778,11 @@
           "revision": 15,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/brand/index.ts:2 Tokens, CSS and presentational SVG only. A search of design/ and shared/ for useQuery, readCommand, staleTime and gcTime found no read or cache code, so the subject's precondition (a client holding fetched responses) does not hold.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:20824426732ffb6a",
+          "evaluatedRevision": 15
         },
         {
           "subject": "concurrency-guards",
@@ -7384,7 +7388,11 @@
           "revision": 15,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/start.tsx:6 These surfaces render data handed to them as props (types only imported). A search of shared/ for useQuery, readCommand, staleTime and gcTime found none; the only query-client use in shared/ is ErrorBoundary, which belongs to another context. They hold no fetch cache.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:20824426732ffb6a",
+          "evaluatedRevision": 15
         },
         {
           "subject": "concurrent-vcs",
@@ -9256,7 +9264,11 @@
           "revision": 15,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/stagger.tsx:256 A module-scoped cache of measured part heights, keyed by part@innerWidth x innerHeight (line 258), with no size cap and no reaper other than the forgetSizes test hook. Every distinct window size seen during a resize adds entries for the window's lifetime, which breaks the bounded-eviction rule for derive caches.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:20824426732ffb6a",
+          "evaluatedRevision": 15
         },
         {
           "subject": "search",

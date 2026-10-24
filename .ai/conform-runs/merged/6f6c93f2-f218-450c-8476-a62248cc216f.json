@@ -1,0 +1,104 @@
+{
+ "schema": "conform-run/1",
+ "worker": "6f6c93f2-f218-450c-8476-a62248cc216f",
+ "subject": "client-fetch-cache",
+ "evaluatedAt": "2026-10-24T04:01:00.723983+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "console-navigation-and-lists",
+   "subject": "client-fetch-cache",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/console/stagger.tsx:256 A module-scoped cache of measured part heights, keyed by part@innerWidth x innerHeight (line 258), with no size cap and no reaper other than the forgetSizes test hook. Every distinct window size seen during a resize adds entries for the window's lifetime, which breaks the bounded-eviction rule for derive caches.",
+   "techniques": [
+    {
+     "technique": "parse-and-derive-caches",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/console/stagger.tsx:256 Unbounded module-level derived-value cache. The rule asks for a small cap on recently used entries; only a test reset exists (line 260)."
+    }
+   ]
+  },
+  {
+   "context": "design-system-styles",
+   "subject": "client-fetch-cache",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/shared/brand/index.ts:2 Tokens, CSS and presentational SVG only. A search of design/ and shared/ for useQuery, readCommand, staleTime and gcTime found no read or cache code, so the subject's precondition (a client holding fetched responses) does not hold.",
+   "techniques": [],
+   "absenceTerms": [
+    "useQuery",
+    "readCommand",
+    "staleTime",
+    "gcTime"
+   ]
+  },
+  {
+   "context": "shared-surfaces-onboarding-honesty",
+   "subject": "client-fetch-cache",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/shared/start.tsx:6 These surfaces render data handed to them as props (types only imported). A search of shared/ for useQuery, readCommand, staleTime and gcTime found none; the only query-client use in shared/ is ErrorBoundary, which belongs to another context. They hold no fetch cache.",
+   "techniques": [],
+   "absenceTerms": [
+    "useQuery",
+    "readCommand",
+    "staleTime",
+    "gcTime"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "client-fetch-cache",
+   "context": "client-data-layer",
+   "reason": "evidence leans on windows/main/displays.ts, which is not a tracked file"
+  },
+  {
+   "subject": "client-fetch-cache",
+   "context": "shared-ui-primitives",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T04:01:00.723983+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "client-fetch-cache"
+   ],
+   "techniques": [
+    "parse-and-derive-caches"
+   ],
+   "deviations": 1,
+   "context": "console-navigation-and-lists",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:01:00.723983+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "client-fetch-cache"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "design-system-styles",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:01:00.723983+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "client-fetch-cache"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shared-surfaces-onboarding-honesty",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -6704,6 +6704,42 @@
           "evidence": "crates/table-app/src/auth.rs:17 With no OS re-auth available the session cannot unlock, so owner-authority steps are denied rather than prompted or passed; ApprovalSession starts locked."
         }
       ]
+    },
+    "7e6e9781-1ef3-439c-ae2d-00619d2cb1d9/client-fetch-cache": {
+      "context": "console-navigation-and-lists",
+      "subject": "client-fetch-cache",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:01:00.723Z",
+      "worker": "6f6c93f2-f218-450c-8476-a62248cc216f",
+      "techniques": [
+        {
+          "technique": "parse-and-derive-caches",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/stagger.tsx:256 Unbounded module-level derived-value cache. The rule asks for a small cap on recently used entries; only a test reset exists (line 260)."
+        }
+      ]
+    },
+    "dfb10fbf-b52a-4c2d-a63f-c8203148b8fa/client-fetch-cache": {
+      "context": "design-system-styles",
+      "subject": "client-fetch-cache",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:01:00.723Z",
+      "worker": "6f6c93f2-f218-450c-8476-a62248cc216f",
+      "techniques": []
+    },
+    "877e3281-ae38-485a-a404-4476986454a5/client-fetch-cache": {
+      "context": "shared-surfaces-onboarding-honesty",
+      "subject": "client-fetch-cache",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:01:00.723Z",
+      "worker": "6f6c93f2-f218-450c-8476-a62248cc216f",
+      "techniques": []
     }
   }
 }
