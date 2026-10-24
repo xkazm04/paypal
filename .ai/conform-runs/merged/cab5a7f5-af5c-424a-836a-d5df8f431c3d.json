@@ -1,0 +1,123 @@
+{
+ "schema": "conform-run/1",
+ "worker": "cab5a7f5-af5c-424a-836a-d5df8f431c3d",
+ "subject": "settings",
+ "evaluatedAt": "2026-10-24T06:25:17.305542+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "rules-and-settings-areas",
+   "subject": "settings",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx:383 To flip one notice switch, the surface has to read the whole preferences record fresh and write all of it back. Any change the mini window makes between that read and the write is overwritten. This is the whole-document write that in-place-document-patch rules out (a write should touch only its own subtree).",
+   "techniques": [
+    {
+     "technique": "in-place-document-patch",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx:383 Changing one field rewrites every field from a fresh read. The comment at lines 371-373 admits settings_write replaces the whole record and re-applies the window's form and position, so a lost update is possible."
+    },
+    {
+     "technique": "save-experience",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx:404 Saves are immediate. The switch shows the stored value (s.preferences, line 398) and does not flip ahead of the write. A failed read or write shows a notice, and the switches are disabled while busy."
+    },
+    {
+     "technique": "read-batching",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx:42 The layer uses the one shared get_settings snapshot from the world store (world.tsx:196 refreshes it on settings:changed) instead of reading key by key."
+    },
+    {
+     "technique": "setting-kinds",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx:7 Ceiling-like values (signed mandate limits) are read-only here and change only through a hand-off to the approval window. settings_write covers notices only (SettingsLayer line 10)."
+    },
+    {
+     "technique": "inherited-default-override",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx:346 Calm motion is the OS reduced-motion flag OR the in-app flag. The in-app key defaults to a constant false and only adds to the OS signal; it never overrides or detaches from it. The switch shows the in-app state, and the copy explains when the OS is the reason motion is calm."
+    }
+   ]
+  },
+  {
+   "context": "ipc-contract-and-authority-table",
+   "subject": "settings",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-client/src/lib.rs:332 The only preferences write command takes the whole TumblerPreferences record. Every caller therefore has to read, modify and write back the full stored document instead of writing one named member, so callers can overwrite each other's changes.",
+   "techniques": [
+    {
+     "technique": "in-place-document-patch",
+     "verdict": "deviation",
+     "evidence": "crates/table-client/src/lib.rs:332 The write replaces the whole record. The same struct, with deny_unknown_fields, is also what gets stored (ledger key \"tumbler\", loaded at service.rs:264), so after a rollback an older build would fail to load fields a newer build added rather than keep them."
+    },
+    {
+     "technique": "key-registry",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/settings.rs:42 The preference fields are a closed Rust struct and unknown fields are rejected at the IPC door. The TypeScript bindings are generated from it (generate-bindings.rs), so there is only one vocabulary."
+    },
+    {
+     "technique": "typed-accessors",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/settings.rs:52 Typed fields, and the defaults are declared once next to the type, not as literals at call sites."
+    },
+    {
+     "technique": "read-batching",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/lib.rs:297 One bulk snapshot read. The settings:changed event (lib.rs:391) carries the full snapshot, so readers are refreshed on every write."
+    },
+    {
+     "technique": "setting-kinds",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/authority_table.rs:232 Signing ceilings and limits is approval-window only and privileged. settings_write (line 239) is an open UI command. Different kinds get different write paths."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "settings",
+   "context": "design-theme-and-copy",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T06:25:17.305542+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "settings"
+   ],
+   "techniques": [
+    "in-place-document-patch",
+    "inherited-default-override",
+    "read-batching",
+    "save-experience",
+    "setting-kinds"
+   ],
+   "deviations": 1,
+   "context": "rules-and-settings-areas",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T06:25:17.305542+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "settings"
+   ],
+   "techniques": [
+    "in-place-document-patch",
+    "key-registry",
+    "read-batching",
+    "setting-kinds",
+    "typed-accessors"
+   ],
+   "deviations": 1,
+   "context": "ipc-contract-and-authority-table",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
