@@ -25,7 +25,7 @@ import { dealTotal } from '../../logic';
 
 export type GateColumn = { n: number; clause: Clause };
 export type CellKind = 'pass' | 'you' | 'fail' | 'skip' | 'na' | 'unknown';
-export type Cell = { n: number; kind: CellKind; text: string; computed: boolean };
+export type Cell = { n: number; kind: CellKind; text: string; computed: boolean; over?: boolean };
 
 /** Clauses that gate a purchase, numbered as the mandate lists them (1-based position), drawn in the
  *  order Rust checks them (by Clause::number: check() sorts before it checks, and a signed list
@@ -78,6 +78,18 @@ export function perDealCheck(d: Pick<Deal, 'kind' | 'terms'>, c: Extract<Clause,
   return { over, text: `${formatMinor(t.minor, t.currency)} is ${over ? 'over' : 'within'} the ${formatMinor(c.max_amount.minor, c.max_amount.currency)} limit` };
 }
 
+/** Why a per-deal clause the wallet recorded as refusing an ask refused it. mandate.rs checks it in
+ *  this order: the kind, the currency, then the amount or the category. So an ask of the clause's kind
+ *  and currency that is within the limit was refused for what it buys (the client holds no category). */
+function perDealRefusal(d: Pick<Deal, 'kind' | 'terms'>, c: Extract<Clause, { type: 'per_deal' }>): { over: boolean; text: string } {
+  const r = perDealCheck(d, c);
+  if (!r) return { over: false, text: `this rule refused it: it allows only ${kindWord(c.kind)} deals` };
+  if (r.over) return r;
+  const t = dealTotal(d);
+  if (t.currency !== c.max_amount.currency) return { over: false, text: `this rule refused it: it is priced in ${t.currency} and the limit is in ${c.max_amount.currency}` };
+  return { over: false, text: `${r.text}, so this rule refused it for what was bought, not its price` };
+}
+
 /** Rust's clause numbers (Clause::number): a refusal names the clause by type, not by position.
  *  The client's one table (lib/mandateRules, pinned to mandate.rs by its test), not a copy. */
 export const CLAUSE_NO: Readonly<Record<Clause['type'], number>> = CLAUSE_NUMBER;
@@ -103,15 +115,15 @@ export function laneCells(d: Pick<Deal, 'kind' | 'terms' | 'state' | 'paypal'> &
     if (clause.type === 'per_deal' && clause.kind !== d.kind) return { n, kind: 'na', text: `only for ${kindWord(clause.kind)} deals`, computed: false };
     if (recordedCol && recordedCol.n === n) {
       // The recorded decision names the rule; for a per-purchase limit the amounts say why, in words.
-      const why = clause.type === 'per_deal' ? perDealCheck(d, clause) : null;
-      return { n, kind: 'fail', text: why?.over ? why.text : 'this rule refused it', computed: false };
+      const why = clause.type === 'per_deal' ? perDealRefusal(d, clause) : null;
+      return { n, kind: 'fail', text: why ? why.text : 'this rule refused it', computed: false, over: why?.over };
     }
     if (recordedCol && stopNo !== null && no < stopNo) return { n, kind: 'pass', text: 'passed', computed: false };
     // AttentionItem.clause.number is Rust's Clause::number (by type), not the clause's position.
     if (youAt === no) return { n, kind: 'you', text: 'leaves this decision to you', computed: false };
     if (overCol && overCol.n === n) {
       const r = perDealCheck(d, overCol.clause as Extract<Clause, { type: 'per_deal' }>);
-      return { n, kind: 'fail', text: r?.text ?? '', computed: true };
+      return { n, kind: 'fail', text: r?.text ?? '', computed: true, over: true };
     }
     if (reached) return { n, kind: 'pass', text: 'passed', computed: true };
     return { n, kind: 'unknown', text: refused ? 'not known: the refusal did not name a rule' : 'not checked yet', computed: false };
@@ -142,7 +154,8 @@ export function ruleLine(cells: readonly Cell[], cols: readonly GateColumn[]): R
   const fail = cells.find((c) => c.kind === 'fail');
   if (fail) {
     const cl = clauseOf(fail);
-    return { kind: 'fail', text: cl?.type === 'per_deal' ? `Over the per-deal limit (${money(cl.max_amount)})` : `Stopped by your “${cl ? RULE_NAME[cl.type] : 'rules'}” rule` };
+    // "Over the limit" only when the amounts say so: the per-deal rule also refuses a category.
+    return { kind: 'fail', text: cl?.type === 'per_deal' && fail.over ? `Over the per-deal limit (${money(cl.max_amount)})` : `Stopped by your “${cl ? RULE_NAME[cl.type] : 'rules'}” rule` };
   }
   const you = cells.find((c) => c.kind === 'you');
   if (you) {

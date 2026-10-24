@@ -104,6 +104,17 @@ describe('the one-line rules verdict', () => {
   it('names the per-deal limit when that is what stopped it', () => {
     expect(ruleLine(laneCells(deal({ state: 'REFUSED', qty: 40, price: 299 }), cols), cols)).toEqual({ kind: 'fail', text: 'Over the per-deal limit ($200)' });
   });
+  it('never says “over the limit” for an ask the per-deal rule refused within its limit', () => {
+    // mandate.rs: the per-deal clause refuses on the kind, the currency, the amount or the category.
+    // Within the limit, in the limit's currency and kind, what it refused is what was bought.
+    const cells = laneCells({ ...deal({ state: 'REFUSED', price: 50 }), decided_by: { type: 'policy', clause: 3 } }, cols);
+    expect(cells[1]).toMatchObject({ kind: 'fail', computed: false, text: '$50.00 is within the $200.00 limit, so this rule refused it for what was bought, not its price' });
+    expect(ruleLine(cells, cols)).toEqual({ kind: 'fail', text: 'Stopped by your “Limit per deal” rule' });
+    // In another currency the amounts are never compared: the rule refused the currency.
+    const eur = laneCells({ ...deal({ state: 'REFUSED', price: 50 }), terms: { item_ref: 'x', qty: 1, unit_price: { minor: 5000, currency: 'EUR' }, currency: 'EUR', delivery: { type: 'digital_now' } }, decided_by: { type: 'policy', clause: 3 } }, cols);
+    expect(eur[1]?.text).toBe('this rule refused it: it is priced in EUR and the limit is in USD');
+    expect(ruleLine(eur, cols).text).toBe('Stopped by your “Limit per deal” rule');
+  });
   it('names another rule that refused it, from the wallet record', () => {
     const cells = laneCells({ ...deal({ state: 'REFUSED', price: 50 }), decided_by: { type: 'policy', clause: 5 } }, cols);
     expect(ruleLine(cells, cols)).toEqual({ kind: 'fail', text: 'Stopped by your “Daily limit” rule' });
