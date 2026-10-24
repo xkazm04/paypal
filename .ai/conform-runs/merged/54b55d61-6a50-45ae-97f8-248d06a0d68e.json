@@ -1,0 +1,123 @@
+{
+ "schema": "conform-run/1",
+ "worker": "54b55d61-6a50-45ae-97f8-248d06a0d68e",
+ "subject": "audit-logging",
+ "evaluatedAt": "2026-10-24T05:04:45.715529+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "ledger-repositories-audit-evidence",
+   "subject": "audit-logging",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-ledger/src/audit.rs:176 The one append door hashes and stores whatever time the caller passes. The only check is at>=0 (:169), and relay_clock_tests.rs exercises a clock that steps backwards, so seq order and `at` can disagree. append-only-design names this failure: the time should come from one clock assigned at insert. The door also states no retention horizon and validates no origin tag.",
+   "techniques": [
+    {
+     "technique": "append-only-design",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/audit.rs:176 The shape is right: the module exports only append and reads, migration triggers forbid UPDATE, DELETE and replace, and seq is a monotonic tiebreaker. But the timestamp comes from the caller, which the technique forbids."
+    },
+    {
+     "technique": "write-chokepoint",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/audit.rs:169 There is one door (`audit::append`), and its ~55 writers can be listed with grep. But the door does not assign the time, runs no retention trim, and its schema has no outcome or origin field. Actor is a free string."
+    },
+    {
+     "technique": "write-path-sanitization",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/audit.rs:173 Inside the door, before hashing, audit_detail.rs applies a per-action key allowlist, scrubs credential-shaped and email strings, and caps size at 64 KiB with a truncation marker. Tests plant hostile records."
+    },
+    {
+     "technique": "tamper-evidence",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/audit.rs:223 Writes are serialized (IMMEDIATE transactions) into a hash chain over a JCS-canonical preimage. The chain is re-verified on open and on read. bundle.rs exports carry the head for signing, and witness.rs keeps signed house heads."
+    },
+    {
+     "technique": "audit-querying",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/audit.rs:265 history_rows filters by deal and time window, verifies the chain first, and returns a `more` flag, so a capped read says it is capped. There is no actor/action filter API, and only (deal_id, seq) is indexed."
+    },
+    {
+     "technique": "best-effort-with-accounting",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/tests.rs:498 The audit row deliberately takes part in the same transaction as the state change (the technique's named exception, where the record must exist with the action), and this test pins that. No best-effort counter is needed. Dedup guards (attention.rs, relay.rs) are check-then-insert inside one IMMEDIATE transaction."
+    },
+    {
+     "technique": "retention-and-partitioning",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/audit.rs:161 Searching the crate for retention or horizon finds nothing. The door states no horizon (not even 'kept forever by design'), has no floor or trim, and all domains share one pooled audit_log with no origin enum the door validates."
+    },
+    {
+     "technique": "decision-records",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/repositories.rs:217 Owner and rule decisions are keyed on the durable deal id. The current state is written to deals.decided_by (:214) and the act goes to the append-only audit row in the same call."
+    },
+    {
+     "technique": "record-axis-predicate",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-ledger/src/pin.rs:4 Audit rows are never invalidated, so there is no record-axis interval to rewind, which is the technique's own exemption."
+    }
+   ]
+  },
+  {
+   "context": "rewind-and-displays",
+   "subject": "audit-logging",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/console/areas/rewind/RewindLayer.tsx:109 The tape's empty message ('Nothing happened this week. If you do nothing, no money moves.') is passed unconditionally. When deal_history fails or is still loading (steps = []), the tape still claims nothing happened, even though the header says the record couldn't be read. Separately, steps whose deal is not in the loaded list are silently dropped (:122). audit-querying forbids both: an empty result must not look like a broken query, and a filtered listing must say it is filtered.",
+   "techniques": [
+    {
+     "technique": "audit-querying",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/rewind/RewindLayer.tsx:109 The tape's empty state does not tell error or loading apart from a quiet week."
+    },
+    {
+     "technique": "best-effort-with-accounting",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/unshown.ts:45 A failed evidence read becomes 'unread' and never keeps the calm wording, so the gap is shown on the surface."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-24T05:04:45.715529+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "audit-logging"
+   ],
+   "techniques": [
+    "append-only-design",
+    "audit-querying",
+    "best-effort-with-accounting",
+    "decision-records",
+    "record-axis-predicate",
+    "retention-and-partitioning",
+    "tamper-evidence",
+    "write-chokepoint",
+    "write-path-sanitization"
+   ],
+   "deviations": 1,
+   "context": "ledger-repositories-audit-evidence",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:04:45.715529+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "audit-logging"
+   ],
+   "techniques": [
+    "audit-querying",
+    "best-effort-with-accounting"
+   ],
+   "deviations": 1,
+   "context": "rewind-and-displays",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
