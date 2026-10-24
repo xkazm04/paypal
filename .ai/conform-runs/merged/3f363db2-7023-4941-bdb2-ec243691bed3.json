@@ -1,0 +1,263 @@
+{
+ "schema": "conform-run/1",
+ "worker": "3f363db2-7023-4941-bdb2-ec243691bed3",
+ "subject": "module-design",
+ "evaluatedAt": "2026-10-24T04:21:29.549655+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "shared-ui-primitives",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "apps/desktop/client/src/shared/ui/layers.ts:95 The kit's shared behaviours (the Esc layer stack, the modal focus guard, the stale-banner wording) each sit behind one small interface that every Sheet, Popover and boundary reuses. A grep found no second copy of the focus selector, the experiment key or the capture-phase Esc rule anywhere in the client.",
+   "techniques": [
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/layers.ts:95 One hook call hides the capture-phase window listener, the pop-before-close ordering and the stale-closure ref. LayerKind is a closed union."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/layers.ts:1 The 'Esc closes the topmost layer' rule lives in one module. Sheet and Popover register through useLayer instead of each handling Esc themselves."
+    },
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/boundary/ErrorBoundary.tsx:80 The window target is injected with the real window as the default, so the enabling point is at the caller and a test can pass its own target."
+    },
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/boundary/staleBanner.ts:28 The banner decision is a pure value-in, value-out function. Drawing it and refetching happen elsewhere."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/boundary/staleBanner.ts:29 A single-output transformation written as a filter/some/map pipeline, which is the case where the declarative form wins."
+    },
+    {
+     "technique": "mirror-type-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/Popover.tsx:17 Layout measurements that only a real browser produces are turned into plain numbers in measure(), and the flip branch is written against those numbers. No test calls place() yet."
+    },
+    {
+     "technique": "borrowed-surface",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/hold.tsx:31 The wrapper that guards money ('Enter never releases money') forwards nothing implicitly. By contrast Btn, a styling-only wrapper, spreads ...rest, which the technique allows for a convenience wrapper."
+    },
+    {
+     "technique": "concurrency-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/boundary/ErrorBoundary.tsx:52 The kit renders synchronously. Its only async call is a fire-and-forget refetch at the retry edge, so no flow-control model leaks into the primitives."
+    }
+   ]
+  },
+  {
+   "context": "director-preview-stories",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/director/takes.ts:753 takes.ts says at line 6 that everything in it is pure (the director gathers what it shows, takes.ts only checks), but readChapterRecord fetches the mock world through core.invoke and reads the clock with nowUnix() at line 776. Effectful reading now lives inside the module described as the pure core, and the module's stated contract is false.",
+   "techniques": [
+    {
+     "technique": "io-free-core",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/director/takes.ts:753 The core fetches its own inputs and reads time from the environment, both of which belong in the Director driver. The reducers it calls (shopRecord, deadlinesRecord(\u2026, now)) are themselves pure."
+    },
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/director/actions.ts:58 Presentation actions land on a Stage seam. Director.tsx:254 is the real implementation, story.test.ts and firstRunStory.test.ts supply recording stand-ins, and 'a stage without one ignores it' is part of the contract."
+    },
+    {
+     "technique": "mirror-type-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/director/takes.ts:522 Instead of the browser's DOMMatrix it takes a plain object with only the fields it reads. Director.measure converts the browser values at the edge, and film.test.ts exercises it."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/director/stories.ts:27 The two stories differ only in values (beats, chapters, length, expectations, world), so each is a Story record rather than a separate module. This is the technique's 'a variation is data' rule."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/director/actions.ts:107 runAction's branches each do different work with different effects, so explicit sequential code is the right form here."
+    },
+    {
+     "technique": "concurrency-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/director/Director.tsx:415 Beat scheduling and timers live only in the Director driver. runAction and applyWorld are synchronous."
+    },
+    {
+     "technique": "host-primitive-facade",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/director/retime.ts:9 retime.ts does run on two hosts (Node and the browser), but it spawns, sleeps and times out nothing, so the pure-core form is enough and no facade is needed."
+    }
+   ]
+  },
+  {
+   "context": "rescue-spend-shield-modules",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/modules/shield/matrix.ts:79 The shield's pause-line decision is encoded twice, in Rust (crates/table-core/src/market.rs:443 over_forty_percent) and here, and the client tests (matrix.test.ts, normal.test.ts) check this copy only against its own formula. A change to the Rust threshold would leave every client test green while the panel states the wrong line.",
+   "techniques": [
+    {
+     "technique": "module-depth",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield/matrix.ts:79 Information leakage: one decision is hand-kept in two modules. The sibling mirror, lib/mandateRules, is pinned by reading the Rust source in mandateRules.test.ts. This one is not, and rustConstants.test.ts reads market.rs only for the product-length bound."
+    },
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield/normal.ts:32 The model files are 'No React, no IPC' and take the time as a parameter. A grep found no nowUnix or Date.now in them."
+    },
+    {
+     "technique": "borrowed-surface",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/modules/spend/gate.ts:40 The clause set is owned by Rust (generated bindings). Because the record is total, a new clause type is a compile error here rather than a silent new column."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/modules/spend/gate.ts:34 Column selection is a single-output map/filter/sort pipeline. laneCells, which mixes statement branches, stays sequential."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/shared/NoteChip.tsx:5 The chip, which both the deal page and the Shield use, was moved to one shared place. RescueLayer and ShieldLayer import the pure model and preview modules instead of copying them."
+    }
+   ]
+  },
+  {
+   "context": "client-runtime-foundation",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/lib/pending.ts:1 pending.ts is a pure pass-through that re-exports four generated binding types and adds no behaviour. 6 files import through it while 13 others import @bindings/CounterpartyDisplay directly, so the claimed single import point does not hold and callers have one more name to learn.",
+   "techniques": [
+    {
+     "technique": "module-depth",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/pending.ts:1 This is the pass-through the technique names: removing it would teach callers nothing new. It should be inlined or given a real job."
+    },
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/contract.ts:25 One IPC seam, written in the generated contract's vocabulary, with a Tauri adapter (tauri.ts) and a mock adapter. The choice is made in runtime.ts initBackend, with RuntimeDeps as test seams."
+    },
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/preview.ts:133 Whether the page runs live or in demo mode is a pure function of a value. runtime.ts is the driver that reads storage and swaps the IPC."
+    },
+    {
+     "technique": "mirror-type-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/runtime.ts:11 Host facts (Tauri presence, window.parent framing, localStorage, sessionStorage, location) are converted once into a plain DemoEnv, and every branch is written against that."
+    },
+    {
+     "technique": "borrowed-surface",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/contract.ts:48 Keyed by Rust's ErrorCode union, so a code Rust adds fails the typecheck instead of silently arriving as UNAVAILABLE."
+    },
+    {
+     "technique": "marked-unverifiable-region",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/runtime.ts:109 The cast into Tauri internals is visible, confined to sealShell, kept minimal, and comes with a written invariant (lines 102-107: best effort per property, and the page never calls a read-only one). The only other access is a presence check at preview.ts:168."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "module-design",
+   "context": "prototype-dial-shell-and-design-system",
+   "reason": "evidence leans on shared/shell.js, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T04:21:29.549655+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "borrowed-surface",
+    "concurrency-at-the-edge",
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "mirror-type-at-the-edge",
+    "module-depth",
+    "seams-and-adapters"
+   ],
+   "deviations": 0,
+   "context": "shared-ui-primitives",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:21:29.549655+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "concurrency-at-the-edge",
+    "declarative-or-sequential",
+    "host-primitive-facade",
+    "io-free-core",
+    "mirror-type-at-the-edge",
+    "module-depth",
+    "seams-and-adapters"
+   ],
+   "deviations": 1,
+   "context": "director-preview-stories",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:21:29.549655+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "borrowed-surface",
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "module-depth"
+   ],
+   "deviations": 1,
+   "context": "rescue-spend-shield-modules",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:21:29.549655+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "borrowed-surface",
+    "io-free-core",
+    "marked-unverifiable-region",
+    "mirror-type-at-the-edge",
+    "module-depth",
+    "seams-and-adapters"
+   ],
+   "deviations": 1,
+   "context": "client-runtime-foundation",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
