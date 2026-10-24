@@ -1,0 +1,197 @@
+{
+  "host": "owner-mandate-config",
+  "files_read": [
+    "apps/desktop/client/src/windows/approval/OwnerConfig.tsx",
+    "apps/desktop/client/src/windows/approval/MandateEditor.tsx",
+    "apps/desktop/client/src/windows/approval/mandateDraft.ts",
+    "apps/desktop/client/src/windows/approval/mandateDraft.test.ts",
+    "apps/desktop/client/src/windows/approval/templates.ts",
+    "apps/desktop/client/src/windows/approval/owner.css (first 60 lines)",
+    "apps/desktop/client/src/windows/approval/owner/Lever.tsx",
+    "apps/desktop/client/src/windows/approval/owner/RescueReplay.tsx",
+    "apps/desktop/client/src/windows/approval/owner/RescueWatch.tsx",
+    "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx",
+    "apps/desktop/client/src/windows/approval/owner/Templates.tsx",
+    "apps/desktop/client/src/windows/approval/owner/WalletLimits.tsx",
+    "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx",
+    "apps/desktop/client/src/windows/approval/owner/WhoWhat.tsx",
+    "apps/desktop/client/src/windows/approval/owner/data.ts",
+    "apps/desktop/client/src/windows/approval/owner/diff.ts",
+    "apps/desktop/client/src/windows/approval/owner/levers.ts",
+    "apps/desktop/client/src/windows/approval/owner/replay.ts",
+    "apps/desktop/client/src/windows/approval/owner/simulation.ts",
+    "apps/desktop/client/src/windows/approval/owner/watch.ts",
+    "apps/desktop/client/src/windows/approval/owner/whatif.test.tsx (structure)",
+    "apps/desktop/client/src/design/tokens.css",
+    "apps/desktop/client/src/design/base.css",
+    "apps/desktop/client/src/design/ui.css (first 120 lines)",
+    "apps/desktop/client/src/lib/theme.ts",
+    "apps/desktop/client/src/lib/theme.test.ts",
+    "apps/desktop/client/src/lib/contrast.ts",
+    "apps/desktop/client/src/lib/words.ts (index + rules, reasons, who-decided sections)",
+    "prototype/build-index.mjs, prototype/shared/{tokens.css,shell.js,ui.js}, prototype/main/modules.js (heads)",
+    "apps/desktop/client/src/mock/simulate.ts (validate mirror)",
+    "apps/desktop/client/src/mock/backend.ts:940-960,1077-1092",
+    "apps/desktop/client/src/mock/scale.ts:310-320,775-805",
+    "apps/desktop/client/src/mock/scale.test.ts:125-135",
+    "apps/desktop/client/src/windows/approval/notices.test.ts (source-reading test pattern)",
+    "crates/table-core/src/mandate.rs:95-480",
+    "docs/concepts/moonshot-backlog.md (themes, 1a decisions, card table)",
+    "docs/build/STATUS.md (headings; T12, T14, agent-tool-surface-1, UI sweep, console rebuild sections)",
+    "docs/build/DECISIONS.md (headings; sections 5 and 10)",
+    ".ai/registry-map.json (owner-mandate-config subjects)"
+  ],
+  "cards": [
+    {
+      "context": "owner-mandate-config",
+      "slot": "A",
+      "lens": "architecture-challenger",
+      "title": "One TS mirror of MandatePayload::validate, pinned to Rust's own reason literals",
+      "size": "L",
+      "effort": 6,
+      "impact": 7,
+      "risk": 5,
+      "write_set": [
+        "apps/desktop/client/src/lib/mandateRules.ts",
+        "apps/desktop/client/src/lib/mandateRules.test.ts",
+        "apps/desktop/client/src/windows/approval/mandateDraft.ts",
+        "apps/desktop/client/src/windows/approval/mandateDraft.test.ts",
+        "apps/desktop/client/src/mock/simulate.ts",
+        "apps/desktop/client/src/mock/simulate.test.ts",
+        "apps/desktop/client/src/mock/backend.ts",
+        "apps/desktop/client/src/mock/scale.ts",
+        "apps/desktop/client/src/mock/scale.test.ts",
+        "apps/desktop/client/src/lib/words.ts"
+      ],
+      "new_files": [
+        "apps/desktop/client/src/lib/mandateRules.ts",
+        "apps/desktop/client/src/lib/mandateRules.test.ts"
+      ],
+      "file_kinds": {
+        "apps/desktop/client/src/lib/mandateRules.ts": "hand-edited",
+        "apps/desktop/client/src/lib/mandateRules.test.ts": "hand-edited",
+        "apps/desktop/client/src/windows/approval/mandateDraft.ts": "hand-edited",
+        "apps/desktop/client/src/windows/approval/mandateDraft.test.ts": "hand-edited",
+        "apps/desktop/client/src/mock/simulate.ts": "hand-edited",
+        "apps/desktop/client/src/mock/simulate.test.ts": "hand-edited",
+        "apps/desktop/client/src/mock/backend.ts": "hand-edited",
+        "apps/desktop/client/src/mock/scale.ts": "hand-edited (feeds scripts/export-scale-fixtures.mjs output, not checked in)",
+        "apps/desktop/client/src/mock/scale.test.ts": "hand-edited",
+        "apps/desktop/client/src/lib/words.ts": "hand-edited"
+      },
+      "shared_surfaces": [
+        "lib/words.ts copy dictionary (RULE_NAME / RULE_NUMBER become re-exports of the registry; strings unchanged)",
+        "mock backend (judge path / director runs on it): mandate_sign starts refusing what Rust refuses",
+        "scale fixture world (large): M6 'every' mandate changes shape"
+      ],
+      "acceptance": [
+        "mandateRules.test reads crates/table-core/src/mandate.rs, slices `pub fn validate` .. `pub fn check`, extracts every `Refusal::new(<n>, \"<reason>\")` literal -> each (clause, reason) pair is listed in mandateRules.VALIDATE_REASONS and has an entry in its words table; and the `Clause::number` match arms (mandate.rs:98-110) equal the registry's number table (fails today: no module; mock/simulate.ts has no clause-8 reasons at all)",
+        "validateRules(payload with roles ['shop'], pinned counterparties, a lever clause) -> includes {clause: 8, reason: 'the rescue role and the fixes clause go together'}; mockValidate(same) returns that refusal (today mockValidate returns null)",
+        "validateRules(rescue payload whose lever lists ['DISCOUNT_THIS_CYCLE','PAUSE']) -> includes {clause: 8, reason: 'only the discount this cycle is available'} (today mock returns null)",
+        "validateRules(rescue payload, every amount USD except lever.max_discount in EUR) -> includes {clause: 8, reason: 'currency differs across clauses'} (today mock's currency fold skips the lever, simulate.ts:85-89)",
+        "mock backend invoke('mandate_sign', {roles ['rescue'], subscribers, per_deal rescue, velocity, hpo, payees, no lever}) -> rejects REFUSED 'mandate clause 8: the rescue role and the fixes clause go together' and state.mandates is unchanged (today it signs: backend.ts:940-950 never validates)",
+        "buildScaleState('large', now).mandates -> every payload validates under validateRules (today M6, scale.ts:316 + :795, carries roles ['shop'] with a 4-lever clause and only passes because the mock mirror has no clause-8 checks)",
+        "for 6 golden drafts (valid careful template, missing payees, haggle without band, sell on purchase, rescue without lever, band ending after the rules) -> the clause numbers in ruleProblems(previewClauses(d)) equal those in validateRules(built payload) (editor footer and mock what-if agree)",
+        "refusalWords('mandate clause 8: empty or repeated fix list') and every other VALIDATE_REASONS entry -> a sentence with no clause number and no raw reason text"
+      ],
+      "premise": [
+        "crates/table-core/src/mandate.rs:262 - `pub fn validate` is the ground truth; it refuses lever lists (:327 'empty or repeated fix list', :332 'only the discount this cycle is available') and folds lever money into the currency check (:381)",
+        "crates/table-core/src/mandate.rs:411 - 'the rescue role and the fixes clause go together' is refused at signing",
+        "apps/desktop/client/src/windows/approval/mandateDraft.ts:275 - ruleProblems is a hand-copied mirror of validate() (comment at :270-273), with its own roleActs at :401 and a REFUSAL_WORDS table keyed on Rust's literal reason strings at :351",
+        "apps/desktop/client/src/mock/simulate.ts:61 - mockValidate is a second, separate hand copy of validate() ('with Rust's own reasons', :60) with its own NUMBER table (:31) and roleActs (:43); it has no lever / rescue checks and its currency fold (:85-89) omits the lever",
+        "apps/desktop/client/src/lib/words.ts:189-204 - RULE_NAME and RULE_NUMBER are a third copy of the clause names/numbers held in mandateDraft.ts:30-43 (CLAUSE_KINDS, CLAUSE_NUMBER)",
+        "apps/desktop/client/src/mock/backend.ts:940-950 - mock mandate_sign stores the payload without validating; mandate_simulate (:1085) calls mockValidate",
+        "apps/desktop/client/src/mock/scale.ts:316 - M6 is `role: 'shop' ... every: true`; :786 gives it roles ['shop'] and :795 a lever clause with ['DISCOUNT_THIS_CYCLE','PAUSE','RETRY_AFTER_FIX','DOWNGRADE']",
+        "apps/desktop/client/src/mock/scale.test.ts:131-132 - asserts 'every signed rule passes the wallet's own validation' via mockValidate, which only holds because the mirror lacks clause 8",
+        "apps/desktop/client/src/windows/approval/templates.test.ts:3 and lib/marketWatch.test.ts:9 - tests use mockValidate as the oracle for 'Rust would accept this'",
+        "docs/build/DECISIONS.md:103 - section 5 sanctions 'the client mirror' of validate(); this card keeps one mirror, it does not remove the mirror"
+      ],
+      "rollback": "Three commits: (1) add lib/mandateRules.ts + its parity test; (2) point mandateDraft.ruleProblems/refusalWords, mock/simulate.mockValidate and words.ts RULE_NAME/RULE_NUMBER at it; (3) mock backend mandate_sign validation + scale.ts M6 fix. Each reverts cleanly with git revert in reverse order; no IPC, binding or Rust change.",
+      "gate": "architecture",
+      "test_commands": [
+        "pnpm --dir apps/desktop/client exec vitest run src/lib/mandateRules.test.ts src/windows/approval/mandateDraft.test.ts src/mock/simulate.test.ts src/mock/scale.test.ts src/windows/approval/templates.test.ts src/lib/marketWatch.test.ts"
+      ],
+      "runner_up": "Make the what-if answer carry every validate() problem (Rust validate_all in mandate_simulate) so the client needs no mirror at all - better end state but spans table-core + table-runtime + bindings (XL, contract gate).",
+      "adopts": null,
+      "body": "## Summary\nThe client holds two independent hand copies of Rust's `MandatePayload::validate()` (the editor's `ruleProblems` and the mock's `mockValidate`) plus a third copy of the clause names and numbers in `words.ts`. They have already drifted: the mock knows nothing about clause 8, so the large scale world ships a rule the real wallet refuses and a test certifies it as valid. Fold them into one module, `lib/mandateRules.ts`, and pin it to Rust's own reason literals with a source-reading parity test.\n\n## Description\n`mandateRules.ts` owns: the clause registry (type, number, name, hint, required), `validateRules(payload) -> Refusal[]` returning every refusal in Rust's order with Rust's exact reason strings, and the reason-to-words table. `ruleProblems` becomes an adapter (skip incomplete clauses, map reasons to words); `mockValidate` becomes `validateRules(p)[0] ?? null`; `words.ts` RULE_NAME/RULE_NUMBER and `mandateDraft` CLAUSE_KINDS/CLAUSE_NUMBER re-export the registry. The mock's `mandate_sign` starts refusing like `Runtime::sign_mandate`, and the scale world's M6 'every' rule is reshaped into a valid nine-clause rescue rule. The parity test follows the existing source-reading pattern (windows/approval/notices.test.ts, lib/contrast.test.ts): it reads crates/table-core/src/mandate.rs and fails the build when Rust gains a validate() reason or clause number the client does not know.\n\n## Flow\n- Add mandateRules.ts + parity test (red: mock lacks clause-8 reasons).\n- Re-point ruleProblems, refusalWords, mockValidate, words.ts tables.\n- Mock mandate_sign validates; fix scale.ts M6; scale.test stays as the oracle, now honest.\n\n## Expected impact\nThe judge path and the director run on the mock (T7): today the mock can sign and replay rules the real wallet refuses, and the editor footer and the mock what-if can disagree on the same draft. After this, one rule decides both, and a Rust change to validate() turns the client build red instead of silently diverging. Removes ~120 duplicated lines.\n\n## Evaluation\nClaim: one validate mirror, derived from and checked against Rust's literals, removes the drift class.\nBefore: 0 of 8 acceptance cases pass (no module; mock returns null for the three clause-8 payloads; mock mandate_sign never validates; scale M6 invalid).\nAfter: 8 of 8 (predicted)\nMethod: simulation - walked mockValidate (simulate.ts:61-105) against validate() (mandate.rs:262-466) for roles ['shop'] + lever, 4-lever list, EUR lever, and M6; walked backend.ts:940-950 for a rescue draft without lever; the gate rung is the builder's\nResult: better\nGate: architecture (moves the rule into one module; mock behaviour tightens to match Rust, no product behaviour loosens)",
+      "evidence": "mock/simulate.ts:77-82  (no `c.type === 'lever'` branch; straight to required-clause loop)\nmock/simulate.ts:86-89  c.type === 'per_deal' ? [c.max_amount] : band : velocity : human_present_over ? [c.amount] : []   // no lever\nmandate.rs:381          Clause::Lever { max_discount, .. } => vec![*max_discount],\nmandate.rs:409-412      if rescue != seen[8] { Refusal::new(8, \"the rescue role and the fixes clause go together\") }\nscale.ts:316            { key: 'M6', ..., role: 'shop', kind: 'shop_order', ..., every: true }\nscale.ts:795            levers: d.every ? ['DISCOUNT_THIS_CYCLE', 'PAUSE', 'RETRY_AFTER_FIX', 'DOWNGRADE'] : [...]\nscale.test.ts:132       for (const m of s.mandates) expect(mockValidate(m.payload)).toBeNull();\nbackend.ts:940-950      mandate_sign: privileged(opts); ... state.mandates = [...state.mandates, m];   // no validate\nmandateDraft.ts:43 / words.ts:201 / simulate.ts:31   three copies of { roles: 1, ..., market_watch: 9 }"
+    },
+    {
+      "context": "owner-mandate-config",
+      "slot": "B",
+      "lens": "ux-elevation",
+      "title": "Every 'can't be signed yet' line becomes a one-click, verified fix",
+      "size": "M",
+      "effort": 5,
+      "impact": 7,
+      "risk": 4,
+      "write_set": [
+        "apps/desktop/client/src/windows/approval/owner/repair.ts",
+        "apps/desktop/client/src/windows/approval/owner/repair.test.ts",
+        "apps/desktop/client/src/windows/approval/owner/FixLine.tsx",
+        "apps/desktop/client/src/windows/approval/MandateEditor.tsx",
+        "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx",
+        "apps/desktop/client/src/windows/approval/owner.css"
+      ],
+      "new_files": [
+        "apps/desktop/client/src/windows/approval/owner/repair.ts",
+        "apps/desktop/client/src/windows/approval/owner/repair.test.ts",
+        "apps/desktop/client/src/windows/approval/owner/FixLine.tsx"
+      ],
+      "file_kinds": {
+        "apps/desktop/client/src/windows/approval/owner/repair.ts": "hand-edited",
+        "apps/desktop/client/src/windows/approval/owner/repair.test.ts": "hand-edited",
+        "apps/desktop/client/src/windows/approval/owner/FixLine.tsx": "hand-edited",
+        "apps/desktop/client/src/windows/approval/MandateEditor.tsx": "hand-edited",
+        "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx": "hand-edited",
+        "apps/desktop/client/src/windows/approval/owner.css": "hand-edited"
+      },
+      "shared_surfaces": [
+        "none outside the approval window; reads mandateDraft.ruleProblems / emptyClause / previewClauses (no edits to mandateDraft.ts, so no write overlap with slot A)"
+      ],
+      "acceptance": [
+        "repairs(newDraft(T)) -> one repair 'Add Limit per deal, Daily limit and Approved payees'; applying it -> draft has per_deal, velocity and payees clauses and ruleProblems(previewClauses(result)) has no '... is required' entry",
+        "draft roles ['rescue'], counterparties 'paired', per_deal kind 'rescue', no lever -> repairs offer 'Add Fixes for failed renewals' and 'Deal only with your own subscribers'; applyAll -> ruleProblems has no clause-2 or clause-8 entry",
+        "draft per_deal kind 'haggle' with no band -> repair 'Add a price range' appends emptyClause('band'); the 'haggles and shop orders need a price range' problem is gone",
+        "draft roles ['sell'], per_deal kind 'purchase' -> repair sets per_deal.kind to the first KINDS entry for which ruleProblems no longer reports the clause-1 'nothing would ever be allowed' problem ('haggle')",
+        "draft whose band deadline is after its end date -> repair sets the band deadline to the rules' end; the clause-4 'ends after the rules themselves end' problem is gone",
+        "draft with two velocity clauses -> repair removes the later one; the 'appears twice' problem is gone",
+        "for every draft above, every offered repair strictly reduces ruleProblems(...).length (verified by the oracle, never assumed); templateDraft('careful', T, {payees: ['packrite']}) -> repairs = []",
+        "FixLine({problems: [p], repairs: [r]}) renders a 'Fix: <r.label>' button; click -> onApply called once with r.apply(draft); FixLine with problems but no repairs -> the problem text and no button"
+      ],
+      "premise": [
+        "apps/desktop/client/src/windows/approval/mandateDraft.ts:106 - newDraft starts with only roles, counterparties and human_present_over, so every '+ New' draft opens missing three required rules (per_deal, velocity, payees)",
+        "apps/desktop/client/src/windows/approval/MandateEditor.tsx:357-358 - the footer reports only errs[0] or problems[0] as text; nothing on it acts",
+        "apps/desktop/client/src/windows/approval/MandateEditor.tsx:235 - canReview requires problems.length === 0, so 'Review & sign' stays disabled while a problem exists",
+        "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx:117-118 - the sheet's 'Why this can't be signed yet' list renders problems, but the sheet only opens when there are none (MandateEditor.tsx:235, :364, :393): dead UI",
+        "apps/desktop/client/src/windows/approval/owner/WhoWhat.tsx:95 and :146 - the only route to a missing rule is 'Add a rule' -> popover -> pick one kind -> repeat, with the required list given as prose",
+        "apps/desktop/client/src/windows/approval/mandateDraft.ts:275-348 - ruleProblems already knows exactly what is wrong (required kinds, rescue pairing, band for haggles, role/kind fit, band dates, duplicates); the app holds the data, the owner repairs blind",
+        "apps/desktop/client/src/windows/approval/mandateDraft.ts:85 - emptyClause(type, now) already builds a well-formed blank of every kind"
+      ],
+      "rollback": "Two commits: (1) owner/repair.ts + repair.test.ts (pure, unused); (2) FixLine.tsx wired into the MandateEditor footer, SignSheet dead list removed, owner.css rules. Revert (2) to restore today's footer; (1) is inert on its own.",
+      "gate": "none",
+      "test_commands": [
+        "pnpm --dir apps/desktop/client exec vitest run src/windows/approval/owner/repair.test.ts src/windows/approval/owner/whatif.test.tsx src/windows/approval/mandateDraft.test.ts"
+      ],
+      "runner_up": "Renew in place: a rule set within 3 days of its end turns its OwnerConfig row gold with 'Renew for 30 days…' that opens the editor with only the end date moved (diff + what-if already explain it), instead of Who and what -> In force popover -> datetime field -> Review.",
+      "adopts": null,
+      "body": "## Summary\nThe mandate editor knows precisely why a draft can't be signed, then makes the owner repair it by hand, one problem at a time. Turn each problem into a fix the editor can apply, verified against the same check before it is offered.\n\n## Description\nA pure module `owner/repair.ts` maps the draft to `Repair[]` ({ label, clause, apply(d) -> d }). Candidates: add every missing required kind at once (emptyClause), add the fixes rule / switch to 'only your own subscribers' / make roles rescue-only for rescue drafts, add a price range for haggles and shop orders, move a band's end to the rules' end, drop a duplicate, and pick a deal kind the allowed roles can act on. A candidate is offered only if `ruleProblems` strictly drops after applying it, so the module never needs its own copy of the rules (no third mirror). `FixLine` replaces the footer's gold text with the problem plus a 'Fix: …' button and, when several are offered, 'Fix all'. Field errors (an empty amount) are not auto-filled: amounts stay the owner's call. The SignSheet's unreachable problems list is removed.\n\n## Flow\n- '+ New' -> footer: 'Can't be signed yet: Limit per deal is required · [Fix: add the 3 rules every set needs]' -> one click -> levers for the three new limits appear, the footer moves on to the empty amounts.\n- Rescue draft -> '[Fix all]' adds the fixes rule and the subscribers rule in one step.\n\n## Expected impact\nThe first-rules and new-rules flows lose the Add-a-rule popover loop (one popover per missing kind, three on every new draft) and the guesswork on rescue and haggle pairings. Nothing is signed by a fix; the owner still reviews and signs.\n\n## Evaluation\nClaim: every structural can't-sign problem the editor reports today has a verified one-click fix; field values stay manual.\nBefore: 0 of 8 acceptance cases pass (no repair module; footer is text only)\nAfter: 8 of 8 (predicted)\nMethod: simulation - walked newDraft (mandateDraft.ts:99-108) through ruleProblems (:329-333 required loop), the rescue pairing (:320-328), the haggle band rule (:334-335) and role/kind fit (:339-345); the gate rung is the builder's\nResult: better\nGate: none",
+      "evidence": "mandateDraft.ts:106   clauses: [emptyClause('roles', now), emptyClause('counterparties', now), emptyClause('human_present_over', now)],\nmandateDraft.ts:329-333  for (const n of [1, 2, 3, 5, 6, 7]) { if (seen.has(n)) continue; ... why: `“${kind?.name}” is required` }\nMandateEditor.tsx:235  const canReview = !!args && problems.length === 0 && (changes.length > 0 || !base);\nMandateEditor.tsx:358  : problems.length ? <span className=\"gold\">This can’t be signed yet: {ruleNameOf(problems[0]!.clause).toLowerCase()} · {problems[0]!.why}</span>\nSignSheet.tsx:117-118  <ul className=\"ow-warns\" ...>{problems.map(...)}</ul>   // only rendered when the sheet opens, i.e. when problems is []\nWhoWhat.tsx:146       'One of each kind. Every set needs what agents may do, who they deal with, a limit per deal, a daily limit, an ask-me limit and approved payees.'"
+    }
+  ],
+  "riders": [
+    {
+      "context": "design-system-styles",
+      "checked": "tokens.css, base.css, ui.css (head): single colour-literal file already enforced by contrast/tokens tests; no seam that makes another context hard - no card."
+    },
+    {
+      "context": "design-theme-and-copy",
+      "checked": "theme.ts/test, contrast.ts, words.ts rules + reasons sections: words.ts RULE_NAME/RULE_NUMBER duplicate mandateDraft's clause registry, folded into slot A's write set rather than a separate card; theme logic is small and tested."
+    },
+    {
+      "context": "prototype-dial-shell-and-design-system",
+      "checked": "build-index.mjs, shared tokens/shell/ui heads, main/modules.js head: a frozen v2 design reference untouched since the initial import (c855696); the client is v3 Calibre - not a product surface, no card."
+    }
+  ],
+  "never_repropose_checked": "Ruled out T12 mandate what-if (built, d496eb1), T14 wallet limits (built, cac2633), T5 Rust-composed checks, agent-tool-surface-1 coded refusals (built, 47b2c25; covers agent RefusalCode, not owner validate words), T1/T13 clause tree (core, post-submission), and DECISIONS section 5 (client mirror kept, consolidated not removed). Neither card restates a deck title."
+}

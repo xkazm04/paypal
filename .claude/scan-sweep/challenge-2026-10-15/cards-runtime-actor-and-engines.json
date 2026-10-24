@@ -1,0 +1,225 @@
+{
+  "host": "runtime-actor-and-engines",
+  "files_read": [
+    "crates/table-runtime/src/lib.rs (full)",
+    "crates/table-runtime/src/actor.rs (full)",
+    "crates/table-runtime/src/dispatcher.rs (full)",
+    "crates/table-runtime/src/scheduler.rs (full)",
+    "crates/table-runtime/src/service.rs (full)",
+    "crates/table-runtime/src/configuration.rs (full)",
+    "crates/table-runtime/src/engines.rs (full)",
+    "crates/table-runtime/src/credentials.rs (full)",
+    "crates/table-runtime/src/vault.rs (full)",
+    "crates/table-runtime/src/reauth.rs (full)",
+    "crates/table-runtime/src/ladder.rs (full)",
+    "crates/table-runtime/src/forecast.rs (full, adjacent)",
+    "crates/table-runtime/src/limits.rs (full, adjacent)",
+    "crates/table-runtime/src/policy.rs (full, adjacent)",
+    "crates/table-runtime/src/market.rs (full)",
+    "crates/table-runtime/src/actor_runtime_tests.rs (lines 1-240)",
+    "crates/table-runtime/src/policy_tests.rs (lines 240-300)",
+    "crates/table-runtime/src/tests.rs (helpers 1-80, 365-407)",
+    "crates/table-runtime/src/authority_tests.rs (lines 350-365)",
+    "crates/table-runtime/src/history.rs (lines 100-260)",
+    "crates/table-mcp/src/lib.rs (full)",
+    "crates/table-shield/src/lib.rs (full)",
+    "crates/table-market/src/lib.rs (full)",
+    "crates/table-core/src/agent.rs (full)",
+    "crates/table-core/src/negotiation.rs (full)",
+    "crates/table-core/src/checks.rs (full)",
+    "crates/table-core/src/exposure.rs, market_watch.rs, ladder.rs, rescue.rs (headers only)",
+    "crates/table-app/src/agent.rs (Error, Wallet signer, projection excerpts)",
+    "crates/table-client/src/authority_table.rs (header + Read rows)",
+    "crates/table-client/src/lib.rs (SettingsSnapshot, RunState, From<table_app::Error>, CommandContract rows)",
+    "crates/table-engine/src/parser.rs (lines 1-30)",
+    "crates/table-ledger/src/lib.rs (lines 50-75)",
+    "apps/desktop/src-tauri/src/native/events.rs (lines 70-160)",
+    "apps/desktop/src-tauri/src/native/commands.rs (pause/resume handlers)",
+    "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx (36-235)",
+    "apps/desktop/client/src/windows/main/console/areas/deal/DealPage.tsx (220-260)",
+    "apps/desktop/client/src/windows/main/displays.ts (1-12)",
+    "apps/desktop/client/src/lib/readEach.ts (1-40)",
+    "apps/desktop/client/src/lib/words/settings.ts (60-82)",
+    "apps/desktop/client/src/windows/tumbler/Tumbler.tsx (stale banner)",
+    "docs/concepts/moonshot-backlog.md (full)",
+    "docs/build/STATUS.md (headings; 355-370, 1246-1262, 2386-2400, 2460-2484)",
+    "docs/build/DECISIONS.md (1361-1400)",
+    "docs/build/SCALE-FINDINGS.md (line 62, 72)",
+    ".ai/registry-map.json (runtime-actor-and-engines entry)"
+  ],
+  "cards": [
+    {
+      "context": "runtime-actor-and-engines",
+      "slot": "A",
+      "lens": "architecture-challenger",
+      "title": "Publish wallet events on ledger change, not after every actor message",
+      "size": "M",
+      "effort": 5,
+      "impact": 8,
+      "risk": 4,
+      "write_set": [
+        "crates/table-runtime/src/actor.rs",
+        "crates/table-runtime/src/service.rs",
+        "crates/table-ledger/src/lib.rs",
+        "crates/table-runtime/src/tests.rs",
+        "crates/table-runtime/src/publish_tests.rs"
+      ],
+      "new_files": [
+        "crates/table-runtime/src/publish_tests.rs"
+      ],
+      "file_kinds": {
+        "crates/table-runtime/src/actor.rs": "hand-edited",
+        "crates/table-runtime/src/service.rs": "hand-edited",
+        "crates/table-ledger/src/lib.rs": "hand-edited",
+        "crates/table-runtime/src/tests.rs": "hand-edited",
+        "crates/table-runtime/src/publish_tests.rs": "hand-edited"
+      },
+      "shared_surfaces": [
+        "table-ledger public API (one read-only accessor, Ledger::write_count, over rusqlite Connection::total_changes; no raw SQL crosses)"
+      ],
+      "acceptance": [
+        "Spawned actor over a counting vault, 2 open deals, interval tick held (paused tokio clock): 100 `get_deal` Execute messages -> 0 vault reads in total (today every message runs the publish pass: settings() alone reads the keychain 3 times, forecast() calls settings() again plus owner() per open deal, envelope_view() once, so >= 900 reads)",
+        "Same actor: `deal_withdraw` on deal A -> exactly one WalletEvent::Deal for A (state Withdrawn) and one WalletEvent::Attention are received before the reply to the next message (unchanged latency for writes)",
+        "`deal_reconcile` (authority tier Read, but it writes and moves A to Reconciled) -> WalletEvent::Deal and WalletEvent::Receipt for A are still published: the trigger is the ledger write count, never the command's tier",
+        "A Message::Agent `table_view` intent for a live run -> no publish pass (vault reads equal those of calling Runtime::agent_intent directly); a `send_offer` that is accepted -> one WalletEvent::Deal for the deal (transcript head moved)",
+        "A native run streams 50 EngineEvent::Text messages -> 0 publish passes (vault read count unchanged); EngineFinished(Clean) -> one WalletEvent::Agent with state Clean",
+        "Internal Action::HouseStatus(Ready) (no ledger write, in-memory settings change) -> one WalletEvent::Settings with house = Ready published immediately",
+        "FinishUnlock after a verified re-auth -> one WalletEvent::Settings with locked = false published without waiting for the 1 s tick",
+        "With the interval running and no message, a deal whose deadline passes is still published within one tick (the tick always runs the pass, as today)"
+      ],
+      "premise": [
+        "crates/table-runtime/src/actor.rs:461 - every Message::Execute runs runtime.execute and then falls through to the post-select publish pass",
+        "crates/table-runtime/src/actor.rs:480-554 - the publish pass runs after EVERY message: list_deals and two JSON serialisations per deal (483-484), attention() (534), settings() (538), run_snapshots() (545)",
+        "crates/table-runtime/src/actor.rs:467,469 - Agent intents and every streamed engine event are messages, so each one also triggers the full pass",
+        "crates/table-runtime/src/engines.rs:260-273 - every engine event of a run is forwarded to the actor as Message::Engine",
+        "crates/table-runtime/src/dispatcher.rs:209-252 - attention() reads money_check, two preferences, display_number, deadline and needs_owner_accept per deal",
+        "crates/table-runtime/src/dispatcher.rs:261,273,278 - attention() also folds exposure (envelope_view), builds the forecast and writes ladder rungs",
+        "crates/table-runtime/src/forecast.rs:24 - forecast() calls settings() again; forecast.rs:53 mandate_retired per open deal; forecast.rs:61 select_signer per seller deal; forecast.rs:126-151 a binary search of step_allowed calls per settling seller deal",
+        "crates/table-runtime/src/service.rs:338-352 - settings() reads the OS keychain for paypal.sandbox and channel3 and the owner key on every call",
+        "crates/table-runtime/src/service.rs:292,315 - mandate_retired reads the owner key; select_agent reads up to three agent keys",
+        "crates/table-runtime/src/vault.rs:67-84 - KeyringVault::read goes to the Windows credential store on every call (no cache)",
+        "crates/table-client/src/authority_table.rs:209 - deal_reconcile is tier Read although it writes, so tier cannot be the publish signal",
+        "crates/table-ledger/src/lib.rs:51-55 - Ledger owns the single rusqlite Connection the actor writes through (no raw SQL crosses)",
+        "docs/build/SCALE-FINDINGS.md:72 - open: about 300 displays re-read after any ledger change at scale; each such read is one actor message",
+        "docs/build/DECISIONS.md:1396-1398 - the rebuild rejected batched read commands; per-deal reads at 500+ deals stay many small reads"
+      ],
+      "rollback": "Three commits (ledger accessor, actor publish gate, tests); revert in reverse order. The gate is one condition in the actor loop, and reverting it restores the publish-after-every-message behaviour exactly. No schema, IPC or binding change.",
+      "gate": "none",
+      "test_commands": [
+        "cargo test -p table-runtime publish_tests::",
+        "cargo test -p table-runtime actor_runtime_tests::",
+        "cargo test -p table-runtime deadline_and_attention_tests::"
+      ],
+      "runner_up": "Resolve the deal's agent signer per call inside table-app and delete Runtime::select_signer plus Pipeline's signer_missing / shield_refused / policy_paused side-channel flags (25 select_signer/select_agent call sites across 10 runtime files). It spans table-app, so it is close to XL.",
+      "adopts": "docs/build/SCALE-FINDINGS.md open item (#17 and WP1b 1: per-deal read cost at scale); not a moonshot card",
+      "body": "## Summary\nThe actor recomputes and diffs the whole wallet after every message it handles, including pure reads, read-only agent tools and each streamed engine event. Run that pass only when the ledger write count moved, when in-memory published state changed, or on the 1 s tick. Today a read costs O(N deals), and a fan-out of N reads costs O(N^2).\n\n## Description\n`run()` in actor.rs ends each loop turn with a publish pass. The pass lists every deal and JSON-diffs it, builds the attention snapshot (per-deal ledger reads, exposure fold, the walk-away forecast with its binary search, rung writes), rebuilds settings (3 OS keychain reads plus a signature check over all mandates) and diffs the run snapshots. The pass is right for the tick and for writes, but it also runs after every `get_deal`, `deal_display` and `deal_evidence`. The client's own scale work (readEach.ts, displays.ts, SCALE-FINDINGS #17 and WP1b 1) is a workaround for this multiplier, and DECISIONS section 40.6 accepted many small reads as the known limit.\n\nThe move: add `Ledger::write_count()` (rusqlite `total_changes`, already in 0.38), read on the actor's own connection. The loop publishes when (a) the tick fired, (b) `write_count` advanced since the last pass (this catches `deal_reconcile`, rung writes, preferences, run.start/finish rows and offers), or (c) the message changed in-memory published state with no ledger write (FinishUnlock, HouseStatus, Engine Init/Finished: an explicit `dirty` flag on Runtime). The count is taken after the pass, so the pass's own rung writes do not re-trigger it. The ground truth is the database, not a hand-kept list of which commands write. The tier is not used, because `deal_reconcile` is tier Read and writes. A missed in-memory flag self-heals at the next tick (at most 1 s late), which bounds the risk.\n\n## Flow\n- Ledger: `pub fn write_count(&self) -> u64 { self.conn.total_changes() }`\n- Runtime: `published_at: u64`, `publish_dirty: bool` (service.rs)\n- actor.rs: extract the pass into `publish(&mut runtime, &events, &mut caches)`, call it on the tick, or when `write_count() != published_at || publish_dirty`, then record `published_at` after it\n- FinishUnlock, HouseStatus and engine Init/Finished set `publish_dirty`\n- publish_tests.rs: a CountingVault (implements the pub Vault trait) and a held tokio clock; each test names its negative control (registry test-harness: drop the gate and case 1 fails; gate on tier and case 3 fails)\n\n## Expected impact\n- An IPC read does no hidden whole-wallet work: 0 keychain reads instead of >= 9 + N_open per read.\n- A 300-display or 500-evidence fan-out costs O(N), not O(N^2), with no IPC change, so it stays inside the 40.6 freeze rationale.\n- A native run's text stream no longer recomputes the forecast per chunk.\n- The Tumbler and main still see writes at once and time-driven changes within 1 s.\n\n## Evaluation\nClaim: post-message publication is the multiplier behind the per-read cost at scale, and change-gating it keeps every event a write produces.\nBefore: 0 of 8 acceptance cases pass as tests: case 1 counts >= 900 vault reads. Cases 2, 3, 6, 7 and 8 hold today but are not pinned. Cases 4 and 5 run a pass.\nAfter: 8 of 8 (predicted)\nMethod: simulation - walked actor.rs:458-555 for a get_deal, a deal_reconcile (writes, tier Read), a table_view intent, an EngineEvent::Text, HouseStatus and FinishUnlock; counted keychain reads in settings/forecast/envelope_view/mandate_retired; the gate rung is the builder's\nResult: better\nGate: none - internal publication timing. No IPC, authority, schema or money-path change; the tick keeps its every-second pass.",
+      "evidence": "actor.rs:461  Some(Message::Execute(caller,action,reply))=>{let _=reply.send(runtime.execute(caller,*action).await); ...}\nactor.rs:480  if let Ok(deals) = runtime.pipeline.wallet.ledger.list_deals() { for deal in &deals { ... serde_json::to_string(d) != serde_json::to_string(deal) ...\nactor.rs:533  attention_event(runtime.attention(), &mut attention, &mut attention_faulted)\nactor.rs:538  if let Ok(settings) = runtime.settings() ...\nservice.rs:340 .vault.read(\"paypal.sandbox\")   service.rs:345 .vault.read(\"channel3\")   service.rs:352 .list_mandates(&self.owner()?.verifying_key())\nforecast.rs:24 executor_configured: self.settings()?.payment_executor_configured,\nforecast.rs:53 let mandate_retired = self.mandate_retired(deal)?;   forecast.rs:61 && self.select_signer(deal.id).is_ok()\nvault.rs:71-73 keyring::Entry::new(\"TheTable.AgenticWallet\", name) ... entry.get_secret()\nauthority_table.rs:209 row(\"deal_reconcile\", MAIN, Read, OPEN, ANY, R),\nCargo.lock: rusqlite 0.38.0 (Connection::total_changes, lib.rs:1045 of the crate)"
+    },
+    {
+      "context": "runtime-actor-and-engines",
+      "slot": "B",
+      "lens": "ux-elevation",
+      "title": "Resume shows the tables waiting on your agent and restarts them in one click",
+      "size": "L",
+      "effort": 6,
+      "impact": 7,
+      "risk": 4,
+      "write_set": [
+        "crates/table-client/src/lib.rs",
+        "bindings/CommandContract.ts",
+        "bindings/ResumeReport.ts",
+        "bindings/WaitingTable.ts",
+        "crates/table-runtime/src/dispatcher.rs",
+        "crates/table-runtime/src/engines.rs",
+        "crates/table-runtime/src/tests.rs",
+        "crates/table-runtime/src/resume_tests.rs",
+        "apps/desktop/src-tauri/src/native/commands.rs",
+        "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx",
+        "apps/desktop/client/src/windows/main/console/areas/settings/resume.ts",
+        "apps/desktop/client/src/windows/main/console/areas/settings/resume.test.ts",
+        "apps/desktop/client/src/lib/words/settings.ts",
+        "apps/desktop/client/src/mock/backend.ts"
+      ],
+      "new_files": [
+        "bindings/ResumeReport.ts",
+        "bindings/WaitingTable.ts",
+        "crates/table-runtime/src/resume_tests.rs",
+        "apps/desktop/client/src/windows/main/console/areas/settings/resume.ts",
+        "apps/desktop/client/src/windows/main/console/areas/settings/resume.test.ts"
+      ],
+      "file_kinds": {
+        "crates/table-client/src/lib.rs": "hand-edited",
+        "bindings/CommandContract.ts": "generated-by-table-client (regen: cargo run -p table-client --bin generate-bindings)",
+        "bindings/ResumeReport.ts": "generated-by-table-client (regen: cargo run -p table-client --bin generate-bindings)",
+        "bindings/WaitingTable.ts": "generated-by-table-client (regen: cargo run -p table-client --bin generate-bindings)",
+        "crates/table-runtime/src/dispatcher.rs": "hand-edited",
+        "crates/table-runtime/src/engines.rs": "hand-edited",
+        "crates/table-runtime/src/tests.rs": "hand-edited",
+        "crates/table-runtime/src/resume_tests.rs": "hand-edited",
+        "apps/desktop/src-tauri/src/native/commands.rs": "hand-edited",
+        "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx": "hand-edited",
+        "apps/desktop/client/src/windows/main/console/areas/settings/resume.ts": "hand-edited",
+        "apps/desktop/client/src/windows/main/console/areas/settings/resume.test.ts": "hand-edited",
+        "apps/desktop/client/src/lib/words/settings.ts": "hand-edited",
+        "apps/desktop/client/src/mock/backend.ts": "hand-edited"
+      },
+      "shared_surfaces": [
+        "CommandContract (resume_all_agents output type; authority row unchanged)",
+        "bindings/ (generated)",
+        "browser mock backend",
+        "client words catalog (lib/words/settings.ts)"
+      ],
+      "acceptance": [
+        "Seller deal A Negotiating, last message an inbound OFFER, policy run live; Pause then Resume -> resume_all_agents returns ResumeReport { waiting: [A] } (today it returns null, so the decode into ResumeReport fails)",
+        "Deal B whose latest step is our own COUNTER (projection turn = theirs) -> B is not in waiting; deal C with our turn but `lapse.C` chosen -> not in waiting; deal D terminal (Withdrawn) -> not in waiting",
+        "Deal E whose turn is ours but with a live run -> not in waiting; deal F whose turn is ours but whose deadline has passed -> not in waiting",
+        "waiting lists one entry per deal, ordered by deadline ascending, each { deal_id, deadline }. Membership is exactly AgentProjection.allowed containing send_offer or accept_offer, the same predicate the wallet enforces (table-core agent.rs:310-323)",
+        "Resume starts nothing by itself (explicit-start rule kept): with the scripted engine, 3 ticks after Resume give runs.len() == 0 for A. agent_start(A) (the Restart click) gives one run, and that run sends exactly one COUNTER envelope for A",
+        "Client restartPlan(waiting=[A,B,C,D,E], running=1, cap=4) -> { start: [A,B,C], later: [D,E] }; restartPlan([], 0, 4) -> { start: [], later: [] }",
+        "Client: after Resume with a non-empty report, the Agents view offers 'Restart N tables' and calls agent_start once per id in plan.start, in order. A refused start (run limit) is reported per table and never retried in a loop"
+      ],
+      "premise": [
+        "crates/table-runtime/src/dispatcher.rs:550-558 - Resume only clears the agents_paused preference and flag",
+        "crates/table-runtime/src/dispatcher.rs:675-684 - Pause persists agents_paused and cancels every run (cancel_runs)",
+        "crates/table-runtime/src/dispatcher.rs:686-691 - QuitConfirm also cancels every run",
+        "crates/table-runtime/src/policy.rs:122-139 - arm_policy_run re-arms one policy run per peer message and returns early when armed[deal] == transcript_head (line 128)",
+        "crates/table-runtime/src/service.rs:265 - `armed` starts empty on construction, so a relaunch re-arms a waiting table while Pause then Resume in the same session does not (the cancelled run already claimed that head)",
+        "crates/table-runtime/src/policy_tests.rs:258 - test pins that a run that happened is not re-armed until the table moves",
+        "crates/table-runtime/src/engines.rs:146 - start_agent refuses past 4 live runs (the restart cap)",
+        "crates/table-core/src/agent.rs:310-323 - AgentProjection.allowed is computed from refusal(), the same predicate the wallet runs before every intent",
+        "crates/table-app/src/agent.rs:485 - Wallet::projection needs no selected signer (ledger reads only)",
+        "crates/table-client/src/lib.rs:1007 - resume_all_agents: Command<(), ()>",
+        "crates/table-client/src/authority_table.rs:242 - resume_all_agents row is MAIN / Act (unchanged by this card)",
+        "apps/desktop/client/src/lib/words/settings.ts:79 - resumedToast: 'Agents can work again. Start each deal yourself.'",
+        "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx:58,210 - doResume only toasts; the Resume button is the only resume surface",
+        "docs/build/STATUS.md:1068 - resume_all_agents: 'Clears sticky pause; requires an explicit later start.'"
+      ],
+      "rollback": "Two commits: (1) Rust, with ResumeReport, waiting_on_agent, the bindings regen and the shell return type; (2) client, with restartPlan, the Agents view, words and mock. Revert (2) then (1). The authority table and manifest are untouched, so no capability or PINNED_MANIFEST change needs reverting.",
+      "gate": "contract",
+      "test_commands": [
+        "cargo test -p table-runtime resume_tests::",
+        "cargo test -p table-client --test bindings",
+        "pnpm --dir apps/desktop/client exec vitest run src/windows/main/console/areas/settings/resume.test.ts"
+      ],
+      "runner_up": "Name the stuck deal: the scheduler keeps only the first per-deal failure (scheduler.rs:10-60) and emits it as an anonymous wallet:error. Main toasts its raw message (Console.tsx:285) and the Tumbler raises a false 'cards may be out of date' notice (Tumbler.tsx:253,580). Make it a typed per-deal stuck-step list with since / attempts / next default.",
+      "adopts": null,
+      "body": "## Summary\nPause is the wallet's kill switch. Resume clears the flag and then says 'Start each deal yourself'. It does not say which deals: the owner hunts through the deal pages for the tables that were mid-haggle. A table cut mid-turn stalls silently until its deadline lapses it. The policy negotiator never re-arms on a transcript head whose run was cancelled (policy.rs:128), although a relaunch would re-arm it. The wallet already knows exactly which tables are waiting on our agent, from the same `allowed` predicate it enforces. Resume should return that list, and the owner should restart them in one click.\n\n## Description\n`resume_all_agents` returns `ResumeReport { waiting: Vec<WaitingTable { deal_id, deadline }> }`. It is computed in Rust by `Runtime::waiting_on_agent(now)` over non-terminal Haggle deals with no live run, no `lapse.<id>`, an active mandate and a deadline in the future, whose `Wallet::projection(..).allowed` contains `send_offer` or `accept_offer`. It is derived from ground truth, not a hand-kept 'interrupted' list, so the same report covers runs cut by Pause, by Quit (after relaunch) or by a failed or expired run. The explicit-start rule (STATUS 1068) is kept: Resume starts nothing. In the Agents view, the owner sees 'N tables are waiting on your agent', soonest deadline first, and one 'Restart N' action that calls the existing agent_start per table through a pure `restartPlan` that respects the 4-run cap. No authority row, capability or manifest changes; only one command's output type changes.\n\n## Flow\n- Owner presses Pause (P, tray or Tumbler): runs cancelled, deadlines still run\n- Owner presses Resume: the report comes back, and the Agents view lists the waiting tables with their deadlines\n- One click 'Restart 3 tables': agent_start x3 (cap 4); '2 wait for a free slot' shows when over the cap\n- Each restarted policy run answers the pending OFFER or COUNTER once; native runs start from their playbook\n\n## Expected impact\n- The kill switch becomes reversible in one step instead of N deal-page visits.\n- The silent stall after Pause and Resume (a table that lapses with nobody answering) becomes a visible, one-click decision.\n- The 'pause, then resume' demo beat ends with the haggle continuing on camera.\n\n## Evaluation\nClaim: the owner's resume decision is made blind today, although Rust holds the exact predicate. Returning it makes resume a one-step act and keeps the explicit-start rule.\nBefore: 0 of 7 acceptance cases pass (resume returns null; restartPlan does not exist). Case 5's 'Resume starts nothing' half holds today.\nAfter: 7 of 7 (predicted)\nMethod: simulation - walked Pause (dispatcher.rs:675-684) -> cancel_runs -> Resume (550-558) -> tick -> arm_policy_run (policy.rs:122-139, early return at 128) for a seller deal with an inbound OFFER; walked projection.allowed for own-COUNTER, lapse-chosen, terminal and live-run deals; the gate rung is the builder's\nResult: better\nGate: contract - resume_all_agents output type (in-repo CommandContract plus generated bindings and the mock). Authority row, tiers and PINNED_MANIFEST unchanged. DECISIONS 40.6 froze IPC for the console rebuild only; that rebuild has landed, but the coordinator should confirm the freeze has lifted.",
+      "evidence": "dispatcher.rs:550  Action::Resume => { app(self.pipeline.wallet.ledger.set_preference(\"agents_paused\", &false))?; self.paused = false; json(()) }\ndispatcher.rs:675  Action::Pause => { ... set_preference(\"agents_paused\", &true) ...; self.paused = true; self.cancel_runs()?; json(()) }\npolicy.rs:128     || self.armed.get(&deal.id) == Some(&deal.transcript_head)\nservice.rs:265    armed: BTreeMap::new(),\nengines.rs:146    if self.paused || self.runs.len() >= 4 || self.runs.values().any(|r| r.scope.deal_id == id)\nagent.rs(core):310 view.allowed = [ ... ].into_iter().filter(|tool| view.refusal(*tool, deal).is_none()).collect();\ntable-client lib.rs:1007 pub resume_all_agents: Command<(), ()>,\nwords/settings.ts:79 resumedToast: 'Agents can work again. Start each deal yourself.',\nSTATUS.md:1068 | resume_all_agents | main | null -> null | Clears sticky pause; requires an explicit later start. |"
+    }
+  ],
+  "riders": [
+    {
+      "context": "agent-tool-surface",
+      "checked": "Read table-mcp lib.rs and table-shield lib.rs in full. Tested two hypotheses: tool names hand-kept in 4 places (core AgentTool, mcp Tool + catalog, engine parser TOOLS, app AgentRequest::decode), and DISPATCH_DEADLINE 30 s against an actor that can sit up to ~183 s in a PayPal step. The first is guarded by drift tests (server.rs:1002), so impact < 7. The second is the actor's problem and folds into the host's 'PayPal IO inside the actor' idea (XL)."
+    },
+    {
+      "context": "market-data",
+      "checked": "Read table-market lib.rs and runtime market.rs. Market-watch refresh (T15) and the fair-price certificate (market-data-2) are built. The one gap seen: market_refresh makes the client echo a product_id that Rust already derives (market.rs:110-131), which is S polish, not a card."
+    },
+    {
+      "context": "spend-firewall-and-agent-policy",
+      "checked": "Read agent.rs, negotiation.rs and checks.rs in full; exposure, market_watch, ladder and rescue headers only. These are pure and well bounded, and T14, T5, agent-tool-surface-1 and T2 are built. Card B reuses AgentProjection.allowed as its ground truth instead of adding a new predicate."
+    }
+  ],
+  "never_repropose_checked": "Ruled out as overlaps: T2 negotiator (built; card B adds no re-arm rule), T4 walk-away forecast and quit confirm (built), T11 authority manifest (card A deliberately does not derive from tier), T16 ledger-2 verified projection (different: audit deltas, not event publication), T3 attested engine session (gated), incidental runtime-core scheduler.rs:57 Fault-per-second (now mandate_retired-guarded), and the SCALE-FINDINGS batched-read command (rejected in DECISIONS 40.6; card A needs no IPC)."
+}

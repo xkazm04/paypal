@@ -1,0 +1,174 @@
+{
+  "host": "native-shell",
+  "files_read": [
+    "apps/desktop/src-tauri/build.rs",
+    "apps/desktop/src-tauri/src/lib.rs",
+    "apps/desktop/src-tauri/src/main.rs",
+    "apps/desktop/src-tauri/src/native.rs",
+    "apps/desktop/src-tauri/src/native/commands.rs",
+    "apps/desktop/src-tauri/src/native/events.rs",
+    "apps/desktop/src-tauri/src/native/routing.rs",
+    "apps/desktop/src-tauri/src/native/surface.rs",
+    "apps/desktop/src-tauri/tests/capabilities.rs",
+    "crates/table-os/src/credential_prompt.rs",
+    "crates/table-os/src/lib.rs",
+    "crates/table-os/src/windows_native.rs",
+    "crates/table-client/src/lib.rs",
+    "crates/table-client/src/authority.rs",
+    "crates/table-client/src/authority_table.rs",
+    "crates/table-client/src/ladder.rs",
+    "crates/table-client/src/playbooks.rs",
+    "crates/table-client/src/bin/generate-bindings.rs",
+    "crates/table-client/tests/bindings.rs",
+    "docs/concepts/moonshot-backlog.md",
+    "docs/build/STATUS.md (headings; T11 section 1611-1623; tray 2503-2504; attention-ladder-1 1788-1799)",
+    "docs/build/DECISIONS.md (headings)",
+    "crates/table-runtime/src/actor.rs:95-206 (Action::command, Caller)",
+    "crates/table-runtime/src/dispatcher.rs:1-20, 73-101, 280-395, 436-495, 578-588, 688-705",
+    "crates/table-runtime/src/pairing.rs:1-25",
+    "crates/table-attention/src/lib.rs:43-115, 340-375",
+    "apps/desktop/client/src/mock/backend.ts:52-72"
+  ],
+  "cards": [
+    {
+      "context": "ipc-contract-and-authority-table",
+      "slot": "A",
+      "lens": "architecture-challenger",
+      "title": "Event audiences in the authority table; derive every shell emit and mock target",
+      "size": "L",
+      "effort": 6,
+      "impact": 7,
+      "risk": 5,
+      "write_set": [
+        "crates/table-client/src/authority_table.rs",
+        "crates/table-client/src/authority.rs",
+        "crates/table-client/src/lib.rs",
+        "crates/table-client/tests/bindings.rs",
+        "bindings/authority.ts",
+        "apps/desktop/src-tauri/src/native.rs",
+        "apps/desktop/src-tauri/src/native/events.rs",
+        "apps/desktop/src-tauri/src/native/routing.rs",
+        "apps/desktop/src-tauri/src/native/surface.rs",
+        "apps/desktop/src-tauri/tests/capabilities.rs",
+        "apps/desktop/client/src/mock/backend.ts"
+      ],
+      "new_files": [],
+      "file_kinds": {
+        "crates/table-client/src/authority_table.rs": "hand-edited",
+        "crates/table-client/src/authority.rs": "hand-edited",
+        "crates/table-client/src/lib.rs": "hand-edited",
+        "crates/table-client/tests/bindings.rs": "hand-edited",
+        "bindings/authority.ts": "generated-by-generate-bindings (regen: cargo run -p table-client --bin generate-bindings)",
+        "apps/desktop/src-tauri/src/native.rs": "hand-edited",
+        "apps/desktop/src-tauri/src/native/events.rs": "hand-edited",
+        "apps/desktop/src-tauri/src/native/routing.rs": "hand-edited",
+        "apps/desktop/src-tauri/src/native/surface.rs": "hand-edited",
+        "apps/desktop/src-tauri/tests/capabilities.rs": "hand-edited",
+        "apps/desktop/client/src/mock/backend.ts": "hand-edited"
+      },
+      "shared_surfaces": [
+        "authority table + PINNED_MANIFEST (authority.rs:188-189) - the permissions fingerprint changes and is re-pinned",
+        "bindings/authority.ts (generated; append-only export)",
+        "client mock backend.ts (one constant replaced by a generated import)"
+      ],
+      "acceptance": [
+        "table_client::authority::EVENTS names vs the serde-renamed fields of EventContract (lib.rs:1053-1084), compared both directions in tests/bindings.rs -> equal; adding an EventContract field without a row (or a row without a field) fails the test",
+        "authority::event_audience(\"settings:changed\") -> [main, tumbler, approval]; event_audience(\"approval:summary\") -> [approval]; event_audience(\"deal:changed\") -> [main]; event_audience(\"no:such\") -> None",
+        "hand-pinned audience test (not read from the table, like the_release_set_and_the_money_decisions_are_pinned_independently): approval:summary reaches only approval; deal:changed, agent:changed and pairing:pinned never reach tumbler or approval; no tumbler:* event reaches approval -> passes; widening any of these rows -> fails",
+        "manifest() over the table with one event row's labels changed -> a different fingerprint than manifest() over the real table; PINNED_MANIFEST re-pinned to the new value and bindings/authority.ts contains it",
+        "generate-bindings -> bindings/authority.ts exports EVENT_AUDIENCE keyed by event name; checked_in_authority_files_match_the_authority_table fails when it is stale; mock backend.ts TARGETS is EVENT_AUDIENCE (type-checked as Record<EventName, WindowLabel[]>), with no hand-written audience list left",
+        "capabilities.rs source scan over native.rs + native/*.rs -> no emit_to(\"<literal label>\" call remains; every window event goes through the one table-driven emit helper",
+        "lag recovery (events.rs:105) after the change -> settings:changed is delivered to main, tumbler AND approval (today only main and tumbler), because the helper sends to the event's full audience"
+      ],
+      "premise": [
+        "crates/table-client/src/authority_table.rs:1-8 - the table claims everything is derived from it (COMMANDS, capability files, mock gates, runtime gate, fingerprint); it has no row for any event",
+        "crates/table-client/src/lib.rs:1053-1084 - EventContract names 15 events by serde rename; this is the only typed list of event names",
+        "apps/desktop/src-tauri/src/native/events.rs:105 - on broadcast lag the shell re-emits settings:changed to main and tumbler only",
+        "apps/desktop/src-tauri/src/native/events.rs:170-172 - the normal Settings path emits settings:changed to main, tumbler and approval: the two hand-written audiences for one event already disagree",
+        "apps/desktop/src-tauri/src/native/events.rs:127-144, 206-207, 226, 370; routing.rs:41, 105, 145; surface.rs:256, 258, 272 - every emit is a hand-written (label literal, event-name literal) pair; a typo in either is silent",
+        "apps/desktop/client/src/mock/backend.ts:56-72 - the browser mock keeps a third, hand-kept TARGETS table of the same audiences",
+        "crates/table-client/src/authority.rs:287-290 - 'untrusted counterparty words never reach the Tumbler' is pinned for commands only; nothing pins what each window is TOLD by events",
+        "docs/build/STATUS.md:1611-1623 - T11 made commands single-source; its Left list does not cover events"
+      ],
+      "rollback": "Three commits (table + derived TS/tests; shell emit helper + source scan; mock import). Reverting them in reverse order restores the literal emits, the hand TARGETS and the old PINNED_MANIFEST; no ledger, wire or capability-file change is involved (capability files are not affected by event rows).",
+      "gate": "contract",
+      "test_commands": [
+        "cargo test -p table-client authority::",
+        "cargo test -p table-client --test bindings",
+        "cargo test -p table-desktop --test capabilities",
+        "pnpm --dir apps/desktop/client exec vitest run src/mock/authority.test.ts"
+      ],
+      "runner_up": "Give the shell its own principal: replace the 10 forged Caller{label:\"main\"|\"tumbler\"|\"approval\"} literals in the shell (events.rs:19,49,103-106,219,265,286; routing.rs:16,30,99; surface.rs:115; native.rs:347) and the 13 literal allowed(label,&[..]) lists for internal steps (dispatcher.rs:298-694) with duty rows in the authority table - stronger, but it spans table-runtime, so XL for this host.",
+      "adopts": null,
+      "body": "## Summary\nWho may CALL each command is written once (T11). Who is TOLD each event is written three times: as literal (label, name) pairs at ~20 emit_to sites in the shell, as the mock's hand TARGETS table, and implicitly by EventContract's serde names. The copies already disagree. Move event audiences into the authority table, emit through one table-driven helper, generate the mock's table, and fold the audiences into the permissions fingerprint.\n\n## Description\nAdd an EVENTS section to authority_table.rs (dependency-free const rows: event name, window labels), plus `event_audience(name)`. authority.rs folds the rows into manifest() and writes EVENT_AUDIENCE into bindings/authority.ts. A typed emit in table-client (an enum or trait carrying each EventContract payload with its name) gives the shell one helper, `emit(app, event)`, which sends to every label in the row. The ~20 literal emit_to calls in events.rs, routing.rs and surface.rs go through it. The mock's TARGETS becomes the generated constant, as T11 did with GATES = AUTHORITY. tests/bindings.rs compares EVENTS with EventContract in both directions. A hand-pinned audience test guards the privacy-relevant rows (the summary only reaches approval; deal, agent and pairing events never reach the Tumbler). capabilities.rs scans the shell sources so that no literal emit_to is left.\n\n## Flow\n- Add rows + event_audience + manifest folding + TS export; re-pin PINNED_MANIFEST; regenerate bindings\n- Add the typed event enum/trait in lib.rs; bindings test both directions\n- Shell: one emit helper; replace every literal emit; source-scan test\n- Mock: TARGETS = EVENT_AUDIENCE\n\n## Expected impact\nOne place decides what each window learns, and the owner's fingerprint covers it. The lag-recovery drift (approval misses settings:changed, so a lock change during lag leaves the approval window stale) disappears by construction. An event-name typo becomes a compile/test failure instead of a silent drop. The IPC-tape / replay direction (T7's 'not chosen' IPC tape) and T18's extra principal can read audiences from the table rather than from shell source.\n\n## Evaluation\nClaim: event audiences become single-source, drift-proof and fingerprinted.\nBefore: 0 of 7 acceptance cases pass (no EVENTS rows, no event_audience, no TS export, literal emits everywhere, lag path omits approval).\nAfter: 7 of 7 (predicted)\nMethod: simulation - walked settings:changed through events.rs:105 vs :170-172 and backend.ts:62; walked approval:summary through routing.rs:105 and events.rs:226; walked the manifest computation in authority.rs:42-53; the gate rung is the builder's\nResult: better\nGate: contract (the bindings/authority.ts shape and the permissions fingerprint change; both are consumed only inside this repo: the client mock and the proof-file same_version comparison, which already changes on every row append)",
+      "evidence": "events.rs:105  if let Ok(settings)=...Action::Settings...{let _=app.emit_to(\"main\",\"settings:changed\",&settings);let _=app.emit_to(\"tumbler\",\"settings:changed\",settings);}\nevents.rs:170  let _ = app.emit_to(\"main\", \"settings:changed\", &settings);\nevents.rs:171  let _ = app.emit_to(\"tumbler\", \"settings:changed\", &settings);\nevents.rs:172  let _ = app.emit_to(\"approval\", \"settings:changed\", settings);\nbackend.ts:62  'settings:changed': ['main', 'tumbler', 'approval'],\nlib.rs:1053   pub struct EventContract { #[serde(rename = \"tumbler:handoff\")] ... #[serde(rename = \"pairing:pinned\")] }\nauthority_table.rs:4-6  Everything else is derived from it: COMMANDS, RELEASE_COMMANDS, the three capability files, the browser mock's gate table ... (no events)\nauthority.rs:287-290  for name in [\"counterparty_note\", \"counterparty_list\", \"deal_transcript\"] { assert!(!admits(name, \"tumbler\")) }  (commands only)"
+    },
+    {
+      "context": "native-shell",
+      "slot": "B",
+      "lens": "ux-elevation",
+      "title": "Tray menu that names each waiting deal, opens its card, and toggles pause/resume",
+      "size": "M",
+      "effort": 5,
+      "impact": 7,
+      "risk": 4,
+      "write_set": [
+        "crates/table-client/src/tray.rs",
+        "crates/table-client/src/lib.rs",
+        "apps/desktop/src-tauri/src/native.rs",
+        "apps/desktop/src-tauri/src/native/events.rs",
+        "apps/desktop/src-tauri/tests/capabilities.rs"
+      ],
+      "new_files": [
+        "crates/table-client/src/tray.rs"
+      ],
+      "file_kinds": {
+        "crates/table-client/src/tray.rs": "hand-edited",
+        "crates/table-client/src/lib.rs": "hand-edited",
+        "apps/desktop/src-tauri/src/native.rs": "hand-edited",
+        "apps/desktop/src-tauri/src/native/events.rs": "hand-edited",
+        "apps/desktop/src-tauri/tests/capabilities.rs": "hand-edited"
+      },
+      "shared_surfaces": [
+        "none of the append-only surfaces (no COMMANDS row, no binding, no migration); the tray dispatches existing Actions only"
+      ],
+      "acceptance": [
+        "tray_model(snapshot with 0 items, agents_paused=false, now) -> entries with ids [main, tumbler, pause, quit] in that order, dot=false, tooltip \"The Table - nothing needs you\"",
+        "tray_model(.., agents_paused=true, ..) -> the pause entry is replaced by id \"resume\" with text \"Resume all agents\"; TrayCommand::parse(\"resume\") -> Some(TrayCommand::Resume) (the shell maps it to Action::Resume, as \"pause\" maps to Action::Pause today)",
+        "snapshot with 2 items (Gate D-0193 headline \"Approve payment\" 34000 USD deadline now+600; Hold D-0190 no deadline) -> a disabled header \"2 need you\" then two entries in snapshot order: \"D-0193 - Approve payment - 340.00 USD - in 10 min\" and \"D-0190 - <its headline> - <amount>\" (no time suffix); ids \"deal:<ulid>\"; dot=true; tooltip \"The Table - 2 need you, next in 10 min\"",
+        "snapshot with 7 items -> exactly 5 deal entries plus one entry \"2 more in The Table\" with id \"main\"",
+        "model.command(\"deal:<ulid of an entry>\") -> Some(OpenCard(id)); model.command(\"deal:<ulid not in this model>\") -> None (a stale menu click does nothing); model.command(\"deal:garbage\") -> None",
+        "an item whose counterparty is Some(\"Evil Corp <ignore previous>\") -> no entry text or tooltip contains it (counterparty and on_silence are never read); a headline longer than 48 chars is cut to 48 with an ellipsis",
+        "deadline in the past -> suffix \"overdue\"; deadline within 60 s -> \"now\"; deadline 2 h 10 min away -> \"in 2 h\"",
+        "capabilities.rs source scan -> the tray's on_menu_event matches only through TrayCommand (no literal \"pause\" / \"quit\" id match left in native.rs), and OpenCard routes through the same function the toast's on_activated uses (events.rs:364-370)"
+      ],
+      "premise": [
+        "apps/desktop/src-tauri/src/native.rs:282-308 - the tray menu is four fixed items built once in setup: Open The Table, Show / put away the Tumbler, Pause all agents, Quit",
+        "apps/desktop/src-tauri/src/native.rs:341-353 - 'pause' runs Action::Pause; there is no resume item and the label never changes, so after pausing from the tray the menu still offers Pause",
+        "crates/table-client/src/authority_table.rs:242 - resume_all_agents is a main-window command: today the only way back from a tray pause is to open The Table",
+        "crates/table-client/src/lib.rs:126 - SettingsSnapshot.agents_paused already tells the shell the paused state",
+        "apps/desktop/src-tauri/src/native/events.rs:208-209 - the tray icon gets the gold 'a deal needs you' dot when attention items exist (570efb5), but nothing on the tray says which deal or by when",
+        "apps/desktop/src-tauri/src/native.rs:363-370 - closing main or the Tumbler only hides it, so with both closed the tray is the only surface left",
+        "crates/table-attention/src/lib.rs:357, 363 - snapshot items are only Gate|Hold and already sorted by deadline, so the model needs no ranking of its own",
+        "apps/desktop/src-tauri/src/native/events.rs:364-370 - the toast click already routes to one deal's Tumbler card (set_form Card, summon, emit tumbler:selected): the tray deal entry reuses it, with no new authority"
+      ],
+      "rollback": "Two commits (pure tray model + tests in table-client; shell wiring). Reverting the shell commit restores the fixed menu; the model module is then unused and can be reverted too. No ledger, binding or capability change.",
+      "gate": "none",
+      "test_commands": [
+        "cargo test -p table-client tray::",
+        "cargo test -p table-desktop --test capabilities"
+      ],
+      "runner_up": "Adopt native-shell-1 (T5's 'not chosen now' per-decision Hello prompt): Windows Hello asks the fixed 'Unlock The Table wallet' (crates/table-os/src/windows_native.rs:58) with no amount or payee; compose the prompt in Rust from the decision. Not picked: it changes the unlock model across table-runtime (policy-tighten) and the owner deferred it.",
+      "adopts": null,
+      "body": "## Summary\nThe tray is the one surface that is always there: closing a window hides it to the tray. Since 570efb5 it shows a gold dot when a deal needs the owner, but its menu is four fixed items. It cannot say which deal or by when. It offers Pause and never Resume. Rebuild the menu from the attention snapshot the shell already holds: one entry per waiting deal (label, Rust headline, amount, time left) that opens that deal's card, a Pause/Resume toggle from agents_paused, and a tooltip with the count and the next deadline.\n\n## Description\nA pure `table_client::tray` module: `tray_model(&AttentionSnapshot, agents_paused, now) -> TrayModel { tooltip, dot, entries }` and `TrayModel::command(id) -> Option<TrayCommand>` (Main, Tumbler, Pause, Resume, Quit, OpenCard(DealId)). It reads only owner-bound, Rust-composed fields (label, headline, amount_minor, currency, deadline), never counterparty or on_silence. It shows at most 5 deals plus 'N more', and cuts headlines to 48 chars. In the shell, setup builds the menu from the model. WalletEvent::Attention and WalletEvent::Settings rebuild it (with set_menu + set_tooltip) only when the model changed, deduped like visual_previous. on_menu_event dispatches through `model.command(id)`. OpenCard reuses the toast's routing (set_form Card, summon, tumbler:selected), extracted into one function. Resume runs Action::Resume exactly as Pause runs Action::Pause today.\n\n## Flow\n- Today: see the gold dot -> left-click (Tumbler) or open The Table -> find which card -> act; after a tray pause, open The Table to resume\n- After: right-click the tray -> 'D-0193 - Approve payment - 340.00 USD - in 10 min' -> click -> that deal's card is open; 'Resume all agents' is in the same menu\n\n## Expected impact\nThe dot stops being a report and becomes the way in. The owner sees what waits and how urgent it is without opening a window, reaches the right card in one click, and can undo a tray pause where it was made.\n\n## Evaluation\nClaim: the tray menu becomes a live, actionable projection of the attention snapshot and the paused state.\nBefore: 0 of 8 acceptance cases pass (no model; fixed menu; no resume; literal id match)\nAfter: 8 of 8 (predicted)\nMethod: simulation - walked a 2-item snapshot through lib.rs:357-363 ordering and the toast route at events.rs:364-370; walked pause -> settings event -> model with agents_paused=true; the gate rung is the builder's\nResult: better\nGate: none (no new command, row or binding; Resume is an existing OPEN Act-tier action, dispatched by the native tray exactly like the existing Pause - a webview cannot click a native menu). The native tray is Windows-only and not compiled on the Linux host; a Windows compile/check is owed, as for every shell change.",
+      "evidence": "native.rs:299-305  MenuItem::with_id(app, \"pause\", \"Pause all agents\", true, None::<&str>)   (fixed text, built once)\nnative.rs:341-353  \"pause\" => { ... actor.execute::<()>(Caller{label:\"main\".into(),token:None}, Action::Pause) }   (no \"resume\" arm)\nauthority_table.rs:242  row(\"resume_all_agents\", MAIN, Act, OPEN, ANY, R)\nlib.rs:126  pub agents_paused: bool,\nevents.rs:208-209  if let Some(tray) = app.tray_by_id(\"wallet\") { let _ = tray.set_icon(Some(tray_icon(!data.items.is_empty()))); }\nevents.rs:368-370  set_form(&main_app, Form::Card); summon(&main_app, false); emit_to(\"tumbler\", \"tumbler:selected\", DealArgs { deal_id: id })"
+    }
+  ],
+  "riders": [
+    {
+      "context": "ipc-contract-and-authority-table",
+      "checked": "Read all 7 files. Traced command authority (T11, built) and found event audiences outside it (shell literals at events.rs:105 vs :170-172, plus mock TARGETS backend.ts:56-72). The slot A card targets this rider. Also seen: ErrorCode mapping (lib.rs:31-55) already splits REFUSED from INVALID, so the old incidental is closed."
+    }
+  ],
+  "never_repropose_checked": "Ruled out T11 / ipc-contract-1 (command authority manifest: built, cdf60f2; the card covers events, which T11 did not), T5 / native-shell-1 (Rust-composed Hello prompt: used only as the slot B runner-up, not adopted), T18 / native-shell-2 (OS payment sheet: post-submission, not touched), T7 / ipc-contract-2 (IPC tape: not proposed), T4 quit forecast (built; the quit dialog is left alone), and the tray icon gold dot (570efb5: built; card B builds the menu on top of it)."
+}
