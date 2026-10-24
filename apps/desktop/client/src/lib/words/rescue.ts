@@ -192,6 +192,9 @@ export const RESCUE = {
     failing: (n: number) => `${n} with a failed renewal · checked with PayPal every few hours; checking never moves money`,
     checked: 'Checked with PayPal every few hours for a failed renewal; checking never moves money',
     reads: (today: number, max: number) => `${today} of ${max} checks today`,
+    /** The day's checks are used up: the wallet reads nothing more until the next UTC day. */
+    spent: (at: string) => `Today’s checks are used up, so nothing is being checked. Your wallet checks again from ${at}; checking never moves money.`,
+    spentNote: (at: string) => `No checks left today · again from ${at}`,
     manage: 'Manage',
     add: 'Watch a subscription',
   },

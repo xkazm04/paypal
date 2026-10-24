@@ -7,14 +7,15 @@
 // renewal and changing the watch list happen in the approval window.
 import { useMemo, useState } from 'react';
 import type { Deal } from '@bindings/Deal';
-import { formatMinor } from '../../../../../lib/format';
-import { useMutation, useQuery } from '../../../../../lib/hooks';
-import { LATEST_OF, OPEN_THE_DEAL, RESCUE, RESCUE_REPLAY_ABOUT, RESCUE_WATCH_STATE, RESCUE_VIEWS_TITLE, RESCUE_WATCH_ABOUT, ruleSentence, watchingWords } from '../../../../../lib/words';
+import type { RescueBook } from '@bindings/RescueBook';
+import { clockLabel, formatMinor } from '../../../../../lib/format';
+import { useMutation, useNow, useQuery } from '../../../../../lib/hooks';
+import { LATEST_OF, OPEN_THE_DEAL, RESCUE, RESCUE_REPLAY_ABOUT, RESCUE_WATCH_HOLD, RESCUE_WATCH_STATE, RESCUE_VIEWS_TITLE, RESCUE_WATCH_ABOUT, ruleSentence, watchingWords } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Kv } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { dealTotal, sumByCurrency } from '../../../logic';
-import { atRiskOf, isReplay, recovered, type Col, type NotCountedWhy } from '../../../modules/rescue/model';
+import { atRiskOf, isReplay, recovered, watchStatus, type Col, type NotCountedWhy } from '../../../modules/rescue/model';
 import { moneyList, rescueStrip } from '../../../modules/rescue/preview';
 import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
@@ -141,22 +142,34 @@ function Recovered({ r }: { r: RescueWorld }) {
   );
 }
 
+/** What the Watching view and its card say about checking: "checked every few hours" only while the
+ *  wallet is checking, else why it is not (a hold, or the day's checks used up). */
+export function watchLines(book: Pick<RescueBook, 'watching' | 'watch_reads_today' | 'watch_reads_max'>, now: number): { line: string; note: string } {
+  const st = watchStatus(book, now);
+  switch (st.kind) {
+    case 'none': return { line: RESCUE.watch.none, note: RESCUE.cards.watchNote };
+    case 'held': return { line: RESCUE_WATCH_HOLD[st.held], note: RESCUE_WATCH_HOLD[st.held] };
+    case 'spent': return { line: RESCUE.watch.spent(clockLabel(st.resumes, now)), note: RESCUE.watch.spentNote(clockLabel(st.resumes, now)) };
+    case 'checking': return { line: st.failing ? RESCUE.watch.failing(st.failing) : RESCUE.watch.checked, note: RESCUE.watch.reads(book.watch_reads_today, book.watch_reads_max) };
+  }
+}
+
 /** The watched subscriptions and the rescue rules; changing either happens in the approval window. */
 function Watch({ r }: { r: RescueWorld }) {
   const nav = useLayerNav();
+  const now = useNow();
   const open = useMutation('approval_open');
   const q = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
   const rules = (q.data ?? []).filter((m) => !m.refusal && m.payload.clauses.some((c) => c.type === 'lever'));
   const lever = rules.at(-1)?.payload.clauses.find((c) => c.type === 'lever');
   const book = r.book;
   const n = book?.watching.length ?? 0;
-  const failing = book?.watching.filter((w) => w.state === 'fix_opened' || w.state === 'failed_no_fix').length ?? 0;
   return (
     <div className="rs-watch">
       {r.bookError ? <WalletNotice error={r.bookError} what={RESCUE.bookWhat} /> : null}
       <section className="rs-wbox">
         <h2 className="rs-h2">{book ? watchingWords(n) : r.bookError ? RESCUE.watch.unread : RESCUE.watch.reading}</h2>
-        <p>{!book ? null : n === 0 ? RESCUE.watch.none : failing ? RESCUE.watch.failing(failing) : RESCUE.watch.checked}</p>
+        <p>{book ? watchLines(book, now).line : null}</p>
         {book && n ? <p className="ui-hint" title={RESCUE_WATCH_ABOUT}>{RESCUE.watch.reads(book.watch_reads_today, book.watch_reads_max)}</p> : null}
         <div className="cs-acts">
           <Btn onClick={() => void open.run({ deal_id: null, target: 'rescue_watch' })} disabled={open.pending} title={`${RESCUE_WATCH_ABOUT} ${RESCUE.opensApproval}`}>
@@ -213,6 +226,7 @@ function latestOf(r: RescueWorld, open: (v: string) => void, deal: (id: string) 
 export function RescueLayer({ nav }: LayerProps) {
   const r = useRescueWorld();
   const route = useModuleRoute();
+  const now = useNow();
   const [picked, setPicked] = useState<Record<string, Col>>({});
   const pick = (id: string, c: Col) => setPicked((p) => ({ ...p, [id]: c }));
   if (!r.loaded) {
@@ -243,7 +257,7 @@ export function RescueLayer({ nav }: LayerProps) {
             note: r.rows.inflight.length ? RESCUE.cards.waitingFor(moneyList(strip.inProgress) ?? '') : RESCUE.cards.nothingWaiting },
           { id: 'recovered', view: 'recovered', label: RESCUE_VIEWS_TITLE.recovered, value: moneyList(strip.recovered) ?? RESCUE.cards.noneYet, note: RESCUE.cards.countedOnce },
           { id: 'watch', view: 'watch', label: RESCUE_VIEWS_TITLE.watch, value: r.book ? watchingWords(watching) : r.bookError ? RESCUE.cards.unread : RESCUE.cards.reading,
-            note: r.book && watching ? RESCUE.watch.reads(r.book.watch_reads_today, r.book.watch_reads_max) : RESCUE.cards.watchNote },
+            note: r.book ? watchLines(r.book, now).note : RESCUE.cards.watchNote },
         ]}
         explain={{ summary: RESCUE.how.title, body: <><ul className="rs-how">{RESCUE.how.items.map((x) => <li key={x.title}><b>{x.title}.</b> {x.text}</li>)}</ul><p>{RESCUE.never}</p></> }}
         views={{
