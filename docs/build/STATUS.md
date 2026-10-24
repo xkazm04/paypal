@@ -2672,3 +2672,5 @@ Record: `docs/build/tiger/2026-10-24-agent-negotiation-run.md` (thesis, seats, s
 Found: a buyer table cannot open on a listing above its ceiling (the deal's terms are mandate-checked at creation), so the film's $389-against-$340 cannot happen in the app; each practice-agent run leaves one `session_not_enabled` refusal row while its grant is enabled, counted by the safety record as "out of turn". Both wait on the operator with the scope's C4-L3.
 
 Gates (worktree): `cargo fmt --all --check` clean; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo test --workspace` 914 passed / 0 failed / 10 ignored. Client (`pnpm install --frozen-lockfile` in apps/desktop/client): `npx tsc --noEmit` clean, `npx vitest run` 204 files / 1970 tests passed (was 204 / 1963). The merge gate does not run tsc or vitest.
+
+- robustness-4 (full r2) fixed: actor reports the Failed run snapshot and any run.finish audit fault on the engine-error path (bdceccc).
