@@ -1,0 +1,148 @@
+{
+ "schema": "conform-run/1",
+ "worker": "96873694-4525-4f4e-9558-53ffb692ee42",
+ "subject": "agent-memory",
+ "evaluatedAt": "2026-10-24T00:19:25.867846+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "tumbler-window",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:171 The Tumbler is a stateless view that draws Rust's attention snapshot and keeps no state of its own; a case-insensitive search of its directory for episod, consolidat, belief, embedding and memories found nothing, so it has no agent working, episodic or consolidated store for the subject to govern.",
+   "techniques": [],
+   "absenceTerms": [
+    "episod",
+    "consolidat",
+    "belief",
+    "embedding",
+    "memories"
+   ]
+  },
+  {
+   "context": "deal-review",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:4 The deal-review modules build display text only from facts the wallet reports, and 'transcript' here means the signed negotiation record, not agent memory; a search of the approval directory for episod, consolidat, belief, embedding and memories found nothing, so there is no agent memory pipeline here.",
+   "techniques": [],
+   "absenceTerms": [
+    "episod",
+    "consolidat",
+    "belief",
+    "embedding",
+    "memories"
+   ]
+  },
+  {
+   "context": "wallet-app-services",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-app/src/agent_request.rs:13 The trusted app layer checks agent intents against fixed role playbooks, mandates and the signed transcript, and holds no agent-learned memory (its 'in memory' comments refer to process-RAM read schedules); a search of crates/table-app for episod, consolidat, belief, embedding and memories found nothing, so nothing here captures, consolidates, decays or recalls agent memory.",
+   "techniques": [],
+   "absenceTerms": [
+    "episod",
+    "consolidat",
+    "belief",
+    "embedding",
+    "memories"
+   ]
+  },
+  {
+   "context": "director-preview-stories",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/director/stories.ts:4 The director is a browser-only rig that replays scripted story beats over a mock world, with no agent and no memory store; a search of src/director for episod, consolidat, belief, embedding and memories found nothing (the 'resetTourMemory' hits are onboarding-tour UI state), so the subject's precondition does not hold.",
+   "techniques": [],
+   "absenceTerms": [
+    "episod",
+    "consolidat",
+    "belief",
+    "embedding",
+    "memories"
+   ]
+  },
+  {
+   "context": "shared-surfaces-onboarding-honesty",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/shared/honesty.tsx:3 These are presentational honesty components (mode badges, money, countdowns, quarantine box), plus the start steps and coach-mark tour, whose only 'memory' is tour-progress UI state; a search of src/shared for episod, consolidat, belief, embedding and memories found nothing, so there is no agent memory for the subject to govern.",
+   "techniques": [],
+   "absenceTerms": [
+    "episod",
+    "consolidat",
+    "belief",
+    "embedding",
+    "memories"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-24T00:19:25.867846+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "tumbler-window",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T00:19:25.867846+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "deal-review",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T00:19:25.867846+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "wallet-app-services",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T00:19:25.867846+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "director-preview-stories",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T00:19:25.867846+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shared-surfaces-onboarding-honesty",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
