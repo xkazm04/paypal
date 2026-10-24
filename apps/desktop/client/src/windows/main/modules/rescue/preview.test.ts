@@ -54,8 +54,8 @@ describe('what the subscriber would get', () => {
     expect(previewFor('NONE', ctx)).toMatchObject({ channel: 'retry', amount: { text: '$9.60', unknown: false }, note: 'No message from you' });
     expect(previewFor('NONE', ctx).line).toContain(retryDate(NOW + 4 * 86400));
   });
-  it('says so when PayPal has no retry set, rather than inventing a date', () => {
-    expect(previewFor('NONE', { ...ctx, retryAt: null }).line).toBe('No retry is set for Care plan');
+  it('without PayPal’s retry time, says PayPal retries on its own, never a date and never “no retry set”', () => {
+    expect(previewFor('NONE', { ...ctx, retryAt: null }).line).toBe('PayPal retries on its own');
   });
   it('never marks an unknown amount as known', () => {
     for (const c of COLS) { const a = previewFor(c, ctx).amount; if (a?.text === YOU_CHOOSE) expect(a.unknown).toBe(true); }
@@ -75,7 +75,7 @@ describe('why sentences', () => {
   });
   it('names PayPal’s retry date when it is known and says so when it is not', () => {
     expect(fixWhy('NONE', { amount: ctx.amount, retryAt: ctx.retryAt })[1]).toBe(`PayPal retries the payment by itself on ${retryDate(NOW + 4 * 86400)}.`);
-    expect(fixWhy('NONE', { amount: ctx.amount, retryAt: null })[1]).toBe('PayPal has no retry set, so this month stays unpaid.');
+    expect(fixWhy('NONE', { amount: ctx.amount, retryAt: null })[1]).toBe('PayPal retries the payment by itself; your wallet hasn’t been told when.');
   });
   it('explains a switched-off fix from the rule that switched it off', () => {
     expect(fixWhy('RETRY_AFTER_FIX', { amount: ctx.amount, retryAt: ctx.retryAt, offCode: 'REPLAY' })[0]).toContain('replay');

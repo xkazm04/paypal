@@ -68,14 +68,24 @@ export function retryLeft(deadline: number, now: number): string {
   return `${h} h ${String(m).padStart(2, '0')} m`;
 }
 
+/** PayPal's own next retry of the failed payment, when the wallet knows it and it is still ahead
+ *  (RescueView.next_retry_at). Never the fix's deadline: without PayPal's time, Rust gives the fix a
+ *  window of its own (table-app RESCUE_RETRY_DEFAULT_SECS, 5 days), which is not a PayPal date. Every
+ *  "PayPal retries ..." line reads this; the deadline only says when the fix closes. */
+export function paypalRetry(view: Pick<RescueView, 'next_retry_at'> | null | undefined, now: number): number | null {
+  const at = view?.next_retry_at ?? null;
+  return at !== null && at > now ? at : null;
+}
+
 /** One cell of the matrix. Only rules the deal itself can decide are shown as "off": RETRY_AFTER_FIX
- *  is disabled on REPLAY rows (no real balance) and while PayPal's own retry is under 24 h away. */
-export function cellState(d: Pick<Deal, 'mode'>, col: Col, deadline: number | null, now: number, view?: Pick<RescueView, 'offer'> | null): CellState {
-  if (col === 'NONE') return { kind: 'default', sub: deadline ? `retry ${retryLeft(deadline, now)}` : 'cycle unpaid' };
+ *  is disabled on REPLAY rows (no real balance) and while PayPal's own retry is under 24 h away
+ *  (`retryAt`: paypalRetry's, as Rust check_lever reads it; unknown never switches it off). */
+export function cellState(d: Pick<Deal, 'mode'>, col: Col, retryAt: number | null, now: number, view?: Pick<RescueView, 'offer'> | null): CellState {
+  if (col === 'NONE') return { kind: 'default', sub: retryAt ? `retry ${retryLeft(retryAt, now)}` : 'retry time not known' };
   if (col === 'DISCOUNT_THIS_CYCLE') return view ? { kind: 'offer', offer: view.offer } : { kind: 'unknown', why: UNKNOWN_LEVER };
   if (col === 'RETRY_AFTER_FIX') {
     if (d.mode === 'replay') return { kind: 'off', code: 'REPLAY', why: 'REPLAY row · no real balance to capture' };
-    if (deadline && deadline - now <= DAY) return { kind: 'off', code: 'retry <24h', why: 'PayPal’s own retry is due within 24 h' };
+    if (retryAt && retryAt - now <= DAY) return { kind: 'off', code: 'retry <24h', why: 'PayPal’s own retry is due within 24 h' };
   }
   return { kind: 'off', code: 'NOT_BUILT', why: NOT_BUILT };
 }
@@ -86,11 +96,11 @@ export const pickable = (st: CellState): boolean => st.kind === 'default' || st.
 /** The card's fixes, split: the ones shown as cards (doing nothing, the discount, and any the wallet
  *  has not answered for yet, which stay dashed), and the ones switched off for this renewal, folded
  *  into one quiet line with each one's reason code (cellState's), in the lever list's order. */
-export function splitFixes(d: Pick<Deal, 'mode'>, deadline: number | null, now: number, view?: Pick<RescueView, 'offer'> | null): { open: Col[]; off: Array<{ col: LeverKey; code: string; why: string }> } {
+export function splitFixes(d: Pick<Deal, 'mode'>, retryAt: number | null, now: number, view?: Pick<RescueView, 'offer'> | null): { open: Col[]; off: Array<{ col: LeverKey; code: string; why: string }> } {
   const open: Col[] = [];
   const off: Array<{ col: LeverKey; code: string; why: string }> = [];
   for (const col of COLS) {
-    const st = cellState(d, col, deadline, now, view);
+    const st = cellState(d, col, retryAt, now, view);
     if (st.kind === 'off' && col !== 'NONE') off.push({ col, code: st.code, why: st.why });
     else open.push(col);
   }
@@ -98,7 +108,7 @@ export function splitFixes(d: Pick<Deal, 'mode'>, deadline: number | null, now: 
 }
 
 /** Rules the inspector lists for a lever: ✓ holds, ✕ refuses, ? not in the contract. */
-export function rulesFor(d: Pick<Deal, 'mode'>, col: LeverKey, deadline: number | null, now: number, view?: Pick<RescueView, 'offer'> | null): Array<['ok' | 'x' | 'unk', string]> {
+export function rulesFor(d: Pick<Deal, 'mode'>, col: LeverKey, retryAt: number | null, now: number, view?: Pick<RescueView, 'offer'> | null): Array<['ok' | 'x' | 'unk', string]> {
   const r: Array<['ok' | 'x' | 'unk', string]> = [['ok', 'acts on this one subscriber only']];
   if (col === 'DISCOUNT_THIS_CYCLE') {
     r.push(view ? ['ok', 'inside your rules for fixing failed renewals, worked out by your wallet'] : ['unk', UNKNOWN_LEVER]);
@@ -107,8 +117,8 @@ export function rulesFor(d: Pick<Deal, 'mode'>, col: LeverKey, deadline: number 
   } else r.push(['x', NOT_BUILT.toLowerCase()]);
   if (col === 'RETRY_AFTER_FIX') {
     r.push([d.mode === 'replay' ? 'x' : 'ok', d.mode === 'replay' ? 'a replayed renewal: there is no real balance to collect' : 'a real failed payment, not a replay']);
-    const soon = !!deadline && deadline - now < DAY;
-    r.push([soon ? 'x' : 'ok', `PayPal’s own retry is more than a day away (${deadline ? `in ${retryLeft(deadline, now)}` : 'none scheduled'})`]);
+    if (!retryAt) r.push(['unk', 'PayPal’s own retry time isn’t known to your wallet']);
+    else r.push([retryAt - now <= DAY ? 'x' : 'ok', `PayPal’s own retry is more than a day away (in ${retryLeft(retryAt, now)})`]);
   }
   r.push(['ok', 'the plan price stays the same for everyone']);
   r.push(['ok', col === 'DISCOUNT_THIS_CYCLE' ? 'the invoice wording is your wallet’s, never written by an agent' : 'the email is a fixed template, never written by an agent']);
@@ -124,7 +134,7 @@ export type Rows = { failing: Deal[]; inflight: Deal[]; settled: Deal[] };
 /** A failed renewal whose fix waits for the owner (Rust: a rescue deal at AGREED). */
 export const isFailing = (d: Pick<Deal, 'kind' | 'state'>): boolean => d.kind === 'rescue' && d.state === 'AGREED';
 
-/** Failing renewals (one fix each) by PayPal's next retry, then invoices in flight, then closed. */
+/** Failing renewals (one fix each) by when their fix closes (its deadline), then invoices in flight, then closed. */
 export function splitRows(deals: readonly Deal[], deadlineOf: (d: Deal) => number | null): Rows {
   const rescue = deals.filter(isRescueDeal);
   const dl = (d: Deal) => deadlineOf(d) ?? Infinity;

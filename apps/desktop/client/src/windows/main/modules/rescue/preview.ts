@@ -49,7 +49,7 @@ export type Preview = {
   /** One short follow-on line, facts only. */
   note: string | null;
 };
-export type PreviewCtx = { item: string; amount: Money; retryAt: number | null; /** The wallet's rescue read (fix and invoice wording). */ view?: Pick<RescueView, 'offer' | 'text'> | null };
+export type PreviewCtx = { item: string; amount: Money; /** PayPal's own next retry (model paypalRetry), null when the wallet doesn't know it. */ retryAt: number | null; /** The wallet's rescue read (fix and invoice wording). */ view?: Pick<RescueView, 'offer' | 'text'> | null };
 /** The words for the discount before the wallet has shown it. */
 export const BY_WALLET = 'worked out by your wallet';
 
@@ -61,7 +61,7 @@ export function previewFor(col: Col, c: PreviewCtx): Preview {
   switch (col) {
     case 'NONE':
       return {
-        channel: 'retry', kind: 'From PayPal', line: c.retryAt ? `PayPal retries ${retryDate(c.retryAt)}` : `No retry is set for ${plan}`,
+        channel: 'retry', kind: 'From PayPal', line: c.retryAt ? `PayPal retries ${retryDate(c.retryAt)}` : 'PayPal retries on its own',
         amount: { label: plan, text: amt, unknown: false }, note: 'No message from you',
       };
     case 'DISCOUNT_THIS_CYCLE': {
@@ -81,7 +81,7 @@ export function previewFor(col: Col, c: PreviewCtx): Preview {
 
 // ---- Why? ---------------------------------------------------------------------------------------------------------
 
-export type FixWhyCtx = { amount: Money; retryAt: number | null; /** cellState's code when the fix is switched off. */ offCode?: string; /** The wallet's fix, when shown. */ offer?: RescueOffer | null };
+export type FixWhyCtx = { amount: Money; /** PayPal's own next retry, null when not known. */ retryAt: number | null; /** cellState's code when the fix is switched off. */ offCode?: string; /** The wallet's fix, when shown. */ offer?: RescueOffer | null };
 
 /** The question a fix's Why? answers. */
 export const fixQuestion = (col: Col): string => (col === 'NONE' ? 'Why is doing nothing safe?' : 'Why this fix?');
@@ -93,7 +93,7 @@ export function fixWhy(col: Col, c: FixWhyCtx): [string, string] {
   if (c.offCode) return ['PayPal’s own retry is due within a day, so this fix is not offered right now.', 'Doing nothing lets that retry run.'];
   switch (col) {
     case 'NONE':
-      return ['Nothing is sent, so nobody is contacted and no money moves.', c.retryAt ? `PayPal retries the payment by itself on ${retryDate(c.retryAt)}.` : 'PayPal has no retry set, so this month stays unpaid.'];
+      return ['Nothing is sent, so nobody is contacted and no money moves.', c.retryAt ? `PayPal retries the payment by itself on ${retryDate(c.retryAt)}.` : 'PayPal retries the payment by itself; your wallet hasn’t been told when.'];
     case 'DISCOUNT_THIS_CYCLE':
       return [c.offer
         ? `It makes one PayPal invoice for the missed cycle at ${money(c.offer.invoice)}, ${percentWords(c.offer.discount_bp)} off, for this subscriber only.`

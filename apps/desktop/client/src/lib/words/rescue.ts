@@ -99,8 +99,11 @@ export const RESCUE = {
   doNothing: 'Do nothing',
   defaultTitle: 'The safe default: nothing is sent',
   selected: 'Selected',
+  /** PayPal's own retry, only when the wallet knows its time (never the fix's deadline). */
   retriesIn: (t: string) => `PayPal retries in ${t}`,
-  staysUnpaid: 'This month stays unpaid',
+  retriesOwn: 'PayPal retries on its own',
+  /** The fix's deadline: Rust lets an unapproved fix lapse then, and nothing is sent. */
+  closes: (at: string, left: string) => `This fix is open until ${at} (${left} left). If you haven’t approved it by then, it closes and nothing is sent.`,
   offerLine: (pct: string, invoice: string, cycle: string) => `${pct} off: ${invoice} instead of ${cycle}`,
   whyOff: { REPLAY: 'Not for a replay: no real balance to collect', 'retry <24h': 'Not now: PayPal retries within a day', NOT_BUILT: 'Not available yet' },
   pick: {
@@ -115,7 +118,7 @@ export const RESCUE = {
   nothingDoes: {
     sent: 'Nothing is sent: no PayPal call, no email.',
     retry: (left: string, at: string) => `PayPal retries the payment by itself in ${left} (${at}). If that works, it is paid without a fix.`,
-    noRetry: 'PayPal has no retry scheduled. This month stays unpaid.',
+    noRetry: 'PayPal retries the payment by itself; your wallet hasn’t been told when. If that works, it is paid without a fix.',
     never: 'If you never decide, nothing is ever sent.',
   },
   fix: {
@@ -132,7 +135,7 @@ export const RESCUE = {
     head: { NONE: 'Do nothing', DISCOUNT_THIS_CYCLE: 'Discount', PAUSE: 'Pause', RETRY_AFTER_FIX: 'Retry later', DOWNGRADE: 'Smaller plan' },
     nothingSent: 'Nothing sent',
     retry: (t: string) => `retry in ${t}`,
-    noRetry: 'no retry set',
+    noRetry: 'retry time not known',
     off: (pct: string) => `${pct} off`,
     notNow: 'Not now',
     notYet: 'Not yet',
