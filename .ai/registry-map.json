@@ -2571,8 +2571,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "not-applicable",
+          "priorNotApplicable": 2,
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:92 This context is a pure owner-review view: it reads summaries and calls gated IPC commands. A search of the approval directory found no hits for mcp, plugin, subagent, EngineAdapter or checkpoint, so it assembles no agent runtime, hook chain or extension surface.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28
         },
         {
           "subject": "supply-chain",
@@ -3777,8 +3781,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "deviation",
+          "priorNotApplicable": 2,
+          "evidence": "crates/table-client/src/run_state.rs:22 The contract's run vocabulary is Starting/Running/Clean/Failed/Cancelled and has no indeterminate value. The engine's first-class MissingTerminalFact therefore has to be flattened to Failed when it crosses into the shell (actor.rs:611), giving a definite verdict the runtime has not earned.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28
         },
         {
           "subject": "agent-instruction-files",
@@ -4213,8 +4221,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "not-applicable",
+          "priorNotApplicable": 2,
+          "evidence": "crates/table-ledger/src/audit_detail.rs:196 The ledger only stores agent runs as allowlisted audit rows (run.start and run.finish). A search of crates/table-ledger found no hits for hook, plugin, subagent, EngineAdapter or tool_call, so it composes no runtime and holds no conversation checkpoints.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28
         },
         {
           "subject": "prompt-assembly",
@@ -7880,12 +7892,11 @@
           "changedAt": "2026-10-14",
           "confidence": "strong",
           "state": "conformant",
-          "evidence": "crates/table-engine/src/native.rs:61 env_clear+allowlist and a fresh session uuid (native.rs:146) re-root the child (nested-run-is-not-its-parent); argv.rs:106 --setting-sources project + argv.rs:54 --ignore-user-config (operator-tier-code-loading); argv.rs:21 --tools \"\" (guard-input-custody); 13 techniques n/a, anchored: no hook chain, routes, durable thread or extension surface",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:9036e979656a8dc5",
-          "evaluatedRevision": 27,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-engine/src/native.rs:78 Every native agent child is launched at one door that clears the environment and adds back only ENV_ALLOW by name, under a freshly minted session uuid. The engine re-roots each nested CLI run instead of letting the host's identity leak into it, and nothing in its own code deviates from the techniques that apply.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28,
+          "revisionsBehind": 1
         },
         {
           "subject": "mcp-tools",

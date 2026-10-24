@@ -6489,6 +6489,137 @@
       "evaluatedTs": "2026-10-24T02:48:48.146Z",
       "worker": "c408b22c-a0d9-43ef-9ccf-9640e0fcdbc5",
       "techniques": []
+    },
+    "6ad8f933-5c5e-4ed6-8ace-f642dffc558f/agent-runtime-assembly": {
+      "context": "table-engine-agent-process",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T03:08:13.011Z",
+      "worker": "aaa8e1be-f4b4-4c9b-acf6-99bb4e2d7fb2",
+      "techniques": [
+        {
+          "technique": "nested-run-is-not-its-parent",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/native.rs:78 Ambient identifiers are scrubbed as a family (env_clear, plus STRIP_ENV for the CLAUDE_CODE_* and API keys) and only ENV_ALLOW is added back by name. The child's identity is minted at creation (native.rs:151, session: directory.uuid.clone())."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/argv.rs:22 Only the host-written mcp.json can name MCP servers, which are code the CLI would spawn. --setting-sources project in a fresh empty cwd (argv.rs:104) and Codex's --ignore-user-config keep user-tier config from naming code."
+        },
+        {
+          "technique": "guard-input-custody",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/parser.rs:4 The tool allowlist the parser checks the child's inventory against is compiled into the host. The governed CLI has no file tools (--tools \"\", Bash disallowed), so it cannot reach this list."
+        },
+        {
+          "technique": "indeterminate-closure-on-interruption",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/parser.rs:226 A stream that ends without a terminal fact gets its own first-class verdict, not a failure string. Timeout and Cancelled are distinct Error variants. The downstream collapse to Failed happens outside this context."
+        },
+        {
+          "technique": "additive-input-at-the-call-boundary",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:230 Each run takes exactly one input and then closes stdin. There is no mid-unit input channel."
+        },
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:26 A run is capped at 120 seconds. No operation outlives the turn, and no remote handle is held."
+        },
+        {
+          "technique": "checkpoint-mode-custody",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:167 Claude runs without session persistence and Codex runs --ephemeral. There is no durable conversation state to resume."
+        },
+        {
+          "technique": "semantic-hook-placement",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/lib.rs:139 The engine contract is probe/run/structured/cancel. There is no hook chain around model or tool calls."
+        },
+        {
+          "technique": "rewrite-before-the-gate",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/parser.rs:135 Tool-call arguments pass through verbatim. No rewriting point exists."
+        },
+        {
+          "technique": "observer-and-mutator-surfaces",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/lib.rs:69 Events go out over a typed channel to the host. There is no surface where extensions register callbacks."
+        },
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/argv.rs:104 The engine registers no contributed callbacks. User-tier CLI hook config is excluded, and the project tier is an empty fresh cwd."
+        },
+        {
+          "technique": "rewriting-under-a-foreign-gate",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/argv.rs:96 The host sets the CLI's gate but rewrites no commands. Bash is disallowed outright."
+        },
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:171 The wallet capability is a grant minted per run and set only in that child's own environment. It does not depend on which client is attached."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "conformant",
+          "evidence": "crates/table-engine/src/native.rs:61 env_clear+allowlist and a fresh session uuid (native.rs:146) re-root the child (nested-run-is-not-its-parent); argv.rs:106 --setting-sources project + argv.rs:54 --ignore-user-config (operator-tier-code-loading); argv.rs:21 --tools \"\" (guard-input-custody); 13 techniques n/a, anchored: no hook chain, routes, durable thread or extension surface",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by aaa8e1be-f4b4-4c9b-acf6-99bb4e2d7fb2"
+        }
+      ]
+    },
+    "b122a56d-4e5f-4259-959c-b90ba9e1c58e/agent-runtime-assembly": {
+      "context": "ipc-contract-and-authority-table",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T03:08:13.011Z",
+      "worker": "aaa8e1be-f4b4-4c9b-acf6-99bb4e2d7fb2",
+      "techniques": [
+        {
+          "technique": "indeterminate-closure-on-interruption",
+          "verdict": "deviation",
+          "evidence": "crates/table-client/src/run_state.rs:26 There is no status for 'ended and nobody knows how', so a run with no terminal fact is reported Failed. Separately, run.start audit rows from a crashed process are never closed on restart, because runs are held only in memory."
+        },
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "conformant",
+          "evidence": "crates/table-client/src/authority_table.rs:5 One table drives both the shell capability files (the assembly-time filter) and the runtime dispatcher's label gate (the run-time refusal). This is applied to IPC grants, not to agent tools."
+        },
+        {
+          "technique": "guard-input-custody",
+          "verdict": "conformant",
+          "evidence": "crates/table-client/src/authority_table.rs:16 The policy input the gate reads (the window label) cannot be written by the party it constrains."
+        }
+      ]
+    },
+    "1b4ef14a-5a8a-438c-988d-365c439b153d/agent-runtime-assembly": {
+      "context": "deal-review",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T03:08:13.011Z",
+      "worker": "aaa8e1be-f4b4-4c9b-acf6-99bb4e2d7fb2",
+      "techniques": []
+    },
+    "dfab992a-8315-4db9-b496-6aa38639cf8c/agent-runtime-assembly": {
+      "context": "ledger-repositories-audit-evidence",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T03:08:13.011Z",
+      "worker": "aaa8e1be-f4b4-4c9b-acf6-99bb4e2d7fb2",
+      "techniques": []
     }
   }
 }

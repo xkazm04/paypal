@@ -1,0 +1,213 @@
+{
+ "schema": "conform-run/1",
+ "worker": "aaa8e1be-f4b4-4c9b-acf6-99bb4e2d7fb2",
+ "subject": "agent-runtime-assembly",
+ "evaluatedAt": "2026-10-24T03:08:13.011910+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "table-engine-agent-process",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "crates/table-engine/src/native.rs:78 Every native agent child is launched at one door that clears the environment and adds back only ENV_ALLOW by name, under a freshly minted session uuid. The engine re-roots each nested CLI run instead of letting the host's identity leak into it, and nothing in its own code deviates from the techniques that apply.",
+   "techniques": [
+    {
+     "technique": "nested-run-is-not-its-parent",
+     "verdict": "conformant",
+     "evidence": "crates/table-engine/src/native.rs:78 Ambient identifiers are scrubbed as a family (env_clear, plus STRIP_ENV for the CLAUDE_CODE_* and API keys) and only ENV_ALLOW is added back by name. The child's identity is minted at creation (native.rs:151, session: directory.uuid.clone())."
+    },
+    {
+     "technique": "operator-tier-code-loading",
+     "verdict": "conformant",
+     "evidence": "crates/table-engine/src/argv.rs:22 Only the host-written mcp.json can name MCP servers, which are code the CLI would spawn. --setting-sources project in a fresh empty cwd (argv.rs:104) and Codex's --ignore-user-config keep user-tier config from naming code."
+    },
+    {
+     "technique": "guard-input-custody",
+     "verdict": "conformant",
+     "evidence": "crates/table-engine/src/parser.rs:4 The tool allowlist the parser checks the child's inventory against is compiled into the host. The governed CLI has no file tools (--tools \"\", Bash disallowed), so it cannot reach this list."
+    },
+    {
+     "technique": "indeterminate-closure-on-interruption",
+     "verdict": "conformant",
+     "evidence": "crates/table-engine/src/parser.rs:226 A stream that ends without a terminal fact gets its own first-class verdict, not a failure string. Timeout and Cancelled are distinct Error variants. The downstream collapse to Failed happens outside this context."
+    },
+    {
+     "technique": "additive-input-at-the-call-boundary",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/native.rs:230 Each run takes exactly one input and then closes stdin. There is no mid-unit input channel."
+    },
+    {
+     "technique": "bounded-projection-of-external-work",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/native.rs:26 A run is capped at 120 seconds. No operation outlives the turn, and no remote handle is held."
+    },
+    {
+     "technique": "checkpoint-mode-custody",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/native.rs:167 Claude runs without session persistence and Codex runs --ephemeral. There is no durable conversation state to resume."
+    },
+    {
+     "technique": "semantic-hook-placement",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/lib.rs:139 The engine contract is probe/run/structured/cancel. There is no hook chain around model or tool calls."
+    },
+    {
+     "technique": "rewrite-before-the-gate",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/parser.rs:135 Tool-call arguments pass through verbatim. No rewriting point exists."
+    },
+    {
+     "technique": "observer-and-mutator-surfaces",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/lib.rs:69 Events go out over a typed channel to the host. There is no surface where extensions register callbacks."
+    },
+    {
+     "technique": "honest-hook-registry",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/argv.rs:104 The engine registers no contributed callbacks. User-tier CLI hook config is excluded, and the project tier is an empty fresh cwd."
+    },
+    {
+     "technique": "rewriting-under-a-foreign-gate",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/argv.rs:96 The host sets the CLI's gate but rewrites no commands. Bash is disallowed outright."
+    },
+    {
+     "technique": "session-scoped-capability",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/native.rs:171 The wallet capability is a grant minted per run and set only in that child's own environment. It does not depend on which client is attached."
+    }
+   ]
+  },
+  {
+   "context": "ipc-contract-and-authority-table",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-client/src/run_state.rs:22 The contract's run vocabulary is Starting/Running/Clean/Failed/Cancelled and has no indeterminate value. The engine's first-class MissingTerminalFact therefore has to be flattened to Failed when it crosses into the shell (actor.rs:611), giving a definite verdict the runtime has not earned.",
+   "techniques": [
+    {
+     "technique": "indeterminate-closure-on-interruption",
+     "verdict": "deviation",
+     "evidence": "crates/table-client/src/run_state.rs:26 There is no status for 'ended and nobody knows how', so a run with no terminal fact is reported Failed. Separately, run.start audit rows from a crashed process are never closed on restart, because runs are held only in memory."
+    },
+    {
+     "technique": "session-scoped-capability",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/authority_table.rs:5 One table drives both the shell capability files (the assembly-time filter) and the runtime dispatcher's label gate (the run-time refusal). This is applied to IPC grants, not to agent tools."
+    },
+    {
+     "technique": "guard-input-custody",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/authority_table.rs:16 The policy input the gate reads (the window label) cannot be written by the party it constrains."
+    }
+   ]
+  },
+  {
+   "context": "deal-review",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:92 This context is a pure owner-review view: it reads summaries and calls gated IPC commands. A search of the approval directory found no hits for mcp, plugin, subagent, EngineAdapter or checkpoint, so it assembles no agent runtime, hook chain or extension surface.",
+   "techniques": [],
+   "absenceTerms": [
+    "mcp",
+    "plugin",
+    "subagent",
+    "EngineAdapter",
+    "checkpoint"
+   ]
+  },
+  {
+   "context": "ledger-repositories-audit-evidence",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-ledger/src/audit_detail.rs:196 The ledger only stores agent runs as allowlisted audit rows (run.start and run.finish). A search of crates/table-ledger found no hits for hook, plugin, subagent, EngineAdapter or tool_call, so it composes no runtime and holds no conversation checkpoints.",
+   "techniques": [],
+   "absenceTerms": [
+    "hook",
+    "plugin",
+    "subagent",
+    "EngineAdapter",
+    "tool_call"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "runtime-money-controls",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T03:08:13.011910+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [
+    "additive-input-at-the-call-boundary",
+    "bounded-projection-of-external-work",
+    "checkpoint-mode-custody",
+    "guard-input-custody",
+    "honest-hook-registry",
+    "indeterminate-closure-on-interruption",
+    "nested-run-is-not-its-parent",
+    "observer-and-mutator-surfaces",
+    "operator-tier-code-loading",
+    "rewrite-before-the-gate",
+    "rewriting-under-a-foreign-gate",
+    "semantic-hook-placement",
+    "session-scoped-capability"
+   ],
+   "deviations": 0,
+   "context": "table-engine-agent-process",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T03:08:13.011910+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [
+    "guard-input-custody",
+    "indeterminate-closure-on-interruption",
+    "session-scoped-capability"
+   ],
+   "deviations": 1,
+   "context": "ipc-contract-and-authority-table",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T03:08:13.011910+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "deal-review",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T03:08:13.011910+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "ledger-repositories-audit-evidence",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
