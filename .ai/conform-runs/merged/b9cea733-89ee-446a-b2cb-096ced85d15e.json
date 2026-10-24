@@ -1,0 +1,144 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b9cea733-89ee-446a-b2cb-096ced85d15e",
+ "subject": "native-shell-integration",
+ "evaluatedAt": "2026-10-24T04:49:45.795720+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "approval-window-shell",
+   "subject": "native-shell-integration",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/approval/model.ts:249 The unlock refusal maps UNSUPPORTED (the runtime's 'OS authentication is unsupported on this platform' / 'requires a supported Windows version', i.e. absent) to 'isn't set up', an action the user cannot take. It also maps UNAVAILABLE (which windows_native returns for 'Configure Windows Hello') to 'isn't ready right now\u2026 unlock again in a moment' (line 251). The presence and configuration classes come out swapped at the surface, so the refusal names the wrong cause.",
+   "techniques": [
+    {
+     "technique": "capability-presence-contract",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/approval/model.ts:249 Absent capability rendered as a not-configured one. Same wording at model.ts:171 for decisions and PairingConfirm.tsx:204 for the !native_reauth_available disclosure. On Windows supported() is always true, so that flag is false only on the non-Windows stub host, where 'set up' is impossible."
+    },
+    {
+     "technique": "native-side-owns-the-target-set",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/gating.ts:3 The client only narrows. The selected deal and handoff values are never authority (selection.ts:41), and Rust re-derives label, token, lock and the selected deal."
+    },
+    {
+     "technique": "native-owned-stream",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/selection.ts:5 The view renders what Rust pushes and subscribes before it reads. It holds no connection of its own."
+    }
+   ]
+  },
+  {
+   "context": "tumbler-window",
+   "subject": "native-shell-integration",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/tumbler/forms.tsx:45 The lock indicator promises a Windows Hello unlock no matter what native_reauth_available says. The Tumbler receives that flag in settings:changed, and on the host where the runtime reports reauth absent the approval window disables unlock, so the two surfaces give contradictory disclosures of one capability's presence.",
+   "techniques": [
+    {
+     "technique": "capability-presence-contract",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/tumbler/forms.tsx:45 The disclosure ignores the presence predicate. Low severity (tooltip), but it is a surface inferring the class instead of reading it."
+    },
+    {
+     "technique": "native-owned-stream",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:254 Rust owns the attention feed and pushes it. The page only re-reads on visibilitychange and on a 30s reconcile while a gate is open (WebView2 throttling is acknowledged at line 284)."
+    },
+    {
+     "technique": "non-stealing-overlay",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:176 The omitted focus is written down. The page focuses its form only after a user-initiated open (lines 118-124). Natively, arrivals use set_focusable(false) and show_quietly (src-tauri events.rs:195)."
+    },
+    {
+     "technique": "native-side-owns-the-target-set",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:359 Acts send a single deal identity. Rust owns size, placement and the drag (Tumbler.tsx:1, tumbler_drag)."
+    },
+    {
+     "technique": "query-transparent-overlay",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/tumbler/forms.tsx:359 An always-on-top annotator that never queries the application beneath it. Per the technique, an annotator does not need the third transparency."
+    },
+    {
+     "technique": "host-forwarded-key-contract",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:496 Keys come straight from the desktop keyboard into the page. No host keeps keys and no wrapper forwards them."
+    }
+   ]
+  },
+  {
+   "context": "director-takes-rig",
+   "subject": "native-shell-integration",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/scripts/lib/rig.mjs:6 The rig drives the director on the browser mock through Playwright and has no native process. A search of apps/desktop/client/scripts for invoke, __TAURI, set_focus, focusable and WebviewWindow found nothing, so no native-shell capability is in play.",
+   "techniques": [],
+   "absenceTerms": [
+    "invoke",
+    "__TAURI",
+    "set_focus",
+    "focusable",
+    "WebviewWindow"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "native-shell-integration",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T04:49:45.795720+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "native-shell-integration"
+   ],
+   "techniques": [
+    "capability-presence-contract",
+    "native-owned-stream",
+    "native-side-owns-the-target-set"
+   ],
+   "deviations": 1,
+   "context": "approval-window-shell",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:49:45.795720+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "native-shell-integration"
+   ],
+   "techniques": [
+    "capability-presence-contract",
+    "host-forwarded-key-contract",
+    "native-owned-stream",
+    "native-side-owns-the-target-set",
+    "non-stealing-overlay",
+    "query-transparent-overlay"
+   ],
+   "deviations": 1,
+   "context": "tumbler-window",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:49:45.795720+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "native-shell-integration"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "director-takes-rig",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1008,7 +1008,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/model.ts:249 The unlock refusal maps UNSUPPORTED (the runtime's 'OS authentication is unsupported on this platform' / 'requires a supported Windows version', i.e. absent) to 'isn't set up', an action the user cannot take. It also maps UNAVAILABLE (which windows_native returns for 'Configure Windows Hello') to 'isn't ready right now… unlock again in a moment' (line 251). The presence and configuration classes come out swapped at the surface, so the refusal names the wrong cause.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:9034ad02704d9c88",
+          "evaluatedRevision": 5
         },
         {
           "subject": "quality-gates",
@@ -3434,7 +3438,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/lib/rig.mjs:6 The rig drives the director on the browser mock through Playwright and has no native process. A search of apps/desktop/client/scripts for invoke, __TAURI, set_focus, focusable and WebviewWindow found nothing, so no native-shell capability is in play.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:9034ad02704d9c88",
+          "evaluatedRevision": 5
         }
       ],
       "governance": "governed"
@@ -8381,7 +8389,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/tumbler/forms.tsx:45 The lock indicator promises a Windows Hello unlock no matter what native_reauth_available says. The Tumbler receives that flag in settings:changed, and on the host where the runtime reports reauth absent the approval window disables unlock, so the two surfaces give contradictory disclosures of one capability's presence.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:9034ad02704d9c88",
+          "evaluatedRevision": 5
         },
         {
           "subject": "agent-instruction-files",
