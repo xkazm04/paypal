@@ -665,12 +665,11 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "crates/table-mcp/src/lib.rs:344 publishes items maxItems 1 while crates/table-app/src/agent.rs:116 decodes any Vec: published and enforced schema are still two hand-kept artifacts (a test binds key names only); envelope failure answered in-band at crates/table-mcp/src/lib.rs:467; read-only hints unprobed (tool-schema-design). Registry enum, 30 s deadline (:477) and cap (:507) now hold",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:afba7a2b8c938ae1",
-          "evaluatedRevision": 31,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "crates/table-mcp/src/lib.rs:396 The published input schema is a hand-written JSON literal while the enforced contract is a separate set of serde structs in table-app (items is an unbounded Vec there), and the only binding test checks key names, so the two authorities for one contract can drift apart without any gate failing.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34,
+          "revisionsBehind": 3
         },
         {
           "subject": "prompt-assembly",
@@ -860,12 +859,11 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/session.tsx:86 Context searches found no MCP discovery or invocation vocabulary, while repository searches located MCP in Rust crates; this provider calls typed window commands.",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:bf4c5f0af065bc12",
-          "evaluatedRevision": 32,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "apps/desktop/client/src/windows/approval/session.tsx:86 The approval window calls typed Tauri IPC commands through the generated contract; a case-insensitive search of windows/approval for mcp, tools/call, jsonrpc and inputSchema found no hits, so no tool-protocol surface exists in this context.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34,
+          "revisionsBehind": 2
         },
         {
           "subject": "prompt-assembly",
@@ -1468,7 +1466,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1516 The mock only stands in for the shell's typed IPC commands; a case-insensitive search of the mock directory for mcp, tools/call, jsonrpc and inputSchema found no hits (its only 'tool' mentions are fixture narrative about agents having no money tool), so it neither serves nor consumes a tool protocol.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "data-access",
@@ -6521,12 +6523,11 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "crates/table-runtime/src/actor.rs:433 The desktop runtime serves its local wallet tools through an HTTP listener, contrary to the standard's prescribed standard-stream transport for a single-machine application.",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:bf4c5f0af065bc12",
-          "evaluatedRevision": 32,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "crates/table-runtime/src/actor.rs:545 The desktop runtime attaches its wallet tool server as a loopback HTTP listener and hands engines a URL (actor.rs:562), where the standard's table prescribes standard streams for a single-machine application. Identity work is present, but reach is a port, not a pipe.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34,
+          "revisionsBehind": 2
         },
         {
           "subject": "test-harness",
@@ -8436,12 +8437,11 @@
           "changedAt": "2026-10-15",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "crates/table-app/src/agent.rs:563 Persisted refusal records identify tools by their addressable names without a separate stable identifier, so renaming a tool splits its recorded history.",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:bf4c5f0af065bc12",
-          "evaluatedRevision": 32,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "crates/table-app/src/agent.rs:433 Each intent.refused row in the append-only audit is keyed on the model-addressable tool name with no stable identifier, so renaming a tool would split its recorded refusal history into a death and a birth.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34,
+          "revisionsBehind": 2
         },
         {
           "subject": "agent-memory",
