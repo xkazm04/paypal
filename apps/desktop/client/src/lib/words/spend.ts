@@ -131,6 +131,7 @@ export const SPEND = {
   whyRefused: 'Why refused?',
   whyRefusedTitle: (title: string): string => `Why “${title}” was refused`,
   allPassed: '✓ Every rule passed before PayPal was asked.',
+  allPassedWaiting: '✓ Every rule passed. PayPal hasn’t been asked yet: that waits for you.',
   otherRules: 'Checked under other rules. Open the deal to see.',
   otherRulesCell: 'covered by other rules · open the deal',
   neverAsked: ' · PayPal was never asked',

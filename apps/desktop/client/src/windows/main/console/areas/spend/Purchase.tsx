@@ -12,7 +12,7 @@ import { APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, receiptWord, reconWord, RUL
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, DecisionCard, Disclosure, Hint, Kv, Section, Sheet, type DecisionOption } from '../../../../../shared/ui';
 import { amountNote, amountTone, canWithdraw, dealTotal, decidedBy } from '../../../logic';
-import { CLAUSE_NO, columnValue, outcomeOf, type Cell, type GateColumn } from '../../../modules/spend/gate';
+import { CLAUSE_NO, columnValue, outcomeOf, reachedPaypal, type Cell, type GateColumn } from '../../../modules/spend/gate';
 import { LockGlyph } from '../../../ui';
 import { useLocked, type Display } from '../../../world';
 import { useLayerNav } from '../../layers';
@@ -114,8 +114,9 @@ export function PurchaseDecision({ lane, disp, need, m, who, onToast }: {
 const GLYPH: Record<Cell['kind'], string> = { pass: '✓', fail: '✕', you: '◆', skip: '–', na: '·', unknown: '?' };
 const CELL_WORD: Record<Cell['kind'], string> = { pass: SPEND.cellPass, fail: SPEND.cellFail, you: SPEND.cellYou, skip: SPEND.cellSkip, na: SPEND.cellNa, unknown: SPEND.cellUnknown };
 
-/** The rules one purchase met, as a checklist; a rule name opens that rule's view when `onRule` is given. */
-export function Trace({ cells, cols, onRule }: { cells: readonly Cell[]; cols: readonly GateColumn[]; onRule?: (n: number) => void }) {
+/** The rules one purchase met, as a checklist; a rule name opens that rule's view when `onRule` is given.
+ *  `waiting`: the purchase has not reached PayPal yet (a cleared one waits for the owner). */
+export function Trace({ cells, cols, onRule, waiting }: { cells: readonly Cell[]; cols: readonly GateColumn[]; onRule?: (n: number) => void; waiting?: boolean }) {
   const allPassed = cells.length > 0 && cells.every((c) => c.kind === 'pass' || c.kind === 'na');
   return (
     <>
@@ -134,7 +135,7 @@ export function Trace({ cells, cols, onRule }: { cells: readonly Cell[]; cols: r
           );
         })}
       </ol>
-      {allPassed ? <Hint>{SPEND.allPassed}</Hint> : null}
+      {allPassed ? <Hint>{waiting ? SPEND.allPassedWaiting : SPEND.allPassed}</Hint> : null}
     </>
   );
 }
@@ -204,7 +205,7 @@ export function PurchasePane({ lane, disp, need, who, decision, onRule }: {
         [SPEND.proof, <ProofPills deal={d} />],
       ]} />
       <Section title={m ? SPEND.rulesOf(rulesName(m.agent)) : SPEND.yourRules}>
-        {cols.length ? <Trace cells={lane.cells} cols={cols} onRule={lane.own ? onRule : undefined} /> : <Hint>{m ? SPEND.noRulesCover : SPEND.otherRules}</Hint>}
+        {cols.length ? <Trace cells={lane.cells} cols={cols} onRule={lane.own ? onRule : undefined} waiting={!reachedPaypal(d)} /> : <Hint>{m ? SPEND.noRulesCover : SPEND.otherRules}</Hint>}
       </Section>
       {d.state === 'REFUSED' && m ? (
         <Disclosure summary={SPEND.whyRefused}>
