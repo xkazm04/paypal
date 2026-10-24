@@ -4,7 +4,7 @@
 // so; the checks side by side are rows with a fixed set of columns however many payees there are
 // (#13), windowed and filterable; the picked payment's story reads their note only when asked.
 import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import type { Backend } from '../../../../../lib/contract';
@@ -19,7 +19,15 @@ import { expectLayerHealthy, renderLayerAtScale, settle } from '../../testing/sc
 import { shieldSets } from './model';
 import { needFor } from './model';
 import { moduleOf } from '../../../logic';
+import { releaseCase } from '../../../modules/shield/matrix';
+import { ToastProvider } from '../../../../../shared/ui';
+import { PausedDecision, ReleaseHandoff, type ShieldWorld } from './parts';
 
+const bare = vi.hoisted(() => ({ on: false }));
+vi.mock('../../../world', async (orig) => {
+  const w = await orig<typeof import('../../../world')>();
+  return { ...w, useLocked: () => (bare.on ? false : w.useLocked()) };
+});
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
 
 afterEach(() => { cleanup(); history.replaceState(null, '', '/'); Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 }); });
@@ -154,5 +162,65 @@ describe('Shield panel words', () => {
     const jsxText = [...src.matchAll(/>([^<>{}\n]*[A-Za-z][^<>{}\n]*)</g)].map((m) => m[1]!.trim()).filter(Boolean);
     const quotedAttrs = [...src.matchAll(/\b(?:aria-label|title|label|sub)="([^"]+)"/g)].map((m) => m[1]);
     expect([...jsxText, ...quotedAttrs]).toEqual([]);
+  });
+});
+
+// What a release tells the owner, per deal (shield-screening, council r3 VALUE): the seller mandate
+// takes the money on a released hold once the buyer has approved, so "you still approve on PayPal
+// after" is true only for a buyer deal.
+describe('Release words, per deal case', () => {
+  // The parts are rendered bare (no world): the unlocked hand-off is what is under test.
+  beforeAll(() => { bare.on = true; });
+  afterAll(() => { bare.on = false; });
+  const NONE: Deal['paypal'] = { order: null, authorization: null, capture: null, subscription: null };
+  const hold = (side: Deal['side'], state: Deal['state']): Deal => ({
+    id: `H-${side}-${state}`, kind: 'purchase', side, counterparty: 'K', state, mandate_id: 'M', mandate_version: 1,
+    transcript_head: [] as unknown as Deal['transcript_head'], paypal: NONE, mode: 'sandbox', market: null,
+    shield: 'HOLD', shield_rule: 'price_over_market',
+    terms: { item_ref: 'x', qty: 1, unit_price: { minor: 12000, currency: 'USD' as const }, currency: 'USD', delivery: { type: 'digital_now' } },
+  });
+  const need = { deal_id: 'x', module: 'shield', actions: ['review'], headline: 'h', on_silence: 's', deadline: null } as unknown as AttentionItem;
+  const CASES = [
+    ['buyer', hold('buyer', 'AGREED'), 'buyer'],
+    ['seller approved', hold('seller', 'APPROVED'), 'seller-approved'],
+    ['seller authorized', hold('seller', 'AUTHORIZED'), 'seller-approved'],
+    ['seller negotiating', hold('seller', 'NEGOTIATING'), 'seller-waiting'],
+    ['seller agreed', hold('seller', 'AGREED'), 'seller-waiting'],
+  ] as const;
+  const CLAIM = 'approve the payment on PayPal after';
+
+  it('the case table', () => {
+    for (const [, d, c] of CASES) expect(releaseCase(d)).toBe(c);
+  });
+
+  it('the words never claim a PayPal step after the release on a seller deal, and no word has a dash', () => {
+    for (const k of ['seller-approved', 'seller-waiting'] as const) {
+      expect(SHIELD.releaseMeans[k]).not.toContain(CLAIM);
+      expect(SHIELD.opened[k]).not.toMatch(/you still approve/i);
+    }
+    expect(SHIELD.releaseMeans.buyer).toContain(CLAIM);
+    for (const w of [...Object.values(SHIELD.releaseMeans), ...Object.values(SHIELD.opened)]) expect(w).not.toContain('—');
+    expect(SHIELD.releaseMeans['seller-approved']).toMatch(/last step/);
+    expect(SHIELD.releaseMeans['seller-waiting']).toMatch(/doesn’t take the money yet/);
+  });
+
+  it.each(CASES)('the hand-off toast says the %s words and calls approval_open only', async (_n, d, c) => {
+    const calls: unknown[] = [];
+    const w = mockBackend('main');
+    setHarnessBackend({ ...w, invoke: async (cmd: string, args: unknown) => { calls.push({ cmd, args }); return null; } } as unknown as Backend);
+    const r = render(<ToastProvider><ReleaseHandoff deal={d} need={need} /></ToastProvider>);
+    await act(async () => { fireEvent.click(r.container.querySelector('[data-fk="shield-release"]') as HTMLElement); });
+    await waitFor(() => expect(document.body.textContent).toContain(SHIELD.opened[c]));
+    expect(calls).toEqual([{ cmd: 'approval_open', args: { deal_id: d.id } }]);
+    if (c !== 'buyer') expect(document.body.textContent).not.toContain(CLAIM);
+  });
+
+  it.each(CASES)('the paused decision hint shows the %s words', (_n, d, c) => {
+    const s = {
+      need: () => need, who: () => 'K', cpEntry: () => undefined, title: () => 'T', moduleName: () => 'Shield', known: null,
+    } as unknown as ShieldWorld;
+    const r = render(<ToastProvider><PausedDecision deal={d} s={s} onDeal={() => {}} /></ToastProvider>);
+    expect(r.container.querySelector('.ui-hint')?.textContent).toBe(SHIELD.releaseMeans[c]);
+    if (c !== 'buyer') expect(r.container.textContent).not.toContain(CLAIM);
   });
 });

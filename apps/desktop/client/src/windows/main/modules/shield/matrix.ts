@@ -189,6 +189,15 @@ export function releasable(d: Pick<Deal, 'shield' | 'state' | 'kind'>): boolean 
   return d.shield === 'HOLD' && !isTerminal(d);
 }
 
+/** Which words a release hand-off gets. A seller deal the buyer already approved at PayPal (APPROVED or
+ *  AUTHORIZED) is the one the seller mandate may take money on (pipeline.rs authority()), and a
+ *  released HOLD gates as ASK, which that mandate passes (shield_gate.rs): the release is the last step. */
+export type ReleaseCase = 'buyer' | 'seller-approved' | 'seller-waiting';
+export function releaseCase(d: Pick<Deal, 'side' | 'state' | 'shield' | 'kind'>): ReleaseCase {
+  if (d.side !== 'seller') return 'buyer';
+  return d.state === 'APPROVED' || d.state === 'AUTHORIZED' ? 'seller-approved' : 'seller-waiting';
+}
+
 export type BandGeometry = { iqr: [number, number]; median: number; flag: number; price: number; pct: number };
 
 /** Positions (0-100 %) for the shield's market band: IQR box, median tick, the 1.4 × median flag

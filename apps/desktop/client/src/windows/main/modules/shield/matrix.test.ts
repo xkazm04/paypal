@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import { formatMinor } from '../../../../lib/format';
-import { ago, bandGeometry, checkCell, CHECKS, overMedian, overPauseLine, paypalLine, NOT_ACTIVE, reasonsFor, releasable, shieldNeed, UNSHOWN } from './matrix';
+import { ago, bandGeometry, checkCell, CHECKS, overMedian, overPauseLine, paypalLine, NOT_ACTIVE, reasonsFor, releasable, releaseCase, shieldNeed, UNSHOWN } from './matrix';
 
 const usd = (d: number) => ({ minor: d * 100, currency: 'USD' as const });
 const NONE = { order: null, authorization: null, capture: null, subscription: null };
@@ -115,5 +115,17 @@ describe('the stated pause line is the enforced one', () => {
       expect(overPauseLine(at(m, line + 1)), `median ${m}`).toBe(true);
       expect(checkCell('market', at(m, line), undefined, NOW).l, `median ${m}`).toContain(`Above ${formatMinor(line, 'USD')} the shield pauses`);
     }
+  });
+});
+
+describe('releaseCase', () => {
+  it('tells a buyer hold, a seller hold the buyer approved, and a seller hold still waiting', () => {
+    const h = (o: Partial<Deal>) => releaseCase(deal({ shield: 'HOLD', ...o }));
+    expect(h({ side: 'buyer', state: 'AGREED' })).toBe('buyer');
+    expect(h({ side: 'buyer', state: 'APPROVED' })).toBe('buyer');
+    expect(h({ side: 'seller', state: 'APPROVED' })).toBe('seller-approved');
+    expect(h({ side: 'seller', state: 'AUTHORIZED' })).toBe('seller-approved');
+    expect(h({ side: 'seller', state: 'NEGOTIATING' })).toBe('seller-waiting');
+    expect(h({ side: 'seller', state: 'AGREED' })).toBe('seller-waiting');
   });
 });

@@ -17,7 +17,7 @@ import { dealTotal, ledgerScope, moneyNow, stateLabel } from '../../../logic';
 import { NoteText } from '../shared/NoteChip';
 import { WeekTiles } from '../../../modules/shield/Panels';
 import { weekStrip } from '../../../modules/shield/normal';
-import { bandGeometry, checkCell, CHECKS, overMedian, overPauseLine, pauseLineMinor, paypalLine, releasable, STAGES } from '../../../modules/shield/matrix';
+import { bandGeometry, checkCell, CHECKS, overMedian, overPauseLine, pauseLineMinor, paypalLine, releasable, releaseCase, STAGES } from '../../../modules/shield/matrix';
 import { useLayerNav } from '../../layers';
 import { fewRows, ListEngine, type ListFilter } from '../../ListEngine';
 import { Amount } from '../../rows';
@@ -136,7 +136,7 @@ export function PayeeStory({ deal, s }: { deal: Deal; s: ShieldWorld }) {
         <div className="ui-disclosure-body">{note ? <NoteText dealId={deal.id} from={s.who(deal)} /> : null}</div>
       </details>
       <h3 className="sh-h3">{SHIELD.story.decision}</h3>
-      <p className="sh-det">{deal.shield === 'BLOCK' ? SHIELD.story.blockFinal : need && releasable(deal) ? SHIELD.releaseMeans : need ? need.headline : SHIELD.story.nothing(v ? v.text : SHIELD.noVerdict, s.moduleName(deal))}</p>
+      <p className="sh-det">{deal.shield === 'BLOCK' ? SHIELD.story.blockFinal : need && releasable(deal) ? SHIELD.releaseMeans[releaseCase(deal)] : need ? need.headline : SHIELD.story.nothing(v ? v.text : SHIELD.noVerdict, s.moduleName(deal))}</p>
       {need ? <p className="sh-det">{SHIELD.ifNothing}: <b>{need.on_silence}</b></p> : null}
       <div className="cs-acts">
         {need ? <ReleaseHandoff deal={deal} need={need} sm /> : null}
