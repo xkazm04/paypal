@@ -36,7 +36,7 @@ import { DiffTable, Due, MarketLine, MarketTrack, ReviewBar, ROW_SELECTOR, State
 import { nextSteps } from './review/next';
 import { NextPath, WhyNote } from './review/Round2';
 import { stoppedText, summarySentence, waitingText, type Intent } from './review/says';
-import { answerWhy, askAboveOf, highPriceWord, type WhyFacts } from './review/why';
+import { acceptReason, answerWhy, askAboveOf, highPriceWord, type WhyFacts } from './review/why';
 import { useHandoff } from './selection';
 import { useSession } from './session';
 import { closeThisWindow, HelloGlyph, LockGlyph } from './ui';
@@ -329,7 +329,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const decided = !!evidence || phase === 'done' || phase === 'stopped' || phase === 'waiting';
   const status = statusOf(phase, d, summary, total, cpName);
   const settle = lastAmount(transcript, 'SETTLE');
-  const note = noteFor(phase, g, d, total, cpName);
+  const note = noteFor(phase, g, d, total, cpName, acceptReason(diff.rows, askAboveOf(mandate), total));
   const approveCountdown = deadline ? <Countdown deadline={deadline} /> : null;
   const who = cpName.split(' · ')[0] || cpName;
   const heading = phase === 'mismatch' ? `Payment to ${who} stopped` : d.shield === 'HOLD' && !terminal ? `Unpause a payment to ${who}` : `${verb(d, diff.kind === 'accept')} ${who}`;
@@ -825,7 +825,7 @@ function statusOf(phase: Phase, d: Deal, s: ApprovalSummary, total: string, cp: 
   }
 }
 
-function noteFor(phase: Phase, g: Gates, d: Deal, total: string, cp: string): { short: string; full: ReactNode } | null {
+function noteFor(phase: Phase, g: Gates, d: Deal, total: string, cp: string, asked: string): { short: string; full: ReactNode } | null {
   if (phase === 'mismatch') return { short: 'There is no “pay anyway” when amounts don’t match. On purpose.', full: <p className="pop-p">There is on purpose no “pay anyway” when the amounts don’t match. The deal stopped here and no money moved.</p> };
   if (phase === 'checking') return null;
   if (g.ownerAccept.visible) {
@@ -833,7 +833,7 @@ function noteFor(phase: Phase, g: Gates, d: Deal, total: string, cp: string): { 
       short: 'Approving agrees the price only. No money moves until you approve on PayPal.',
       full: (
         <div className="owner-accept-note">
-          <p className="pop-p"><b>{cp}’s latest offer is {total}.</b> Your rules leave this price to you, not to the agent.</p>
+          <p className="pop-p"><b>{cp}’s latest offer is {total}.</b> {asked}</p>
           <ol>
             <li>Approving signs exactly this offer with your owner key.</li>
             <li>It moves no money: nothing is charged, held or sent to PayPal.</li>

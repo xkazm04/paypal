@@ -25,9 +25,15 @@ describe('the answer’s Why: two sentences from facts on screen', () => {
   it('accepting names the ask-me limit only when the Diff says this is above it', () => {
     const above = answer({ rows: [row({ id: 'present', rel: '>', tone: 'info', word: 'asks you' })] });
     expect(above?.lines[0]).toBe('Your rules say you decide anything above $250.00, and this $329.00 is above that.');
-    const under = answer({ rows: [row({ id: 'present', rel: '≤', tone: 'info', word: 'your call' })] });
-    expect(under?.lines[0]).toBe('Your rules leave this price to you, not to the agent.');
     expect(answer({ rows: [] })?.lines[1]).toMatch(/nothing is charged or held until you approve on PayPal/);
+  });
+  it('at or under the ask-me limit it never says the price is not the agent’s: the rule asks only above it', () => {
+    const under = answer({ total: '$200.00', rows: [row({ id: 'present', rel: '≤', tone: 'info', word: 'your call' })] });
+    expect(under?.lines[0]).toBe('This $200.00 isn’t above your $250.00 ask-me limit, so your rules don’t require you to decide it; you can still accept it here.');
+    expect(all(under)).not.toMatch(/not to the agent/);
+    const unseen = answer({ askAbove: null, rows: [row({ id: 'present', rel: '?', tone: 'info' })] });
+    expect(unseen?.lines[0]).toBe('This window can’t see your ask-me limit. You can still accept this offer yourself here.');
+    expect(all(unseen)).not.toMatch(/not to the agent/);
   });
   it('a hold admits the wallet does not say which check paused it, and lists only what is visible', () => {
     const w = answer({ kind: 'hold', phase: 'hold', act: 'release', highPrice: 'well above typical', rows: [row({ id: 'payees', rel: '∉', tone: 'info' })] });

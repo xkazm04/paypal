@@ -40,6 +40,17 @@ export type WhyFacts = {
   shieldRule?: string | null;
 };
 
+/** Why an offer is the owner's to accept, as the wallet's ask-me rule decides it: the rule asks only
+ *  when the total is strictly above its limit (table-core mandate.rs), so at or under the limit the
+ *  rules would let the agent accept too, and the window never says otherwise. Read from the Diff's
+ *  "Who decides" row; a limit the window can't see is said to be unseen. */
+export function acceptReason(rows: readonly DiffRow[], askAbove: Money | null, total: string): string {
+  const present = rows.find((r) => r.id === 'present');
+  if (askAbove && present?.rel === '>') return `Your rules say you decide anything above ${formatMoney(askAbove)}, and this ${total} is above that.`;
+  if (askAbove && present?.rel === '≤') return `This ${total} isn’t above your ${formatMoney(askAbove)} ask-me limit, so your rules don’t require you to decide it; you can still accept it here.`;
+  return 'This window can’t see your ask-me limit. You can still accept this offer yourself here.';
+}
+
 // ---- the answer sentence ------------------------------------------------------------------------
 
 export type AnswerWhyInput = WhyFacts & {
@@ -84,17 +95,11 @@ export function answerWhy(i: AnswerWhyInput): WhyAnswer | null {
   if (phase !== 'ready' && phase !== 'locked' && !(phase === 'waiting' && act !== null)) return null;
 
   switch (act) {
-    case 'accept': {
-      const present = i.rows.find((r) => r.id === 'present');
-      const above = present?.rel === '>' && i.askAbove;
+    case 'accept':
       return {
         question: 'Why am I being asked?',
-        lines: [
-          above ? `Your rules say you decide anything above ${formatMoney(i.askAbove as Money)}, and this ${total} is above that.` : `Your rules leave this price to you, not to the agent.`,
-          'Approving only agrees the price: nothing is charged or held until you approve on PayPal’s own page.',
-        ],
+        lines: [acceptReason(i.rows, i.askAbove, total), 'Approving only agrees the price: nothing is charged or held until you approve on PayPal’s own page.'],
       };
-    }
     case 'open': {
       const amount = i.rows.find((r) => r.id === 'amount');
       return {
