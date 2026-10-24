@@ -6424,6 +6424,21 @@
       "evaluatedTs": "2026-10-24T02:15:41.206Z",
       "worker": "bb442278-9355-4804-9250-7af31bd43cf2",
       "techniques": []
+    },
+    "1b4ef14a-5a8a-438c-988d-365c439b153d/supply-chain": {
+      "context": "deal-review",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T02:32:34.391Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "35b39201-6ca5-4d0b-ab72-f8f5f7d2b028",
+        "state": "not-applicable",
+        "at": "2026-10-24T02:32:51.319010+00:00",
+        "reason": "reviewer (sonnet): The anchor (says.ts:2) is only a comment saying that one file is pure and display-only. It doesn't show that the supply-chain precondition is absent from the context, and DealReview.tsx isn't display-only: it calls backend().invoke('approval_summary') and runs approval actions followed by refetch()."
+      }
     }
   }
 }
