@@ -251,8 +251,14 @@ export function buildDiff(i: DiffInput): Diff {
         i.band
           ? { id: 'rounds', name: 'Offers', left: `${i.band.max_rounds} offers allowed`, right: `offer ${i.band.rounds_used} of ${i.band.max_rounds}`, rel: i.band.rounds_used <= i.band.max_rounds ? '≤' : '>', tone: i.band.rounds_used <= i.band.max_rounds ? 'ok' : 'bad', src: 'The price range on this deal: how many offers each side may make.' }
           : { id: 'rounds', name: 'Offers', left: 'the offer limit', right: null, rel: '?', tone: 'info', src: 'This deal shows no price range, so the offer limit can’t be checked here.' },
+        // The ask-me rule asks only when the total is strictly above its limit: equal is not above.
         present
-          ? { id: 'present', name: 'Who decides', left: `you, above ${formatMoney(present.c.amount)}`, right: `${T} is ${presentRel === '>' ? 'above' : 'below'} that`, rel: presentRel, tone: 'info', word: presentRel === '>' ? 'asks you' : 'your call', src: presentRel === '>' ? 'Above your ask-me limit, so the agent stopped and asked you.' : 'Under your ask-me limit. You are still offered the decision.' }
+          ? {
+              id: 'present', name: 'Who decides', left: `you, above ${formatMoney(present.c.amount)}`,
+              right: presentRel === '>' ? `${T} is above that` : presentRel === '?' ? 'can’t be compared here' : total.minor === present.c.amount.minor ? `${T} isn’t above that` : `${T} is below that`,
+              rel: presentRel, tone: 'info', word: presentRel === '>' ? 'asks you' : presentRel === '?' ? undefined : 'your call',
+              src: presentRel === '>' ? 'Above your ask-me limit, so the agent stopped and asked you.' : presentRel === '?' ? 'This offer and your ask-me limit can’t be compared in this window.' : 'Not above your ask-me limit, so your rules don’t require you to decide it. You are still offered the decision.',
+            }
           : { id: 'present', name: 'Who decides', left: 'your rules', right: 'you, in this window', rel: '?', tone: 'info', src: 'No ask-me limit is visible to this window.' },
         counterpartyRow(i),
         shieldRow(d),
