@@ -6914,6 +6914,93 @@
           "evidence": "apps/desktop/client/src/lib/runtime.ts:109 The cast into Tauri internals is visible, confined to sealShell, kept minimal, and comes with a written invariant (lines 102-107: best effort per property, and the page never calls a read-only one). The only other access is a presence check at preview.ts:168."
         }
       ]
+    },
+    "ff286e5d-5254-42d4-bb14-70a4d2d080f3/data-access": {
+      "context": "client-data-layer",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:34:27.439Z",
+      "worker": "aca8cb38-cd94-4a57-98e6-903ed9a79975",
+      "techniques": [
+        {
+          "technique": "layering-rules",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/data/invoke.ts:9 Every read goes through one IPC Backend; no store handle exists on the client side."
+        }
+      ]
+    },
+    "c466e7a3-3699-46dc-9cf2-f95dab9a7dd8/data-access": {
+      "context": "ledger-schema-migrations",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:34:27.439Z",
+      "worker": "aca8cb38-cd94-4a57-98e6-903ed9a79975",
+      "techniques": [
+        {
+          "technique": "read-models-and-projections",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/migrations/0001_table.sql:13 Stored count with no named recomputation, propagation contract or parity check. git grep finds no writer; the projection recomputes it instead. Already in the scan-sweep backlog (w7-ledger-repos-schema #6)."
+        },
+        {
+          "technique": "transactions-and-units-of-work",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/migrations/0012_deal_groups.sql:3 The at-most-one-agreement invariant names its unit of work, and the deals_group_agrees_once trigger enforces it underneath."
+        },
+        {
+          "technique": "repo-testing",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/tests.rs:168 The test store is built by the production migration chain (Ledger::in_memory), and a test checks that every file is included once, in order."
+        },
+        {
+          "technique": "layering-rules",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/lib.rs:61 The migrations are include_str'd only by the ledger crate, which keeps the connection pub(crate)."
+        },
+        {
+          "technique": "cross-driver-invariant-parity",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/migrations/0001_table.sql:47 There is one engine (SQLite via rusqlite) and no second driver; invariants are declared in SQLite triggers."
+        },
+        {
+          "technique": "operator-defined-tables",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/migrations/0001_table.sql:15 The schema is static DDL shipped in code; operators define no record types at runtime."
+        },
+        {
+          "technique": "sequence-token-write-ordering",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/migrations/0001_table.sql:43 The audit stream lives in one transactional store, and the engine sequence orders it; no stream spans stores with different durability."
+        }
+      ]
+    },
+    "b093c233-9d42-4fdb-8b3c-b9b5460ac5ad/data-access": {
+      "context": "attention-forecast-and-window-placement",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:34:27.439Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "aca8cb38-cd94-4a57-98e6-903ed9a79975",
+        "state": "not-applicable",
+        "at": "2026-10-24T04:34:51.555083+00:00",
+        "reason": "reviewer (sonnet): The anchor forecast.rs:19 is a deadline constant and does not show that no store seam exists. The Cargo.toml dependency list and the absence search carry the claim, and the cited line carries neither."
+      }
+    },
+    "d477836b-8d3f-42dd-93ce-bf0a9f5bbf53/data-access": {
+      "context": "counter-and-tables-modules",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T04:34:27.439Z",
+      "worker": "aca8cb38-cd94-4a57-98e6-903ed9a79975",
+      "techniques": []
     }
   }
 }

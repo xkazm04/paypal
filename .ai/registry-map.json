@@ -2228,7 +2228,11 @@
           "revision": 19,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:1 These are UI modules and pure display models that read through the client query hooks (useQuery over IPC). A case-insensitive search of their directories (modules/counter, modules/tables, lib/words, mock, console/areas, console/layers) for rusqlite, sqlite, insert into, execute_batch and query_row found nothing. Per-deal reads such as counterparty_note load on demand, not per list row.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         }
       ],
       "governance": "governed"
@@ -4451,7 +4455,11 @@
           "revision": 19,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-ledger/migrations/0001_table.sql:13 counterparties.deals_closed is a stored derived count with no writer, no recomputation and no parity check. It reads 0 forever, while the real count is computed live by a subquery (crates/table-ledger/src/display.rs:21), so the schema carries a cached lie that any direct reader of the column would trust.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         },
         {
           "subject": "supply-chain",
@@ -9435,7 +9443,11 @@
           "revision": 19,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/data/client.ts:1 This context is a client-side query cache over Tauri IPC (readCommand -> backend().invoke). It has no store, no query language, no rows and no transactions, so the repository/data-access doctrine does not govern it (client-fetch-cache does); a case-insensitive search of lib/data for rusqlite, sqlite, insert into, execute_batch and query_row found nothing.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         },
         {
           "subject": "client-fetch-cache",

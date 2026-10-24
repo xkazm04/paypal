@@ -1,0 +1,160 @@
+{
+  "schema": "conform-run/1",
+  "worker": "aca8cb38-cd94-4a57-98e6-903ed9a79975",
+  "subject": "data-access",
+  "evaluatedAt": "2026-10-24T04:34:27.439815+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "client-data-layer",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "apps/desktop/client/src/lib/data/client.ts:1 This context is a client-side query cache over Tauri IPC (readCommand -> backend().invoke). It has no store, no query language, no rows and no transactions, so the repository/data-access doctrine does not govern it (client-fetch-cache does); a case-insensitive search of lib/data for rusqlite, sqlite, insert into, execute_batch and query_row found nothing.",
+      "techniques": [
+        {
+          "technique": "layering-rules",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/data/invoke.ts:9 Every read goes through one IPC Backend; no store handle exists on the client side."
+        }
+      ],
+      "absenceTerms": [
+        "rusqlite",
+        "sqlite",
+        "insert into",
+        "execute_batch"
+      ]
+    },
+    {
+      "context": "ledger-schema-migrations",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "crates/table-ledger/migrations/0001_table.sql:13 counterparties.deals_closed is a stored derived count with no writer, no recomputation and no parity check. It reads 0 forever, while the real count is computed live by a subquery (crates/table-ledger/src/display.rs:21), so the schema carries a cached lie that any direct reader of the column would trust.",
+      "techniques": [
+        {
+          "technique": "read-models-and-projections",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/migrations/0001_table.sql:13 Stored count with no named recomputation, propagation contract or parity check. git grep finds no writer; the projection recomputes it instead. Already in the scan-sweep backlog (w7-ledger-repos-schema #6)."
+        },
+        {
+          "technique": "transactions-and-units-of-work",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/migrations/0012_deal_groups.sql:3 The at-most-one-agreement invariant names its unit of work, and the deals_group_agrees_once trigger enforces it underneath."
+        },
+        {
+          "technique": "repo-testing",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/tests.rs:168 The test store is built by the production migration chain (Ledger::in_memory), and a test checks that every file is included once, in order."
+        },
+        {
+          "technique": "layering-rules",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/lib.rs:61 The migrations are include_str'd only by the ledger crate, which keeps the connection pub(crate)."
+        },
+        {
+          "technique": "cross-driver-invariant-parity",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/migrations/0001_table.sql:47 There is one engine (SQLite via rusqlite) and no second driver; invariants are declared in SQLite triggers."
+        },
+        {
+          "technique": "operator-defined-tables",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/migrations/0001_table.sql:15 The schema is static DDL shipped in code; operators define no record types at runtime."
+        },
+        {
+          "technique": "sequence-token-write-ordering",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/migrations/0001_table.sql:43 The audit stream lives in one transactional store, and the engine sequence orders it; no stream spans stores with different durability."
+        }
+      ]
+    },
+    {
+      "context": "counter-and-tables-modules",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:1 These are UI modules and pure display models that read through the client query hooks (useQuery over IPC). A case-insensitive search of their directories (modules/counter, modules/tables, lib/words, mock, console/areas, console/layers) for rusqlite, sqlite, insert into, execute_batch and query_row found nothing. Per-deal reads such as counterparty_note load on demand, not per list row.",
+      "techniques": [],
+      "absenceTerms": [
+        "rusqlite",
+        "sqlite",
+        "insert into",
+        "execute_batch"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "data-access",
+      "context": "wallet-domain-primitives",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "data-access",
+      "context": "attention-forecast-and-window-placement",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor forecast.rs:19 is a deadline constant and does not show that no store seam exists. The Cargo.toml dependency list and the absence search carry the claim, and the cited line carries neither."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-24T04:34:27.439815+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "data-access"
+      ],
+      "techniques": [
+        "layering-rules"
+      ],
+      "deviations": 0,
+      "context": "client-data-layer",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T04:34:27.439815+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "data-access"
+      ],
+      "techniques": [
+        "cross-driver-invariant-parity",
+        "layering-rules",
+        "operator-defined-tables",
+        "read-models-and-projections",
+        "repo-testing",
+        "sequence-token-write-ordering",
+        "transactions-and-units-of-work"
+      ],
+      "deviations": 1,
+      "context": "ledger-schema-migrations",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T04:34:27.439815+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "data-access"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "attention-forecast-and-window-placement",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T04:34:27.439815+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "data-access"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "counter-and-tables-modules",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}
