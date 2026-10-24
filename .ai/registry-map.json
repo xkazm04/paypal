@@ -1599,7 +1599,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1 The mock serves fixture data and mirrors the shell's deterministic gates for UI tests. It names agent engines ('claude-code', 'codex-cli') only as fixture strings and never runs or scores them. A search of src/mock found no rubric, pass rate, trials, leaderboard or temperature, and its 'judge' hits are deterministic mandate and shield checks.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7ccead00b7f92aba",
+          "evaluatedRevision": 37
         },
         {
           "subject": "agent-memory",
@@ -2530,7 +2534,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:1 These are pure view-model modules and React views that turn wallet facts into words and buttons, with no non-deterministic system under measurement. A search of windows/approval found no rubric, pass rate, trials, leaderboard or temperature; the single 'llm' substring hit is 'sellMode'.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7ccead00b7f92aba",
+          "evaluatedRevision": 37
         },
         {
           "subject": "prompt-assembly",
@@ -2794,7 +2802,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/design/tokens.css:1 This context is CSS tokens, motion helpers and SVG brand geometry with no model output to evaluate. A search of src/design and src/shared found no rubric, pass rate, trials, leaderboard or temperature, nor any judge or llm term.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7ccead00b7f92aba",
+          "evaluatedRevision": 37
         },
         {
           "subject": "quality-gates",
@@ -5222,7 +5234,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-verify/src/lib.rs:1 The crate checks signed deal proof bundles deterministically and nothing in it scores agent or model output. A search of crates/table-verify found no rubric, pass rate, trials, leaderboard or temperature; its only 'judge' is the deterministic authority::judge rule, and acceptance.rs only maps test names to acceptance IDs, which is test-harness territory.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7ccead00b7f92aba",
+          "evaluatedRevision": 37
         },
         {
           "subject": "fleet-orchestration",
@@ -8583,7 +8599,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-app/src/lib.rs:1 table-app gates agent intents and runs the money pipeline by deterministic rules (ShieldGate::judge, the checklist), which is authorization rather than measuring agent quality. A search of crates/table-app found no rubric, pass rate, trials, leaderboard or temperature; the one 'eval' hit is a comment about table_shield::evaluate.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:7ccead00b7f92aba",
+          "evaluatedRevision": 37
         },
         {
           "subject": "hitl-approval",
