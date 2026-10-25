@@ -7551,6 +7551,78 @@
         }
       ],
       "registryProposal": "capability-honest-refusal could name the consumer-side symptom explicitly: a client that branches on message text (regex over error.message), or guesses the cause from neighbouring state, is the observable sign that the producer's code union merges transient and permanent unavailability."
+    },
+    "6ad8f933-5c5e-4ed6-8ace-f642dffc558f/serving-process-topology": {
+      "context": "table-engine-agent-process",
+      "subject": "serving-process-topology",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:29:26.068Z",
+      "worker": "9ad61499-b411-491b-a5c0-f5539f385509",
+      "techniques": [
+        {
+          "technique": "hot-loop-isolation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/windows_job.rs:51 No loop whose period is a product latency figure (per-run stream reader with init/total watchdogs), so isolation does not apply; the Step-6 reaper sub-rule is still realized: suspended child assigned to a kill-on-close job before its first instruction, plus kill_on_drop and lock-guarded stale-run reaping."
+        },
+        {
+          "technique": "probe-the-runtime-not-the-config",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:174 Rust Command always fresh-starts the child (CreateProcess); there is no copy-the-parent vs start-fresh choice and no strategy knob to probe for or against."
+        },
+        {
+          "technique": "one-config-object-as-engine-state",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:18 Shallow hierarchy (NativeEngine takes id, executable, root and a two-field RunLimits); the technique's 'when not to use: a shallow hierarchy' holds."
+        },
+        {
+          "technique": "cache-residency-sets-the-balancing-unit",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:167 Each run is a fresh child with session persistence disabled and its own run directory; no state is reused between requests and there is no replica set to balance."
+        },
+        {
+          "technique": "process-count-as-a-formula",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:102 This crate only creates one child per run id; the concurrent-run cap lives in the runtime (MAX_RUNS) and there is no operator-provisioned deployment with independent knobs."
+        }
+      ]
+    },
+    "065d4555-d9ad-478c-b637-3d8eb494f76c/serving-process-topology": {
+      "context": "runtime-actor-and-engines",
+      "subject": "serving-process-topology",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:29:26.068Z",
+      "worker": "9ad61499-b411-491b-a5c0-f5539f385509",
+      "techniques": [
+        {
+          "technique": "hot-loop-isolation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/actor.rs:587 The actor loop's period is a 1 s housekeeping tick, not a product latency unit ('no sentence' case); it awaits runtime.execute inline (line 601), which would be a blocking hand-off only if a latency budget existed."
+        },
+        {
+          "technique": "process-count-as-a-formula",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/engines.rs:16 Desktop app with no operator provisioning; the only child-process count is a single stated cap of 4 live agent runs (refused at engines.rs:203), not a product of independent deployment knobs."
+        },
+        {
+          "technique": "probe-the-runtime-not-the-config",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/engines.rs:117 Engines are found by probing the environment (PATH and npm layout, then --version) rather than by configuration, which is in the technique's spirit, but no process-creation strategy is chosen here."
+        },
+        {
+          "technique": "one-config-object-as-engine-state",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/engines.rs:131 Two-layer construction with defaulted limits; there is no deep configuration hierarchy to thread options through."
+        },
+        {
+          "technique": "cache-residency-sets-the-balancing-unit",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/actor.rs:526 A single actor drains one bounded queue; no replicas and no balancer, so replica affinity never comes up."
+        }
+      ]
     }
   }
 }

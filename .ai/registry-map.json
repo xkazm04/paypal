@@ -6802,7 +6802,11 @@
           "revision": 3,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-runtime/src/actor.rs:537 The runtime is one in-process actor task on a 1-second publish tick that serializes wallet commands; it has no replicas, no inference loop with a latency budget and no process-creation strategy, and searching crates/table-runtime/src for replica, latency, fork, start_method and load balanc found nothing, so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:d8ed5a9bfd85e73c",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
@@ -8126,7 +8130,11 @@
           "revision": 3,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:175 Each agent run spawns one fresh CLI child from its own run directory, with no replicas, no latency-budget hot loop and no choice of how to create it; searching crates/table-engine for replica, latency, fork, start_method and load balanc found nothing, so the subject's precondition (a latency-critical serving service split into processes) does not hold.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:d8ed5a9bfd85e73c",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
