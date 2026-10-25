@@ -3972,7 +3972,11 @@
           "revision": 3,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "crates/table-client/src/lib.rs:131 The webview-facing contract follows regime two: the browser UI only picks a credential kind, the runtime keeps the PayPal/Channel3 secret in the OS keyring, and the webview's only credential is the approval-window IPC token that the authority table gates.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:d3eef10e9ed8459f",
+          "evaluatedRevision": 3
         },
         {
           "subject": "agent-browser-control",

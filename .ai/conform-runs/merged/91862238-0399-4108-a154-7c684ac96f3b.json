@@ -1,0 +1,60 @@
+{
+ "schema": "conform-run/1",
+ "worker": "91862238-0399-4108-a154-7c684ac96f3b",
+ "subject": "browser-credential-boundary",
+ "evaluatedAt": "2026-10-25T23:05:21.392989+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "ipc-contract-and-authority-table",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "crates/table-client/src/lib.rs:131 The webview-facing contract follows regime two: the browser UI only picks a credential kind, the runtime keeps the PayPal/Channel3 secret in the OS keyring, and the webview's only credential is the approval-window IPC token that the authority table gates.",
+   "techniques": [
+    {
+     "technique": "omit-the-column-not-the-value",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/tests/bindings.rs:142 CredentialArgs is a unit enum with no field that can hold a secret, and CredentialFact (facts.rs:89) only reports stored/stored_at. A test proves a client_secret field is refused, so the exclusion is built into the type, not left to filtering."
+    },
+    {
+     "technique": "broker-proxy-attaches-secret",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/authority_table.rs:16 The broker checks its own callers before spending a credential. Every command has one authority row (window labels assigned by the shell, plus token, unlock and selection flags), and authority.rs pins invariants such as tier>=Owner requiring token+unlock. Arguments are deny_unknown_fields, and the command list is closed (CommandContract). The secret itself is attached in table-runtime, not in this crate."
+    },
+    {
+     "technique": "allowlisted-operator-stream",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/lib.rs:100 Debug output for credential-bearing DTOs is built field by field. DecisionArgs prints only deal_id and hides everything else, and IpcHeaders, UnlockArgs and the pairing args print [REDACTED]. This crate has no operator stream, so the technique's operator-credential half is not exercised here."
+    },
+    {
+     "technique": "opaque-upstream-errors",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/lib.rs:32 Callers branch on a closed set of SCREAMING_SNAKE codes (Locked, Permission, Refused, Invalid, NotFound, Unavailable, LedgerTrust, Unsupported). Caveat: lib.rs:70 builds message from error.to_string(), which passes LedgerError::Sql (rusqlite) text through transparently. That text comes from the local store, not a brokered upstream, and PayPal failures are replaced by a fixed message in table-runtime."
+    }
+   ],
+   "registryProposal": "The subject assumes a web bundle talking to a hosted store or same-origin route. A desktop-webview IPC contract (Tauri commands, window-label authority, a per-window IPC token) realizes regime two without any HTTP route. A short note that IPC command dispatch counts as the 'broker route', and window labels assigned by the shell count as caller authentication, would make such contexts judgeable without reading by analogy."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-25T23:05:21.392989+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [
+    "allowlisted-operator-stream",
+    "broker-proxy-attaches-secret",
+    "omit-the-column-not-the-value",
+    "opaque-upstream-errors"
+   ],
+   "deviations": 0,
+   "context": "ipc-contract-and-authority-table",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
