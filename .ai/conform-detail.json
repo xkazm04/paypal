@@ -4120,65 +4120,74 @@
       "subject": "plan-entitlements",
       "bundle": "software-engineering",
       "state": "unknown",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T02:31:22.881Z",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:47:33.295Z",
       "techniques": [
+        {
+          "technique": "tier-model-single-source",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/rules.ts:17 The closed lists here cover ledger views, not tiers; the context has no tier model to single-source."
+        },
         {
           "technique": "capability-gate-predicates",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:250 Selection concerns ledger views and captures; no plan-based feature gate was found."
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/book/Ask.tsx:183 The only refusal state in the area is a query or lens that can't run ('this view can't run yet'), not a plan-inclusion gate."
         },
         {
           "technique": "deployment-mode-short-circuit",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:205 The mode check distinguishes actual recovery from replay, not commercial deployment entitlements."
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:205 The mode check distinguishes actual recovery from replay, not commercial deployment entitlements.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "entitlement-lifecycle-revocation",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:213 Book aggregates recovered payments; it does not grant or revoke subscription access."
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:213 Book aggregates recovered payments; it does not grant or revoke subscription access.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "id-vs-label-split",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:84 These displayed labels describe statement outcomes, not persisted commercial tiers."
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:84 These displayed labels describe statement outcomes, not persisted commercial tiers.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "inherited-tier-not-cloned-tier",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:299 CSV export reads transaction totals; no bespoke plan agreement or capability inheritance was found."
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:299 CSV export reads transaction totals; no bespoke plan agreement or capability inheritance was found.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "live-catalog-edit-is-a-lifecycle-event",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:143 The configured entries are ledger queries, not sold tiers with subscribers."
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:143 The configured entries are ledger queries, not sold tiers with subscribers.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "price-book-authority",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:107 This compares an agreed transaction price with a market median; it does not mirror a subscription price book."
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:107 This compares an agreed transaction price with a market median; it does not mirror a subscription price book.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "provider-publishes-state-not-decision",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:271 The result contains ledger rows and aggregates, not entitlement answers for another product."
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:271 The result contains ledger rows and aggregates, not entitlement answers for another product.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "subtractive-entitlement",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.ts:376 Counterparty selection narrows a query; it is not a per-subscription capability removal."
-        },
-        {
-          "technique": "tier-model-single-source",
-          "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:139 The model declares analytical lenses, with no commercial tier vocabulary found."
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.ts:376 Counterparty selection narrows a query; it is not a per-subscription capability removal.",
+          "carriedFrom": "2026-10-17"
         }
       ],
+      "registryProposal": "The match was lexical only ('book', 'model', 'capability'): 'Book' here means a merchant ledger, not a price book. The mapper could treat 'book' as ambiguous for this subject unless it appears next to price, plan or tier tokens.",
       "withdrawn": {
-        "worker": "4dc6a56a-7d35-41f0-bb4a-0378b483228a",
+        "worker": "eff7754f-53a1-4e83-90ca-d429158d58b9",
         "state": "not-applicable",
-        "at": "2026-10-17T02:31:35.533389+00:00",
-        "reason": "reviewer (sonnet): Each not-applicable rests on an incidental anchor and a three-term grep. In book-module, where.ts:246 is the `questionChips` mapper and the technique anchors (model.ts:84, 205, 213, 250) are statement labels, `isRecovered`, `aggregate` and `runQuery`; none shows plan or tier gating is absent. In mar"
+        "at": "2026-10-25T23:48:08.011548+00:00",
+        "reason": "reviewer (sonnet): The anchor at rules.ts:17 shows the closed view list includes a 'subscriptions' view, which the claim of \"no plan or tier view\" and \"only subscription ids on deal records\" does not account for; the anchor is incidental, since a list of ledger views cannot show that no plan-inclusion gating exists, a"
       }
     },
     "9c2b67dc-8b1f-43ca-af72-23ddf95baf03/plan-entitlements": {
