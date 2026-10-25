@@ -1,0 +1,94 @@
+{
+ "schema": "conform-run/1",
+ "worker": "6dd9d76c-208a-441d-8a96-b186527c43a4",
+ "subject": "optional-dependency-degradation",
+ "evaluatedAt": "2026-10-25T22:14:45.186324+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "browser-mock-backend",
+   "subject": "optional-dependency-degradation",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/mock/backend.ts:1143 The mock gives the temporary 'House is already waking' refusal the same UNAVAILABLE code it gives the permanent 'not pinned in this build' gap one line above. It copies the Rust shell (pairing_relay.rs:193/203), so a client cannot tell 'retry' from 'tell the operator' by the code and has to read the message copy instead.",
+   "techniques": [
+    {
+     "technique": "capability-honest-refusal",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:1142 A permanent build-level gap (line 1142, also line 1110) and a transient wait (line 1143) share code UNAVAILABLE. The standard requires different codes even when the status is the same. On the good side, refusals are typed and never fabricated (e.g. line 615, proof export refuses rather than inventing a bundle)."
+    },
+    {
+     "technique": "misconfiguration-never-reaches-a-fallback",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/mock/scale.test.ts:211 An unrecognised value in a present ?scale= parameter is dropped to absent, and the mock (backend.ts:159) silently serves the default sample world. This test pins that behaviour in place. The standard says an unknown name inside a present value is malformed, never absent. Stakes are low (preview only)."
+    },
+    {
+     "technique": "fallback-retirement-condition",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:1207 The opt-in ?degrade=1 'older shell' mode answers newer commands with 'command not found'. That gives the client's older-shell fallback, which is keyed to a run-time capability failure rather than a version string, a fixture seam. No branch-taken metric exists."
+    }
+   ]
+  },
+  {
+   "context": "safety-and-setup",
+   "subject": "optional-dependency-degradation",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/joinRetry.ts:12 The retry decision is keyed on a regex over the refusal's message copy, because UNAVAILABLE covers both transient and permanent conditions. Rewording that Rust message would silently stop the join retry, which is the 'code is the contract, the message is copy' rule broken on the consuming side.",
+   "techniques": [
+    {
+     "technique": "capability-honest-refusal",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:387 Given a bare UNAVAILABLE, the desk guesses the cause ('It may still be waking up') from a settings flag instead of reading a distinct code. joinRetry.ts:12 branches on message text for the same reason. The surface half is done well: the house act is disabled when unavailable or waking (pairing.ts:46), and engines that are not available are disabled with a reason shown (ConnectionsLayer.tsx:189)."
+    },
+    {
+     "technique": "probe-the-grant-not-the-config",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/setup/circuit.ts:156 A saved PayPal key is shown as 'saved' (a configuration fact). PayPal itself stays 'unknown \u00b7 not tested live' and is never green on the strength of the key being configured."
+    },
+    {
+     "technique": "per-variable-blast-radius",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/words/connections.ts:52 Each optional connection (relay, house, PayPal key: see ifNone / offlineText at line 248) states what stops working when it is absent, worded as a loss. This is an in-app setup surface rather than an env template, and companion steps are not always given."
+    }
+   ],
+   "registryProposal": "capability-honest-refusal could name the consumer-side symptom explicitly: a client that branches on message text (regex over error.message), or guesses the cause from neighbouring state, is the observable sign that the producer's code union merges transient and permanent unavailability."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-25T22:14:45.186324+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "optional-dependency-degradation"
+   ],
+   "techniques": [
+    "capability-honest-refusal",
+    "fallback-retirement-condition",
+    "misconfiguration-never-reaches-a-fallback"
+   ],
+   "deviations": 1,
+   "context": "browser-mock-backend",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T22:14:45.186324+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "optional-dependency-degradation"
+   ],
+   "techniques": [
+    "capability-honest-refusal",
+    "per-variable-blast-radius",
+    "probe-the-grant-not-the-config"
+   ],
+   "deviations": 1,
+   "context": "safety-and-setup",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

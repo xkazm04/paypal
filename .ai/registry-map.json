@@ -1643,7 +1643,11 @@
           "revision": 17,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1143 The mock gives the temporary 'House is already waking' refusal the same UNAVAILABLE code it gives the permanent 'not pinned in this build' gap one line above. It copies the Rust shell (pairing_relay.rs:193/203), so a client cannot tell 'retry' from 'tell the operator' by the code and has to read the message copy instead.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:641cb6bf0b2c6916",
+          "evaluatedRevision": 17
         },
         {
           "subject": "module-design",
@@ -7311,7 +7315,11 @@
           "revision": 17,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/joinRetry.ts:12 The retry decision is keyed on a regex over the refusal's message copy, because UNAVAILABLE covers both transient and permanent conditions. Rewording that Rust message would silently stop the join retry, which is the 'code is the contract, the message is copy' rule broken on the consuming side.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:641cb6bf0b2c6916",
+          "evaluatedRevision": 17
         }
       ],
       "governance": "governed"

@@ -4087,27 +4087,33 @@
       "context": "browser-mock-backend",
       "subject": "optional-dependency-degradation",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T02:14:52.077Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:14:45.186Z",
+      "worker": "6dd9d76c-208a-441d-8a96-b186527c43a4",
       "techniques": [
         {
           "technique": "capability-honest-refusal",
           "verdict": "deviation",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:1089 The temporary waking refusal shares UNAVAILABLE with the missing release identity immediately above; the standard requires different permanent and temporary codes."
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1142 A permanent build-level gap (line 1142, also line 1110) and a transient wait (line 1143) share code UNAVAILABLE. The standard requires different codes even when the status is the same. On the good side, refusals are typed and never fabricated (e.g. line 615, proof export refuses rather than inventing a bundle)."
+        },
+        {
+          "technique": "misconfiguration-never-reaches-a-fallback",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/mock/scale.test.ts:211 An unrecognised value in a present ?scale= parameter is dropped to absent, and the mock (backend.ts:159) silently serves the default sample world. This test pins that behaviour in place. The standard says an unknown name inside a present value is malformed, never absent. Stakes are low (preview only)."
+        },
+        {
+          "technique": "fallback-retirement-condition",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1207 The opt-in ?degrade=1 'older shell' mode answers newer commands with 'command not found'. That gives the client's older-shell fallback, which is keyed to a run-time capability failure rather than a version string, a fixture seam. No branch-taken metric exists."
         },
         {
           "technique": "refusal-is-not-failure",
           "verdict": "conformant",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:567 A supplied opener's exception propagates; the default window.open branch runs only when no opener was supplied."
+          "evidence": "apps/desktop/client/src/mock/backend.ts:567 A supplied opener's exception propagates; the default window.open branch runs only when no opener was supplied.",
+          "carriedFrom": "2026-10-17"
         }
-      ],
-      "withdrawn": {
-        "worker": "20a818d4-7801-4e46-a37c-af4e500fd158",
-        "state": "deviation",
-        "at": "2026-10-17T02:15:06.502958+00:00",
-        "reason": "reviewer (sonnet): Lines 1088–1089 do reuse UNAVAILABLE, but the third technique anchor (backend.ts:567, opener exception propagation) has nothing to do with the claim. The mock mirrors a closed Rust ErrorCode set (contract.ts:46) that has no separate temporary code, so the deviation belongs to the contract rather tha"
-      }
+      ]
     },
     "44983015-e31a-41fb-92ee-ab6637c0cc3e/plan-entitlements": {
       "context": "book-module",
@@ -7518,6 +7524,33 @@
         "at": "2026-10-24T21:20:12.609719+00:00",
         "reason": "reviewer (sonnet): The anchor joinRetry.ts:7 is a retry-attempts constant, which does not show that no guest code runs. The file is also under console/areas/connections, which is not among this context's listed files."
       }
+    },
+    "68496392-9930-4018-bc06-41c2f3e3c286/optional-dependency-degradation": {
+      "context": "safety-and-setup",
+      "subject": "optional-dependency-degradation",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:14:45.186Z",
+      "worker": "6dd9d76c-208a-441d-8a96-b186527c43a4",
+      "techniques": [
+        {
+          "technique": "capability-honest-refusal",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:387 Given a bare UNAVAILABLE, the desk guesses the cause ('It may still be waking up') from a settings flag instead of reading a distinct code. joinRetry.ts:12 branches on message text for the same reason. The surface half is done well: the house act is disabled when unavailable or waking (pairing.ts:46), and engines that are not available are disabled with a reason shown (ConnectionsLayer.tsx:189)."
+        },
+        {
+          "technique": "probe-the-grant-not-the-config",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/setup/circuit.ts:156 A saved PayPal key is shown as 'saved' (a configuration fact). PayPal itself stays 'unknown · not tested live' and is never green on the strength of the key being configured."
+        },
+        {
+          "technique": "per-variable-blast-radius",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/words/connections.ts:52 Each optional connection (relay, house, PayPal key: see ifNone / offlineText at line 248) states what stops working when it is absent, worded as a loss. This is an in-app setup surface rather than an env template, and companion steps are not always given."
+        }
+      ],
+      "registryProposal": "capability-honest-refusal could name the consumer-side symptom explicitly: a client that branches on message text (regex over error.message), or guesses the cause from neighbouring state, is the observable sign that the producer's code union merges transient and permanent unavailability."
     }
   }
 }
