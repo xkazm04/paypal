@@ -7846,6 +7846,37 @@
           "evidence": "services/house-seller/src/main.rs:54 Dependencies (ledger, PayPal credentials) are in-process values that fail startup when missing. No service handles need closing."
         }
       ]
+    },
+    "bd6a5a80-3506-4c9d-bd06-06e18f3dd015/native-guest-interop": {
+      "context": "native-shell",
+      "subject": "native-guest-interop",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:33:57.754Z",
+      "worker": "09863c62-5568-4e73-b88f-f82f3f2196dd",
+      "techniques": [
+        {
+          "technique": "aligned-native-data-cell",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native.rs:193 Host values never go into collected guest cells; they cross as serde-serialized IPC payloads."
+        },
+        {
+          "technique": "copy-closure-safe-api",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native.rs:193 No host closure is registered on a guest heap; guest-callable functions are #[tauri::command] fns dispatched by name."
+        },
+        {
+          "technique": "typed-downcast-access",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:5 Per-context host state comes from Tauri's typed managed State, not from downcasting a type-erased guest-object payload. No guest objects carry host payloads."
+        },
+        {
+          "technique": "async-native-as-promise",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:3 Async commands do become JS promises, but only through IPC serialization in a separate webview process. No promise job settles inside an embedded heap, so this belongs to the ipc-contract subject."
+        }
+      ]
     }
   }
 }

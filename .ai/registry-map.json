@@ -5232,7 +5232,11 @@
           "revision": 2,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native.rs:193 The host reaches its only guest code (the WebView2 frontend) through Tauri's serialized IPC command handler; nothing embeds a guest language runtime with a collected heap. I searched apps/desktop/src-tauri and crates/table-os for boa_engine, rquickjs, NativeFunction, from_copy_closure, JsValue, v8:: and gc::Trace and found no hits, and neither Cargo.toml lists a guest-engine dependency. So the subject's precondition (a host value or closure living inside guest-heap cells) does not hold here.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:24dff9c7b931faef",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
