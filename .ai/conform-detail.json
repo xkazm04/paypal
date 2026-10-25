@@ -7623,6 +7623,145 @@
           "evidence": "crates/table-runtime/src/actor.rs:526 A single actor drains one bounded queue; no replicas and no balancer, so replica affinity never comes up."
         }
       ]
+    },
+    "ff286e5d-5254-42d4-bb14-70a4d2d080f3/table": {
+      "context": "client-data-layer",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:48:20.207Z",
+      "worker": "de991132-f119-4b39-8b8a-9c653d003218",
+      "techniques": [
+        {
+          "technique": "performance",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/data/useWindowedRows.ts:153 Rows are keyed by identity (getItemKey -> keys[i]), but RowProps declares no aria-posinset/aria-setsize (or aria-rowindex/rowcount), so the full-set position is not re-declared under windowing."
+        },
+        {
+          "technique": "grid-keyboard-model",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/data/useWindowedRows.ts:120 One tab stop (roving tabindex); arrows clamp at the edges instead of wrapping; End goes to rows.length - 1 (the true end, since every row is held) and scrolls there before focusing; focus is keyed by row identity (line 71), not by index."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/data/query.ts:77 Read state keeps loading (pending), error, and last good data apart; data survives a failed refetch and is flagged stale instead of hidden, so error is never collapsed into empty."
+        },
+        {
+          "technique": "filtering",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/data/query.ts:34 Reads are keyed by their arguments (keys.ts keyOf), so an answer to a superseded predicate is never shown under the current one: latest-wins by key, including its error."
+        },
+        {
+          "technique": "compressed-scroll-space",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/data/useWindowedRows.ts:1 The stated scale is hundreds to thousands of rows, orders of magnitude below the browser's scroll-size ceiling."
+        }
+      ]
+    },
+    "dfab992a-8315-4db9-b496-6aa38639cf8c/table": {
+      "context": "ledger-repositories-audit-evidence",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:48:20.207Z",
+      "worker": "de991132-f119-4b39-8b8a-9c653d003218",
+      "techniques": [
+        {
+          "technique": "client-server-split",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/book.rs:249 The allowlist is realized (fields and groups go through closed enums, book.rs:40, with values bound), but the response carries no echo of the query state it answered."
+        },
+        {
+          "technique": "pagination",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/audit.rs:233 audit_page is keyset pagination on the unique, immutable seq, and fetches limit + 1 rows (line 236) to report hasMore instead of an exact total."
+        },
+        {
+          "technique": "sorting",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/repositories.rs:599 Deal and audit reads order by the row identity (id / seq), which is a total, deterministic order."
+        },
+        {
+          "technique": "performance",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/book.rs:182 Rung 1: the Book query is always bounded (500 rows by default) and flags a cut answer as truncated, never sending the whole set."
+        }
+      ]
+    },
+    "7fde48d9-00af-4ebc-868e-cb93d7cdedfd/table": {
+      "context": "owner-mandate-config",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:48:20.207Z",
+      "worker": "de991132-f119-4b39-8b8a-9c653d003218",
+      "techniques": [
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx:82 A spinner with no delay and no header-row chrome stands in for EMPTY-LOADING. The other rules hold: error is its own state (line 73), empty only after an answer (line 83), and rows stay on screen dimmed with aria-busy while refreshing (line 87)."
+        },
+        {
+          "technique": "grid-keyboard-model",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx:88 Read-only cells stay a native, named table with real th headers; no grid role is applied without a reason."
+        },
+        {
+          "technique": "performance",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx:56 Rows are keyed by deal identity over a bounded set (one week's deals, unchanged rows folded away by default); no windowing is needed."
+        }
+      ]
+    },
+    "a1a41cac-6c94-418e-8740-5d1188336cb0/table": {
+      "context": "director-takes-rig",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:48:20.207Z",
+      "worker": "de991132-f119-4b39-8b8a-9c653d003218",
+      "techniques": []
+    },
+    "7e6e9781-1ef3-439c-ae2d-00619d2cb1d9/table": {
+      "context": "console-navigation-and-lists",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:48:20.207Z",
+      "worker": "de991132-f119-4b39-8b8a-9c653d003218",
+      "techniques": [
+        {
+          "technique": "sorting",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:119 No identity tiebreaker. The comparators callers pass (e.g. 'largest' by amount alone, 'newest' with absent stamps coerced to 0) are not total either, and absent values change ends with direction."
+        },
+        {
+          "technique": "filtering",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:136 All-client regime, yet the text predicate is debounced (120 ms) instead of applied on each keystroke with the row derivation deferred, which the technique names as reintroducing the guess. Chips commit on change, the count is a role=status message (line 202), clear is one action, and the picked row is intersected with the shown rows at read time (line 147)."
+        },
+        {
+          "technique": "performance",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:223 Windowed listitems are keyed by identity, and search text is built once per data change, but no aria-setsize/aria-posinset is declared, so a screen reader hears the mounted subset as the whole list."
+        },
+        {
+          "technique": "grid-keyboard-model",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:217 One tab stop with arrow, Page and Home/End traversal that stops at the edges; each row is a single button (one widget per cell design); End reaches the true last row because the whole set is held."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:215 Empty is typed by cause: 'nothing at all' (line 214) is kept apart from 'nothing matches', which offers one-tap clearing. Not judged: the engine takes no loading/error input, so settle-before-empty is left to the callers, which live in other contexts."
+        }
+      ]
     }
   }
 }

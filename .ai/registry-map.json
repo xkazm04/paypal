@@ -3392,8 +3392,12 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/scripts/takes.mjs:6 The context is a Playwright capture rig and a fixture writer, not a data table surface. A search of scripts/ for clipboard, onPaste, aria-sort, useVirtualizer and keyset found nothing; 'csv' hits only an ffprobe output flag (rig.mjs:206), and the only tabular output is a markdown tally in SCALE.md built from deterministic sample data (export-scale-fixtures.mjs:54), not a user-sourced CSV export.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "demo-data-plane",
@@ -4378,8 +4382,12 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "deviation",
+          "priorNotApplicable": 4,
+          "evidence": "crates/table-ledger/src/book.rs:249 The server-side Book query returns its rows with an honest truncation bound but does not echo the filter, group and range it answered, so the response's count is not structurally bound to its predicate, as the client-server-split contract requires (the client's argument-keyed cache makes up for this today, but the contract itself does not carry it).",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "test-harness",
@@ -5681,8 +5689,12 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "deviation",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx:82 While the first what-if answer is in flight, the whole table, header row included, is replaced by an undelayed spinner (shared Loading = ui-spin), so the chrome is conditional on data and every warm load flashes a shapeless placeholder.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "draft-editing",
@@ -9408,8 +9420,12 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "deviation",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:119 The list engine sorts with the caller's comparator alone and never adds the row identity it already holds (getKey) as a final tiebreaker, so rows with equal sort values fall in whatever order the input arrived in rather than a total, deterministic order.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "windowed-inference-over-oversized-inputs",
@@ -9506,8 +9522,12 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "deviation",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/lib/data/useWindowedRows.ts:153 The shared windowing hook gives each mounted row its position only as a data attribute, never as an ARIA position or set size, so assistive technology reads the mounted subset's size and offsets as the whole list's — the cost rung 4 of the performance technique says a windowed table must pay back.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "data-access",
