@@ -1,0 +1,73 @@
+{
+ "schema": "conform-run/1",
+ "worker": "0e26fed2-846f-465b-8823-c746bce4f090",
+ "subject": "plan-review",
+ "evaluatedAt": "2026-10-25T23:53:02.200877+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "deal-review",
+   "subject": "plan-review",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:2 The approval window is a human gate over a negotiated deal's terms and money actions (the amount, the checks, the payment), the case the golden path explicitly leaves to hitl-approval ('the real thing is obvious: the diff, the message, the amount'), and a grep of windows/approval/** for objection, planner, challenge, slicing and rationale returned no file, so there is no agent-written plan, plan gate, slicing, objection or self-challenge reader for the subject to govern.",
+   "techniques": [
+    {
+     "technique": "decision-sized-slicing",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/tableDraft.ts:69 The unit put to the owner is a single typed deal or listing, not a task handed to a planning agent, so nothing exists to slice before a plan."
+    },
+    {
+     "technique": "silent-decision-surfacing",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:2 The 'Why?' text restates the deal's own facts to explain the gate. No reader scans a plan for decisions it made without saying so."
+    },
+    {
+     "technique": "objection-before-artifacts",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:10 The blocking checks are Rust's fixed checks on a money action, not a chartered critic objecting to a plan's premises before implementation."
+    },
+    {
+     "technique": "fresh-posture-self-challenge",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:3 No model writes or critiques anything on this surface, so there is no draft-then-challenge pass to judge."
+    },
+    {
+     "technique": "informational-fold-in",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/review/Parts.tsx:205 There is no plan gate here. By analogy the market figure would conform: it is a field on the existing approval, has no verdict, shows an unavailable state (Parts.tsx:159 'no reference for this item, so the price check was skipped') and carries its percentile, date and cache status."
+    }
+   ],
+   "absenceTerms": [
+    "objection",
+    "planner",
+    "challenge",
+    "slicing",
+    "rationale"
+   ],
+   "registryProposal": "informational-fold-in is worded for plan gates, but its four constraints (a field not a step, no verdict, unavailable as a state, the predicate travels with the number) apply just as well to action-approval gates owned by hitl-approval. This context realizes them on a money-approval surface: the market line in review/Parts.tsx says 'A reference, not a verdict', shows a skipped state when there is no reference, and shows the percentile, check date and cache status. Consider adding hitl-approval to the technique's shared_with, or restating its precondition as 'any existing human gate', so that action gates are not judged not-applicable for a rule they follow."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-25T23:53:02.200877+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "plan-review"
+   ],
+   "techniques": [
+    "decision-sized-slicing",
+    "fresh-posture-self-challenge",
+    "informational-fold-in",
+    "objection-before-artifacts",
+    "silent-decision-surfacing"
+   ],
+   "deviations": 0,
+   "context": "deal-review",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

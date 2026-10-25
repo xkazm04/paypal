@@ -2668,7 +2668,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:2 The approval window is a human gate over a negotiated deal's terms and money actions (the amount, the checks, the payment), the case the golden path explicitly leaves to hitl-approval ('the real thing is obvious: the diff, the message, the amount'), and a grep of windows/approval/** for objection, planner, challenge, slicing and rationale returned no file, so there is no agent-written plan, plan gate, slicing, objection or self-challenge reader for the subject to govern.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:c9a78a4c9faf0799",
+          "evaluatedRevision": 5
         },
         {
           "subject": "agent-cli-transport",

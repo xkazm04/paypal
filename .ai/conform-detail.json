@@ -5597,32 +5597,38 @@
       "context": "deal-review",
       "subject": "plan-review",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-22",
-      "evaluatedTs": "2026-10-22T01:45:33.360Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T23:53:02.200Z",
+      "worker": "0e26fed2-846f-465b-8823-c746bce4f090",
       "techniques": [
         {
-          "technique": "fresh-posture-self-challenge",
+          "technique": "decision-sized-slicing",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:27 The explanation derives deterministically from deal facts; there is no agent drafting and critiquing a plan."
-        },
-        {
-          "technique": "informational-fold-in",
-          "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/review/Parts.tsx:159 The market field resembles this technique, but belongs to a transaction approval rather than an adopted human plan gate."
+          "evidence": "apps/desktop/client/src/windows/approval/tableDraft.ts:69 The unit put to the owner is a single typed deal or listing, not a task handed to a planning agent, so nothing exists to slice before a plan."
         },
         {
           "technique": "silent-decision-surfacing",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/BandAdjust.tsx:47 The owner explicitly signs price limits; this does not surface unnamed commitments in an agent-authored implementation plan."
+          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:2 The 'Why?' text restates the deal's own facts to explain the gate. No reader scans a plan for decisions it made without saying so."
+        },
+        {
+          "technique": "objection-before-artifacts",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:10 The blocking checks are Rust's fixed checks on a money action, not a chartered critic objecting to a plan's premises before implementation."
+        },
+        {
+          "technique": "fresh-posture-self-challenge",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:3 No model writes or critiques anything on this surface, so there is no draft-then-challenge pass to judge."
+        },
+        {
+          "technique": "informational-fold-in",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/Parts.tsx:205 There is no plan gate here. By analogy the market figure would conform: it is a field on the existing approval, has no verdict, shows an unavailable state (Parts.tsx:159 'no reference for this item, so the price check was skipped') and carries its percentile, date and cache status."
         }
       ],
-      "withdrawn": {
-        "worker": "b5876a41-9bd6-4573-879c-e08c2a908bbe",
-        "state": "not-applicable",
-        "at": "2026-10-22T01:45:53.944642+00:00",
-        "reason": "reviewer (sonnet): The anchor DealReview.tsx:337 is only the `act` intent line (which owner controls are visible), so it does not show that a human plan-gate precondition is absent, and the plan_gate/objection grep terms were a thin proxy for the standard."
-      }
+      "registryProposal": "informational-fold-in is worded for plan gates, but its four constraints (a field not a step, no verdict, unavailable as a state, the predicate travels with the number) apply just as well to action-approval gates owned by hitl-approval. This context realizes them on a money-approval surface: the market line in review/Parts.tsx says 'A reference, not a verdict', shows a skipped state when there is no reference, and shows the percentile, check date and cache status. Consider adding hitl-approval to the technique's shared_with, or restating its precondition as 'any existing human gate', so that action gates are not judged not-applicable for a rule they follow."
     },
     "ff286e5d-5254-42d4-bb14-70a4d2d080f3/read-serving-replicas": {
       "context": "client-data-layer",
