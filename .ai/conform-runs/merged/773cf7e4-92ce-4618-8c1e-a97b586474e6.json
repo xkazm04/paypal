@@ -1,0 +1,66 @@
+{
+ "schema": "conform-run/1",
+ "worker": "773cf7e4-92ce-4618-8c1e-a97b586474e6",
+ "subject": "page-load-pipeline",
+ "evaluatedAt": "2026-10-25T23:40:44.541794+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "console-framework",
+   "subject": "page-load-pipeline",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/console/console.css:7 The stale banner appears only when a read fails, after the first render, in an unreserved `auto` grid row between the top bar and the stage, so the layer the owner is reading is pushed down by content they never asked for, where the standard calls for a reserved slot or an overlay.",
+   "techniques": [
+    {
+     "technique": "layout-stability-by-reservation",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/console/StaleBanner.tsx:34 The banner is in normal flow in grid row 2 (console.css:11, an `auto` row); its live-region wrapper is empty and takes no room until a read fails, so the banner is inserted above the reader rather than overlaid or reserved."
+    },
+    {
+     "technique": "script-cost-is-main-thread-time",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/console/Console.tsx:211 Every non-first-paint layer is its own lazyPart chunk (layers.tsx:72, Console.tsx:57) and is preloaded on idle after first paint; the first-paint centre and waiting layers stay in the first load."
+    },
+    {
+     "technique": "discoverable-critical-resources",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/layers/core.tsx:2 Tauri packaged shell loading from disk, which the technique excludes; the first-paint layers ship in the entry bundle anyway, not discovered late."
+    },
+    {
+     "technique": "navigation-reuse",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/Console.tsx:182 A single-document app with hash routing and its own history stack; navigations never leave the document, and the console folder has no unload/pagehide/pageshow handler."
+    },
+    {
+     "technique": "field-measured-load-budget",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/perf.test.tsx:21 A packaged shell launch is not a document navigation (the technique excludes it); the context's own gates are lab counts of DOM nodes and reads, which is boot or mount territory."
+    }
+   ],
+   "registryProposal": "layout-stability-by-reservation's 'never insert above the reader' is written for public documents; it should say whether an error or stale banner in a desktop shell (late, unrequested, but safety-relevant) should overlay or reserve a slot, since 'appears only on a user action' does not cover a failure notice."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-25T23:40:44.541794+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "page-load-pipeline"
+   ],
+   "techniques": [
+    "discoverable-critical-resources",
+    "field-measured-load-budget",
+    "layout-stability-by-reservation",
+    "navigation-reuse",
+    "script-cost-is-main-thread-time"
+   ],
+   "deviations": 1,
+   "context": "console-framework",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

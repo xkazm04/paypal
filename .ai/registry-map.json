@@ -9232,7 +9232,11 @@
           "revision": 3,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/console.css:7 The stale banner appears only when a read fails, after the first render, in an unreserved `auto` grid row between the top bar and the stage, so the layer the owner is reading is pushed down by content they never asked for, where the standard calls for a reserved slot or an overlay.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:449e36ca8d3fe3a6",
+          "evaluatedRevision": 4
         },
         {
           "subject": "test-harness",
