@@ -3623,7 +3623,11 @@
           "revision": 4,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "services/house-seller/src/environment.rs:1 house-seller is one process configured only from a fixed list of environment variables (ENV_NAMES, held to the single-service render.yaml by a test), so no topology is assembled from fragments, overlays, requested handles or probed host capabilities; a search of services/house-seller for overlay, docker-compose, fragment, accelerat, wildcard and profiles found nothing (\"compose\" only appears as prose in glass.rs), so the subject's precondition of a multi-service topology does not hold.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:01b18ee0f6715450",
+          "evaluatedRevision": 5
         },
         {
           "subject": "test-harness",
