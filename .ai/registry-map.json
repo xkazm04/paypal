@@ -3713,7 +3713,11 @@
           "revision": 6,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:1147 The only HTML this axum service serves is one standalone read-only page at /house; the other routes are JSON APIs and static assets. A search of the context found no `<nav`, sidebar, navigate, aria-current or pushState, so there is no persistent frame, section vocabulary or navigation for an app shell to govern.",
+          "evaluatedAt": "2026-10-25",
+          "evaluatedAgainst": "sha256-b2:924d251b08eaf74b",
+          "evaluatedRevision": 7
         },
         {
           "subject": "decentralized-artifact-distribution",

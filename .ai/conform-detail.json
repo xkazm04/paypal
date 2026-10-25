@@ -7762,6 +7762,32 @@
           "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:215 Empty is typed by cause: 'nothing at all' (line 214) is kept apart from 'nothing matches', which offers one-tap clearing. Not judged: the engine takes no loading/error input, so settle-before-empty is left to the callers, which live in other contexts."
         }
       ]
+    },
+    "eec42666-8620-4b0d-8d2e-bc418a280b71/app-shell": {
+      "context": "house-seller-service",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-25",
+      "evaluatedTs": "2026-10-25T22:53:07.224Z",
+      "worker": "88b95d56-6094-4707-b310-aa5599ec79c3",
+      "techniques": [
+        {
+          "technique": "navigation-model",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:1147 There is one page and no section vocabulary, so there is no location to model and no navigation history."
+        },
+        {
+          "technique": "nav-hierarchy",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/scoreboard/index.html:16 The header holds the brand, a freshness label and a theme toggle, with no nav entries, levels or collapse posture."
+        },
+        {
+          "technique": "entitlement-gating",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/scoreboard/index.html:37 The page is public and read-only, with no tiers, roles or gated sections."
+        }
+      ]
     }
   }
 }

@@ -1,0 +1,60 @@
+{
+ "schema": "conform-run/1",
+ "worker": "88b95d56-6094-4707-b310-aa5599ec79c3",
+ "subject": "app-shell",
+ "evaluatedAt": "2026-10-25T22:53:07.224979+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "house-seller-service",
+   "subject": "app-shell",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "services/house-seller/src/hosted.rs:1147 The only HTML this axum service serves is one standalone read-only page at /house; the other routes are JSON APIs and static assets. A search of the context found no `<nav`, sidebar, navigate, aria-current or pushState, so there is no persistent frame, section vocabulary or navigation for an app shell to govern.",
+   "techniques": [
+    {
+     "technique": "navigation-model",
+     "verdict": "not-applicable",
+     "evidence": "services/house-seller/src/hosted.rs:1147 There is one page and no section vocabulary, so there is no location to model and no navigation history."
+    },
+    {
+     "technique": "nav-hierarchy",
+     "verdict": "not-applicable",
+     "evidence": "services/house-seller/src/scoreboard/index.html:16 The header holds the brand, a freshness label and a theme toggle, with no nav entries, levels or collapse posture."
+    },
+    {
+     "technique": "entitlement-gating",
+     "verdict": "not-applicable",
+     "evidence": "services/house-seller/src/scoreboard/index.html:37 The page is public and read-only, with no tiers, roles or gated sections."
+    }
+   ],
+   "absenceTerms": [
+    "<nav",
+    "sidebar",
+    "navigate",
+    "aria-current",
+    "pushState"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-25T22:53:07.224979+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "app-shell"
+   ],
+   "techniques": [
+    "entitlement-gating",
+    "nav-hierarchy",
+    "navigation-model"
+   ],
+   "deviations": 0,
+   "context": "house-seller-service",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
