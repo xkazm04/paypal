@@ -5975,57 +5975,53 @@
       "context": "table-engine-agent-process",
       "subject": "subprocess-lifecycle",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-22",
-      "evaluatedTs": "2026-10-22T04:40:53.041Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T22:26:05.331Z",
+      "worker": "d97b7f27-af4d-4d9f-a2a4-a761681cbf82",
       "techniques": [
         {
-          "technique": "cancellation-needs-a-terminable-unit",
-          "verdict": "deviation",
-          "evidence": "crates/table-engine/src/native.rs:251 Cancellation enforces process-tree termination, but discards the reap result and provides no signalled-versus-reaped accounting to verify reclamation."
-        },
-        {
-          "technique": "concurrency-and-slots",
-          "verdict": "deviation",
-          "evidence": "crates/table-runtime/src/engines.rs:459 The runtime caps active runs at four, but cancellation removes the counted entry before ActiveRun drops and aborts execution; capacity is released before verified child reaping."
-        },
-        {
-          "technique": "decode-child-output-per-line",
-          "verdict": "deviation",
-          "evidence": "crates/table-engine/src/native.rs:501 The JSON stream correctly uses strict UTF-8 per line, but this plain-text version capture separately decodes the whole buffer as UTF-8, without the shared decoder or Windows legacy-page fallback required for undeclared text encoding."
-        },
-        {
-          "technique": "host-resource-protection",
-          "verdict": "deviation",
-          "evidence": "crates/table-engine/src/windows_job.rs:51 Time and stdout-volume ceilings exist, but the job sets only kill-on-close protection; native execution lacks memory and scratch-growth budgets and machine-pressure admission with hysteresis."
-        },
-        {
-          "technique": "liveness-and-heartbeats",
-          "verdict": "deviation",
-          "evidence": "crates/table-engine/src/native.rs:204 After initialization, supervision awaits output under the total ceiling without tracking per-run activity or reporting a stalled state; the startup deadline does not supply ongoing liveness detection."
-        },
-        {
-          "technique": "session-reuse",
-          "verdict": "not-applicable",
-          "evidence": "crates/table-engine/src/native.rs:167 Execution deliberately uses fresh, nonpersistent sessions; Codex also receives --ephemeral, and the inspected paths contain no warm-session pool or resumable identity being reused."
-        },
-        {
           "technique": "spawn-contract",
-          "verdict": "deviation",
-          "evidence": "crates/table-engine/src/resolve.rs:22 Executable discovery preserves ambient PATH ordering and accepts the first matching executable without sanitizing search directories; canonicalizing that executable does not vet its origin."
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/native.rs:78 One door, `fn command()`: env_clear plus the ENV_ALLOW allowlist, and the two wallet credentials injected one by one. The argv is a vector from a closed builder (argv.rs). The program is a canonical absolute path (resolve.rs). Each run gets a private cwd, and stdin is closed after the prompt. Gaps: the search path is the ambient PATH plus user directories, not sanitized, and this crate emits no spawn record (resolved exe, argv, env names)."
         },
         {
           "technique": "termination-and-reaping",
           "verdict": "deviation",
-          "evidence": "crates/table-engine/src/native.rs:249 Dropping the kill-on-close Windows job forcibly terminates descendants immediately; cleanup has no polite-stop grace period or record of the escalation rung used."
+          "evidence": "crates/table-engine/src/native.rs:250 There is no ladder. The kill is immediate: the job close plus child.kill, with no polite stop and no grace deadline, and the rung is not recorded. The rest is realized: the tree is killed through the KILL_ON_JOB_CLOSE job assigned while the child is suspended (windows_job.rs), there is a kill_on_drop backstop, the reap is a wait, and the Error vocabulary is closed (Spawn/Attach/Exit{code}/Cancelled/Timeout). Orphan directories are swept at startup under a lock check."
+        },
+        {
+          "technique": "cancellation-needs-a-terminable-unit",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/native.rs:245 The work runs in a child process inside a job object. Cancel races the run and then kills the tree, so stopping is a fact and does not depend on the child cooperating. The test cancellation_kills_descendants_and_dropped_runs_remove_registration checks that the grandchild is gone. No signalled-versus-reaped counts are emitted."
+        },
+        {
+          "technique": "concurrency-and-slots",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/native.rs:398 Each run gets its own private directory and cwd, created by the door and removed when it drops. A file lock on it gives machine-scoped exclusion across app instances, and the startup sweep checks that lock. The global admission cap is not in this context (see notes)."
+        },
+        {
+          "technique": "liveness-and-heartbeats",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/native.rs:204 Time to first contact (Init) has its own deadline (limits.init, line 202). After input is sent, the read waits with no stall threshold and no per-run activity record, so a wedged child is only found at the 120s ceiling and looks the same as a slow one."
+        },
+        {
+          "technique": "host-resource-protection",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/native.rs:246 A 120s ceiling exists, and the output budgets (4 MiB total, 64 KiB per line) end the run. Missing: Error::Timeout carries no ceiling value, and cause() returns None for it. Nothing checks memory or CPU pressure before a spawn: rg for pressure, GlobalMemoryStatus and sysinfo over crates/ found nothing."
+        },
+        {
+          "technique": "session-reuse",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:167 Every run is a cold, ephemeral spawn: Claude runs with --no-session-persistence and Codex with --ephemeral. No warm pool and no resumed sessions."
+        },
+        {
+          "technique": "decode-child-output-per-line",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:310 stdout is a JSONL protocol stream with a declared UTF-8 encoding, decoded strictly per line. The technique excludes declared-encoding protocol streams. stderr is drained and thrown away, not decoded."
         }
       ],
-      "withdrawn": {
-        "worker": "58a6aa8c-8f24-413f-9607-a08530775c1d",
-        "state": "deviation",
-        "at": "2026-10-22T04:41:17.181174+00:00",
-        "reason": "reviewer (sonnet): The engine-side claims hold (native.rs:250-251 go straight to kill/wait, windows_job.rs:51 sets only KILL_ON_JOB_CLOSE, native.rs:501 uses a bare from_utf8), but the runtime-cap technique anchor (table-runtime engines.rs:459) is in a different crate outside this context's files, and I could not conf"
-      }
+      "registryProposal": "termination-and-reaping requires a polite rung for every child. Here the children are untrusted, ephemeral agent CLIs (no session persistence, contained in a job object, nothing to flush), and an immediate tree kill is arguably the safer choice: a grace period gives the untrusted child more time to act after cancel. The technique could say when skipping the polite rung is correct (the child holds no state worth flushing, or stopping it is a security action) and require only that the skip be recorded."
     },
     "a1a41cac-6c94-418e-8740-5d1188336cb0/talking-avatar": {
       "context": "director-takes-rig",

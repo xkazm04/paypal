@@ -8092,7 +8092,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-engine/src/native.rs:249 On cancel, timeout or any finish, the run drops the Windows job straight away. That kills the whole tree with no polite stop, no grace deadline and no record of which rung was used. The process lives under a ceiling, but nothing checks machine pressure before the spawn and no stalled state is tracked after first contact.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:bad19520d32fbc43",
+          "evaluatedRevision": 15
         },
         {
           "subject": "engine-host-contract",
