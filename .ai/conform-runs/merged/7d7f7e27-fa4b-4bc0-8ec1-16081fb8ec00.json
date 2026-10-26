@@ -1,0 +1,40 @@
+{
+ "schema": "conform-run/1",
+ "worker": "7d7f7e27-fa4b-4bc0-8ec1-16081fb8ec00",
+ "subject": "terminal-multiplexing",
+ "evaluatedAt": "2026-10-26T22:44:27.821165+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "client-foundation",
+   "subject": "terminal-multiplexing",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/lib/tauri.ts:12 The client foundation's only native boundary is a typed Tauri invoke/listen wrapper for wallet commands and events, with no pseudo-terminal, emulator, or session multiplexer. I searched for xterm, node-pty, portable_pty, scrollback and tmux across apps/desktop/client (excluding node_modules/dist) and found nothing, and the client package.json lists no terminal emulator dependency, so the subject's precondition (a host presenting many interactive terminal sessions) does not hold here.",
+   "techniques": [],
+   "absenceTerms": [
+    "xterm",
+    "node-pty",
+    "portable_pty",
+    "scrollback",
+    "tmux"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-26T22:44:27.821165+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "terminal-multiplexing"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "client-foundation",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1818,8 +1818,12 @@
           "revision": 7,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 2
+          "state": "not-applicable",
+          "priorNotApplicable": 2,
+          "evidence": "apps/desktop/client/src/lib/tauri.ts:12 The client foundation's only native boundary is a typed Tauri invoke/listen wrapper for wallet commands and events, with no pseudo-terminal, emulator, or session multiplexer. I searched for xterm, node-pty, portable_pty, scrollback and tmux across apps/desktop/client (excluding node_modules/dist) and found nothing, and the client package.json lists no terminal emulator dependency, so the subject's precondition (a host presenting many interactive terminal sessions) does not hold here.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:c3ef11aba4a471f5",
+          "evaluatedRevision": 7
         },
         {
           "subject": "agent-cli-transport",

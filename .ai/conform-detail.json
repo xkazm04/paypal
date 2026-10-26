@@ -4525,77 +4525,84 @@
       "context": "client-foundation",
       "subject": "terminal-multiplexing",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T23:11:21.372Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T22:44:27.821Z",
+      "worker": "7d7f7e27-fa4b-4bc0-8ec1-16081fb8ec00",
       "techniques": [
         {
           "technique": "attach-detach-lifecycle",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:1471 Listener cleanup removes a wallet-event callback, without detaching terminal machinery."
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1471 Listener cleanup removes a wallet-event callback, without detaching terminal machinery.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "bounded-replay-buffers",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:1416 Mock rewind selects signed deal steps, rather than replaying a terminal byte ring."
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1416 Mock rewind selects signed deal steps, rather than replaying a terminal byte ring.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "capability-revalidation",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:451 This capability is wallet command authorization, without an injected terminal protocol whose presence can drift."
+          "evidence": "apps/desktop/client/src/mock/backend.ts:451 This capability is wallet command authorization, without an injected terminal protocol whose presence can drift.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "completion-authority-arbitration",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/lib/hooks.ts:66 Mutations await wallet request promises; they do not arbitrate terminal markers against output silence."
+          "evidence": "apps/desktop/client/src/lib/hooks.ts:66 Mutations await wallet request promises; they do not arbitrate terminal markers against output silence.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "injected-hook-reconvergence",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/lib/runtime.ts:42 The native path selects a Tauri transport, without installing shell startup hooks."
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:42 The native path selects a Tauri transport, without installing shell startup hooks.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "keystroke-injection",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/lib/runtime.ts:149 The keyboard handler consumes a browser navigation shortcut; it does not inject terminal input."
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:149 The keyboard handler consumes a browser navigation shortcut; it does not inject terminal input.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "multi-client-fan-out",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:200 BroadcastChannel carries targeted wallet events, without shared terminal screens or byte subscribers."
+          "evidence": "apps/desktop/client/src/mock/backend.ts:200 BroadcastChannel carries targeted wallet events, without shared terminal screens or byte subscribers.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "multiplexer-state",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/lib/runtime.ts:37 The retained object is a page's wallet backend, without a terminal session manager."
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:37 The retained object is a page's wallet backend, without a terminal session manager.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "occupant-state-detection",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:606 Mock agent runs are constructed as structured records, without classifying a hosted program's terminal screen."
+          "evidence": "apps/desktop/client/src/mock/backend.ts:606 Mock agent runs are constructed as structured records, without classifying a hosted program's terminal screen.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "pty-management",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/lib/tauri.ts:21 The native adapter forwards typed wallet IPC, without creating or resizing pseudo-terminals."
+          "evidence": "apps/desktop/client/src/lib/tauri.ts:21 The native adapter forwards typed wallet IPC, without creating or resizing pseudo-terminals.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "readiness-edge-detection",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/lib/mount.tsx:19 Window startup awaits backend initialization, without detecting a shell input-readiness edge."
+          "evidence": "apps/desktop/client/src/lib/mount.tsx:19 Window startup awaits backend initialization, without detecting a shell input-readiness edge.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "renderer-economics",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/shared/modules.tsx:60 Shared module glyphs use SVG markup, without terminal emulator renderers or GPU-context budgets."
+          "evidence": "apps/desktop/client/src/shared/modules.tsx:60 Shared module glyphs use SVG markup, without terminal emulator renderers or GPU-context budgets.",
+          "carriedFrom": "2026-10-17"
         }
-      ],
-      "withdrawn": {
-        "worker": "d46016b9-2fe9-4f91-be2b-2e44b5dbbfd0",
-        "state": "not-applicable",
-        "at": "2026-10-17T23:11:41.176962+00:00",
-        "reason": "reviewer (sonnet): The not-applicable anchor runtime.ts:55 only shows the mock backend being chosen, so it is incidental and does not show that terminal hosting is absent; most technique anchors are in mock/backend.ts, which is not among the listed context files, so they may be outside this context."
-      }
+      ]
     },
     "9c2b67dc-8b1f-43ca-af72-23ddf95baf03/agent-addressable-ui": {
       "context": "market-data",
