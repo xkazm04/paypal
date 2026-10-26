@@ -2006,7 +2006,11 @@
           "revision": 8,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/contract.ts:24 The client foundation reaches the outside world only through the Tauri IPC bridge or a browser mock and never resolves, downloads, verifies or spawns any sidecar binary or model file; searching apps/desktop/client and apps/desktop/src-tauri/tauri.conf.json for sidecar, externalBin, gguf and onnx found nothing, so the subject's precondition (artifacts the app does not ship and must provision) does not hold here.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:25f000a9ae879947",
+          "evaluatedRevision": 8
         },
         {
           "subject": "agent-memory",
