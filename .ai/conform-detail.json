@@ -7929,6 +7929,38 @@
         }
       ],
       "registryProposal": "layout-stability-by-reservation's 'never insert above the reader' is written for public documents; it should say whether an error or stale banner in a desktop shell (late, unrequested, but safety-relevant) should overlay or reserve a slot, since 'appears only on a user action' does not cover a failure notice."
+    },
+    "eec42666-8620-4b0d-8d2e-bc418a280b71/repository-landing-document": {
+      "context": "house-seller-service",
+      "subject": "repository-landing-document",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T00:01:10.336Z",
+      "techniques": [
+        {
+          "technique": "multi-surface-degradation",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/Cargo.toml:7 Inherits publish = false, so no package-registry page reproduces a landing body for this crate."
+        },
+        {
+          "technique": "caption-carrying-figures",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/scoreboard/index.html:36 The scoreboard is a page the service serves itself, not a repository front page. Its tile 'captions' are application UI, outside this subject's walls."
+        },
+        {
+          "technique": "host-metadata-is-a-second-document",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/scoreboard/index.html:7 This description is page metadata for the hosted scoreboard, not a code host's About field. Host metadata exists only at repository level."
+        }
+      ],
+      "registryProposal": "The registry map matched this subject to a service context, most likely on tokens like 'public page' or 'publication'. The subject governs one repository-level front page, so it should map to the repo root (README.md plus host metadata), not to sub-service contexts. A service's self-hosted public page belongs to public-claim-provenance.",
+      "withdrawn": {
+        "worker": "21271898-f8d7-4b22-9904-9ee33f272abe",
+        "state": "not-applicable",
+        "at": "2026-10-26T00:02:13.384111+00:00",
+        "reason": "reviewer (sonnet): The context has no README (confirmed), but the not-applicable also rests on a claim I could not confirm: that the golden path assigns the scoreboard page to public-claim-provenance. The anchor Cargo.toml:7 is `publish.workspace = true`, and the workspace sets `publish = false` at line 10 of the root"
+      }
     }
   }
 }
