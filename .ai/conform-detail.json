@@ -6027,62 +6027,66 @@
       "context": "director-takes-rig",
       "subject": "talking-avatar",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-22",
-      "evaluatedTs": "2026-10-22T21:17:54.918Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T22:30:20.000Z",
+      "worker": "62abc462-768f-4704-8676-c40e565c95b7",
       "techniques": [
         {
           "technique": "face-signal-across-surfaces",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/scripts/lib/rig.mjs:103 Multiple surfaces share theme configuration; no speaking face or mirrored face signal was found."
+          "evidence": "apps/desktop/client/scripts/lib/rig.mjs:103 Multiple surfaces share theme configuration; no speaking face or mirrored face signal was found.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "motion-route-selection",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/scripts/takes.mjs:141 Captures existing browser rendering rather than selecting an avatar animation route."
+          "evidence": "apps/desktop/client/scripts/takes.mjs:141 Captures existing browser rendering rather than selecting an avatar animation route.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "neural-motion-retargeting",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/scripts/film-capture.mjs:160 Maps capture windows onto video timestamps; no learned motion channels or avatar retargeting were found."
+          "evidence": "apps/desktop/client/scripts/film-capture.mjs:160 Maps capture windows onto video timestamps; no learned motion channels or avatar retargeting were found.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "paced-realtime-measurement",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/scripts/takes.mjs:248 Retiming uses story beat timestamps, not an avatar's lag against playing speech."
+          "evidence": "apps/desktop/client/scripts/takes.mjs:248 Retiming uses story beat timestamps, not an avatar's lag against playing speech.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "per-sentence-face-sidecar",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/scripts/lib/rig.mjs:71 The helper process serves the browser preview; no sentence-level face computation was found."
+          "evidence": "apps/desktop/client/scripts/lib/rig.mjs:71 The helper process serves the browser preview; no sentence-level face computation was found.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "procedural-presence-motion",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/scripts/lib/rig.mjs:154 Observes existing finite UI animations to settle captures; does not generate avatar idle motion."
+          "evidence": "apps/desktop/client/scripts/lib/rig.mjs:154 Observes existing finite UI animations to settle captures; does not generate avatar idle motion.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "rig-parameter-contract",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/scripts/film-capture.mjs:262 The capture record contains beat timing, rectangles and clicks, rather than avatar motion parameters."
+          "evidence": "apps/desktop/client/scripts/film-capture.mjs:262 The capture record contains beat timing, rectangles and clicks, rather than avatar motion parameters.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "single-image-layer-decomposition",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/scripts/export-scale-fixtures.mjs:295 Exports mock wallet data; no portrait decomposition or drivable image layers were found."
+          "evidence": "apps/desktop/client/scripts/export-scale-fixtures.mjs:295 Exports mock wallet data; no portrait decomposition or drivable image layers were found.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "viseme-drive",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/scripts/film-capture.mjs:258 Narration contributes clip duration to capture holds, without driving a mouth or speaking element."
+          "evidence": "apps/desktop/client/scripts/film-capture.mjs:258 Narration contributes clip duration to capture holds, without driving a mouth or speaking element.",
+          "carriedFrom": "2026-10-22"
         }
-      ],
-      "withdrawn": {
-        "worker": "3c86e9c4-c5da-4b51-a06f-98643e37c303",
-        "state": "not-applicable",
-        "at": "2026-10-22T21:18:20.060297+00:00",
-        "reason": "reviewer (sonnet): The primary anchor rig.mjs:101 is a theme-localStorage comment, so it doesn't show that no speaking face exists; the context also handles narration audio (film-capture.mjs reads audio/manifest.json and sizes holds from spoken lines), and the viseme/phoneme/blendshape/lip-sync search doesn't rule out"
-      }
+      ]
     },
     "92cbc0b8-5203-4da1-a2ac-4bf381ab1569/workflow-property-contracts": {
       "context": "client-foundation",
