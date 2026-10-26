@@ -1,0 +1,38 @@
+{
+  "schema": "conform-run/1",
+  "worker": "3731996e-88d9-412f-9606-ed41f1756616",
+  "subject": "retry-backoff",
+  "evaluatedAt": "2026-10-26T22:04:15.303062+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "retry-backoff",
+      "context": "safety-and-setup",
+      "reason": "withdrawn after review: reviewer (sonnet): The claims hold in the code, but every anchor (joinRetry.ts, PairingDesk.tsx, PairingDesk.test.tsx) is in console/areas/connections. None of the listed safety-and-setup files hold the retry logic. joinRetry.ts only imports the PairMode type from setup/pairing, so the verdict is about the connections"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-26T22:04:15.303062+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "retry-backoff"
+      ],
+      "techniques": [
+        "backoff-design",
+        "circuit-breakers",
+        "client-retry-and-redirect-conventions",
+        "durable-retries",
+        "error-classification-for-retry",
+        "jittered-revocation-with-irrevocable-terminal",
+        "retry-observability"
+      ],
+      "deviations": 1,
+      "context": "safety-and-setup",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

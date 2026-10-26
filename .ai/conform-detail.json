@@ -7961,6 +7961,58 @@
         "at": "2026-10-26T00:02:13.384111+00:00",
         "reason": "reviewer (sonnet): The context has no README (confirmed), but the not-applicable also rests on a claim I could not confirm: that the golden path assigns the scoreboard page to public-claim-provenance. The anchor Cargo.toml:7 is `publish.workspace = true`, and the workspace sets `publish = false` at line 10 of the root"
       }
+    },
+    "68496392-9930-4018-bc06-41c2f3e3c286/retry-backoff": {
+      "context": "safety-and-setup",
+      "subject": "retry-backoff",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T22:04:15.303Z",
+      "techniques": [
+        {
+          "technique": "error-classification-for-retry",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/joinRetry.ts:12 The technique's named failure ('regex in the retry loop'): the call site matches message text to decide retryability, so the boundary adapter never assigns a class. Credit: anything else fails at once, never silently treated as transient (test at PairingDesk.test.tsx:161-162)."
+        },
+        {
+          "technique": "backoff-design",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/joinRetry.ts:8 The delay is a fixed 3 s with no jitter, matched to the initiator's poll cadence. The exhaustion knob is separate and bounded (JOIN_ATTEMPTS = 5, line 7), and the herd risk is small for one pairing per owner. Still, the rule 'jitter on every scheduled delay' is not met."
+        },
+        {
+          "technique": "durable-retries",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:154 An interactive join retry, kept in memory on purpose (useRef) and stated to die with reset, mode change or unmount. That is the honest default for user-interactive work."
+        },
+        {
+          "technique": "retry-observability",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:386 After 5 attempts the last raw error is shown, looking the same as a first-attempt failure. The attempt count is kept in joinCalls but never surfaced, so 'exhausted' is not spelled as its own outcome."
+        },
+        {
+          "technique": "circuit-breakers",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/setup/circuit.ts:72 Here 'circuit' and 'breaker' are a UI picture of the money path (w1 is the owner's pause switch). They are not a failure-counting breaker in front of a dependency, and this context has no such breaker."
+        },
+        {
+          "technique": "client-retry-and-redirect-conventions",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:150 The view calls a local IPC command (pairing_join). This context does not contain a client library for a replicated or redirecting server."
+        },
+        {
+          "technique": "jittered-revocation-with-irrevocable-terminal",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:72 The only 'ending' here is one abort call to the local runtime. No issued credential is revoked against a remote."
+        }
+      ],
+      "registryProposal": "backoff-design treats every scheduled delay as part of an outage ladder that needs jitter. A rendezvous retry (waiting for a known peer whose poll cadence is fixed, here 3 s) is a different case: one caller, no correlated herd, and the delay is set by the peer's stated cadence. The standard could say whether jitter is required there, or whether matching the peer's cadence counts as a stated schedule.",
+      "withdrawn": {
+        "worker": "3731996e-88d9-412f-9606-ed41f1756616",
+        "state": "deviation",
+        "at": "2026-10-26T22:04:52.812184+00:00",
+        "reason": "reviewer (sonnet): The claims hold in the code, but every anchor (joinRetry.ts, PairingDesk.tsx, PairingDesk.test.tsx) is in console/areas/connections. None of the listed safety-and-setup files hold the retry logic. joinRetry.ts only imports the PairMode type from setup/pairing, so the verdict is about the connections"
+      }
     }
   }
 }
