@@ -9231,8 +9231,12 @@
           "revision": 3,
           "changedAt": "2026-09-22",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "apps/desktop/client/src/windows/main/console/Console.tsx:1 This context is a React layer and route frame for the desktop console. It runs no fixed-input-size model over an oversized input, so windowed inference does not apply; a case-insensitive grep of the console directory for inference|stitch|blend|accelerator|gpu|tensor|onnx|overlap|sliding window found nothing, and a git grep for the same terms across apps/ and packages/ found nothing either.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:be767e8151f6602a",
+          "evaluatedRevision": 3
         },
         {
           "subject": "page-load-pipeline",
@@ -9477,8 +9481,12 @@
           "revision": 3,
           "changedAt": "2026-09-22",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:4 The only 'windowing' in this context is DOM list virtualisation through useWindowedRows (only the visible rows are mounted). No model is run over windows, and nothing is blended or stitched. A grep of the console directory for inference|stitch|blend|accelerator|gpu|tensor|onnx|overlap|sliding window found nothing.",
+          "evaluatedAt": "2026-10-26",
+          "evaluatedAgainst": "sha256-b2:be767e8151f6602a",
+          "evaluatedRevision": 3
         },
         {
           "subject": "multi-provider-gateway-plane",

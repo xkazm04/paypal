@@ -8024,6 +8024,26 @@
         "at": "2026-10-26T22:04:52.812184+00:00",
         "reason": "reviewer (sonnet): The claims hold in the code, but every anchor (joinRetry.ts, PairingDesk.tsx, PairingDesk.test.tsx) is in console/areas/connections. None of the listed safety-and-setup files hold the retry logic. joinRetry.ts only imports the PairMode type from setup/pairing, so the verdict is about the connections"
       }
+    },
+    "c02a6103-08a3-462b-84a7-23d7c9ec8c58/windowed-inference-over-oversized-inputs": {
+      "context": "console-framework",
+      "subject": "windowed-inference-over-oversized-inputs",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T22:41:08.591Z",
+      "worker": "c2d68b94-4ce9-4e78-8e00-397696cde3e8",
+      "techniques": []
+    },
+    "7e6e9781-1ef3-439c-ae2d-00619d2cb1d9/windowed-inference-over-oversized-inputs": {
+      "context": "console-navigation-and-lists",
+      "subject": "windowed-inference-over-oversized-inputs",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T22:41:08.591Z",
+      "worker": "c2d68b94-4ce9-4e78-8e00-397696cde3e8",
+      "techniques": []
     }
   }
 }
