@@ -2093,60 +2093,68 @@
       "subject": "agent-cli-transport",
       "bundle": "software-engineering",
       "state": "unknown",
-      "evaluatedAt": "2026-10-16",
-      "evaluatedTs": "2026-10-16T01:24:42.741Z",
+      "evaluatedAt": "2026-10-26",
+      "evaluatedTs": "2026-10-26T22:38:12.517Z",
       "techniques": [
+        {
+          "technique": "host-routed-approval-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:3 The window approves deals and money releases. It does not answer a child CLI's own mid-turn permission requests, which the host removes by exposing only gated MCP tools."
+        },
         {
           "technique": "availability-probe",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/OwnerConfig.tsx:51 No local agent binary is probed here."
+          "evidence": "apps/desktop/client/src/windows/approval/OwnerConfig.tsx:51 No local agent binary is probed here.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "subscription-auth-selection",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:7 Gating is wallet lock and can_release, not a child environment."
+          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:7 Gating is wallet lock and can_release, not a child environment.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "output-normalization",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/App.tsx:60 The shell renders a deal review, not an agent stdout envelope."
+          "evidence": "apps/desktop/client/src/windows/approval/App.tsx:60 The shell renders a deal review, not an agent stdout envelope.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "permission-stance-enforcement",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:2 The client narrows money buttons; it does not set an agent CLI mode."
+          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:2 The client narrows money buttons; it does not set an agent CLI mode.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "dated-capability-matrix",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/OwnerConfig.tsx:36 Names are display labels only; no capability rows or flags are encoded."
+          "evidence": "apps/desktop/client/src/windows/approval/OwnerConfig.tsx:36 Names are display labels only; no capability rows or flags are encoded.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "fallback-ladder",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/App.tsx:71 No transport rung is selected in this shell."
+          "evidence": "apps/desktop/client/src/windows/approval/App.tsx:71 No transport rung is selected in this shell.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "child-observed-posture",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/OwnerConfig.tsx:51 No child process is spawned whose posture could be read."
-        },
-        {
-          "technique": "host-routed-approval-round-trip",
-          "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/App.tsx:1 Approvals here countersign money; they do not answer a coding agent's mid-turn permission prompts."
+          "evidence": "apps/desktop/client/src/windows/approval/OwnerConfig.tsx:51 No child process is spawned whose posture could be read.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "thread-custody-across-resume",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/App.tsx:42 Session state is the selected deal, not a stored agent thread id."
+          "evidence": "apps/desktop/client/src/windows/approval/App.tsx:42 Session state is the selected deal, not a stored agent thread id.",
+          "carriedFrom": "2026-10-16"
         }
       ],
       "withdrawn": {
-        "worker": "44d81a87-3a87-4e14-8434-d6168d7b1d9a",
+        "worker": "c65fbc16-ba6f-4623-83b0-ce45b99a8d46",
         "state": "not-applicable",
-        "at": "2026-10-16T01:27:38.837604+00:00",
-        "reason": "reviewer (sonnet): The anchor OwnerConfig.tsx:51 is a comment about the window's handoff target and doesn't show that no agent binary is probed; the file's own engine-name mapping at line 36 is the closest relevant code, so the anchor is incidental."
+        "at": "2026-10-26T22:38:34.225317+00:00",
+        "reason": "reviewer (sonnet): gating.ts:3 says the module never grants anything and Rust re-checks every decision, so it doesn't show that the window has no agent-CLI transport; the 'host exposes only gated MCP tools' claim is not at that line or in any file I opened."
       }
     },
     "30af9627-32b0-465d-97de-4949dd83af41/agent-cli-transport": {
