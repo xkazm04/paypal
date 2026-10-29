@@ -4,6 +4,7 @@ use axum::{
     Json, Router,
     extract::{DefaultBodyLimit, State},
     http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
     routing::post,
 };
 use serde::Deserialize;
@@ -450,7 +451,7 @@ async fn handle(
     State(s): State<Arc<Server>>,
     headers: HeaderMap,
     Json(rpc): Json<Rpc>,
-) -> Result<(StatusCode, Json<Value>), StatusCode> {
+) -> Result<Response, StatusCode> {
     if headers.get("host").and_then(|v| v.to_str().ok()) != Some(&s.host)
         || headers.contains_key("origin")
     {
@@ -489,8 +490,10 @@ async fn handle(
     {
         return Err(StatusCode::BAD_REQUEST);
     }
-    if rpc.method == "notifications/initialized" && rpc.id.is_none() {
-        return Ok((StatusCode::ACCEPTED, Json(Value::Null)));
+    // Streamable HTTP: an accepted notification is answered 202 with no body. None is acted on,
+    // and anything else without an id is refused below.
+    if rpc.method.starts_with("notifications/") && rpc.id.is_none() {
+        return Ok(StatusCode::ACCEPTED.into_response());
     }
     let id = rpc.id.ok_or(StatusCode::BAD_REQUEST)?;
     let result = match rpc.method.as_str() {
@@ -615,16 +618,11 @@ async fn handle(
             }
         }
         _ => {
-            return Ok((
-                StatusCode::OK,
-                Json(
-                    json!({"jsonrpc":"2.0","id":id,"error":{"code":-32601,"message":"Method not found"}}),
-                ),
-            ));
+            return Ok(Json(
+                json!({"jsonrpc":"2.0","id":id,"error":{"code":-32601,"message":"Method not found"}}),
+            )
+            .into_response());
         }
     };
-    Ok((
-        StatusCode::OK,
-        Json(json!({"jsonrpc":"2.0","id":id,"result":result})),
-    ))
+    Ok(Json(json!({"jsonrpc":"2.0","id":id,"result":result})).into_response())
 }
