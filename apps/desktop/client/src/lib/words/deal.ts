@@ -105,6 +105,9 @@ export const DEAL_DECIDE = {
   failWithdraw: 'Withdraw',
 } as const;
 
+/** Shown only on the seller's own wallet, when its agent accepted exactly at the signed floor. */
+export const DEAL_AT_FLOOR = 'Your agent accepted at your floor (the least you’ll accept), as your rules allow. Raise the floor to hold out for more.';
+
 /** What happened: the conversation and who decided. */
 export const DEAL_STORY = {
   label: 'What happened',

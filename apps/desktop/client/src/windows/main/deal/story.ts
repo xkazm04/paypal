@@ -10,8 +10,8 @@ import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { RescueOffer } from '@bindings/RescueOffer';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { formatMinor, formatMoney } from '../../../lib/format';
-import { headlineWords, houseWords, MONEY_CHECK_ENDED, MONEY_CHECK_PARKED, marketWords, percentWords, moneyCheckStep, ruleNameOf, shieldRuleWord, sellerSaysOnly, stateWord } from '../../../lib/words';
-import { dealTotal, decidedBy, isTerminal } from '../logic';
+import { DEAL_AT_FLOOR, headlineWords, houseWords, MONEY_CHECK_ENDED, MONEY_CHECK_PARKED, marketWords, percentWords, moneyCheckStep, ruleNameOf, shieldRuleWord, sellerSaysOnly, stateWord } from '../../../lib/words';
+import { BRANCH_AFTER, dealTotal, decidedBy, isTerminal, pathFor } from '../logic';
 import { latestText, timelineRows, type ClauseReading, type Reading, type TimelineRow } from './model';
 
 export type AnswerTone = 'calm' | 'need' | 'alert' | 'done';
@@ -210,6 +210,21 @@ export function standingFacts(d: Pick<Deal, 'kind' | 'side' | 'terms' | 'market'
     out.push({ k: 'This price is', v: mw.text, tone: mw.tone === 'ok' ? 'ok' : mw.tone === 'gold' ? 'gold' : mw.tone === 'red' ? 'red' : undefined });
   }
   return out;
+}
+
+/**
+ * The line that tells the seller its own agent accepted exactly at the signed floor, or null. Only
+ * the seller's wallet holds that floor, so a buyer deal (or a band without one) never gets it. It is
+ * arithmetic on the deal's own signed accept and band; nothing here decides or moves money.
+ */
+export function acceptedAtFloorLine(d: Pick<Deal, 'kind' | 'side' | 'state'>, band: Pick<DisplayBand, 'floor'> | null, steps: readonly TranscriptStep[] | undefined): string | null {
+  if (d.kind !== 'haggle' || d.side !== 'seller' || !band?.floor) return null;
+  const agreed = pathFor(d.kind, d.side).indexOf('AGREED');
+  const at = pathFor(d.kind, d.side).indexOf(d.state);
+  if (!(at >= agreed || (at < 0 && d.state in BRANCH_AFTER))) return null;
+  const accept = (steps ?? []).find((s) => s.by === 'you' && s.typ === 'ACCEPT' && s.verified && s.price);
+  if (!accept?.price || accept.price.currency !== band.floor.currency || accept.price.minor !== band.floor.minor) return null;
+  return DEAL_AT_FLOOR;
 }
 
 export type AskingDrop = { listing: Money; theirs: Money; off: Money; bp: number };

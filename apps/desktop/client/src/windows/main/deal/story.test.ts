@@ -5,7 +5,8 @@ import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { SELLER_SAYS_PAID } from '../../../lib/words';
 import { buildMockState } from '../../../mock/fixtures';
 import { readClauses, type Reading } from './model';
-import { askingDrop, CLOSED, dealAnswer, decisionQuestion, decisionWhy, reviewMeans, ruleChecks, rulesBadge, standingFacts, threadRows } from './story';
+import { DEAL_AT_FLOOR } from '../../../lib/words';
+import { acceptedAtFloorLine, askingDrop, CLOSED, dealAnswer, decisionQuestion, decisionWhy, reviewMeans, ruleChecks, rulesBadge, standingFacts, threadRows } from './story';
 
 const NOW = 1_800_000_000;
 const world = buildMockState(NOW);
@@ -219,5 +220,27 @@ describe('how far their price came down (the haggle’s result, buyer side)', ()
     const seller = standingFacts({ ...e.deal, side: 'seller' }, e.display.band, last('D-0193'), 'Dan', null, e.transcript);
     expect(seller.some((x) => x.k === 'Dan’s price is down')).toBe(false);
     expect(standingFacts(e.deal, e.display.band, last('D-0193'), 'Dan').some((x) => x.k === 'Dan’s price is down')).toBe(false);
+  });
+});
+
+describe('your agent accepted at your floor (seller side only)', () => {
+  const usd = (minor: number) => ({ minor, currency: 'USD' as const });
+  const accept = (minor: number, by: 'you' | 'them' = 'you'): TranscriptStep => ({ seq: 4, by, typ: 'ACCEPT', price: usd(minor), at: NOW, verified: true });
+  const seller = { kind: 'haggle' as const, side: 'seller' as const, state: 'AGREED' as const };
+  const band = { floor: usd(30000) };
+  it('says so when the accepted price equals the signed floor', () => {
+    expect(acceptedAtFloorLine(seller, band, [accept(30000)])).toBe(DEAL_AT_FLOOR);
+    expect(acceptedAtFloorLine({ ...seller, state: 'RECONCILED' }, band, [accept(30000)])).toBe(DEAL_AT_FLOOR);
+  });
+  it('is silent above the floor, before the deal is agreed, or when the other side accepted', () => {
+    expect(acceptedAtFloorLine(seller, band, [accept(30100)])).toBeNull();
+    expect(acceptedAtFloorLine({ ...seller, state: 'NEGOTIATING' }, band, [accept(30000)])).toBeNull();
+    expect(acceptedAtFloorLine(seller, band, [accept(30000, 'them')])).toBeNull();
+    expect(acceptedAtFloorLine(seller, band, undefined)).toBeNull();
+  });
+  it('never shows on the buyer side or without a floor', () => {
+    expect(acceptedAtFloorLine({ ...seller, side: 'buyer' }, band, [accept(30000)])).toBeNull();
+    expect(acceptedAtFloorLine(seller, { floor: null }, [accept(30000)])).toBeNull();
+    expect(acceptedAtFloorLine(seller, null, [accept(30000)])).toBeNull();
   });
 });

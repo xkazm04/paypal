@@ -27,7 +27,7 @@ import { RunBadge, WalletNotice } from '../../../../../shared/honesty';
 import { MODULE } from '../../../../../shared/modules';
 import { Btn, Chip, Hint, Kv, Popover, Silence } from '../../../../../shared/ui';
 import { actingRun, heldRefs, lastFinishedRun, latestText, mayWithdraw, mirrorStrip, readClauses, stepWords, timelineRows } from '../../../deal/model';
-import { dealAnswer, ruleChecks, rulesBadge, standingFacts } from '../../../deal/story';
+import { acceptedAtFloorLine, dealAnswer, ruleChecks, rulesBadge, standingFacts } from '../../../deal/story';
 import { canStartAgent, isLive, isTerminal, pairingFact } from '../../../logic';
 import { useCpLookup, useToast } from '../../../ui';
 import { useDeals, useNeedOf, useRuns, useSettings, useWorldSelector, type World } from '../../../world';
@@ -99,6 +99,7 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
   const refs = heldRefs(deal).length;
   const offersUsed = deal.kind === 'haggle' && disp.band ? DEAL_WHO.offersUsed(disp.band.rounds_used, disp.band.max_rounds) : null;
   const ended = isTerminal(deal);
+  const atFloor = acceptedAtFloorLine(deal, disp.band, tr.data);
 
   const cards: LensCard[] = [
     {
@@ -172,6 +173,7 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
           <StateStrip strip={strip} />
           {/* What the owner was shown (its own read of the record) takes the last turn (stagger.tsx). */}
           {ended ? <Reveal wave={3}><ShownStrip deal={deal} /></Reveal> : null}
+          {atFloor ? <p className="dv-consequence">{atFloor}</p> : null}
           {consequence}
           <DealDecision deal={deal} need={need} canWithdraw={withdrawable} theirName={them} them={them} readings={readings} deadline={deadline} />
         </div>

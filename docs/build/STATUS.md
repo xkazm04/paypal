@@ -2743,3 +2743,7 @@ Waits on the operator:
 - W5: `docs/features/rescue.md` still says doing nothing means PayPal retries, and it predates C3 and C4.
 
 Client gates in the worktree: tsc clean; vitest 211 files / 2022 tests passed (adds 2 files and 12 tests); gitleaks over the branch's commits found no leaks. The merge gate runs `cargo test --workspace` only; no crate was touched.
+
+## value-2 resolved by the owner's choice (2026-10-29)
+
+agent-negotiation-run value-2 (ask a07e05ac): the owner chose "Keep as is, explain in UI". The seller's practice agent still accepts the first offer at or above its floor (`Policy::decide`, unchanged). The seller's own deal page now says so when its agent accepted exactly at the signed floor (`acceptedAtFloorLine` in `windows/main/deal/story.ts`, words `DEAL_AT_FLOOR`). Seller side only; the floor never reaches a buyer or counterparty view. Commit: see `git log` for "value-2" (words only; no money logic, Rust, bindings or mock changed). tsc and vitest were not run (no client node_modules in the worktree).
