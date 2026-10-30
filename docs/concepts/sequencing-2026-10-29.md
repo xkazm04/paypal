@@ -80,7 +80,7 @@ Row numbers follow the cut: R1-R11 are above the line, R12-R22 below.
 
 The film rows (R1, R10) and the film freeze (D7) sit at the end, after every non-film row and immediately before R11, because Devpost requires the video. Their date is "end of project, date set by the owner".
 
-| When | Builder | the owner | Gate |
+| When | Builder | The owner | Gate |
 |---|---|---|---|
 | Thu Oct 29 - Fri Oct 30 | R2 UAT checklist. R6 delta scan. | D1, D2, D7 decided at the 2026-10-30 standup. D3 undecided; D8 if possible. | |
 | Sat Oct 31 - Mon Nov 2 | R4 records results. Fixes from R3, small and offline-gated. | **R3 native UAT.** R5 is parked (D3 undecided, no live spike runs). | UAT fixes merged by Nov 4. |
