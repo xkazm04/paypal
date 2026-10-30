@@ -76,9 +76,8 @@
 .pk-tamper:disabled { opacity: .55; cursor: default; }
 .pk-tamper:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-changed { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); margin: var(--sp-3) 0 0; padding: var(--sp-2) var(--sp-3); border-radius: var(--r); background: color-mix(in srgb, var(--refuse) 10%, transparent); box-shadow: inset 3px 0 0 var(--refuse); }
-.pk-edit { margin-top: var(--sp-4); }
-.pk-edit summary { cursor: pointer; font-weight: var(--fw-medium); min-height: var(--target); display: flex; align-items: center; }
-.pk-edit summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-edit { margin-top: var(--sp-2); }
+.pk-seg { margin: var(--sp-1) 0 var(--sp-2); }
 .pk-label { display: block; margin: var(--sp-2) 0 var(--sp-1); font-weight: var(--fw-medium); }
 .pk-jumps { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); margin: var(--sp-2) 0; }
 .pk-text { width: 100%; box-sizing: border-box; margin: 0 0 var(--sp-2); padding: var(--sp-2) var(--sp-3); resize: vertical; white-space: pre; overflow: auto; line-height: 1.45;
@@ -111,11 +110,6 @@
 .ui-sheet.wide.pk-sheet { width: min(1180px, calc(100vw - 32px)); }
 .pk-changed { justify-content: flex-start; }
 .pk-changed .ui-btn { margin-left: auto; }
-.pk-edit summary { list-style: none; display: inline-flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-3); border: 1px solid var(--line2); border-radius: var(--r); background: var(--panel2); }
-.pk-edit summary::-webkit-details-marker { display: none; }
-.pk-edit summary::before { content: ''; width: .45em; height: .45em; border-right: 2px solid currentcolor; border-bottom: 2px solid currentcolor; transform: rotate(-45deg); transition: transform var(--dur-fast) var(--ease); }
-.pk-edit[open] summary::before { transform: rotate(45deg); }
-.pk-edit[open] summary { margin-bottom: var(--sp-2); }
 
 /* ---- checking again: the lines that hold still stay put, the one that changes is the one that moves ---- */
 .pk-row.still, .pk-row.still .pk-mark { animation: none; }

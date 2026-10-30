@@ -6,6 +6,7 @@ import { fromBase64Url, sha256, toBase64Url, toHex, utf8 } from './bytes';
 import { canonical } from './jcs';
 import { ed25519Works, isPublicKey, verifyStrict } from './ed25519';
 import { fromView, placesIn, toFile, toView } from './fileText';
+import { locate } from './locate';
 import { fingerprint, WORDS } from './fingerprint';
 import golden from './sample/golden.tableproof?raw';
 import { SAMPLE_PROOF } from './sample';
@@ -137,5 +138,27 @@ describe('the sample file', () => {
     expect(SAMPLE_PROOF.text).toBe(golden);
     // saving the file the person was shown gives back the very bytes the wallet's tests wrote
     expect(toFile(JSON.parse(golden))).toBe(golden);
+  });
+});
+
+describe('where a change is in the editor’s text', () => {
+  const view = toView(JSON.parse(golden));
+  const at = (pointer: string): string => {
+    const range = locate(view, pointer);
+    return range ? view.slice(range[0], range[1]) : '';
+  };
+  it('finds a number, a string, and a place inside a list', () => {
+    expect(at('/deal/terms/unit_price/minor')).toBe('21200');
+    expect(at('/closed_mandates/0/mandate/payee')).toBe('maya-monitors');
+    expect(at('/format')).toBe('table.proof.v2');
+    expect(at('/audit/0/action')).toBe('deal.created');
+    expect(at('/paypal_calls/3/method')).toBe('POST');
+    // a whole value: the hex text of a signature
+    expect(at('/evidence_sig')).toMatch(/^hex:[0-9a-f]{128}$/);
+  });
+  it('finds nothing where the file has nothing', () => {
+    expect(locate(view, '/deal/nothing')).toBeNull();
+    expect(locate(view, '/audit/9999')).toBeNull();
+    expect(locate('{ not json', '/a')).toBeNull();
   });
 });

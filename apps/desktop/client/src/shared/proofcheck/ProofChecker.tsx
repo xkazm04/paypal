@@ -7,6 +7,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type DragEven
 import { formatMoney } from '../../lib/format';
 import { applyEdits, readAt } from '../../lib/proof/edits';
 import { fromView, placesIn, toFile, toView, type Place } from '../../lib/proof/fileText';
+import { locate } from '../../lib/proof/locate';
 import { fingerprint } from '../../lib/proof/fingerprint';
 import { CHECK_IDS, type CheckLine } from '../../lib/proof/checks';
 import { editsFor, type TamperId } from '../../lib/proof/tamper';
@@ -14,7 +15,7 @@ import { PROOF_FILE_LIMIT, TOO_LARGE } from '../../lib/proof/verify';
 import { isCalm } from '../../design/motion';
 import { modeWord, PROOF_ALL_THAT_APPLY, PROOF_CAUGHT, PROOF_CHECKER as W, PROOF_SHORT, PROOF_CHECKS, PROOF_NOT_APPLICABLE, PROOF_NOT_CHECKED, PROOF_SOME_UNCHECKED, PROOF_VERSION_MATCH, PERMISSIONS_FINGERPRINT, TAMPER_WORDS, TAMPERS_SHOWN } from '../../lib/words';
 import { KeyId } from '../ownerKey';
-import { Btn, Chip, Kv } from '../ui';
+import { Btn, Chip, Kv, Seg } from '../ui';
 import { useProofRun, type Facts, type RunState } from './useProofRun';
 import './proofcheck.css';
 
@@ -61,7 +62,7 @@ const brief = (v: unknown): string => {
   return text.length > 36 ? `${text.slice(0, 35)}…` : text;
 };
 
-export function ProofChecker({ source, sample, own, heading = true, lede = true, level = 3 }: {
+export function ProofChecker({ source, sample, own, heading = true, lede = true, level = 3, autoRun = false, autoTamper = null, startEditing = false }: {
   source: ProofSource;
   /** The practice deal, to go back to (the page of its own offers it). */
   sample?: ProofSource;
@@ -73,6 +74,12 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true,
   lede?: boolean;
   /** The heading level of its sections: 3 under a sheet's title, 2 under a page's. */
   level?: 2 | 3;
+  /** Check the file as soon as the page is up (a link made for showing it). */
+  autoRun?: boolean;
+  /** And then break it this way. */
+  autoTamper?: TamperId | null;
+  /** Open on editing the file's text. */
+  startEditing?: boolean;
 }) {
   const H = `h${level}` as 'h2' | 'h3';
   const id = useId();
@@ -91,14 +98,21 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true,
   const { state, start, reset } = useProofRun();
   // Once a file has been checked it can be broken, and stays breakable while it is checked again.
   const [hasChecked, setHasChecked] = useState(false);
+  const [mode, setMode] = useState<'break' | 'edit'>(startEditing ? 'edit' : 'break');
+  /** The editor's text as last checked, so a change the program makes is not checked twice. */
+  const checkedText = useRef(draft);
+  /** Where to put the cursor once the editor shows the new text. */
+  const pointTo = useRef<string | null>(null);
   useEffect(() => {
     if (state.phase === 'done') setHasChecked(state.refused === null);
   }, [state.phase, state.refused, state.run]);
 
   // A different file: everything starts again from it.
   useEffect(() => {
+    const text = original === null ? file.text : toView(original);
+    checkedText.current = text;
     setCurrent(original);
-    setDraft(original === null ? file.text : toView(original));
+    setDraft(text);
     setTamper(null);
     setBy('none');
     setNotJson(false);
@@ -135,22 +149,29 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true,
     if (!edits) return;
     const doc = structuredClone(original);
     applyEdits(doc, edits);
+    const text = toView(doc);
+    checkedText.current = text;
+    pointTo.current = edits[0]?.path ?? null;
     setTamper(tid);
     setBy('button');
     setNotJson(false);
     setCurrent(doc);
-    setDraft(toView(doc));
+    setDraft(text);
     void check(doc, 'again');
   };
   const putBack = () => {
+    const text = original === null ? file.text : toView(original);
+    checkedText.current = text;
     setTamper(null);
     setBy('none');
     setNotJson(false);
     setCurrent(original);
-    setDraft(original === null ? file.text : toView(original));
+    setDraft(text);
     void check(original, 'again');
   };
-  const checkEdited = () => {
+  /** Check the editor's text. Typing checks it once it is valid JSON; the button says so when it is not. */
+  const checkEdited = (explicit = true) => {
+    checkedText.current = draft;
     try {
       const doc = fromView(draft);
       setNotJson(false);
@@ -160,16 +181,51 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true,
       void check(doc, 'again');
     } catch {
       setNotJson(true);
+      if (!explicit) return;
       setCurrent(null);
       setBy('hand');
       void start('not json', 'again');
     }
   };
+  const latest = useRef(checkEdited);
+  latest.current = checkEdited;
+  // The person types over the file and the checks follow, once they stop for a moment.
+  useEffect(() => {
+    if (mode !== 'edit' || draft === checkedText.current) return undefined;
+    const timer = setTimeout(() => latest.current(false), isCalm() ? 0 : 450);
+    return () => clearTimeout(timer);
+  }, [draft, mode]);
+  // Show where the file changed: the cursor goes to the changed value in the text.
+  useEffect(() => {
+    const area = editor.current;
+    const path = pointTo.current;
+    if (mode !== 'edit' || !area || !path) return;
+    pointTo.current = null;
+    const at = locate(draft, path);
+    if (!at) return;
+    area.setSelectionRange(at[0], at[1]);
+    const line = draft.slice(0, at[0]).split('\n').length;
+    area.scrollTop = Math.max(0, (line - 4) * (parseFloat(getComputedStyle(area).lineHeight) || 18));
+  }, [draft, mode]);
+  // Deep links made for showing it: check on arrival, then break it.
+  useEffect(() => {
+    // (development mounts twice; the second run replaces the first)
+    if (autoRun) void check(original, 'first');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const brokeIt = useRef(false);
+  useEffect(() => {
+    if (autoTamper && hasChecked && !brokeIt.current) {
+      brokeIt.current = true;
+      applyTamper(autoTamper);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasChecked]);
   const jump = (place: Place) => {
     const at = placesIn(draft)[place];
     const area = editor.current;
     if (!at || !area) return;
-    area.focus();
+    area.focus({ preventScroll: true });
     area.setSelectionRange(at[0], at[1]);
     const line = draft.slice(0, at[0]).split('\n').length;
     area.scrollTop = Math.max(0, (line - 4) * (parseFloat(getComputedStyle(area).lineHeight) || 18));
@@ -235,39 +291,45 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true,
             ))}
           </ol>
           {state.refused ? <p className="pk-refused" role="alert">{state.refused}</p> : null}
-          {notJson ? <p className="ui-hint">{W.notJson}</p> : null}
           {readError ? <p className="pk-refused" role="alert">{readError}</p> : null}
           <H className="pk-h pk-sub">{W.limitsHead}</H>
           <ul className="pk-limits">{W.limits.map((t) => <li key={t}>{t}</li>)}</ul>
         </section>
         <aside className="pk-file" aria-label={W.fileHead}>
           <H id={`${id}-tamper`} className="pk-h">{W.tamperHead}</H>
-          <p className="ui-hint">{everChecked ? W.tamperIntro : W.tamperFirst}</p>
-          <div className="pk-tampers" role="group" aria-labelledby={`${id}-tamper`}>
-            {TAMPERS_SHOWN.map((tid) => {
-              const e = editsFor(tid, original);
-              const w = TAMPER_WORDS[tid];
-              return (
-                <button key={tid} type="button" className="pk-tamper" aria-pressed={tamper === tid} disabled={!e || running || !everChecked} onClick={() => applyTamper(tid)}>
-                  <b>{w.label}</b>
-                  <span>{e ? caption(tid, original, e) : w.what}</span>
-                </button>
-              );
-            })}
-          </div>
-          <details className="pk-edit">
-            <summary>{W.edit}</summary>
-            <label htmlFor={`${id}-text`} className="pk-label">{W.editLabel}</label>
-            <p className="ui-hint" id={`${id}-hint`}>{W.editHint}</p>
-            <div className="pk-jumps" role="group" aria-label={W.jump}>
-              {(Object.keys(W.jumpTo) as Place[]).map((p) => (
-                <Btn key={p} sm kind="plain" disabled={!places[p]} onClick={() => jump(p)}>{`${W.jump} ${W.jumpTo[p]}`}</Btn>
-              ))}
+          <Seg value={mode} onChange={(m) => { setMode(m); if (m === 'edit' && !pointTo.current) pointTo.current = tamper ? (edits?.[0]?.path ?? null) : '/deal/terms/unit_price/minor'; }} label={W.tamperHead}
+            options={[{ value: 'break', label: W.modeBreak }, { value: 'edit', label: W.modeEdit }]} className="pk-seg" />
+          {mode === 'break' ? (
+            <>
+              <p className="ui-hint">{everChecked ? W.tamperIntro : W.tamperFirst}</p>
+              <div className="pk-tampers" role="group" aria-label={W.modeBreak}>
+                {TAMPERS_SHOWN.map((tid) => {
+                  const e = editsFor(tid, original);
+                  const w = TAMPER_WORDS[tid];
+                  return (
+                    <button key={tid} type="button" className="pk-tamper" aria-pressed={tamper === tid} disabled={!e || running || !everChecked} onClick={() => applyTamper(tid)}>
+                      <b>{w.label}</b>
+                      <span>{e ? caption(tid, original, e) : w.what}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="pk-edit">
+              <label htmlFor={`${id}-text`} className="pk-label">{W.editLabel}</label>
+              <p className="ui-hint" id={`${id}-hint`}>{W.editHint}</p>
+              <div className="pk-jumps" role="group" aria-label={W.jump}>
+                {(Object.keys(W.jumpTo) as Place[]).map((p) => (
+                  <Btn key={p} sm kind="plain" disabled={!places[p]} onClick={() => jump(p)}>{`${W.jump} ${W.jumpTo[p]}`}</Btn>
+                ))}
+              </div>
+              <textarea id={`${id}-text`} ref={editor} className="pk-text mono" spellCheck={false} wrap="off" rows={16} value={draft} aria-describedby={`${id}-hint`}
+                onChange={(e) => setDraft(e.target.value)} />
+              <p className="ui-hint" aria-live="polite">{notJson ? W.notJson : W.live}</p>
+              <Btn sm onClick={() => checkEdited()} disabled={running}>{W.checkEdited}</Btn>
             </div>
-            <textarea id={`${id}-text`} ref={editor} className="pk-text mono" spellCheck={false} wrap="off" rows={14} value={draft} aria-describedby={`${id}-hint`}
-              onChange={(e) => setDraft(e.target.value)} />
-            <Btn sm onClick={checkEdited} disabled={running}>{W.checkEdited}</Btn>
-          </details>
+          )}
 
           <H className="pk-h pk-sub" id={`${id}-file`}>{W.fileHead}</H>
           <div className="pk-card">

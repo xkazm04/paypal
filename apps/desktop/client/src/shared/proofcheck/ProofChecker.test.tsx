@@ -97,25 +97,29 @@ describe('the person’s own edits and files', () => {
   it('checks a hand edit of the file’s text', async () => {
     const { container } = mount();
     await checked();
-    fireEvent.click(container.querySelector('.pk-edit summary') as HTMLElement);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit the file yourself' }));
     fireEvent.click(screen.getByRole('button', { name: 'Go to the price' }));
     const text = container.querySelector('.pk-text') as HTMLTextAreaElement;
     expect(text.value.slice(text.selectionStart, text.selectionEnd)).toBe('21200');
     fireEvent.change(text, { target: { value: text.value.slice(0, text.selectionStart) + '19900' + text.value.slice(text.selectionEnd) } });
-    fireEvent.click(screen.getByRole('button', { name: 'Check the edited file' }));
+    // no button press: the checks follow the typing
     await screen.findByText('This file does not check out', {}, TIMEOUT);
     expect(CHECK_IDS.filter((id) => kind(rows(container)[id]) === 'bad')).toEqual(['countersign', 'paypal_order', 'receipt', 'evidence']);
     expect(container.querySelector('.pk-changed')?.textContent).toContain('21200 → 19900');
+    // typing the old number back makes every line hold again
+    fireEvent.change(text, { target: { value: text.value.replace('19900', '21200') } });
+    await screen.findByText('Every check that applies passed', {}, TIMEOUT);
+    expect(container.querySelector('.pk-changed')).toBeNull();
   });
 
   it('says plainly that a file that is not JSON is not a proof file', async () => {
     const { container } = mount();
     await checked();
-    fireEvent.click(container.querySelector('.pk-edit summary') as HTMLElement);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit the file yourself' }));
     fireEvent.change(container.querySelector('.pk-text') as HTMLTextAreaElement, { target: { value: '{ not json' } });
     fireEvent.click(screen.getByRole('button', { name: 'Check the edited file' }));
     await waitFor(() => expect(container.querySelector('.pk-refused')?.textContent).toMatch(/not a proof file/), TIMEOUT);
-    expect(screen.getByText('That isn’t valid JSON, so it isn’t a proof file.')).toBeTruthy();
+    expect(screen.getByText(/isn’t valid JSON/)).toBeTruthy();
   });
 
   it('checks a file picked or dropped, and a copy the person saved comes back as the same file', async () => {
