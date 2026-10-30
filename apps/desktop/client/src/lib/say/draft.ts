@@ -188,11 +188,12 @@ export type Reach = {
   item: string | null;
 };
 
-/** The numbers the timeline draws for a reading; null while the sentence is no rule yet. */
+/** The numbers the timeline draws for a reading; null while the sentence is no rule yet (a rule that names no
+ *  most-you'll-pay allows nothing, and "it asks you every time" would say something it was never told). */
 export function reachOf(f: Facts, ends: number | null): Reach | null {
-  if (f.job !== 'buy') return null;
+  if (f.job !== 'buy' || f.ceiling === null) return null;
   const ceiling = f.ceiling;
   const ask = f.ask ?? 0;
-  const alone = ceiling === null ? 0 : Math.min(ask, ceiling);
+  const alone = Math.min(ask, ceiling);
   return { currency: f.currency, alone, ceiling, perDay: f.dayTotal, until: ends ?? 0, item: f.item ?? f.anything };
 }

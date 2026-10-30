@@ -7,6 +7,9 @@ import { describe, expect, it } from 'vitest';
 import type { ActionKind } from './actions';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH } from './beats';
 import { FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH } from './firstRunStory';
+import { SAY_BEATS, SAY_CHAPTERS, SAY_EXPECT, SAY_LENGTH, SAY_PARTIAL, SAY_SENTENCE } from './sayStory';
+import { read } from '../lib/say/read';
+import { rulesOf } from '../lib/say/draft';
 import { directorSearchFor, frameUrls, STORIES, storyFor } from './stories';
 
 /** What a First run beat may do: open and close windows, set a Tumbler form, point the tour. */
@@ -127,5 +130,78 @@ describe('the Tumbler frame on the desk', () => {
     expect(rule).toBeDefined();
     expect(rule).toContain('background: transparent');
     expect(rule).not.toContain('color-scheme');
+  });
+});
+
+describe('the Say it story', () => {
+  const NOW = Date.UTC(2026, 9, 30, 14, 2) / 1000;
+  const ctx = { now: NOW, offsetMin: 0, payees: ['north-desk'] };
+
+  it('is chosen with ?story=say and plays on Maya’s own sample week', () => {
+    const s = storyFor('?story=say&beat=2');
+    expect(s.id).toBe('say');
+    expect(s.beats).toBe(SAY_BEATS);
+    expect(s.chapters).toBe(SAY_CHAPTERS);
+    expect(s.firstRun).toBe(false);
+    expect(frameUrls(s).main('#r=rewind')).toBe('index.html#r=rewind');
+    expect(directorSearchFor(s, '?story=say&beat=2')).toBeNull();
+  });
+
+  it('opens the approval window’s editor on a typed rules draft, never on a deal', () => {
+    const u = frameUrls(STORIES.say).ownerRules({ type: 'rules', agent: 'negotiator' });
+    expect(u).toMatch(/^approval\.html\?target=mandate&draft=/);
+    expect(decodeURIComponent(u.split('draft=')[1] ?? '')).toBe('{"type":"rules","agent":"negotiator"}');
+    expect(u).not.toContain('deal=');
+  });
+
+  it('is well-formed, ordered, readable and about a minute and a half', () => {
+    expect(SAY_BEATS[0]?.at).toBe(0);
+    expect(new Set(SAY_BEATS.map((b) => b.id)).size).toBe(SAY_BEATS.length);
+    for (let i = 1; i < SAY_BEATS.length; i++) expect(SAY_BEATS[i]!.at).toBeGreaterThan(SAY_BEATS[i - 1]!.at);
+    expect(SAY_BEATS.map((b) => b.chapter).filter((c, i, a) => a[i - 1] !== c)).toEqual(SAY_CHAPTERS.map((c) => c.id));
+    expect(SAY_LENGTH).toBeGreaterThanOrEqual(60);
+    expect(SAY_LENGTH).toBeLessThanOrEqual(100);
+    const all = [...SAY_BEATS, { id: 'the end', at: SAY_LENGTH, caption: '' }];
+    for (let i = 1; i < all.length; i++) {
+      const prev = all[i - 1]!;
+      expect(all[i]!.at - prev.at, prev.id).toBeGreaterThanOrEqual(Math.min(9, Math.ceil(prev.caption.split(/\s+/).length / 3.5)));
+    }
+    for (const b of SAY_BEATS) {
+      expect(b.caption.length, b.id).toBeGreaterThan(10);
+      expect(b.caption.length, b.id).toBeLessThanOrEqual(220);
+    }
+  });
+
+  it('speaks plain words: no internals, no vendor names, no em dashes', () => {
+    for (const b of SAY_BEATS) {
+      expect(b.caption, b.id).not.toMatch(/Rust|backend|mock|clause \d|D-\d{4}|_list|_query|UNAVAILABLE|tumbler:|attention|mandate|countersign|capture|void|first_run|scripted|LLM|model/i);
+      expect(b.caption, b.id).not.toMatch(/[—–]/);
+    }
+  });
+
+  it('only says a sentence, routes the window and opens the approval window: no world, money or lock action', () => {
+    const allowed: readonly ActionKind[] = ['main', 'approval', 'owner', 'say'];
+    for (const b of SAY_BEATS) for (const a of b.do) {
+      expect(allowed, `${b.id} → ${a.do}`).toContain(a.do);
+      if (a.do === 'approval') expect(a.deal, b.id).toBeNull();
+      if (a.do === 'main') expect(a.route === undefined || a.route === '#r=rewind', b.id).toBe(true);
+    }
+    expect(JSON.stringify(SAY_BEATS)).not.toMatch(/countersign|capture|owner_accept|shield_release|rescue_approve|open_paypal|mandate_sign|unlock|deal_void|"lock"/i);
+  });
+
+  it('every beat has a settled screen to check, and none of them lets the approval window pay', () => {
+    for (const b of SAY_BEATS) expect(SAY_EXPECT[b.id]?.length, b.id).toBeGreaterThan(0);
+    expect(Object.keys(SAY_EXPECT).sort()).toEqual(SAY_BEATS.map((b) => b.id).sort());
+  });
+
+  it('the sentence reads as five solid parts, and the partial one asks instead of guessing', () => {
+    const full = read(SAY_SENTENCE, ctx);
+    for (const k of ['item', 'ceiling', 'ask', 'offers', 'ends'] as const) expect(full.from[k], k).toBe('said');
+    expect(full.questions).toEqual([]);
+    expect(full.facts.ends).toBe(NOW + 3 * 86400);
+    expect(rulesOf(full, ctx)?.clauses.find((c) => c.type === 'human_present_over')).toMatchObject({ amount: { minor: 32000 } });
+    const part = read(SAY_PARTIAL, ctx);
+    expect(part.questions.map((q) => q.id)).toEqual(['ceiling']);
+    expect(part.facts.ceiling).toBeNull();
   });
 });

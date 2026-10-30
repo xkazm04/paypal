@@ -7,9 +7,10 @@
 // line). The scrubber runs on past the gold "now" line into the forecast's next 72 hours, and shows what
 // the rules the owner just said (the Say it panel above it) would allow there. Read-only: nothing here
 // moves money.
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { formatCount } from '../../../../../lib/data/counts';
+import { usePrefersReducedMotion } from '../../../../../lib/hooks';
 import { reachOf } from '../../../../../lib/say/draft';
 import { useSayReading } from '../../../setup/useSay';
 import { SayIt } from '../../../setup/SayIt';
@@ -46,9 +47,18 @@ const SORTS: readonly ListSort<TapeRow>[] = [
 ];
 
 export function RewindLayer({ nav, state }: LayerProps) {
+  const reduced = usePrefersReducedMotion();
   const said = useSayReading();
   const reach = useMemo(() => (said.reading ? reachOf(said.reading.facts, said.reading.facts.ends) : null), [said.reading]);
   const { r, labelOf, ahead } = useTimeline(reach, reach ? said.text : null);
+  // A sentence was just read: bring the timeline it draws on into view (the window may be short), once its chips have landed.
+  const picture = useRef<HTMLDivElement>(null);
+  const sentence = reach ? said.text : null;
+  useEffect(() => {
+    if (!sentence) return;
+    const id = setTimeout(() => picture.current?.scrollIntoView?.({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' }), 900);
+    return () => clearTimeout(id);
+  }, [sentence, reduced]);
 
   // Opening at a moment: step back to that week, then seek (the old "See it on the Rewind").
   const [want, setWant] = useState<number | null>(state.rewindAt);
@@ -85,7 +95,7 @@ export function RewindLayer({ nav, state }: LayerProps) {
         <>
         <SayIt compact />
         <Reveal wave={3} sizeKey="rewind:hub" skeleton={<Skeleton className="rw-host" h="23rem" />}>
-          <div className="rw-host">
+          <div className="rw-host" ref={picture}>
             <Suspense fallback={<p className="layer-loading" role="status">{LAYER_LOADING}</p>}>
               <div className="rw-stage"><RewindHub r={r} labelOf={labelOf} onOpenDeal={nav.deal} ahead={ahead} /></div>
               <RewindBar r={r} labelOf={labelOf} onOpenDeal={nav.deal} onExit={nav.back} ahead={ahead} />

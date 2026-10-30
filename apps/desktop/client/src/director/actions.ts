@@ -43,8 +43,12 @@ export type Action =
   /** The approval window opens on a deal's review, or closes (null). Opening never decides. */
   | { do: 'approval'; deal: string | null }
   /** The approval window opens on the owner's own setup (no deal), as `approval_open` with no deal
-   *  does. Opening never signs or saves; closing it is `{ do: 'approval', deal: null }`. */
-  | { do: 'owner' }
+   *  does. Opening never signs or saves; closing it is `{ do: 'approval', deal: null }`. With `rules`,
+   *  the sentence is read into rules and the editor opens on them, as Review rules does. */
+  | { do: 'owner'; rules?: string }
+  /** A sentence is said in The Table's Say it box (typed for the viewer: the wallet reads it, nothing
+   *  is signed; '' clears it). Presentation only. */
+  | { do: 'say'; text: string }
   /** Presentation only: a window's onboarding tour shows this stop (null: the tour is put away).
    *  It points; it never presses Next, Back or Skip inside a window. */
   | { do: 'tour'; win: TourWindow; at: TourStopId | null };
@@ -63,8 +67,10 @@ export interface Stage {
   main(open: boolean, route: string | null): void;
   /** Open the approval window on a deal id, or close it. A stage without one ignores it. */
   approval(dealId: string | null): void;
-  /** Open the approval window on the owner's setup. A stage without one leaves it out. */
-  owner?(): void;
+  /** Open the approval window on the owner's setup (on the rules a sentence reads to, when given). A stage without one leaves it out. */
+  owner?(rules?: string): void;
+  /** Say a sentence in The Table's Say it box. A stage without a main window leaves it out. */
+  say?(text: string): void;
 }
 
 const dealId = (w: MockWorld, label: string): string | null => w.deal(label)?.deal.id ?? null;
@@ -154,7 +160,10 @@ export function runAction(stage: Stage, a: Action): void {
       stage.approval(a.deal ? dealId(w, a.deal) : null);
       return;
     case 'owner':
-      stage.owner?.();
+      stage.owner?.(a.rules);
+      return;
+    case 'say':
+      stage.say?.(a.text);
       return;
     case 'tour':
       pointTour(a.win, a.at);
@@ -189,6 +198,10 @@ export type Scene = {
   approval: string | null;
   /** The approval window is open on the owner's setup (no deal). */
   owner: boolean;
+  /** The sentence the approval window's editor was opened on, if any. */
+  ownerRules: string | null;
+  /** The sentence said in The Table's Say it box ('' when none). */
+  say: string;
   /** The stop each window's tour was pointed at (null: put away; missing: never pointed). */
   tour: Partial<Record<TourWindow, TourStopId | null>>;
   form: Form;
@@ -196,7 +209,7 @@ export type Scene = {
   visual: VisualState | null;
 };
 
-export const INITIAL_SCENE: Scene = { main: { open: true, route: null }, approval: null, owner: false, tour: {}, form: 'rest', selected: null, visual: null };
+export const INITIAL_SCENE: Scene = { main: { open: true, route: null }, approval: null, owner: false, ownerRules: null, say: '', tour: {}, form: 'rest', selected: null, visual: null };
 
 export function foldScene(scene: Scene, actions: readonly Action[]): Scene {
   let s = scene;
@@ -207,8 +220,9 @@ export function foldScene(scene: Scene, actions: readonly Action[]): Scene {
       case 'handoff': s = { ...s, form: 'handoff' }; break;
       case 'visual': s = { ...s, visual: a.visual }; break;
       case 'main': s = { ...s, main: { open: a.open, route: a.route ?? s.main.route } }; break;
-      case 'approval': s = { ...s, approval: a.deal, owner: false }; break;
-      case 'owner': s = { ...s, approval: null, owner: true }; break;
+      case 'approval': s = { ...s, approval: a.deal, owner: false, ownerRules: null }; break;
+      case 'owner': s = { ...s, approval: null, owner: true, ownerRules: a.rules ?? null }; break;
+      case 'say': s = { ...s, say: a.text }; break;
       case 'tour': s = { ...s, tour: { ...s.tour, [a.win]: a.at } }; break;
       default: break;
     }
