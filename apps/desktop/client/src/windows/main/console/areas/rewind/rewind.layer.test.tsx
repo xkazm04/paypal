@@ -3,7 +3,8 @@
 import { act, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setClockOffset } from '../../../../../lib/clock';
-import { REWIND_ANSWER, REWIND_BAR, REWIND_TAPE, REWIND_TRUNCATED } from '../../../../../lib/words';
+import { sayClear } from '../../../../../lib/say/store';
+import { REWIND_AHEAD, REWIND_ANSWER, REWIND_BAR, REWIND_TAPE, REWIND_TRUNCATED, SAY } from '../../../../../lib/words';
 import { expectLayerHealthy, renderLayerAtScale } from '../../testing/scaleSmoke';
 
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
@@ -14,7 +15,7 @@ const PINNED_INSTANTS = [
   ['Sunday 23:30', new Date(2026, 9, 25, 23, 30), true],
 ] as const;
 
-afterEach(() => { vi.useRealTimers(); cleanup(); history.replaceState(null, '', '/'); });
+afterEach(() => { vi.useRealTimers(); cleanup(); history.replaceState(null, '', '/'); sayClear(); });
 
 describe('the Rewind', () => {
   it('filters the tape by who decided and opens a step’s deal', async () => {
@@ -79,5 +80,68 @@ describe('the Rewind', () => {
     fireEvent.keyDown(slider, { key: 'ArrowRight' });
     await waitFor(() => expect(r.layer.querySelector('.rw-ahead-hub')).not.toBeNull());
     expect(r.layer.querySelector('.rw-ahead-hub')?.textContent).toMatch(/no money moves|Nothing is scheduled/);
+  }, 60_000);
+
+  it('steps the playhead event by event, and N comes back to now', async () => {
+    const r = await renderLayerAtScale({ level: 'rewind' }, 'small');
+    await waitFor(() => expect(r.layer.querySelector('.rw-now')).not.toBeNull());
+    const slider = within(r.layer).getByRole('slider', { name: REWIND_BAR.playhead });
+    const at = () => Number(slider.getAttribute('aria-valuenow'));
+    const start = at();
+    fireEvent.keyDown(slider, { key: 'ArrowLeft' });
+    const back = at();
+    expect(back).toBeLessThan(start);
+    // a recorded step sits exactly where the playhead stopped (it went event by event, not by the hour)
+    expect(start - back).not.toBe(3600);
+    fireEvent.keyDown(slider, { key: 'ArrowRight' });
+    expect(at()).toBeGreaterThanOrEqual(start - 1);
+    fireEvent.keyDown(slider, { key: 'ArrowRight' });
+    expect(at()).toBeGreaterThan(start);
+    fireEvent.keyDown(slider, { key: 'n' });
+    expect(Math.abs(at() - start)).toBeLessThanOrEqual(2);
+    fireEvent.keyDown(slider, { key: 'End' });
+    expect(at()).toBe(Number(slider.getAttribute('aria-valuemax')));
+    expect(slider.getAttribute('aria-valuetext')).toContain(REWIND_AHEAD.forecastWord);
+  }, 60_000);
+
+  it('zooms the track to the next 72 hours and back, keeping every forecast tick', async () => {
+    const r = await renderLayerAtScale({ level: 'rewind' }, 'small');
+    await waitFor(() => expect(r.layer.querySelector('.rw-tick.fut')).not.toBeNull());
+    const n = r.layer.querySelectorAll('.rw-tick.fut').length;
+    const left = () => [...r.layer.querySelectorAll<HTMLElement>('.rw-tick.fut')].map((e) => e.style.left).join('|');
+    const week = left();
+    fireEvent.click(within(r.layer).getByRole('button', { name: REWIND_AHEAD.zoom.ahead }));
+    await waitFor(() => expect(left()).not.toBe(week));
+    expect(r.layer.querySelectorAll('.rw-tick.fut')).toHaveLength(n);
+    fireEvent.click(within(r.layer).getByRole('button', { name: REWIND_AHEAD.zoom.week }));
+    await waitFor(() => expect(left()).toBe(week));
+  }, 60_000);
+
+  it('says a rule, shows what it allows over the same hours, and lines her open tables up against it', async () => {
+    // Maya's own week (no scale): her two open tables for the 27-inch 4K monitor
+    const r = await renderLayerAtScale({ level: 'rewind' }, null);
+    const box = await within(r.layer).findByRole('textbox', { name: SAY.label });
+    fireEvent.change(box, { target: { value: 'Haggle for a monitor, up to $340, ask me above $320, six offers, for 3 days' } });
+    fireEvent.click(within(r.layer).getByRole('button', { name: SAY.read }));
+    // "a monitor" fits two of her items: it asks which, with her open tables first
+    const q = await waitFor(() => { const e = r.layer.querySelector('.say-q[data-q="item-which"]'); expect(e).not.toBeNull(); return e as HTMLElement; });
+    fireEvent.click(within(q).getByRole('button', { name: /27-inch 4K monitor/ }));
+    await waitFor(() => expect(r.layer.querySelector('.rw-reach')).not.toBeNull());
+    expect(r.layer.querySelector('.rw-flag.rule')?.textContent).toContain('Your new rules end');
+    const peeks = await waitFor(() => { const e = r.layer.querySelector('.rw-peeks'); expect(e).not.toBeNull(); return e as HTMLElement; });
+    expect(peeks.textContent).toContain('your agent could agree to this on its own');
+    expect(peeks.textContent).toContain('so your agent would stop and ask you');
+    // and the track zoomed to the days the rules cover
+    expect(within(r.layer).getByRole('button', { name: REWIND_AHEAD.zoom.ahead }).getAttribute('aria-pressed')).toBe('true');
+  }, 60_000);
+
+  it('draws no forecast tick and no zero when the forecast could not be read', async () => {
+    // the mock's ?forecast=off previews a shell whose forecast read failed (the harness takes only a scale, so it rides on it)
+    const r = await renderLayerAtScale({ level: 'rewind' }, 'small&forecast=off' as 'small');
+    await waitFor(() => expect(r.layer.querySelector('.rw-walk')).not.toBeNull());
+    expect(r.layer.querySelectorAll('.rw-tick.fut')).toHaveLength(0);
+    expect(r.layer.querySelector('.rw-walk')?.textContent).toContain(REWIND_AHEAD.unknown);
+    expect(r.layer.querySelector('.rw-walk')?.textContent).not.toMatch(/\$0/);
+    expect(r.layer.querySelector('.rw-walk')?.className).toContain('unknown');
   }, 60_000);
 });
