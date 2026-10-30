@@ -20,13 +20,13 @@ import { Btn } from '../../../../../shared/ui';
 import { Corridor } from './Corridor';
 import { SplitView, useTranscript } from './parts';
 
-/** Haggles in watching order: the fullest finished haggles first (most offers signed, then newest),
- *  then the live tables, newest first. */
+/** Haggles worth watching (her agent has made an offer), in watching order: the fullest finished
+ *  haggles first (most offers signed, then newest), then the live tables, newest first. */
 export function watchOrder(deals: readonly Deal[], display: World['display']): Deal[] {
   const rounds = (d: Deal) => display(d).band?.rounds_used ?? 0;
   const done = (d: Deal) => AGREED_OR_LATER.has(d.state);
   return deals
-    .filter((d) => d.kind === 'haggle')
+    .filter((d) => d.kind === 'haggle' && rounds(d) > 0)
     .sort((a, b) => Number(done(b)) - Number(done(a)) || (done(a) ? rounds(b) - rounds(a) : 0) || (b.updated_at ?? 0) - (a.updated_at ?? 0) || a.id.localeCompare(b.id));
 }
 
