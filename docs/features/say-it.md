@@ -53,6 +53,17 @@ shows, and Rust re-checks and the owner signs there.
    World's existing `AttentionSnapshot.forecast`; the headline is built by `walkHeadline()` in
    `windows/tumbler/logic.ts`, the same function the Tumbler's all-clear ticker uses, so they cannot differ.
 
+## What it does with what it cannot read
+
+- A part it is not sure of is a **question** (one per part, answered by a tap or a typed word) and stays out of the draft.
+- Words it did not understand are shown as "Not read" chips with "Leave it out"; **a "not", "never" or "don't" that was not applied
+  blocks Review rules until the owner leaves it out** (rules would otherwise allow what the sentence forbade).
+- A number followed by a unit ("up to 6 haggles", "under 27 inches") is never money; a currency it does not read ("340 CAD") is asked
+  (dollars, euros or pounds) and the hand-over waits; a date just past, a bare hour ("friday at 9") and a year more than a year away
+  are asked, never moved on a guess; an item that fits several of the owner's items is asked about ("Which monitor?").
+- The reader was red-teamed with about 1,100 adversarial sentences (and 6,000 fuzz strings); every confident wrong value found is pinned
+  in `lib/say/regress.test.ts`.
+
 ## Safety properties
 
 - No model; the reader never signs, stores credentials, or calls anything but `approval_open`
