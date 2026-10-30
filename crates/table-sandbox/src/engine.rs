@@ -147,3 +147,67 @@ impl EngineAdapter for OutsideAgent {
         self.0.end(run);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used)]
+    use super::*;
+
+    fn job() -> (AgentJob, McpGrant) {
+        (
+            AgentJob {
+                run: RunId(ulid::Ulid::new()),
+                prompt: String::new(),
+                playbook: None,
+            },
+            McpGrant {
+                url: "http://127.0.0.1:9/mcp".into(),
+                token: "token".into(),
+                secret: "secret".into(),
+            },
+        )
+    }
+
+    #[tokio::test]
+    async fn the_slot_holds_the_live_grant_until_the_run_is_ended() {
+        let slot = Arc::new(Slot::default());
+        let engine = OutsideAgent(slot.clone());
+        let (job, grant) = job();
+        let run = job.run;
+        let (tx, mut rx) = tokio::sync::mpsc::channel(4);
+        let task = tokio::spawn(async move { engine.run(job, grant, tx).await });
+        assert!(matches!(
+            rx.recv().await,
+            Some(EngineEvent::Init {
+                engine: EngineId::Outside
+            })
+        ));
+        let live = slot.next(None, Duration::from_secs(2)).await.unwrap();
+        assert_eq!(live.run, run);
+        assert!(live.fresh());
+        slot.end(run);
+        assert!(matches!(task.await.unwrap(), Ok(TerminalVerdict::Clean)));
+        assert!(slot.live().is_none());
+    }
+
+    #[tokio::test]
+    async fn an_aborted_run_leaves_no_grant_behind() {
+        let slot = Arc::new(Slot::default());
+        let engine = OutsideAgent(slot.clone());
+        let (job, grant) = job();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(4);
+        let task = tokio::spawn(async move { engine.run(job, grant, tx).await });
+        let _ = rx.recv().await;
+        let live = slot.next(None, Duration::from_secs(2)).await.unwrap();
+        // The wallet aborts a run's task when it drops the run (pause, quit, replacement).
+        task.abort();
+        let _ = task.await;
+        assert!(slot.live().is_none());
+        // Waiting for a run other than the aborted one times out instead of returning it.
+        assert!(
+            slot.next(Some(live.run), Duration::from_millis(50))
+                .await
+                .is_none()
+        );
+    }
+}
