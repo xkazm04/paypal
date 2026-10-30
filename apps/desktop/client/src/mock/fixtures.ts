@@ -163,6 +163,7 @@ const MANDATE_M14 = fakeUlid('M-14'); // haggle · sourcing agent
 const MANDATE_S2 = fakeUlid('S-2'); // shop floors · monitor arms
 const MANDATE_S3 = fakeUlid('S-3'); // shop floors · small items
 const MANDATE_R3 = fakeUlid('R-3'); // subscription rescue
+const MANDATE_S4 = fakeUlid('S-4'); // the shop's haggling agent: sells refurbished monitors
 /** The owner's public key id (owner_facts): 64 hex characters, as Rust derives it from the owner key. */
 export const MOCK_OWNER_KEY_ID = '5e3a91c07b2f48d6a1e09c3b7f52d84e6c19a0b3f7d2e85c4a61b09e3d7f2c58';
 const KEY = {
@@ -308,7 +309,7 @@ export function buildMockState(now: number): MockState {
   // proof file is a real signed file (lib/proof/sample), so the deal page can check it, and break it, in the browser.
   add({
     id: SAMPLE_DEAL_ID, label: SAMPLE_DEAL_LABEL, title: 'Refurbished 24-inch monitor · sold', kind: 'haggle', side: 'seller', cp: KEY.lark, item: 'monitor-24-ips', price: 212, state: 'RECEIPTED',
-    mandate: MANDATE_S2, version: 1, receipt: 'PAYPAL_VERIFIED', reconciliation: 'matched', paypal: { order: '5O190127TN364715T', authorization: '8AB21743GP650193R', capture: '3C679366HH908993F' },
+    mandate: MANDATE_S4, version: 1, receipt: 'PAYPAL_VERIFIED', reconciliation: 'matched', paypal: { order: '5O190127TN364715T', authorization: '8AB21743GP650193R', capture: '3C679366HH908993F' },
     decided: { type: 'human', at: back(0.56) }, at: [back(0.66), back(0.55)],
     transcript: ([[1, 'you', 'LISTING', 249], [2, 'them', 'OFFER', 190], [3, 'you', 'COUNTER', 235], [4, 'them', 'COUNTER', 212]] as const)
       .map(([seq, by, typ, p], i) => ({ seq, by, typ, price: usd(p), at: back(0.66 - i * 0.02), verified: true })),
@@ -444,6 +445,17 @@ export function buildMockState(now: number): MockState {
       band(['wipe-kit', 'dp-cable-2m', 'hdmi-21'], 12, null, now + 20 * 86400),
       ...common(['second-screen-biz']),
     ], 12),
+    // The shop's haggling agent: the rules the signed practice deal ran under (a seller's price range and an owner
+    // decision over $150), so its page reads "all inside" rather than a shop rule that never meant to haggle.
+    mandate(MANDATE_S4, 1, 'selling', [
+      { type: 'roles', roles: ['sell'] },
+      { type: 'counterparties', rule: { type: 'paired' } },
+      { type: 'per_deal', kind: 'haggle', max_amount: usd(400), categories: ['office'] },
+      band(['monitor-24-ips'], 190, 260, now + 20 * 86400),
+      { type: 'velocity', max_deals_day: 10, max_total_day: usd(2000) },
+      { type: 'human_present_over', amount: usd(150) },
+      { type: 'payees', payees: ['maya-monitors'] },
+    ], 6),
     mandate(MANDATE_R3, 1, 'rescue', [
       { type: 'roles', roles: ['rescue'] },
       { type: 'counterparties', rule: { type: 'subscribers' } },
@@ -453,7 +465,7 @@ export function buildMockState(now: number): MockState {
     ], 12),
   ];
   const mandateSlots: Record<string, AgentSlot> = {
-    [MANDATE_M12]: 'shopper', [MANDATE_M14]: 'negotiator', [MANDATE_S2]: 'assistant', [MANDATE_S3]: 'assistant', [MANDATE_R3]: 'assistant',
+    [MANDATE_M12]: 'shopper', [MANDATE_M14]: 'negotiator', [MANDATE_S2]: 'assistant', [MANDATE_S3]: 'assistant', [MANDATE_S4]: 'negotiator', [MANDATE_R3]: 'assistant',
   };
 
   const counterparties: CounterpartyDisplay[] = [
