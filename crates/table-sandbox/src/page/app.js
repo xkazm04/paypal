@@ -278,9 +278,13 @@ function renderChart() {
   const number = state.table_number;
   const points = [];
   if (table) {
+    let ours = null;
     for (const step of table.history || []) {
       if (step.price && (step.act === "listing" || step.act === "offer" || step.act === "counter" || step.act === "accept")) {
         points.push({ at: step.at * 1000, side: step.by === "you" ? "you" : "them", price: step.price.minor, act: step.act });
+        if (step.by === "you") ours = step.price.minor;
+      } else if (step.act === "accept" && step.by === "them" && ours !== null) {
+        points.push({ at: step.at * 1000, side: "yes", price: ours, act: "accept" });
       }
     }
   } else {
@@ -323,7 +327,10 @@ function renderChart() {
   }
   points.forEach((p, i) => {
     const px = x(i), py = y(p.price);
-    if (p.side === "refused") {
+    if (p.side === "yes") {
+      svg.append(el("circle", { cx: px, cy: py, r: 9, class: "yes-ring" }));
+      svg.append(el("text", { x: px, y: py - 14, "text-anchor": "middle", class: "yes-label" }, "house: yes"));
+    } else if (p.side === "refused") {
       svg.append(el("line", { x1: px - 6, y1: py - 6, x2: px + 6, y2: py + 6, class: "x" }));
       svg.append(el("line", { x1: px - 6, y1: py + 6, x2: px + 6, y2: py - 6, class: "x" }));
       svg.append(el("text", { x: px, y: py - 11, "text-anchor": "middle", class: "x-label" }, (p.label || "") + " no"));

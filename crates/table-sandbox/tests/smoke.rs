@@ -273,4 +273,28 @@ async fn a_fresh_table_is_a_new_house_and_wallet_under_the_same_rule() {
             .iter()
             .any(|e| e.method == "sandbox/table" && e.table == 2)
     );
+
+    // The agent walks away; its next call finds a fresh table instead of a closed one.
+    let walk = h
+        .call(
+            10,
+            "withdraw_offer",
+            json!({"deal_id":second["deal_id"],"reason":"PRICE"}),
+        )
+        .await;
+    assert_eq!(walk["isError"], false, "{walk}");
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while !h.app.snapshot().await["deal"]["terminal"]
+            .as_bool()
+            .unwrap()
+        {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let third = h.table_until(ready).await;
+    assert_ne!(third["deal_id"], second["deal_id"]);
+    assert_eq!(h.app.snapshot().await["table_number"], 3);
+    assert_eq!(h.app.recorders.buyer.asked(), 0);
 }

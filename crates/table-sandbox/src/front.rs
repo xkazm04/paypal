@@ -232,9 +232,20 @@ impl App {
     }
     /// Carries one JSON-RPC body to the wallet's MCP server under the live grant.
     async fn forward(&self, body: &Bytes) -> Result<(u16, Bytes), String> {
-        let world = self
+        let mut world = self
             .world()
             .ok_or_else(|| "The sandbox is closing".to_owned())?;
+        // An agent that comes back to a closed table (expired, withdrawn) gets a fresh one.
+        if world.deal().is_some_and(|d| d.state.terminal())
+            && self
+                .fresh("the last table closed with no money moved")
+                .await
+                .is_ok()
+        {
+            world = self
+                .world()
+                .ok_or_else(|| "The sandbox is closing".to_owned())?;
+        }
         for attempt in 0..2 {
             let live = self.ensure_run(&world).await?;
             let answer = self
@@ -328,7 +339,7 @@ impl App {
         }
     }
     /// Opens a fresh table: a new house and a new wallet, the same rules. The old world closes.
-    pub async fn fresh(&self) -> Result<u32, BootError> {
+    pub async fn fresh(&self, why: &str) -> Result<u32, BootError> {
         let _one = self.opening.lock().await;
         let _runs = self.starting.lock().await;
         let number = self.world().map_or(1, |w| w.number.saturating_add(1));
@@ -345,7 +356,7 @@ impl App {
             number,
             unix_ms(),
             format!(
-                "table {number} opened: a fresh house asks {} again; same signed rule",
+                "Table {number} opened ({why}): a fresh house seller asks {} again, under the same signed rule",
                 dollars(crate::HOUSE_ASK)
             ),
             self.recorders.buyer.asked(),
@@ -594,7 +605,7 @@ async fn fresh(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
     {
         return refused_door();
     }
-    match app.fresh().await {
+    match app.fresh("opened from the live page").await {
         Ok(number) => Json(json!({"table_number": number})).into_response(),
         Err(error) => (StatusCode::SERVICE_UNAVAILABLE, error.to_string()).into_response(),
     }
