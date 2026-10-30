@@ -48,7 +48,7 @@ const SORTS: readonly ListSort<TapeRow>[] = [
 export function RewindLayer({ nav, state }: LayerProps) {
   const said = useSayReading();
   const reach = useMemo(() => (said.reading ? reachOf(said.reading.facts, said.reading.facts.ends) : null), [said.reading]);
-  const { r, labelOf, ahead } = useTimeline(reach);
+  const { r, labelOf, ahead } = useTimeline(reach, reach ? said.text : null);
 
   // Opening at a moment: step back to that week, then seek (the old "See it on the Rewind").
   const [want, setWant] = useState<number | null>(state.rewindAt);

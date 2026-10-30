@@ -12,9 +12,9 @@ import '../console/areas/rewind.css';
 const RewindBar = lazyPart(() => import('../console/areas/rewind/Scrubber').then((m) => m.RewindBar));
 const RewindHub = lazyPart(() => import('../console/areas/rewind/Scrubber').then((m) => m.RewindHub));
 
-export function SayTimeline({ reach }: { reach: Reach | null }) {
+export function SayTimeline({ reach, sentence }: { reach: Reach | null; sentence: string | null }) {
   const nav = useLayerNavIfAny();
-  const { r, labelOf, ahead } = useTimeline(reach);
+  const { r, labelOf, ahead } = useTimeline(reach, sentence);
   return (
     <div className="ar-rewind say-tl" data-tour="say-timeline">
       <div className="rw-host">

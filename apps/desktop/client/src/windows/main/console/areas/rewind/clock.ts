@@ -45,6 +45,8 @@ export type RewindState = {
   playing: boolean;
   weekBack: number;
   seek: (t: number) => void;
+  /** Glide the playhead to a moment over `ms` (a jump with reduced motion); any seek, play or pause of the owner's cancels it. */
+  glide: (to: number, ms?: number) => void;
   play: () => void;
   pause: () => void;
   shiftWeek: (d: 1 | -1) => void;
@@ -63,6 +65,8 @@ export function useRewind(on: boolean, now: number, reduced: boolean, stops: rea
   const { unshown, unread, pending } = useEndedUnshown(steps, on);
   const [t, setT] = useState(live0);
   const [playing, setPlaying] = useState(false);
+  const reducedRef = useRef(reduced);
+  reducedRef.current = reduced;
   const live = useRef({ t, limit, start, steps, now, end, stops });
   live.current = { t, limit, start, steps, now, end, stops };
   /** When play paused on the now line (performance.now ms): play holds there, once per pass. */
@@ -76,9 +80,28 @@ export function useRewind(on: boolean, now: number, reduced: boolean, stops: rea
     setPlaying(false);
   }, [on, weekBack]);
 
-  const seek = useCallback((x: number) => { setT(Math.round(Math.min(live.current.limit, Math.max(live.current.start, x)))); }, []);
-  const pause = useCallback(() => setPlaying(false), []);
+  const gliding = useRef(0);
+  const stopGlide = () => { if (gliding.current) cancelAnimationFrame(gliding.current); gliding.current = 0; };
+  const clamp = (x: number) => Math.round(Math.min(live.current.limit, Math.max(live.current.start, x)));
+  const seek = useCallback((x: number) => { stopGlide(); setT(clamp(x)); }, []);
+  const pause = useCallback(() => { stopGlide(); setPlaying(false); }, []);
+  const glide = useCallback((to: number, ms = 1800) => {
+    stopGlide();
+    setPlaying(false);
+    const from = live.current.t;
+    const goal = clamp(to);
+    if (reducedRef.current || ms <= 0 || goal === from) { setT(goal); return; }
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const k = Math.min(1, (now - t0) / ms);
+      setT(Math.round(from + (goal - from) * (1 - (1 - k) ** 3)));
+      gliding.current = k < 1 ? requestAnimationFrame(step) : 0;
+    };
+    gliding.current = requestAnimationFrame(step);
+  }, []);
+  useEffect(() => stopGlide, []);
   const play = useCallback(() => {
+    stopGlide();
     // From the end, play starts again at Monday.
     const restart = live.current.t >= live.current.limit - 60;
     if (restart) setT(live.current.start);
@@ -124,5 +147,5 @@ export function useRewind(on: boolean, now: number, reduced: boolean, stops: rea
     return () => cancelAnimationFrame(raf);
   }, [on, playing, reduced]);
 
-  return { start, end, t: Math.min(t, limit), limit, now: ahead ? now : end, stop, ahead, steps, truncated: q.data?.truncated ?? false, unshown, unread, loading: (q.loading && !q.data) || pending, error: q.error, playing, weekBack, seek, play, pause, shiftWeek };
+  return { start, end, t: Math.min(t, limit), limit, now: ahead ? now : end, stop, ahead, steps, truncated: q.data?.truncated ?? false, unshown, unread, loading: (q.loading && !q.data) || pending, error: q.error, playing, weekBack, seek, glide, play, pause, shiftWeek };
 }

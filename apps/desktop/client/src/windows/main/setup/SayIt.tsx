@@ -131,7 +131,7 @@ export function SayIt({ className, compact = false, stepGold = true, timeline = 
         <span className="say-note">{opened ? SAY.opened : rules && asking.length ? SAY.readyOpen : SAY.reviewNote}</span>
       </div>
       {open.error ? <WalletNotice error={open.error} what={NOTICE_WHAT.approval} /> : null}
-      {timeline ? <SayTimeline reach={reach} /> : null}
+      {timeline ? <SayTimeline reach={reach} sentence={reach ? text : null} /> : null}
     </section>
   );
 }
