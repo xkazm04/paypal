@@ -9,7 +9,7 @@ import { mockBackend, resetMockState } from '../../mock/backend';
 import { buildMockState, fakeUlid } from '../../mock/fixtures';
 import { decidedLine, decisionSteps } from './console/areas/deal/decided';
 import { ENDING_UNREAD_NOW, ENDING_UNREAD_PILL, endingUnreadSentence, MONEY_CHECK_ENDED_NOW, MONEY_CHECK_ENDED_PILL, MONEY_CHECK_NOW } from '../../lib/words';
-import { checkOpenThrough, endedBeforePayPalShowed, endingCtx, historyAt, isMoneyCall, isRefusal, laneSteps, narrate, rewindCheckTip, stepSentence, stepTime, stepUnder, tickTone, weekFraction } from './logic';
+import { checkOpenThrough, endedBeforePayPalShowed, endingCtx, historyAt, isMoneyCall, isRefusal, laneSteps, narrate, rewindCheckTip, stepSentence, stepTime, stepTimeFar, stepUnder, tickTone, weekFraction } from './logic';
 
 const D = 'deal-a';
 let seq = 0;
@@ -86,6 +86,9 @@ describe('narration: plain words, never machinery', () => {
     expect(stepSentence(s, { title })).toBe('Your rules refused 40 × GPU: over the per-deal limit. PayPal was never asked.');
     expect(narrate(s, { title })).toBe(`${stepTime(s.at)} · Your rules refused 40 × GPU: over the per-deal limit. PayPal was never asked.`);
     expect(stepTime(s.at)).toMatch(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d\d:\d\d$/);
+    // within three days a weekday is enough; further out the date is added, so a week from now never reads as today
+    expect(stepTimeFar(s.at + 2 * 86400, s.at)).toBe(stepTime(s.at + 2 * 86400));
+    expect(stepTimeFar(s.at + 7 * 86400, s.at)).toMatch(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} [A-Z][a-z]{2} \d\d:\d\d$/);
   });
   it('names who moved the money and what PayPal answered', () => {
     expect(stepSentence(step({ at: 1, kind: 'captured', authority: { type: 'seller_mandate' }, paypal: call('capture') }), { title: 'the wipe kit', side: 'seller' }))

@@ -6,11 +6,12 @@ import { FIRST_RUN_PARAM, SCALE_PARAM, scalePreview, withFirstRun } from '../moc
 import type { ScaleName } from '../lib/preview';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH } from './firstRunStory';
+import { SAY_BEATS, SAY_CHAPTERS, SAY_EXPECT, SAY_LENGTH } from './sayStory';
 import { EXPECT, FIRST_RUN_EXPECT, WATCH_EXPECT, type Expect } from './takes';
 import { WATCH_BEATS, WATCH_CHAPTERS, WATCH_LENGTH } from './watchStory';
 
 export const STORY_PARAM = 'story';
-export type StoryId = 'maya' | 'first-run' | 'watch';
+export type StoryId = 'maya' | 'first-run' | 'watch' | 'say';
 
 export type Story = {
   id: StoryId;
@@ -29,6 +30,8 @@ export const STORIES: Readonly<Record<StoryId, Story>> = {
   maya: { id: 'maya', title: 'Maya’s week', beats: BEATS, chapters: CHAPTERS, length: SCRIPT_LENGTH, expect: EXPECT, firstRun: false },
   'first-run': { id: 'first-run', title: 'First run', beats: FIRST_RUN_BEATS, chapters: FIRST_RUN_CHAPTERS, length: FIRST_RUN_LENGTH, expect: FIRST_RUN_EXPECT, firstRun: true },
   watch: { id: 'watch', title: 'Watch the haggle', beats: WATCH_BEATS, chapters: WATCH_CHAPTERS, length: WATCH_LENGTH, expect: WATCH_EXPECT, firstRun: false },
+  // Say it, then see it plays on Maya's own sample week (it needs her deals for the timeline's forecast).
+  say: { id: 'say', title: 'Say it, then see it', beats: SAY_BEATS, chapters: SAY_CHAPTERS, length: SAY_LENGTH, expect: SAY_EXPECT, firstRun: false },
 };
 
 const isStoryId = (v: string | null): v is StoryId => v !== null && (Object.keys(STORIES) as string[]).includes(v);
@@ -55,6 +58,8 @@ export function frameUrls(story: Pick<Story, 'firstRun'>, scale: ScaleName | nul
     approval: (dealId: string | null) => (dealId ? w(`approval.html?deal=${encodeURIComponent(dealId)}&target=deal`) : 'about:blank'),
     /** The approval window on the owner's setup (no deal). */
     owner: w('approval.html'),
+    /** The approval window's editor, opened on a typed rules draft (what Review rules hands over). */
+    ownerRules: (draft: unknown) => w(`approval.html?target=mandate&draft=${encodeURIComponent(JSON.stringify(draft))}`),
   };
 }
 

@@ -96,6 +96,10 @@
 .ow-lgd { display: flex; flex-wrap: wrap; gap: 2px var(--sp-3); margin: 0 0 var(--sp-2); }
 .ow-lgd i { display: inline-block; position: static; transform: none; width: 3px; height: 10px; margin: 0 4px 0 0; vertical-align: -1px; }
 .ow-lever { padding: var(--sp-2) 0 var(--sp-1); border-top: 1px solid var(--line); }
+/* a rule the sentence pointed at ("Change it in the form"): marked once, then back to normal */
+.ow-flash { animation: ow-flash 2.2s var(--ease) both; }
+@keyframes ow-flash { 0%, 55% { background: color-mix(in srgb, var(--gold) 18%, transparent); box-shadow: -3px 0 0 var(--gold); } 100% { background: transparent; box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { .ow-flash { animation: none; background: color-mix(in srgb, var(--gold) 14%, transparent); } }
 .ow-lever.chg { box-shadow: inset 2px 0 0 var(--gold); padding-left: var(--sp-2); margin-left: calc(-1 * var(--sp-2)); }
 .ow-lever .lh { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; height: var(--ctl); }
 .ow-lever .cn, .ow-ww .cn { width: 12px; flex: none; font: var(--fw-semibold) var(--fs-small) var(--mono); color: var(--dim); }

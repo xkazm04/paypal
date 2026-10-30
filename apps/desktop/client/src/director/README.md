@@ -5,7 +5,7 @@ the browser mock and plays a story's beat file across them, with captions. It is
 that needs no install and the rehearsal rig for the video. It never runs inside the desktop
 shell, and it never clicks inside a window: no beat can approve, pay, capture or release.
 
-Two stories, chosen with `?story=` (`stories.ts`):
+Three stories, chosen with `?story=` (`stories.ts`):
 
 - **Maya's week** (no `story`, the default; `beats.ts`): the sample week, 28 beats in 214 s
   (3:34): the opening, shopping around (three beats on the Tables layer's Shop around view,
@@ -15,6 +15,16 @@ Two stories, chosen with `?story=` (`stories.ts`):
   the haggle, silence, the mismatch, The Table closed, and the ending (the dock's deal, its proof
   from PayPal on `#d=D-0190&dv=proof`: an order and a hold, no payment, no receipt, nothing on the
   statement, "decided by the deadline"; then the Rewind, the safety record and the decision centre).
+- **Say it, then see it** (`?story=say`; `sayStory.ts`): one sentence in The Table's Say it box, read
+  with a fixed word list (no AI) into chips; the Rewind's timeline draws the week behind Maya, the gold
+  Now line and the next 72 hours (the walk-away forecast as dashed ticks, one per forecast line) and what
+  her new rules would allow over them; a sentence with a part missing asks one question instead of
+  guessing; Review rules opens the approval window with the rules filled in. 9 beats, 83 s, on Maya's
+  sample week. `{ do: 'say', text }` types the sentence for the viewer (the window keeps it in its own
+  storage and the frames follow), and `{ do: 'owner', rules }` opens the approval window's editor on the
+  rules that sentence reads to, as Review rules does. `{ do: 'look', at }` only scrolls the framed window to the part the
+  caption is about (the Say it box, the chips, the track, the open tables); it presses nothing. The sentence ends "for 3 days", so it means the
+  same on any day. It never signs: nothing in a beat can.
 - **First run** (`?story=first-run`; `firstRunStory.ts`): the onboarding on a brand-new wallet,
   94 s. Every frame and the page's own mock core open in the `?first_run=1` world (the page adds
   `first_run=1` to its own address), so the sample week's stored state is never touched. The

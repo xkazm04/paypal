@@ -512,4 +512,44 @@ mod proof_file_tests {
             assert_eq!(format!("agent.{}", wire.as_str().unwrap()), slot.key_name());
         }
     }
+    /// The rules draft Main's "Say it" hands to the approval window, exactly as the client sends it
+    /// (typed clause shapes, an empty payee list, an item band): it reads as the `Rules` variant,
+    /// and a field it does not know is refused (the draft is closed, like every other).
+    #[test]
+    fn a_rules_draft_reads_as_the_client_sends_it() {
+        let sent = r#"{"type":"rules","agent":"negotiator","not_before":1793358240,"expires":1793379600,"clauses":[
+            {"type":"roles","roles":["buy"]},
+            {"type":"counterparties","rule":{"type":"paired"}},
+            {"type":"per_deal","kind":"haggle","max_amount":{"minor":34000,"currency":"USD"},"categories":["office"]},
+            {"type":"band","item_refs":["monitor-27-4k"],"floor":null,"ceiling":{"minor":34000,"currency":"USD"},"max_rounds":6,"deadline":1793379600},
+            {"type":"velocity","max_deals_day":2,"max_total_day":{"minor":34000,"currency":"USD"}},
+            {"type":"human_present_over","amount":{"minor":32000,"currency":"USD"}},
+            {"type":"payees","payees":[]}]}"#;
+        let draft: ApprovalDraft = serde_json::from_str(sent).unwrap();
+        let ApprovalDraft::Rules {
+            agent,
+            not_before,
+            expires,
+            clauses,
+            focus,
+        } = draft
+        else {
+            panic!("not the rules variant");
+        };
+        assert_eq!(agent, AgentSlot::Negotiator);
+        assert!(expires > not_before);
+        assert_eq!(clauses.len(), 7);
+        assert_eq!(focus, None);
+        let with_focus = sent.replacen(r#""type":"rules""#, r#""type":"rules","focus":4"#, 1);
+        assert!(matches!(
+            serde_json::from_str::<ApprovalDraft>(&with_focus),
+            Ok(ApprovalDraft::Rules { focus: Some(4), .. })
+        ));
+        let with_extra = sent.replacen(
+            r#""agent":"negotiator""#,
+            r#""agent":"negotiator","sign":true"#,
+            1,
+        );
+        assert!(serde_json::from_str::<ApprovalDraft>(&with_extra).is_err());
+    }
 }

@@ -2883,3 +2883,23 @@ Each table's proof file (`deal_export_proof`) is verified on the page and at exi
   -D warnings`, `cargo test --workspace --no-fail-fast` (exit 0), `cargo deny check` (advisories,
   bans, licenses, sources ok); client `pnpm typecheck`, `pnpm test` (211 files / 2029 tests),
   `pnpm build`. The one client change: `OwnerConfig.tsx` names the new engine id.
+
+## Say it, then see it (2026-10-30, hackathon branch killer-1030/e5)
+
+Docs: [features/say-it.md](../features/say-it.md). One sentence ("Haggle for a monitor, up to $340, ask me above $320, six
+offers, until Friday") is read by a fixed grammar (`lib/say`, no model) into editable chips, handed to the approval
+window as a typed `ApprovalDraft::Rules` (shape-checked in Rust, signed only there), and shown on the Rewind's timeline,
+which now runs past a gold Now line into the forecast's 72 hours.
+
+- Built: the reader (95 phrasings, fuzz), chips (said / filled in / open / unsure with one question), item tie-in to the
+  owner's own items, the typed draft, the hand-off (+ `focus` to a rule), the timeline past now (ticks one per forecast
+  line, headline from the Tumbler's `walkAway()`, the rules' reach, open tables against the owner's numbers, zoom, keys,
+  snap, hold on Now), speech input and read-back behind feature checks, the Tumbler's all-clear ticker, the director
+  story `?story=say`.
+- Deviations: the Rewind's playhead used to stop at now; it now runs 72 h past it (the day-anchor test was re-pinned and
+  a test for the dashed ticks added). `walkWhat/walkWho/walkWhen` in `windows/tumbler/logic.ts` are exported.
+  `ApprovalDraft` has a fourth variant, `Rules`; bindings regenerated; no authority row changed (no new command).
+- UNVERIFIED / not done: selling by sentence; "start tomorrow"; what a draft would have done last week (the what-if is
+  approval-window-only); a real microphone and the browser's speech service; the native shell has never been run
+  interactively. The "if the price stays" lines compare an open table's latest price with the owner's two numbers; they
+  are a preview, not the wallet's check.

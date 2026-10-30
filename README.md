@@ -30,6 +30,11 @@ for browser preview. On top of that, these moonshot themes are built:
   signing (T12); market prices kept fresh under a signed rule (T15); subscription rescue with one
   owner-approved discount invoice, counted only when PayPal confirms it paid; plain-language questions
   to the Book, answered by the wallet's own reading (no AI).
+- **Say it, then see it:** the owner types or says one sentence ("Haggle for a monitor, up to $340, ask me above $320, six
+  offers, until Friday") and a fixed word list (no AI) shows how it read it as editable chips and a typed draft for the approval
+  window, where the owner signs. The Rewind then runs past a gold Now line into the next 72 hours: the walk-away forecast as dashed
+  ticks, what the new rules would allow over them, and the owner's open tables against their own numbers
+  ([docs/features/say-it.md](docs/features/say-it.md)).
 - **For Maya and for judges:** a first-run path to a first safe deal (the wallet's charter), two design
   polish passes, a WCAG 2.2 AA keyboard and screen-reader pass, the console main window (one decision
   centre with nested layers, below), and a no-install director that plays "Maya's week" across
@@ -104,7 +109,8 @@ down what answered. Details: [`crates/table-sandbox`](crates/table-sandbox/src/l
 "Maya's week" plays all three windows (The Table, the Tumbler and the approval window) side by side
 on sample data with a simulated clock: a haggle that needs her, a deadline that passes with no money
 moved, a payment request that does not match, and a hold that releases itself while The Table is
-closed. A static build also works: run `pnpm --dir apps/desktop/client build:director` (a plain
+closed. `director.html?story=say` plays "Say it, then see it": one sentence, what it means over the next three days, and Review
+rules opening the approval window on the rules it read. A static build also works: run `pnpm --dir apps/desktop/client build:director` (a plain
 `build`, and so the release build, does not include the director), then serve
 `apps/desktop/client/dist` and open `director.html` from it.
 

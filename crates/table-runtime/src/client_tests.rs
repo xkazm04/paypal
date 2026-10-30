@@ -890,6 +890,133 @@ async fn approval_open_targets_and_drafts_are_checked_prefill_only_and_never_sig
         (h.target, h.deal_id, h.draft),
         (Some(ApprovalTarget::Mandate), None, Some(floor))
     );
+    // A whole set of rules said in one sentence: kept for the editor, never signed, shape-checked only.
+    let rules = |agent, not_before, expires, clauses: Vec<Clause>| ApprovalDraft::Rules {
+        agent,
+        not_before,
+        expires,
+        clauses,
+        focus: None,
+    };
+    let said = vec![
+        Clause::Roles {
+            roles: vec![Role::Buy],
+        },
+        Clause::HumanPresentOver { amount: usd(32000) },
+        Clause::Payees { payees: Vec::new() },
+    ];
+    let sentence = rules(AgentSlot::Negotiator, 1_000, 2_000, said.clone());
+    actor
+        .execute::<()>(
+            caller("main", None),
+            open(None, Some(ApprovalTarget::Mandate), Some(sentence.clone())),
+        )
+        .await
+        .unwrap();
+    let h = handoff().await.unwrap();
+    assert_eq!(
+        (h.target, h.deal_id, h.draft),
+        (Some(ApprovalTarget::Mandate), None, Some(sentence.clone()))
+    );
+    // Only the mandate page can carry it, never a deal, and never a malformed list.
+    let twice = [said.clone(), said.clone()].concat();
+    let too_many = (0..10)
+        .map(|n| Clause::HumanPresentOver { amount: usd(n) })
+        .collect::<Vec<_>>();
+    for bad in [
+        open(None, None, Some(sentence.clone())),
+        open(
+            Some(deal.id),
+            Some(ApprovalTarget::Deal),
+            Some(sentence.clone()),
+        ),
+        open(
+            None,
+            Some(ApprovalTarget::Mandate),
+            Some(rules(AgentSlot::Negotiator, 1_000, 1_000, said.clone())),
+        ),
+        open(
+            None,
+            Some(ApprovalTarget::Mandate),
+            Some(rules(AgentSlot::Negotiator, -1, 2_000, said.clone())),
+        ),
+        open(
+            None,
+            Some(ApprovalTarget::Mandate),
+            Some(rules(AgentSlot::Negotiator, 1_000, 2_000, Vec::new())),
+        ),
+        open(
+            None,
+            Some(ApprovalTarget::Mandate),
+            Some(rules(AgentSlot::Negotiator, 1_000, 2_000, twice)),
+        ),
+        open(
+            None,
+            Some(ApprovalTarget::Mandate),
+            Some(rules(AgentSlot::Negotiator, 1_000, 2_000, too_many)),
+        ),
+    ] {
+        assert!(
+            actor
+                .execute::<()>(caller("main", None), bad)
+                .await
+                .is_err()
+        );
+    }
+    // A focus names one of the nine rules, and only those.
+    for focus in [Some(4), Some(1), Some(9)] {
+        let focused = match sentence.clone() {
+            ApprovalDraft::Rules {
+                agent,
+                not_before,
+                expires,
+                clauses,
+                ..
+            } => ApprovalDraft::Rules {
+                agent,
+                not_before,
+                expires,
+                clauses,
+                focus,
+            },
+            other => other,
+        };
+        actor
+            .execute::<()>(
+                caller("main", None),
+                open(None, Some(ApprovalTarget::Mandate), Some(focused)),
+            )
+            .await
+            .unwrap();
+    }
+    for focus in [Some(0), Some(10), Some(255)] {
+        let focused = ApprovalDraft::Rules {
+            agent: AgentSlot::Negotiator,
+            not_before: 1_000,
+            expires: 2_000,
+            clauses: said.clone(),
+            focus,
+        };
+        assert!(
+            actor
+                .execute::<()>(
+                    caller("main", None),
+                    open(None, Some(ApprovalTarget::Mandate), Some(focused))
+                )
+                .await
+                .is_err()
+        );
+    }
+    // The Tumbler routes but never carries a draft, this one included.
+    assert!(
+        actor
+            .execute::<()>(
+                caller("tumbler", None),
+                open(None, Some(ApprovalTarget::Mandate), Some(sentence))
+            )
+            .await
+            .is_err()
+    );
     // Targets without a draft, and the legacy configuration open.
     for target in [ApprovalTarget::Credentials, ApprovalTarget::Unlock] {
         actor

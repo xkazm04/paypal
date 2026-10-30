@@ -1069,3 +1069,4 @@ export * from './words/setup';
 export * from './words/approval';
 export * from './words/demo';
 export * from './words/proofcheck';
+export * from './words/say';

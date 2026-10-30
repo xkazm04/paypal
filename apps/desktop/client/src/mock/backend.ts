@@ -23,6 +23,7 @@ import type { ArgsOf, Backend, CommandName, EventName, InvokeOptions, PayloadOf,
 import { WalletError } from '../lib/contract';
 import { clockOffset, setClockOffset, simulateClock } from '../lib/clock';
 import { fairPriceOf } from '../lib/fairPrice';
+import { CLAUSE_NUMBER } from '../lib/mandateRules';
 import { formatMoney, nowUnix } from '../lib/format';
 import { buildMockState, fakeHash, fakeUlid, MOCK_OWNER_KEY_ID, type MockDeal, type MockGroup, type MockState } from './fixtures';
 import { safetyRecordOf } from './safety';
@@ -371,6 +372,13 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       case 'lever':
         if (t !== 'deal' || !dealId || find(dealId).deal.kind !== 'rescue') fail('INVALID', 'a lever draft needs a rescue deal');
         return;
+      case 'rules': {
+        // As check_draft: shape only (a mandate target, no deal, one clause of each kind, a start before the end).
+        const numbers = draft.clauses.map((c) => CLAUSE_NUMBER[c.type]);
+        if (t !== 'mandate' || dealId || !draft.clauses.length || draft.clauses.length > 9 || new Set(numbers).size !== numbers.length
+          || draft.not_before < 0 || draft.expires <= draft.not_before || (draft.focus != null && (draft.focus < 1 || draft.focus > 9))) fail('INVALID', 'the rules draft does not fit');
+        return;
+      }
       case 'table': {
         // As check_draft: owner configuration only, a live paired key, and for the house exactly
         // the table kept when its words were confirmed.
