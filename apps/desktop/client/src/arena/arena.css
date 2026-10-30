@@ -169,6 +169,9 @@ body.w-arena { margin: 0; background: var(--bg-deep); color: var(--text); }
 @media (max-width: 1100px) {
   .ar-main { grid-template-columns: 1fr; }
   .ar-top { flex-direction: column; align-items: flex-start; }
+  /* The table and its answer first; the deck below in two columns. */
+  .ar-centre { order: -1; }
+  .ar-suit ul { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ar-fig-n, .ar-flying, .ar-answer, .ar-stamp, .ar-rows li { animation: none; }

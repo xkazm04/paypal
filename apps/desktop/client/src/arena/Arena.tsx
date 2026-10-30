@@ -52,6 +52,8 @@ export function Arena() {
   const [note, setNote] = useState('');
   const [sentNote, setSentNote] = useState<{ n: number; text: string } | null>(null);
   const [live, setLive] = useState('');
+  /** Bumped by "Start over": Maya's record panel counts "+N from you" from then on. */
+  const [session, setSession] = useState(0);
   const [auto, setAuto] = useState(() => new URLSearchParams(location.search).get('auto') === '1');
   const timer = useRef<number | null>(null);
   const dropRef = useRef<HTMLElement | null>(null);
@@ -69,6 +71,9 @@ export function Arena() {
       return next;
     });
     setView({ kind: 'answer', n, attack: a });
+    // On a narrow screen the table sits away from the deck: bring the answer into view.
+    const top = dropRef.current?.getBoundingClientRect().top;
+    if (top !== undefined && (top < 0 || top > window.innerHeight - 160)) dropRef.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
     const w = world();
     try {
       if (isRefusal(a.answer)) w?.refused(SAMPLE_DEAL, a.answer.clause);
@@ -121,7 +126,7 @@ export function Arena() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [play, finale, drag]);
+  }, [play, finale, drag.cancel]);
 
   // The film's round: one step every AUTO_MS, stopped by the viewer at any time.
   useEffect(() => {
@@ -209,11 +214,11 @@ export function Arena() {
         </section>
 
         <aside className="ar-side" aria-label={ARENA_SAFETY.heading}>
-          <SafetyPanel plays={plays} />
+          <SafetyPanel key={session} plays={plays} />
           <CheckIt />
           {view.kind === 'finale' ? null : <Gauntlet compact />}
           {auto ? <Btn sm onClick={() => setAuto(false)}>{ARENA_AUTO.stop}</Btn> : null}
-          {plays.length ? <Btn sm onClick={() => { setPlays([]); setSentNote(null); setView({ kind: 'empty' }); setLive(''); }}>{ARENA_RESET}</Btn> : null}
+          {plays.length ? <Btn sm onClick={() => { setPlays([]); setSentNote(null); setView({ kind: 'empty' }); setLive(''); setSession((x) => x + 1); }}>{ARENA_RESET}</Btn> : null}
         </aside>
       </main>
       <footer className="ar-foot"><p>{ARENA_HONEST}</p></footer>
