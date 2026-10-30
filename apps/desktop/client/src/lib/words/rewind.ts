@@ -116,6 +116,7 @@ export const REWIND_AHEAD = {
   whoShort: { default: 'Safe default', rule: 'Your rule', buyer: 'Buyer approved', maybe: 'If the buyer approves' },
   noMoney: 'no money moves',
   legend: 'Dashed ticks are forecast, not recorded',
+  legendShort: 'Forecast',
   forecastWord: 'forecast',
   hub: {
     eyebrow: (t: string): string => `If nothing changes · ${t}`,

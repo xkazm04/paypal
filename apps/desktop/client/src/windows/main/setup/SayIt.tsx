@@ -8,7 +8,7 @@ import { useMutation } from '../../../lib/hooks';
 import { parseMoneyText } from '../../../lib/format';
 import { plainWords, reachOf, type Chip } from '../../../lib/say/draft';
 import { readEnds, type Question, type SayCtx } from '../../../lib/say/read';
-import { listen, speechSupport, type Listening } from '../../../lib/say/speech';
+import { canReadAloud, listen, readAloud, speechSupport, type Listening } from '../../../lib/say/speech';
 import { sayAnswer, saySet, sayClear, sayUnanswer } from '../../../lib/say/store';
 import { NOTICE_WHAT, SAY, SAY_Q } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
@@ -48,6 +48,10 @@ export function SayIt({ className, compact = false, stepGold = true, timeline = 
   const canSpeak = useMemo(() => speechSupport() !== null, []);
   const [hearing, setHearing] = useState<Listening | null>(null);
   const [speechNote, setSpeechNote] = useState<string | null>(null);
+  // ...and what the rules allow can be read back aloud by the browser's own voice
+  const canRead = useMemo(() => canReadAloud(), []);
+  const [aloud, setAloud] = useState<(() => void) | null>(null);
+  useEffect(() => () => aloud?.(), [aloud]);
   useEffect(() => () => hearing?.stop(), [hearing]);
   const speak = () => {
     if (hearing) { hearing.stop(); return; }
@@ -119,7 +123,16 @@ export function SayIt({ className, compact = false, stepGold = true, timeline = 
           </ul>
           {detail ? <Detail c={detail} ctx={ctx} currency={reading.facts.currency} onDone={() => setPicked(null)} /> : null}
           {asking.map((c) => (c.question ? <Ask key={c.key} c={c} q={c.question} ctx={ctx} /> : null))}
-          {sentence ? <p className="say-plain"><b>{SAY.plain}</b> {sentence}</p> : null}
+          {sentence ? (
+            <p className="say-plain"><b>{SAY.plain}</b> {sentence}
+              {canRead ? (
+                <button type="button" className="say-aloud" aria-pressed={!!aloud} title={SAY.readBackTitle}
+                  onClick={() => { if (aloud) { aloud(); setAloud(null); } else { const stop = readAloud(sentence, () => setAloud(null)); if (stop) setAloud(() => stop); } }}>
+                  {aloud ? SAY.stopReading : SAY.readBack}
+                </button>
+              ) : null}
+            </p>
+          ) : null}
           {none ? <TryList onPick={tryLine} /> : null}
         </div>
       )}

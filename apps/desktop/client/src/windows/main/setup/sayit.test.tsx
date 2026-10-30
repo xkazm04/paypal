@@ -203,3 +203,34 @@ describe('speech is only an input behind a feature check', () => {
     expect(hoisted.opened).toEqual([]);
   });
 });
+
+describe('reading it back aloud is the browser’s own voice, behind a feature check', () => {
+  beforeEach(() => {
+    localStorage.clear(); sessionStorage.clear(); history.replaceState(null, '', '/index.html?first_run=1');
+    resetMockState(); hoisted.opened = []; hoisted.calls = []; hoisted.current = stubbed(); sayClear();
+  });
+  afterEach(() => { cleanup(); hoisted.current = null; sayClear(); vi.unstubAllGlobals(); });
+
+  it('has no button without a synthesiser', async () => {
+    await say(MAYA);
+    expect(screen.queryByRole('button', { name: SAY.readBack })).toBeNull();
+  });
+
+  it('with one, reads what the rules allow aloud and can stop', async () => {
+    const spoken: string[] = [];
+    let cancelled = 0;
+    class Utter { lang = ''; rate = 1; onend: (() => void) | null = null; onerror: (() => void) | null = null; constructor(public text: string) {} }
+    vi.stubGlobal('SpeechSynthesisUtterance', Utter);
+    vi.stubGlobal('speechSynthesis', { speak: (u: Utter) => { spoken.push(u.text); }, cancel: () => { cancelled += 1; } });
+    await say(MAYA);
+    fireEvent.click(await screen.findByRole('button', { name: SAY.readBack }));
+    expect(spoken).toHaveLength(1);
+    expect(spoken[0]).toContain('never agrees to more than $340');
+    expect(spoken[0]).toContain('Above $320 it stops and asks you');
+    fireEvent.click(await screen.findByRole('button', { name: SAY.stopReading }));
+    expect(cancelled).toBeGreaterThan(1);
+    // nothing but speech: no command was sent
+    expect(hoisted.opened).toEqual([]);
+  });
+});
+

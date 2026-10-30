@@ -65,6 +65,9 @@ button.say-pillbody:focus-visible { outline: 2px solid var(--focus); outline-off
 .say .say-heard { margin: 0; color: var(--dim); font-size: var(--fs-small); }
 .say .say-plain { margin: 0; color: var(--muted); line-height: 1.5; max-width: 56rem; }
 .say .say-plain b { color: var(--text); font-weight: var(--fw-semibold); }
+.say .say-aloud { margin-left: var(--sp-3); padding: 0 var(--sp-2); min-height: var(--target); font: inherit; font-size: var(--fs-small); color: var(--teal-l); background: none; border: 1px solid var(--line2); border-radius: var(--r-pill); cursor: pointer; }
+.say .say-aloud:hover { border-color: var(--teal); }
+.say .say-aloud:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 /* the one question, and an edit in place */
 .say .say-q { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border: 1px dashed var(--gold); border-radius: var(--r-tight); max-width: 46rem; }

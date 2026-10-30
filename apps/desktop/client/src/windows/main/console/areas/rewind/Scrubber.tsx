@@ -182,7 +182,7 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
         </span>
         <span className="rw-legend" aria-label={REWIND_BAR.legend}>
           {LEGEND.map((tone) => <span key={tone} title={TICK_WORD[tone]}><TickMark tone={tone} />{REWIND_BAR.legendShort[tone]}</span>)}
-          {r.ahead ? <span title={REWIND_AHEAD.legend}><i className="rw-fmark" aria-hidden="true" />Forecast</span> : null}
+          {r.ahead ? <span title={REWIND_AHEAD.legend}><i className="rw-fmark" aria-hidden="true" />{REWIND_AHEAD.legendShort}</span> : null}
         </span>
         {r.ahead ? (
           <span className="rw-zoom" role="group" aria-label={REWIND_AHEAD.zoom.label}>

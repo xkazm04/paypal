@@ -52,3 +52,35 @@ export function listen(h: { onText: (text: string) => void; onDone: (text: strin
   try { rec.start(); } catch (err) { h.onFail(err instanceof Error ? err.name : 'error'); return null; }
   return { stop: () => { try { rec.stop(); } catch { /* already stopped */ } } };
 }
+
+// ---- reading it back aloud (the browser's own synthesiser; nothing is sent by this code, and it is off without one)
+
+type Synth = { speak: (u: unknown) => void; cancel: () => void };
+type UtteranceCtor = new (text: string) => { lang: string; rate: number; onend: (() => void) | null; onerror: (() => void) | null };
+
+const synth = (w: Window): { s: Synth; U: UtteranceCtor } | null => {
+  const x = w as unknown as { speechSynthesis?: Synth; SpeechSynthesisUtterance?: UtteranceCtor };
+  return x.speechSynthesis && x.SpeechSynthesisUtterance ? { s: x.speechSynthesis, U: x.SpeechSynthesisUtterance } : null;
+};
+
+/** The browser can read text aloud. */
+export const canReadAloud = (w: Window = window): boolean => synth(w) !== null;
+
+/** Read `text` aloud; returns a way to stop it, or null when there is no synthesiser. `onEnd` runs when it finishes or fails. */
+export function readAloud(text: string, onEnd: () => void, w: Window = window): (() => void) | null {
+  const x = synth(w);
+  if (!x) return null;
+  try {
+    x.s.cancel();
+    const u = new x.U(text);
+    u.lang = 'en-US';
+    u.rate = 0.95;
+    u.onend = onEnd;
+    u.onerror = onEnd;
+    x.s.speak(u);
+  } catch {
+    return null;
+  }
+  return () => { try { x.s.cancel(); } catch { /* nothing playing */ } };
+}
+
