@@ -64,6 +64,8 @@ pub struct App {
     booted: Instant,
     /// Print each call to the terminal (the binary); tests keep quiet.
     pub echo: AtomicBool,
+    /// Colour the terminal lines (a terminal that renders ANSI, and no `NO_COLOR`).
+    pub color: AtomicBool,
 }
 impl std::fmt::Debug for App {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -120,6 +122,7 @@ impl App {
             runs: AtomicU64::new(0),
             booted: Instant::now(),
             echo: AtomicBool::new(false),
+            color: AtomicBool::new(false),
         }))
     }
     /// The live world (the table now open).
@@ -389,11 +392,19 @@ impl App {
             (Some(tool), None) => tool.clone(),
             _ => entry.method.clone(),
         };
-        let mark = match entry.outcome {
-            Outcome::Answered => "  ok    ",
-            Outcome::Refused => "  NO    ",
-            Outcome::Protocol => "  ·     ",
-            Outcome::Error => "  !     ",
+        let color = self.color.load(Ordering::Relaxed);
+        let paint = |code: &str, text: &str| {
+            if color {
+                format!("\u{1b}[{code}m{text}\u{1b}[0m")
+            } else {
+                text.to_owned()
+            }
+        };
+        let (mark, tone) = match entry.outcome {
+            Outcome::Answered => ("  ok    ", "32"),
+            Outcome::Refused => ("  NO    ", "1;31"),
+            Outcome::Protocol => ("  ·     ", "2"),
+            Outcome::Error => ("  !     ", "33"),
         };
         let mut rule = entry.rule.clone();
         if let Some(detail) = &entry.detail {
@@ -402,17 +413,26 @@ impl App {
             rule.push(')');
         }
         let paypal = if entry.paypal == 0 {
-            "PayPal asked: 0".to_owned()
+            paint("32", "PayPal asked: 0")
         } else {
-            format!("PayPal asked: {} (recorded, never sent)", entry.paypal)
+            paint(
+                "1;33",
+                &format!("PayPal asked: {} (recorded, never sent)", entry.paypal),
+            )
+        };
+        let rule = printable(&rule, 110);
+        let rule = if entry.outcome == Outcome::Refused {
+            paint("31", &rule)
+        } else {
+            rule
         };
         format!(
             "  {:02}:{:02}  {:<26}{}{}   {}",
             secs / 60,
             secs % 60,
             printable(what.trim(), 26),
-            mark,
-            printable(&rule, 110),
+            paint(tone, mark),
+            rule,
             paypal
         )
     }

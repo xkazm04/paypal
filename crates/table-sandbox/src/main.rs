@@ -35,6 +35,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let sandbox = table_sandbox::boot(port).await?;
     let app = sandbox.app.clone();
     app.echo.store(true, Ordering::Relaxed);
+    let ansi = std::env::var_os("NO_COLOR").is_none()
+        && std::io::IsTerminal::is_terminal(&std::io::stdout())
+        && (cfg!(not(windows))
+            || std::env::var_os("WT_SESSION").is_some()
+            || std::env::var_os("TERM_PROGRAM").is_some());
+    app.color.store(ansi, Ordering::Relaxed);
     let url = format!("http://127.0.0.1:{port}");
     println!();
     println!("  The Table sandbox: a wallet your agent can't misuse");

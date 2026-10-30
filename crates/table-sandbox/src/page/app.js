@@ -95,7 +95,7 @@ function renderFacts() {
   const table = s.table && deal && s.table.deal_id === deal.id ? s.table : null;
   if (deal) {
     text("price", deal.price);
-    let words = STATES[deal.state] || deal.state.toLowerCase().replace(/_/g, " ");
+    let words = stateWords(deal);
     if (table && !deal.terminal) {
       const left = table.deadline - Math.floor(Date.now() / 1000);
       if (left > 0) words += " · closes in " + Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0");
@@ -109,29 +109,51 @@ function renderFacts() {
   renderAudit(s.audit || []);
 }
 
+// A deal's state in words; a deadline's safe default is told as itself, never as the agent's act.
+function stateWords(deal) {
+  if (deal.decided_by && deal.decided_by.type === "safe_default") {
+    return "The table's time ran out, and its safe default closed it";
+  }
+  return STATES[deal.state] || deal.state.toLowerCase().replace(/_/g, " ");
+}
+
 function renderBanner(deal) {
   const banner = $("banner");
   const fresh = $("fresh");
   let title = "";
   let body = "";
   const table = state.table && deal && state.table.deal_id === deal.id ? state.table : null;
-  const history = table ? table.history || [] : [];
-  const last = history[history.length - 1];
-  const yes = last && last.act === "accept" && last.by === "them" && table.our_last_price;
-  if (deal && !deal.terminal && yes) {
-    title = "The house seller said yes to " + money(table.our_last_price.minor) + ". Your agent cannot close it.";
+  const yes = table ? yesTo(table.history || []) : null;
+  if (deal && !deal.terminal && yes !== null) {
+    title = "The house seller said yes to " + money(yes) + ". Your agent cannot close it.";
     body = "Agreeing over " + state.rule.in_person + " needs you in person, and no owner is present in this sandbox. The deal waits for a person; no money moved.";
   } else if (deal && ["AGREED", "AWAITING_APPROVAL", "SETTLING"].includes(deal.state)) {
     title = "Your agent got the house seller to " + deal.price + ". It cannot pay.";
     body = "Agreeing over " + state.rule.in_person + " needs you in person, and no owner is present in this sandbox. No money moved.";
   } else if (deal && deal.terminal) {
-    title = (STATES[deal.state] || "The table closed") + ". No money moved.";
+    title = stateWords(deal) + ". No money moved.";
     body = "Open a fresh table to try again: a new house seller, the same rule you signed.";
   }
   banner.hidden = title === "";
   text("banner-title", title);
   text("banner-text", body);
   fresh.classList.toggle("gold", Boolean(deal && (deal.terminal || title !== "")));
+}
+
+// The price the house said yes to: its ACCEPT after our offer was the last priced step. (The house
+// also signs an ACCEPT of its own counter beside each counter; that is not a yes to us.)
+function yesTo(history) {
+  let priced = null;
+  let yes = null;
+  for (const step of history) {
+    if (step.price) {
+      priced = step;
+      yes = null;
+    } else if (step.act === "accept" && step.by === "them" && priced && priced.by === "you") {
+      yes = priced.price.minor;
+    }
+  }
+  return yes;
 }
 
 function renderSafety(safety) {
@@ -302,13 +324,16 @@ function renderChart() {
   const number = state.table_number;
   const points = [];
   if (table) {
-    let ours = null;
+    let priced = null;
+    let said = false;
     for (const step of table.history || []) {
       if (step.price && (step.act === "listing" || step.act === "offer" || step.act === "counter" || step.act === "accept")) {
         points.push({ at: step.at * 1000, side: step.by === "you" ? "you" : "them", price: step.price.minor, act: step.act });
-        if (step.by === "you") ours = step.price.minor;
-      } else if (step.act === "accept" && step.by === "them" && ours !== null) {
-        points.push({ at: step.at * 1000, side: "yes", price: ours, act: "accept" });
+        priced = step;
+        said = false;
+      } else if (step.act === "accept" && step.by === "them" && priced && priced.by === "you" && !said) {
+        points.push({ at: step.at * 1000, side: "yes", price: priced.price.minor, act: "accept" });
+        said = true;
       }
     }
   } else {
