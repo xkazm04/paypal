@@ -213,3 +213,37 @@ body.w-arena { margin: 0; background: var(--bg-deep); color: var(--text); }
   .ar-card.hint, .ar-sr-add { animation: none; }
   .ar-held.returning { transition: none; }
 }
+
+/* ---- the wire: attacker -> the wallet's rules -> PayPal --------------------------------------- */
+.ar-wire { display: grid; grid-template-columns: auto minmax(60px, 1fr) auto minmax(60px, 1fr) auto; align-items: center; gap: 0 10px;
+  padding: 4px 4px 14px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+.ar-node { position: relative; display: grid; justify-items: center; gap: 4px; min-width: 96px; }
+.ar-node-l { color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
+.ar-node-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--line2); }
+.ar-wire.s-agent .from .ar-node-dot { background: var(--ar-agent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--coral) 18%, transparent); }
+.ar-wire.s-counterparty .from .ar-node-dot { background: var(--ar-cp); box-shadow: 0 0 0 4px color-mix(in srgb, var(--steel) 22%, transparent); }
+.ar-wire .paypal .ar-node-dot { background: transparent; border: 2px dashed var(--line2); }
+.ar-wire.reached .paypal .ar-node-dot { background: var(--red); border-color: var(--red); }
+.ar-wall { width: 10px; height: 34px; border-radius: 3px; background: linear-gradient(var(--teal), var(--teal-l)); box-shadow: 0 0 14px color-mix(in srgb, var(--teal) 40%, transparent); }
+.ar-wall-v { min-height: 1.3em; font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--teal-l); white-space: nowrap; }
+.ar-wire.v-refused .ar-wall-v { color: var(--red-l); }
+.ar-wire.v-turnedAway .ar-wall-v { color: var(--coral-l); }
+.ar-seg { position: relative; height: 2px; background: var(--line2); }
+.ar-seg.b { background: repeating-linear-gradient(90deg, var(--line2) 0 6px, transparent 6px 12px); }
+.ar-wire.reached .ar-seg.b { background: var(--red); }
+.ar-seg-l { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); color: var(--teal-l); font-size: var(--fs-small); white-space: nowrap; }
+.ar-wire.p-idle .ar-seg-l { color: var(--dim); }
+.ar-pulse { position: absolute; top: 50%; left: 0; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; opacity: 0; background: var(--ar-agent);
+  box-shadow: 0 0 12px var(--ar-agent); }
+.s-counterparty .ar-pulse { background: var(--ar-cp); box-shadow: 0 0 12px var(--ar-cp); }
+.ar-wire.p-travel .ar-pulse { animation: ar-pulse 560ms cubic-bezier(.5, 0, .9, .6) forwards; }
+.ar-wire.p-travel .ar-seg.a { background: color-mix(in srgb, var(--coral) 55%, var(--line2)); }
+.ar-wire.p-hit .ar-pulse { left: 100%; opacity: 0; }
+.ar-wire.p-hit .ar-wall { animation: ar-wall 520ms var(--ease-out); }
+.ar-wire.p-hit.v-refused .ar-wall, .ar-wire.p-hit.v-turnedAway .ar-wall { background: linear-gradient(var(--red), var(--red-l)); box-shadow: 0 0 22px color-mix(in srgb, var(--red) 55%, transparent); }
+.ar-wire.p-hit .ar-wall-v { animation: ar-in var(--dur-med) var(--ease-out); }
+@keyframes ar-pulse { 0% { left: 0; opacity: 1; } 92% { left: 100%; opacity: 1; } 100% { left: 100%; opacity: 0; } }
+@keyframes ar-wall { 0% { transform: scale(1); } 25% { transform: scale(1.5, 1.15); } 60% { transform: scale(.9, 1); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .ar-wire.p-travel .ar-pulse, .ar-wire.p-hit .ar-wall, .ar-wire.p-hit .ar-wall-v { animation: none; }
+}

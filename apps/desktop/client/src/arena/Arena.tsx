@@ -21,6 +21,7 @@ import { useCardDrag } from './drag';
 import { cardForKey, counters, deck, dollars, verdictOf, wholeDollars } from './model';
 import { attackById, isRefusal, RECORD, type RecordedAttack, type TableStep } from './record';
 import { CheckIt, SafetyPanel, type Played } from './Side';
+import { Wire } from './Wire';
 import './arena.css';
 
 /** Maya's monitor haggle with Dan in the sample week: where a played refusal and a typed note land. */
@@ -169,6 +170,10 @@ export function Arena() {
         <section className="ar-centre">
           <TableFacts />
           <section ref={dropRef} className={`ar-drop${drag.held?.over ? ' over' : ''}${drag.held ? ' armed' : ''}`} aria-label={ARENA_TABLE.drop}>
+            {view.kind !== 'finale' ? (
+              <Wire attack={view.kind === 'landing' || view.kind === 'answer' ? view.attack : null} phase={view.kind === 'landing' ? 'travel' : view.kind === 'answer' ? 'hit' : 'idle'}
+                n={view.kind === 'answer' ? view.n : view.kind === 'landing' ? -nextN.current : 0} />
+            ) : null}
             {view.kind === 'landing' ? <Landing attack={view.attack} /> : null}
             {view.kind === 'answer' ? <Answer key={view.n} attack={view.attack} sentNote={sentNote && sentNote.n === view.n ? sentNote.text : null} noteDealId={sampleDealId} /> : null}
             {view.kind === 'finale' ? <Finale played={plays.map((p) => p.attack)} /> : null}

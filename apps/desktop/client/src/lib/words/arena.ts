@@ -256,6 +256,20 @@ export const ARENA_CHECK = {
   seed: (seed: string): string => `Recorded from seed ${seed}.`,
 } as const;
 
+/** The wire across the top of the table: who attacks, the wallet's rules, PayPal. */
+export const ARENA_WIRE = {
+  label: 'Where the attack went',
+  agent: 'Maya’s agent',
+  seller: 'The seller',
+  wall: 'The wallet’s rules',
+  paypal: 'PayPal',
+  requests: (n: number): string => (n === 1 ? '1 request' : `${n} requests`),
+  idle: 'Waiting for your attack',
+  stopped: 'Stopped here',
+  kept: 'Kept for Maya',
+  counted: 'Already had it',
+} as const;
+
 export const ARENA_RESET = 'Start over';
 export const ARENA_PREVIEW = 'Preview · recorded answers';
 export const ARENA_BROWSER_ONLY = 'This preview runs in a web browser only.';
