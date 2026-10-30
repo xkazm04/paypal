@@ -34,7 +34,8 @@ export default defineConfig({
         // Dev-only: the scenario director (src/director), served by `vite` dev and absent from the
         // release bundle (Tauri ships dist/). Built statically only by `pnpm build:director`
         // (THE_TABLE_DIRECTOR_BUILD=1) for the no-install judge path.
-        ...(process.env.THE_TABLE_DIRECTOR_BUILD === '1' ? { director: here('./director.html') } : {}),
+        // Break The Table (src/arena), the judge's attack page: the same dev-only, preview-only rule.
+        ...(process.env.THE_TABLE_DIRECTOR_BUILD === '1' ? { director: here('./director.html'), arena: here('./arena.html') } : {}),
       },
     },
   },

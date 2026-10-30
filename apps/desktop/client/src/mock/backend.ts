@@ -115,6 +115,13 @@ export interface MockWorld {
   reset(at?: number): void;
   /** Send a Rust-shaped event from this world to its target windows. */
   emit<E extends EventName>(event: E, payload: EventContract[E]): void;
+  /** Break The Table (arena.html): an agent request the wallet refused on a deal, as Rust's history
+   *  projects its recorded `intent.refused` row (a signed rule, its clause when the code names one).
+   *  It moves nothing and calls nothing. */
+  refused(label: string, clause: number | null): void;
+  /** Break The Table: the counterparty's signed NOTE arrives on a deal. Untrusted words, kept for the
+   *  owner and read only through the note chip; never an agent's input. */
+  note(label: string, text: string): void;
 }
 
 export type MockBackend = Backend & { readonly world: MockWorld };
@@ -1494,6 +1501,25 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       save();
     },
     emit,
+    refused(l, clause) {
+      const d = byLabel(l) ?? fail('NOT_FOUND', `no deal ${l}`);
+      const now = nowUnix();
+      const audit = state.audit ?? [];
+      state.audit = [...audit, { seq: audit.length + 1, at: now, actor: 'agent', action: 'intent.refused', deal_id: d.deal.id, decided_by: null, from: d.deal.state, to: d.deal.state }];
+      const history = state.history ?? buildMockState(nowUnix()).history ?? [];
+      const seq = history.reduce((m, h) => Math.max(m, h.seq), 0) + 1;
+      state.history = [...history, { at: now, deal_id: d.deal.id, seq, kind: 'intent_refused', state_after: null, authority: { type: 'signed_rule', clause: clause === 0 ? null : clause }, paypal: { type: 'none' } }];
+      save();
+      const s = attention();
+      emit('attention:changed', { ...s, stopped_today: s.stopped_today + 1 });
+    },
+    note(l, text) {
+      const d = byLabel(l) ?? fail('NOT_FOUND', `no deal ${l}`);
+      const seq = d.transcript.reduce((m, t) => Math.max(m, t.seq), 0) + 1;
+      state.notes = { ...(state.notes ?? {}), [d.deal.id]: { deal_id: d.deal.id, seq, text: [...text].slice(0, 280).join(''), at: nowUnix() } };
+      save();
+      emit('deal:changed', { deal: d.deal, mode: d.deal.mode });
+    },
   };
 
   // The approval window gets its summary pushed shortly after it opens, as the shell does.

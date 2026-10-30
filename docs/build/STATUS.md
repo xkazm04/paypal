@@ -2749,3 +2749,39 @@ Client gates in the worktree: tsc clean; vitest 211 files / 2022 tests passed (a
 agent-negotiation-run value-2 (ask a07e05ac): the owner chose "Keep as is, explain in UI". The seller's practice agent still accepts the first offer at or above its floor (`Policy::decide`, unchanged). The seller's own deal page now says so when its agent accepted exactly at the signed floor (`acceptedAtFloorLine` in `windows/main/deal/story.ts`, words `DEAL_AT_FLOOR`). Seller side only; the floor never reaches a buyer or counterparty view. Commit: 753cb28 (words only; no money logic, Rust, bindings or mock changed). tsc and vitest were not run (no client node_modules in the worktree).
 
 agent-negotiation-run value-2 follow-up (K-1): the at-floor line now compares the deal's agreed unit price (`terms.unit_price`) with the signed floor, because the signed ACCEPT carries no price (`display.rs:118`, `mock/backend.ts:952`), so the 753cb28 check never matched in the real app. Client words only; no Rust, mock or signed content changed. Commit: this commit. tsc and vitest were not run (no client node_modules in the worktree). Open: `mock/fixtures.ts:315` still carries a priced ACCEPT that disagrees with the Rust shape.
+
+agent-negotiation-run value-2 (ask a07e05ac): the owner chose "Keep as is, explain in UI". The seller's practice agent still accepts the first offer at or above its floor (`Policy::decide`, unchanged). The seller's own deal page now says so when its agent accepted exactly at the signed floor (`acceptedAtFloorLine` in `windows/main/deal/story.ts`, words `DEAL_AT_FLOOR`). Seller side only; the floor never reaches a buyer or counterparty view. Commit: 45dc3dc (words only; no money logic, Rust, bindings or mock changed). tsc and vitest were not run (no client node_modules in the worktree).
+
+## Break The Table: the judge plays the attacker (2026-10-30, hackathon killer-1030 e1)
+
+A browser-preview page (`apps/desktop/client/arena.html`, built by `build:director`, never in the
+release bundle or the shell) where anyone plays the attacker against Maya's agent and sees the real
+wallet's answers. Nothing on it is acted:
+
+- **Recorder and drift test** (`crates/table-app/tests/gauntlet/arena.rs`, included from
+  `tests/gauntlet.rs` with `#[path]` so it reuses the gauntlet's harness unchanged: the in-process MCP
+  router, the pipeline over the recording PayPal transport, the relay, the verdict predicate). Two
+  wallets on Maya's numbers (offers 250-340, no deal over 400, in person over 330, six offers) play a
+  real haggle (listing 389, offer 290, counter 335); then 14 named attacks land on it: 10 agent tool
+  calls (tool_absent, mandate_clause 3 twice, outside_band, owner_approval 6, out_of_scope,
+  invalid_request twice, session_not_enabled, deadline_passed) and 4 counterparty envelopes (a note
+  kept but never in the agent's table, an altered offer and a misdirected one turned away, a replay
+  counted once). Each record: what was sent, the tool result, the audit rows from the verified export,
+  PayPal requests at the transport, stored calls, money operations, the targeted deal's state and the
+  whole-ledger predicate. The test asserts every expectation itself, then compares with the pinned
+  `apps/desktop/client/src/arena/arena.json` (hashes and signatures scrubbed); `TABLE_ARENA_RECORD=1`
+  rewrites it. Gauntlet changes: a `last_answer` field and `note_with` (a note with given text).
+- **Page** (`src/arena/`, words `lib/words/arena.ts`): the deck in two suits plus a closing card,
+  pointer drag with spring-back, keys 1-0 / Q-R / C, the wire (attacker -> the wallet's rules ->
+  PayPal, lit only for requests the record shows), the answer (plain words first, the wallet's own
+  record one level down), Maya's safety record read again after every attack, a typed seller note
+  shown only through `NoteChip` and mapped (keywords, no model) onto the recorded attacks it asks
+  for, a downloadable file of the played attacks, `?auto=1` for a film take.
+- **Mock**: `MockWorld.refused` (an `intent_refused` history step, as Rust's history projects the
+  row) and `MockWorld.note` (the seller's note behind `counterparty_note`), so the console's safety
+  record and note chip in the shared preview world reflect what was played.
+- Deviation: the page shows refusal codes, audit actions and tool names, which the UX guide keeps off
+  the owner's screens. The arena is a proof surface for doubters, not an owner screen; they appear
+  only under "The wallet's own record", below the plain-words answer. The mock's safety record still
+  folds refusal families into two (it has no code per history step), unlike Rust's `family()`.
+- Gates: client typecheck, vitest, build; cargo fmt, clippy `-D warnings`, test --workspace.
