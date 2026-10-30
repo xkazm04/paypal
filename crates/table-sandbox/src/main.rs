@@ -36,6 +36,31 @@ fn options() -> Result<Options, String> {
     Ok(Options { port, rehearse })
 }
 
+/// Resolves on Ctrl+C (and on Windows also Ctrl+Break, which a console host can send to a
+/// process group). A signal that cannot be watched never resolves.
+async fn stop() {
+    let interrupt = async {
+        if tokio::signal::ctrl_c().await.is_err() {
+            std::future::pending::<()>().await;
+        }
+    };
+    #[cfg(windows)]
+    let brk = async {
+        match tokio::signal::windows::ctrl_break() {
+            Ok(mut signal) => {
+                signal.recv().await;
+            }
+            Err(_) => std::future::pending::<()>().await,
+        }
+    };
+    #[cfg(not(windows))]
+    let brk = std::future::pending::<()>();
+    tokio::select! {
+        () = interrupt => {}
+        () = brk => {}
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let Options { port, rehearse } = options()?;
@@ -93,9 +118,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let _ = axum::serve(v6, router).await;
         });
     }
-    let serving = axum::serve(listener, app.clone().router()).with_graceful_shutdown(async {
-        let _ = tokio::signal::ctrl_c().await;
-    });
+    let serving = axum::serve(listener, app.clone().router()).with_graceful_shutdown(stop());
     serving.await?;
     let state = app.snapshot().await;
     println!();
@@ -121,8 +144,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some((bundle, report)) = app.proof_now().await {
         let passed = report.checks.iter().filter(|c| c.ok).count();
         println!(
-            "  This table's proof file ({}): {} by the offline verifier, {} checks pass.",
-            bundle.deal.id,
+            "  This table's proof file: {} by the offline verifier, {} checks pass.",
             if report.verified() {
                 "verified"
             } else {
@@ -130,6 +152,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
             passed
         );
+        // The session's proof, saved where nothing in the repository picks it up.
+        let path = std::env::temp_dir().join(format!("table-{}.tableproof", bundle.deal.id));
+        match serde_json::to_vec_pretty(&bundle).map(|bytes| std::fs::write(&path, bytes)) {
+            Ok(Ok(())) => {
+                println!("  Saved: {}", path.display());
+                println!(
+                    "  Check it yourself: cargo run -p table-verify --bin table-verify -- \"{}\"",
+                    path.display()
+                );
+            }
+            _ => println!("  The proof file could not be saved."),
+        }
     }
     if let Some(world) = app.world() {
         world.close().await;
