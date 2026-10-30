@@ -51,7 +51,10 @@ export function SidesCard({ mine, candidates, own, headingLevel }: { mine: Side 
   const differ = lines.some((l) => l.agree === false);
 
   return (
-    <section className="pk-sides" aria-label={W.sides.head}>
+    // A file dropped on this card is the other side's; anywhere else on the page it replaces this one.
+    <section className="pk-sides" aria-label={W.sides.head}
+      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const f = e.dataTransfer.files[0]; if (f) void pick(f); }}>
       <H className="pk-h">{W.sides.head}</H>
       <p className="ui-hint">{W.sides.intro}</p>
       <div className="pk-acts">
@@ -63,6 +66,7 @@ export function SidesCard({ mine, candidates, own, headingLevel }: { mine: Side 
         <input ref={input} type="file" accept=".tableproof,.json,application/json" className="sr-only" tabIndex={-1} aria-hidden="true"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void pick(f); e.target.value = ''; }} />
       </div>
+      <p className="ui-hint">{W.sides.drop}</p>
       {reading ? <p className="ui-hint" role="status">{W.sides.comparing}</p> : null}
       {other && 'refused' in other ? <p className="pk-refused" role="alert">{other.refused}</p> : null}
       {lines.length > 0 ? (

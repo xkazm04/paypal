@@ -85,6 +85,7 @@ export const PROOF_CHECKER = {
     intro: 'A deal has two files, one from each wallet. Add the other side’s file and see whether the two tell the same story.',
     use: (label: string) => `Use: ${label}`,
     open: 'Choose the other side’s file',
+    drop: 'Or drop it on this card.',
     remove: 'Take the other file away',
     comparing: 'Checking the other file…',
     agree: 'The two files tell the same story',

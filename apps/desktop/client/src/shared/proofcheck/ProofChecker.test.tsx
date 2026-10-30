@@ -207,3 +207,17 @@ describe('the report as text', () => {
     expect(text).toContain('Checked in the browser, not by the wallet.');
   });
 });
+
+describe('dropping a file', () => {
+  it('on the other side’s card makes it the other side’s file; anywhere else it replaces this one', async () => {
+    const { container } = render(<ProofChecker source={{ ...SAMPLE_PROOF }} samples={[SAMPLE_PROOF, BUYER_PROOF]} own={AUTHORITY_MANIFEST} />);
+    await checked();
+    fireEvent.drop(container.querySelector('.pk-sides') as HTMLElement, { dataTransfer: { files: [new File([BUYER_PROOF.text], 'theirs.tableproof')] } });
+    await screen.findByText('The two files tell the same story', {}, TIMEOUT);
+    expect(container.querySelector('.pk-name .mono')?.textContent).toBe(SAMPLE_PROOF.name); // this file stayed
+    expect(container.querySelector('.pk-agreed .dim')?.textContent).toBe('theirs.tableproof');
+    // anywhere else: it replaces the file being checked
+    fireEvent.drop(container.querySelector('.pk-grid') as HTMLElement, { dataTransfer: { files: [new File([BUYER_PROOF.text], 'mine-now.tableproof')] } });
+    await waitFor(() => expect(container.querySelector('.pk-name .mono')?.textContent).toBe('mine-now.tableproof'), TIMEOUT);
+  });
+});
