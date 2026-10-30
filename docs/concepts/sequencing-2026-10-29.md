@@ -115,6 +115,7 @@ Recorded at the owner's standup of 2026-10-30.
 - **D2 = re-film at the END of the project** ("we are far from over"). The film rows move to the end of the sequence.
 - **D3 = undecided; keep it as it is.** No live spike runs.
 - **D7 (film freeze) moves with D2.**
+- **Film date confirmed:** the re-film (R1, R10) and the film freeze (D7) land before R11 (Nov 11), confirmed by the owner 2026-10-30.
 
 ## Decisions for the owner
 
