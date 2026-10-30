@@ -63,7 +63,7 @@ export const SAY = {
   summaryNone: 'Say a rule above and it appears here.',
   tryLines: [
     'Haggle for a monitor, up to $340, ask me above $320, six offers, until Friday',
-    'Buy supplies up to $100 each, $150 a day, ask me above $50',
+    'Buy supplies up to $100 each, $150 a day, ask me above $50, for a week',
     'Haggle for a standing desk up to $600 and ask me before paying, for 3 days',
     'Get a laptop stand for no more than $80 from the house seller until tomorrow 5pm',
   ],

@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { it } from 'vitest';
 import { read, type SayCtx } from './read';
 import { chipsOf, rulesOf } from './draft';
@@ -1211,7 +1211,9 @@ it('redteam', () => {
       lines.push(`#${n}${tag} ${JSON.stringify(text)}\n   CRASH ${(e as Error).message}`);
     }
   };
-  for (const t of S) run(t, ctx, '');
+  const INPUT: string[] = process.env.RT_IN ? JSON.parse(readFileSync(process.env.RT_IN, 'utf8')) : S;
+  for (const t of INPUT) run(t, ctx, '');
+  if (!process.env.RT_IN) {
   // extras: long, adversarial, other clocks
   run('haggle for a monitor up to $340 ' + 'and '.repeat(95) + 'ask me above $320', ctx, ' [long~400]');
   run('haggle for a monitor up to $340 ' + 'x'.repeat(380) + ' ask me above $320', ctx, ' [long>400]');
@@ -1274,7 +1276,8 @@ it('redteam', () => {
     'Haggle for a monitor up to $340, until dec 31',
   ];
   for (const [name, c] of clocks) for (const t of dateSentences) run(t, c, ` [clock ${name}]`);
+  }
   void seen;
   const out = [`TOTAL ${n}`, `CRASHES ${crashes.length}`, ...crashes, '', ...lines].join('\n');
-  writeFileSync('C:/t/redteam.out', out, 'utf8');
+  writeFileSync(process.env.RT_OUT ?? 'C:/t/redteam.out', out, 'utf8');
 }, 120000);

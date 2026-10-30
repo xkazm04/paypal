@@ -3,6 +3,7 @@
 // is not sure of is never guessed (it asks one question and stays out); what was not said is filled
 // with a safe default and marked as filled; nothing here signs or calls anything.
 import { describe, expect, it } from 'vitest';
+import { SAY } from '../words';
 import { read, readEnds, type Answers, type SayCtx } from './read';
 
 const at = (y: number, mo: number, d: number, h = 0, mi = 0): number => Date.UTC(y, mo - 1, d, h, mi) / 1000;
@@ -540,3 +541,17 @@ describe('reviewed: answers never undo each other, and "one" is not part of an i
     expect(say(t, { who: 'paired' }).facts.who).toBe('paired');
   });
 });
+
+describe('the "Try saying" lines always read (they are the owner’s way in)', () => {
+  for (const line of SAY.tryLines) {
+    it(line, () => {
+      const r = say(line);
+      expect(r.facts.job).toBe('buy');
+      expect(r.questions).toEqual([]);
+      expect(r.leftover).toEqual([]);
+      expect(r.facts.ceiling).not.toBeNull();
+      expect(r.from.ends).toBe('said');
+    });
+  }
+});
+
