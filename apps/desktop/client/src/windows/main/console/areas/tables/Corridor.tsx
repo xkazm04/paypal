@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type Keyboard
 import { usePrefersReducedMotion } from '../../../../../lib/hooks';
 import { TABLES_WATCH as W } from '../../../../../lib/words';
 import { Btn } from '../../../../../shared/ui';
-import { captionOf, frameAt, lunge, playbook, spread, stepTo, trackOf, xOf, type Beat, type Haggle, type Playbook } from '../../../modules/tables/corridor';
+import { captionOf, ease, frameAt, LEAD_MS, lunge, playbook, spread, stepTo, trackOf, xOf, type Beat, type Haggle, type Playbook } from '../../../modules/tables/corridor';
 import { short } from '../../../modules/tables/ladder';
 
 const pct = (f: number): string => `${(f * 100).toFixed(3)}%`;
@@ -79,6 +79,8 @@ export function Corridor({ haggle, who, autoplay = true, big = false, compact = 
   const burst = f.snap && !reduced ? f.snap.p : 0;
   const pulse = (since: number | null) => (since === null || reduced ? 0 : clamp01(since / PULSE_MS));
   const met = f.snap?.p === 1;
+  // The walls draw in before the first offer lands: the limit rises, the lane fades in, the gold edge runs.
+  const drawn = reduced ? 1 : ease(clamp01(at / LEAD_MS));
 
   // Close pucks are drawn apart (more so with a gate between them); the snap brings them together.
   const [restF, themF] = f.you !== null && f.them !== null && !f.snap
@@ -124,20 +126,20 @@ export function Corridor({ haggle, who, autoplay = true, big = false, compact = 
 
       <div className="hc-track" aria-hidden="true" ref={trackRef} style={shake ? { transform: `translateX(${shake.toFixed(2)}px)` } : undefined}>
         {haggle.market ? (
-          <div className="hc-lane" style={{ left: pct(x(haggle.market.p25)), width: pct(x(haggle.market.p75) - x(haggle.market.p25)) }}>
+          <div className="hc-lane" style={{ left: pct(x(haggle.market.p25)), width: pct(x(haggle.market.p75) - x(haggle.market.p25)), opacity: drawn }}>
             <span className="hc-median" style={{ left: pct((x(haggle.market.median) - x(haggle.market.p25)) / Math.max(1e-9, x(haggle.market.p75) - x(haggle.market.p25))) }} />
             <span className="hc-lane-label">{W.marketRange(m(haggle.market.p25), m(haggle.market.p75))}</span>
           </div>
         ) : null}
         {call !== null ? (
-          <div className={`hc-call${call < track.lo ? ' off' : ''}`} style={buyer ? { left: pct(x(call)), right: 0 } : { left: 0, right: pct(1 - x(call)) }}>
+          <div className={`hc-call${call < track.lo ? ' off' : ''}`} style={{ ...(buyer ? { left: pct(x(call)), right: 0 } : { left: 0, right: pct(1 - x(call)) }), clipPath: `inset(0 ${((1 - drawn) * 100).toFixed(1)}% 0 0)` }}>
             <span>{buyer ? W.yourCall(m(call)) : W.yourCallBelow(m(call))}</span>
           </div>
         ) : null}
         <div className="hc-rail" />
         {track.ticks.map((p) => <span key={p} className="hc-tick" style={{ left: pct(x(p)) }} />)}
         {wall !== null ? (
-          <div className={`hc-wall${f.refusal && f.refusal.clause === 4 ? ' hit' : ''}`} style={{ left: pct(x(wall)) }}>
+          <div className={`hc-wall${f.refusal && f.refusal.clause === 4 ? ' hit' : ''}`} style={{ left: pct(x(wall)), '--drawn': drawn.toFixed(3) } as CSSProperties}>
             <span className="hc-wall-label">{buyer ? W.most : W.least} <b className="num">{m(wall)}</b></span>
           </div>
         ) : null}

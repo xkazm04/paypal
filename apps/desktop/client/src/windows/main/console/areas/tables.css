@@ -173,12 +173,14 @@
 .hc-call.off { left: 0 !important; }
 .hc-call.off span::before { content: "\2190  "; }
 .hc.seller .hc-call span { left: auto; right: 0; }
-.hc-wall { position: absolute; top: -6%; bottom: -6%; width: 4px; transform: translateX(-50%); border-radius: 2px; background: color-mix(in srgb, var(--text) 82%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 60%, transparent), 0 0 .9rem color-mix(in srgb, var(--text) 18%, transparent); }
+.hc-wall { --drawn: 1; position: absolute; top: -6%; bottom: -6%; width: 4px; transform: translateX(-50%); }
+/* the bar itself rises from the rail as the walls draw in; its label stays put */
+.hc-wall::before { content: ""; position: absolute; inset: 0; border-radius: 2px; transform: scaleY(var(--drawn)); transform-origin: 50% 61%;
+  background: color-mix(in srgb, var(--text) 82%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 60%, transparent), 0 0 .9rem color-mix(in srgb, var(--text) 18%, transparent); }
 .hc-wall-label { position: absolute; top: calc(100% + 6px); right: -2px; font-size: var(--fs-small); color: var(--muted); white-space: nowrap; }
 .hc.seller .hc-wall-label { right: auto; left: -2px; }
 .hc-wall-label b { color: var(--text); font-weight: var(--fw-semibold); }
-.hc-wall.hit { background: var(--refuse); box-shadow: 0 0 1.2rem color-mix(in srgb, var(--refuse) 60%, transparent); }
+.hc-wall.hit::before { background: var(--refuse); box-shadow: 0 0 1.2rem color-mix(in srgb, var(--refuse) 60%, transparent); }
 
 .hc-dot { position: absolute; top: 55%; width: 7px; height: 7px; border-radius: 50%; transform: translate(-50%, -50%); }
 .hc-dot.them { background: var(--coral); margin-top: -16px; }
