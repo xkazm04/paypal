@@ -134,6 +134,7 @@ export const REWIND_AHEAD = {
     over: (price: string, most: string): string => `${price} · over your most of ${most}, so your agent would not agree`,
     open: 'Open this deal',
   },
+  zoom: { label: 'Scale', week: 'Week', ahead: 'Next 72 h', weekTitle: 'Show the whole week and the next 72 hours', aheadTitle: 'Zoom to the last day and the next 72 hours' },
   beyond: 'beyond the forecast',
   tickNow: 'Runs the next time The Table checks',
   tickIf: 'Only if the buyer approves on PayPal',

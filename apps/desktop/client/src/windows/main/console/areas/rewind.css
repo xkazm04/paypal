@@ -181,6 +181,12 @@
 @keyframes rw-cross { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 70%, transparent); } 60% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--gold) 0%, transparent); } 100% { box-shadow: 0 0 8px color-mix(in srgb, var(--gold) 60%, transparent); } }
 @keyframes rw-glow { from { background: color-mix(in srgb, var(--gold) 16%, transparent); } to { background: transparent; } }
 
+/* the scale: the whole week, or the last day and the 72 hours ahead in more room */
+.ar-rewind .rw-host .rw-zoom { flex: none; display: inline-flex; border: 1px solid var(--line2); border-radius: 12px; overflow: hidden; }
+.ar-rewind .rw-host .rw-zoom button { height: 22px; padding: 0 var(--sp-2); border: 0; background: none; color: var(--muted); cursor: pointer; font: var(--fw-medium) var(--fs-small)/1 var(--font); white-space: nowrap; }
+.ar-rewind .rw-host .rw-zoom button[aria-pressed="true"] { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold-l); }
+.ar-rewind .rw-host .rw-zoom button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
 /* the tables open now for the item just said, each against the two numbers the owner gave */
 .ar-rewind .rw-host .rw-peeks { display: flex; flex-direction: column; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); margin: var(--sp-1) 0 var(--sp-2); border-left: 2px solid var(--teal); background: color-mix(in srgb, var(--teal) 5%, transparent); }
 .ar-rewind .rw-host .rw-peekh { margin: 0; color: var(--text); font-weight: var(--fw-semibold); }

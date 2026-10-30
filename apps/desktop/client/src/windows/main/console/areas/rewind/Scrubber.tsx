@@ -28,6 +28,8 @@ const TICK_GAP_PX = 7;
 /** A drag that lets go this close (of the track) to an event lands on it. */
 const SNAP = 0.008;
 const DAY = 86400;
+/** The zoomed track starts this long before now: the last stretch of what happened, then the forecast. */
+const ZOOM_BACK = DAY;
 
 export type Labeller = (dealId: string) => { deal: Deal; label: string; title: string } | null;
 
@@ -45,7 +47,7 @@ export type Ahead = {
 
 type Lane = { key: string; f: number; dx: number };
 /** Spread ticks that sit within CLUSTER of each other side by side, centred on the first. */
-function spread<T extends { at: number }>(items: readonly T[], r: Pick<RewindState, 'start' | 'stop'>, key: (x: T) => string): Array<Lane & { x: T }> {
+function spread<T extends { at: number }>(items: readonly T[], r: { start: number; stop: number }, key: (x: T) => string): Array<Lane & { x: T }> {
   const out: Array<Lane & { x: T }> = [];
   const clusters: T[][] = [];
   for (const s of items) {
@@ -64,13 +66,25 @@ function spread<T extends { at: number }>(items: readonly T[], r: Pick<RewindSta
 export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: RewindState; labelOf: Labeller; onOpenDeal: (id: string) => void; onExit: () => void; ahead?: Ahead }) {
   const track = useRef<HTMLDivElement>(null);
   const drag = useRef(false);
-  const span = Math.max(1, r.stop - r.start);
-  const frac = (t: number) => weekFraction(t, r.start, r.stop);
+  // The track shows the whole week, or (the current week only) the last day and the 72 hours ahead, in more room.
+  // A sentence was just read: the track zooms in on the days its rules cover (one tap goes back to the week).
+  const said = !!ahead?.reach;
+  const [zoom, setZoom] = useState(said);
+  const zoomed = zoom && r.ahead;
+  const wasSaid = useRef(said);
+  useEffect(() => {
+    if (said && !wasSaid.current) setZoom(true);
+    wasSaid.current = said;
+  }, [said]);
+  const vStart = zoomed ? Math.max(r.start, r.now - ZOOM_BACK) : r.start;
+  const vStop = zoomed ? r.limit : r.stop;
+  const span = Math.max(1, vStop - vStart);
+  const frac = (t: number) => weekFraction(t, vStart, vStop);
   const past = useMemo(() => {
-    const lane = laneSteps(r.steps).filter((s) => labelOf(s.deal_id));
-    return spread<HistoryStep>(lane, r, (s) => `${s.deal_id}-${s.seq}`).map((p) => ({ ...p, tone: tickTone(p.x) }));
-  }, [r.steps, r.start, r.stop, labelOf]); // eslint-disable-line react-hooks/exhaustive-deps
-  const future = useMemo(() => (r.ahead && ahead?.ticks ? spread<FutureTick>(ahead.ticks, r, (t) => t.key) : []), [r.ahead, ahead?.ticks, r.start, r.stop]); // eslint-disable-line react-hooks/exhaustive-deps
+    const lane = laneSteps(r.steps).filter((s) => labelOf(s.deal_id) && s.at >= vStart);
+    return spread<HistoryStep>(lane, { start: vStart, stop: vStop }, (s) => `${s.deal_id}-${s.seq}`).map((p) => ({ ...p, tone: tickTone(p.x) }));
+  }, [r.steps, vStart, vStop, labelOf]);
+  const future = useMemo(() => (r.ahead && ahead?.ticks ? spread<FutureTick>(ahead.ticks, { start: vStart, stop: vStop }, (t) => t.key) : []), [r.ahead, ahead?.ticks, vStart, vStop]);
   const head = frac(r.t);
   const nowF = frac(r.now);
   const limitF = frac(r.limit);
@@ -97,7 +111,7 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
     const el = track.current;
     if (!el) return r.t;
     const box = el.getBoundingClientRect();
-    return r.start + ((clientX - box.left) / Math.max(1, box.width)) * span;
+    return vStart + ((clientX - box.left) / Math.max(1, box.width)) * span;
   };
   const snap = (t: number): number => {
     let best = t;
@@ -122,11 +136,11 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
     const hop = e.shiftKey ? DAY : 3600;
     // Arrow keys go event by event; with Shift a day, with Alt an hour.
     const nextStop = () => stops.find((s) => s > r.t + 1) ?? r.limit;
-    const prevStop = () => [...stops].reverse().find((s) => s < r.t - 1) ?? r.start;
+    const prevStop = () => [...stops].reverse().find((s) => s < r.t - 1) ?? vStart;
     const keys: Record<string, () => void> = {
       ArrowRight: () => r.seek(e.shiftKey || e.altKey ? r.t + hop : nextStop()),
       ArrowLeft: () => r.seek(e.shiftKey || e.altKey ? r.t - hop : prevStop()),
-      Home: () => r.seek(r.start), End: () => r.seek(r.limit),
+      Home: () => r.seek(vStart), End: () => r.seek(r.limit),
       n: () => r.seek(r.now), N: () => r.seek(r.now),
       ' ': () => (r.playing ? r.pause() : r.play()),
     };
@@ -138,16 +152,18 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
     k();
   };
 
-  // One anchor per day of the track (the current week's track runs a few days past Sunday).
+  // One anchor per day of the track (the current week's track runs a few days past Sunday; zoomed, it starts partway through a day).
   const days = useMemo(() => {
     const out: Array<{ label: string; at0: number; mid: number; edge: number }> = [];
-    for (let at0 = r.start, i = 0; at0 < r.stop; at0 += DAY, i++) {
-      const width = Math.min(DAY, r.stop - at0);
-      if (width < 6 * 3600 && i >= 7) continue;
-      out.push({ label: REWIND_BAR.days[i % 7] ?? '', at0, mid: (at0 - r.start + width / 2) / span, edge: (at0 - r.start) / span });
+    for (let at0 = r.start + Math.floor((vStart - r.start) / DAY) * DAY; at0 < vStop; at0 += DAY) {
+      const from = Math.max(at0, vStart);
+      const to = Math.min(at0 + DAY, vStop);
+      const i = Math.round((at0 - r.start) / DAY);
+      if (to - from < 6 * 3600 && (i >= 7 || from > vStart)) continue;
+      out.push({ label: REWIND_BAR.days[((i % 7) + 7) % 7] ?? '', at0, mid: ((from + to) / 2 - vStart) / span, edge: (from - vStart) / span });
     }
     return out;
-  }, [r.start, r.stop, span]);
+  }, [r.start, vStart, vStop, span]);
 
   const ruleEndF = ahead?.reach && ahead.reach.until > r.now ? frac(Math.min(ahead.reach.until, r.limit)) : null;
   const ruleBeyond = !!ahead?.reach && ahead.reach.until > r.limit;
@@ -168,6 +184,12 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
           {LEGEND.map((tone) => <span key={tone} title={TICK_WORD[tone]}><TickMark tone={tone} />{REWIND_BAR.legendShort[tone]}</span>)}
           {r.ahead ? <span title={REWIND_AHEAD.legend}><i className="rw-fmark" aria-hidden="true" />Forecast</span> : null}
         </span>
+        {r.ahead ? (
+          <span className="rw-zoom" role="group" aria-label={REWIND_AHEAD.zoom.label}>
+            <button type="button" aria-pressed={!zoomed} onClick={() => setZoom(false)} title={REWIND_AHEAD.zoom.weekTitle}>{REWIND_AHEAD.zoom.week}</button>
+            <button type="button" aria-pressed={zoomed} onClick={() => setZoom(true)} title={REWIND_AHEAD.zoom.aheadTitle}>{REWIND_AHEAD.zoom.ahead}</button>
+          </span>
+        ) : null}
         {r.ahead ? <button type="button" className="rw-tonow" onClick={() => { r.pause(); r.seek(r.now); }} title={REWIND_AHEAD.jumpNow} disabled={Math.abs(r.t - r.now) < 2}>{REWIND_AHEAD.nowFlag}</button> : null}
         <button type="button" className="rw-live" onClick={onExit} title={REWIND_BAR.nowTitle}>{REWIND_BAR.now}</button>
       </div>
