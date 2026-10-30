@@ -13,7 +13,7 @@ import type { TumblerPreferences } from '@bindings/TumblerPreferences';
 import type { VisualState } from '@bindings/VisualState';
 import { LADDER } from '@bindings/ladder';
 import { clockLabel, countdown, formatMinor, nowUnix } from '../../lib/format';
-import { headlineWords, houseWords, MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_SILENCE, modeWord, moneyCheckWord, ruleNameOf, SELLER_SAYS_PAID, shieldRuleWord, silenceWords, stateWord, timeLeftWords } from '../../lib/words';
+import { headlineWords, houseWords, MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_SILENCE, modeWord, moneyCheckWord, ruleNameOf, SELLER_SAYS_PAID, shieldRuleWord, silenceWords, stateWord, timeLeftWords, REWIND_AHEAD, SAY_TICKER } from '../../lib/words';
 
 /** Rust's size table (crates/table-attention placement.rs). The page never sends pixels;
  *  this copy exists only so the browser preview can draw a frame of the same size. */
@@ -442,6 +442,37 @@ export function stopTicker(stoppedToday: number, mode: Mode): Ticker {
     kind: 'stop',
     l1: ['Request ', 'stopped', ' by your rules'],
     l2: `${stoppedToday} stopped today · nothing was paid`,
+    mode,
+    dealId: null,
+    ms: TICKER_MS.default,
+  };
+}
+
+/** "$0.00" reads "$0"; "$12.50" stays. */
+export const plainMoney = (money: string): string => money.replace(/\.00(?!\d)/g, '');
+
+/** The walk-away headline in sentences: the first is what leaves (always $0: the forecast has no step that sends money out),
+ *  the rest what else the forecast states. The timeline over the week and the Tumbler's all-clear ticker both say exactly this. */
+export function walkHeadline(w: Extract<WalkAway, { known: true }>, scheduled: number): { lead: string; sentences: string[] } {
+  const sentences: string[] = [REWIND_AHEAD.leaves(plainMoney(w.out ?? '$0'))];
+  if (w.releases) sentences.push(REWIND_AHEAD.holds(w.releases));
+  if (w.inSure) sentences.push(REWIND_AHEAD.comesIn(plainMoney(w.inSure)));
+  if (w.inUpTo) sentences.push(REWIND_AHEAD.comesInIf(plainMoney(w.inUpTo)));
+  if (!scheduled) sentences.push(REWIND_AHEAD.nothing);
+  return { lead: REWIND_AHEAD.walkAway, sentences };
+}
+
+/** The last thing that needed the owner is gone: say so, and what happens if they now walk away, in the timeline's own words.
+ *  Null when the forecast could not be read (then nothing is promised). */
+export function allClearTicker(s: Pick<AttentionSnapshot, 'forecast' | 'wallet_spend_today_currency'>, mode: Mode): Ticker | null {
+  const w = walkAway(s);
+  if (!w.known) return null;
+  const h = walkHeadline(w, s.forecast?.length ?? 0);
+  return {
+    key: key('clear'),
+    kind: 'info',
+    l1: [`${h.lead}: `, h.sentences[0] ?? '', h.sentences.length > 1 ? ` ${h.sentences.slice(1).join(' ')}` : ''],
+    l2: SAY_TICKER.clear,
     mode,
     dealId: null,
     ms: TICKER_MS.default,

@@ -8,7 +8,7 @@ import { reachOf } from '../../../../../lib/say/draft';
 import { read } from '../../../../../lib/say/read';
 import { mockForecast } from '../../../../../mock/forecast';
 import { buildMockState } from '../../../../../mock/fixtures';
-import { walkAway } from '../../../../tumbler/logic';
+import { allClearTicker, walkAway } from '../../../../tumbler/logic';
 import { futureSaid, futureTicks, HORIZON_SECS, headlineOf, plainMoney, ruleLine } from './future';
 
 const NOW = 1_800_000_000;
@@ -110,6 +110,21 @@ describe('the headline', () => {
     expect(plainMoney('$0.00')).toBe('$0');
     expect(plainMoney('$12.50')).toBe('$12.50');
     expect(plainMoney('$1,200.00 + €10.00')).toBe('$1,200 + €10');
+  });
+});
+
+describe('the Tumbler says the same thing when the last decision is gone', () => {
+  it('its all-clear ticker reads exactly the timeline headline', () => {
+    const f = [line({ action: 'auto_void', at: NOW + 5 * H }), line({ action: 'auto_void', at: NOW + 8 * H, deal_id: '01JD00000000000000000000A2' })];
+    const t = allClearTicker({ forecast: f, wallet_spend_today_currency: 'USD' }, 'sandbox');
+    const h = headlineOf(f);
+    expect(t?.l1.join('')).toBe(`${h.lead}: ${h.rest}`);
+    expect(t?.l1.join('')).toBe('If you walk away: $0 leaves. 2 holds end on their own.');
+    expect(t?.kind).toBe('info');
+  });
+  it('says nothing at all when the forecast could not be read', () => {
+    expect(allClearTicker({ forecast: null, wallet_spend_today_currency: 'USD' }, 'sandbox')).toBeNull();
+    expect(allClearTicker({ forecast: undefined, wallet_spend_today_currency: 'USD' }, 'sandbox')).toBeNull();
   });
 });
 

@@ -141,3 +141,8 @@ export const SAY_Q = {
   askKeep: (most: string): string => `Never ask, up to ${most}`,
   leftover: (what: string): string => `I didn’t understand “${what}”. It stays out of the rules.`,
 } as const;
+
+/** The Tumbler's all-clear ticker: the same walk-away headline the timeline shows, on one line. */
+export const SAY_TICKER = {
+  clear: 'all clear · nothing moves without you',
+} as const;

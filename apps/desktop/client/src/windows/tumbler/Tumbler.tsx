@@ -25,7 +25,7 @@ import { PuckArt } from './Puck';
 import { CardForm, HandoffForm, StackForm, TabForm, TickerForm, WelcomeForm } from './forms';
 import {
   plainItems,
-  NO_HANDOFF, SECONDS, ackTicker, arrivals, arrivalsTicker, canReview, dndPreferences, handoffEnded, nextFocus, puckLook, puckName, puckTarget, receiptTicker,
+  NO_HANDOFF, SECONDS, ackTicker, allClearTicker, arrivals, arrivalsTicker, canReview, dndPreferences, handoffEnded, nextFocus, puckLook, puckName, puckTarget, receiptTicker,
   restForm, rung, rungNotice, silenceClause, snoozeEligible, snoozeTicker, sortItems, stopTicker, tickerMayShow, type CardAction, type Handoff, type Rung, type Ticker,
 } from './logic';
 
@@ -179,6 +179,11 @@ export function Tumbler() {
       pushTicker(stopTicker(next.stopped_today, next.items[0]?.mode ?? 'sandbox'));
     }
     prevStopped.current = next.stopped_today;
+    // the last thing that needed her is gone: say what happens if she walks away now, in the timeline's own words
+    if (prev && prev.length > 0 && next.items.length === 0) {
+      const clear = allClearTicker(next, prev[0]?.mode ?? 'sandbox');
+      if (clear) pushTicker(clear);
+    }
 
     // the hand-off ends when its deal leaves the list or turns into a hold
     if (handoffEnded(handoffRef.current, next.items)) {

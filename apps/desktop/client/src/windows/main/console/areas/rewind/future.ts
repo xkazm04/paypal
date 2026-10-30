@@ -7,7 +7,9 @@ import type { ForecastLine } from '@bindings/ForecastLine';
 import { formatMinor } from '../../../../../lib/format';
 import type { Reach } from '../../../../../lib/say/draft';
 import { REWIND_AHEAD } from '../../../../../lib/words';
-import { walkAway } from '../../../../tumbler/logic';
+import { plainMoney, walkAway, walkHeadline } from '../../../../tumbler/logic';
+
+export { plainMoney };
 
 /** The forecast's reach (crates/table-runtime FORECAST_HORIZON_SECS; windows/tumbler/walkaway.test.ts pins it). */
 export const HORIZON_SECS = 72 * 3600;
@@ -58,9 +60,6 @@ export function futureSaid(l: ForecastLine, title: string): string {
   }
 }
 
-/** "$0.00" reads "$0", "$12.50" stays. */
-export const plainMoney = (money: string): string => money.replace(/\.00(?!\d)/g, '');
-
 export type Headline = {
   /** "If you walk away" */
   lead: string;
@@ -78,12 +77,8 @@ export function headlineOf(forecast: ForecastLine[] | null | undefined, walletCu
   const lead = REWIND_AHEAD.walkAway;
   const w = walkAway({ forecast, wallet_spend_today_currency: walletCurrency });
   if (!w.known) return { lead, rest: REWIND_AHEAD.unknown, known: false, out: null, holds: 0 };
-  const parts: string[] = [REWIND_AHEAD.leaves(plainMoney(w.out ?? '$0'))];
-  if (w.releases) parts.push(REWIND_AHEAD.holds(w.releases));
-  if (w.inSure) parts.push(REWIND_AHEAD.comesIn(plainMoney(w.inSure)));
-  if (w.inUpTo) parts.push(REWIND_AHEAD.comesInIf(plainMoney(w.inUpTo)));
-  if (!forecast?.length) parts.push(REWIND_AHEAD.nothing);
-  return { lead, rest: parts.join(' '), known: true, out: w.out, holds: w.releases };
+  const h = walkHeadline(w, forecast?.length ?? 0);
+  return { lead, rest: h.sentences.join(' '), known: true, out: w.out, holds: w.releases };
 }
 
 /** What the rules the owner said would allow, as one sentence for under the headline. */
