@@ -58,6 +58,9 @@ pub enum LedgerError {
     PinExpired,
 }
 const SCHEMA_VERSION: i64 = 16;
+/// How many times [`Ledger::write`] runs a write transaction that SQLite reports busy. Each run
+/// already waited out the connection's busy timeout (5 s) for the lock.
+const WRITE_ATTEMPTS: usize = 3;
 /// Deliberately no public raw-SQL/connection API. Only typed repositories cross this edge.
 #[derive(Debug)]
 pub struct Ledger {
@@ -158,6 +161,35 @@ impl Ledger {
     pub fn write_count(&self) -> u64 {
         self.conn.total_changes()
     }
+    /// Runs `body` in one `BEGIN IMMEDIATE` transaction and commits it. When a lock wait runs out
+    /// (SQLite busy, at BEGIN, in `body` or at COMMIT) the transaction is rolled back whole and
+    /// re-run from BEGIN, at most [`WRITE_ATTEMPTS`] times, so `body` re-reads what the lock
+    /// holder committed. Any other error returns at once; nothing partial is ever committed.
+    pub(crate) fn write<T>(
+        &mut self,
+        mut body: impl FnMut(&Connection) -> Result<T, LedgerError>,
+    ) -> Result<T, LedgerError> {
+        let mut attempt = 1;
+        loop {
+            let outcome = (|| {
+                let tx = self
+                    .conn
+                    .transaction_with_behavior(TransactionBehavior::Immediate)?;
+                let value = body(&tx)?;
+                tx.commit()?;
+                Ok(value)
+            })();
+            match outcome {
+                Err(error) if busy(&error) && attempt < WRITE_ATTEMPTS => attempt += 1,
+                outcome => return outcome,
+            }
+        }
+    }
+}
+/// SQLite could not get a lock within the busy timeout. Dropping the transaction rolls it back,
+/// a failed COMMIT included (it leaves the transaction open), so a re-run starts clean.
+fn busy(error: &LedgerError) -> bool {
+    matches!(error, LedgerError::Sql(rusqlite::Error::SqliteFailure(e, _)) if e.code == rusqlite::ErrorCode::DatabaseBusy)
 }
 pub(crate) fn hash_blob(blob: Vec<u8>) -> Result<H256, LedgerError> {
     Ok(H256(

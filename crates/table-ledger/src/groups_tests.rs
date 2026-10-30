@@ -715,3 +715,66 @@ fn two_inbound_accepts_racing_on_two_connections_make_exactly_one_agreement() {
         ledger.verify_audit().unwrap();
     }
 }
+
+/// Set once the loser's busy handler has given up on a lock wait.
+static LOSER_GAVE_UP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// Gives up on the first lock wait, as the 5 s busy timeout does when a stalled runner keeps the
+/// winner's lock longer; afterwards waits like a normal handler.
+fn give_up_once(_: i32) -> bool {
+    if !LOSER_GAVE_UP.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        return false;
+    }
+    std::thread::sleep(std::time::Duration::from_millis(1));
+    true
+}
+
+#[test]
+fn an_accept_whose_lock_wait_runs_out_still_meets_the_closed_group() {
+    let file = TempLedger::new();
+    let mut fx = Fixture::new(file.open(), 2);
+    fx.group();
+    fx.offer(0, 30000);
+    fx.offer(1, 30000);
+    fx.accept_in(0).unwrap();
+    fx.accept_in(1).unwrap();
+    let mut winner = file.open();
+    let mut loser = file.open();
+    let sign = |ledger: &Ledger, n: usize| {
+        let deal = ledger.get_deal(fx.deals[n].id).unwrap();
+        signed_by(
+            ledger,
+            &fx.own,
+            &deal,
+            &fx.sellers[n],
+            accept_body(ledger, deal.id),
+        )
+    };
+    let (won, lost) = (sign(&winner, 0), sign(&loser, 1));
+    loser.conn.busy_handler(Some(give_up_once)).unwrap();
+    // Table 0's agreeing ACCEPT holds the write lock until the loser's lock wait has run out.
+    let (held, holding) = std::sync::mpsc::channel();
+    let holder = std::thread::spawn(move || {
+        let tx = winner
+            .conn
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .unwrap();
+        crate::negotiation::commit_negotiation_in(&tx, &won, Direction::Outbound, None, None, 100)
+            .unwrap();
+        held.send(()).unwrap();
+        while !LOSER_GAVE_UP.load(std::sync::atomic::Ordering::SeqCst) {
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        tx.commit().unwrap();
+    });
+    holding.recv().unwrap();
+    let result = loser.commit_negotiation(&lost, Direction::Outbound, None, None, 100);
+    holder.join().unwrap();
+    assert!(LOSER_GAVE_UP.load(std::sync::atomic::Ordering::SeqCst));
+    assert!(
+        matches!(result, Err(LedgerError::GroupClosed)),
+        "{result:?}"
+    );
+    assert_eq!(fx.agreed(), 1);
+    assert_eq!(actions(&fx.ledger, "group.won"), 1);
+    fx.ledger.verify_audit().unwrap();
+}

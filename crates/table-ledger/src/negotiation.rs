@@ -242,6 +242,8 @@ impl Ledger {
         )?)
     }
     /// Typed Rust-only atomic semantic commit. Caller verifies mandate and protocol before this edge.
+    /// A racing writer that outlasts the busy timeout re-runs the whole transaction, so the group
+    /// guard re-reads and a losing ACCEPT ends in `GroupClosed`, never in a busy error.
     pub fn commit_negotiation(
         &mut self,
         verified: &VerifiedEnvelope,
@@ -250,12 +252,7 @@ impl Ledger {
         event: Option<DealEvent>,
         at: Timestamp,
     ) -> Result<(), LedgerError> {
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        commit_negotiation_in(&tx, verified, direction, terms, event, at)?;
-        tx.commit()?;
-        Ok(())
+        self.write(|tx| commit_negotiation_in(tx, verified, direction, terms, event, at))
     }
     /// Rejection reason and digest only: rejected payload text never reaches the audit log.
     pub fn receive(

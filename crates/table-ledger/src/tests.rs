@@ -3412,3 +3412,52 @@ fn an_exported_proof_carries_the_deal_mode_in_the_deal_the_file_and_the_created_
         assert_eq!(detail["mode"], text);
     }
 }
+
+#[test]
+fn a_busy_write_reruns_whole_and_any_other_error_returns_at_once() {
+    let busy = || {
+        LedgerError::Sql(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
+            None,
+        ))
+    };
+    let mut ledger = Ledger::in_memory().unwrap();
+    ledger
+        .conn
+        .execute_batch("CREATE TEMP TABLE writes(n INTEGER)")
+        .unwrap();
+    let rows = |ledger: &Ledger| -> i64 {
+        ledger
+            .conn
+            .query_row("SELECT COUNT(*) FROM writes", [], |r| r.get(0))
+            .unwrap()
+    };
+    // Busy after writing: that run rolls back and the next one commits alone.
+    let mut runs = 0;
+    ledger
+        .write(|tx| {
+            runs += 1;
+            tx.execute("INSERT INTO writes VALUES (?1)", [runs])?;
+            if runs == 1 { Err(busy()) } else { Ok(()) }
+        })
+        .unwrap();
+    assert_eq!((runs, rows(&ledger)), (2, 1));
+    // Any other error is returned from the first run, its writes rolled back.
+    let mut runs = 0;
+    let refused = ledger.write(|tx| {
+        runs += 1;
+        tx.execute("INSERT INTO writes VALUES (0)", [])?;
+        Err::<(), _>(LedgerError::GroupClosed)
+    });
+    assert!(matches!(refused, Err(LedgerError::GroupClosed)));
+    assert_eq!((runs, rows(&ledger)), (1, 1));
+    // Busy every time: bounded, and the busy error comes back.
+    let mut runs = 0;
+    let exhausted = ledger.write(|tx| {
+        runs += 1;
+        tx.execute("INSERT INTO writes VALUES (0)", [])?;
+        Err::<(), _>(busy())
+    });
+    assert!(exhausted.as_ref().is_err_and(super::busy));
+    assert_eq!((runs, rows(&ledger)), (WRITE_ATTEMPTS, 1));
+}
