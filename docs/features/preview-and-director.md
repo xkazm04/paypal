@@ -162,6 +162,10 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
    window points at `director`. The shell's CSP allows only `'self'` scripts and styles and no
    frames, so every page ships as bundled files.
 
+   `director.html?story=say` plays a third, "Say it, then see it" (`director/sayStory.ts`, 9 beats, about 95 s, on Maya's sample week): one sentence in
+   The Table's Say it box (`{ do: 'say', text, answers? }`), the Rewind's timeline past a gold Now line, a question it asks instead of guessing, and Review
+   rules opening the approval window on the rules it read (`{ do: 'owner', rules }`). Nothing in a beat can sign.
+
 ## Safety properties
 
 - **Never the wallet.** The mock is chosen only when the shell is absent; the director and the clock
