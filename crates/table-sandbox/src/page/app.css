@@ -97,6 +97,9 @@ main { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 20px; pa
 .chart .pt-label { fill: var(--ink); font-size: 11px; }
 .chart .x { stroke: var(--no); stroke-width: 3; stroke-linecap: round; }
 .chart .x-label { fill: var(--no); font-size: 11.5px; font-weight: 700; }
+.chart .market-band { fill: rgba(106, 168, 255, 0.07); }
+.chart .market-median { stroke: rgba(106, 168, 255, 0.35); stroke-width: 1; stroke-dasharray: 1 3; }
+.chart .market-label { fill: var(--muted); font-size: 11px; }
 .chart .yes-ring { fill: none; stroke: var(--gold); stroke-width: 2.5; }
 .chart .yes-label { fill: var(--gold); font-size: 11.5px; font-weight: 700; }
 .chart .hint { fill: var(--faint); font-size: 13px; }

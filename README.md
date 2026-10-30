@@ -80,7 +80,8 @@ What is real: the wallet actor, its loopback MCP server and run gate, the money 
 mandate checks, the signed rules, the hash-chained audit log, the house seller (its own deployed
 routes and policy) and the relay pump, all in one process on an in-memory ledger. What is swapped:
 PayPal (a recorder), the keychain (memory), Windows Hello (no owner is present, so nothing that needs
-one can happen) and the market service (none). Your agent's calls reach the wallet's own MCP server
+one can happen) and the market service (sample prices, read by the wallet's own market watch under
+the signed rule 9). Your agent's calls reach the wallet's own MCP server
 unchanged; the sandbox only carries them under the wallet's grant for the current turn and writes
 down what answered. Details: [`crates/table-sandbox`](crates/table-sandbox/src/lib.rs).
 

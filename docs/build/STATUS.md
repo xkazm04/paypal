@@ -2757,7 +2757,10 @@ memory, both PayPal clients on a recording transport that counts and refuses (no
 process; throwaway credentials minted per boot), the house seller (`services/house-seller`:
 `Seller::new`, `start`, its deployed `router`) in process as the counterparty, reached through the
 wallet's own relay pump over an in-process `RelayApi`. An owner rule is signed at boot by a
-throwaway owner key; `OsReauth` always refuses (no owner is present).
+throwaway owner key; `OsReauth` always refuses (no owner is present). Market prices are a labelled
+sample (`market::SampleMarket` behind `MarketApi`), fetched by the wallet's own market watch (T15)
+under the rule's clause 9 (a throwaway market key is stored because the watch runs only with one).
+Each table's proof file (`deal_export_proof`) is verified on the page and at exit by `table-verify`.
 
 - **No new grant path.** The wallet's MCP server executes intents only for a run the runtime
   started (`ActorBridge` needs a `RunId`; `agent_gate` checks the run). The outside agent takes the

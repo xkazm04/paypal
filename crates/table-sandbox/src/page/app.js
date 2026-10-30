@@ -55,6 +55,8 @@ const AUDIT = {
   "run.start": "Agent run started",
   "run.end": "Agent run ended",
   "mcp.outcome": "Told your agent the outcome",
+  "market.checked": "Rule 9: checked the market price (sample prices)",
+  "market.observed": "Stored the market price for your agent to read",
 };
 function auditWords(row) {
   if (row.action === "envelope.accepted") {
@@ -330,6 +332,12 @@ function renderChart() {
   for (let c = Math.ceil(bottom / 5000) * 5000; c <= top; c += 5000) {
     svg.append(el("line", { x1: L, x2: W - R, y1: y(c), y2: y(c), class: "grid" }));
     svg.append(el("text", { x: L - 8, y: y(c) + 4, "text-anchor": "end", class: "axis" }, "$" + c / 100));
+  }
+  if (table && table.market) {
+    const m = table.market;
+    svg.append(el("rect", { x: L, width: W - R - L, y: y(m.p75.minor), height: Math.max(1, y(m.p25.minor) - y(m.p75.minor)), class: "market-band" }));
+    svg.append(el("line", { x1: L, x2: W - R, y1: y(m.median.minor), y2: y(m.median.minor), class: "market-median" }));
+    svg.append(el("text", { x: W - R + 8, y: y(m.median.minor) + 4, class: "market-label" }, "Market " + short(m.p25.minor) + "–" + short(m.p75.minor) + " (sample)"));
   }
   const ceil = state.rule.ceiling_cents;
   svg.append(el("line", { x1: L, x2: W - R, y1: y(ceil), y2: y(ceil), class: "ceiling" }));

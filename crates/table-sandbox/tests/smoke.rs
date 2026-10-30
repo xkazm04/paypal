@@ -119,6 +119,18 @@ async fn an_outside_agent_is_told_no_at_the_signed_limit_and_paypal_is_never_ask
         table_sandbox::RULE_CEILING
     );
 
+    // Rule 9's market watch priced the item (sample prices), so the market tool answers.
+    let market = h.table_until(|t| t["market"]["fresh"] == true).await;
+    assert_eq!(market["market"]["median"]["minor"], 25_900);
+    let reference = h
+        .call(
+            30,
+            "market_reference",
+            json!({"item_ref": table_sandbox::ITEM}),
+        )
+        .await;
+    assert_eq!(reference["isError"], false, "{reference}");
+
     // Over the signed ceiling: refused by rule 4, which names its bound.
     let over = h
         .call(

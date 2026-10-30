@@ -17,6 +17,7 @@
 pub mod engine;
 pub mod front;
 pub mod journal;
+pub mod market;
 pub mod paypal;
 pub mod relay;
 
@@ -159,6 +160,15 @@ pub fn owner_clauses(now: Timestamp) -> Result<Vec<Clause>, BootError> {
         Clause::Payees {
             payees: vec![step(PayeeRef::new(HOUSE_PAYEE), "payee")?],
         },
+        // Rule 9: the wallet may keep the monitor's market price fresh (sample prices here). It
+        // reads prices only; it grants no money authority.
+        Clause::MarketWatch {
+            items: vec![WatchedItem {
+                item_ref: step(ItemRef::new(ITEM), "item")?,
+                product_id: market::PRODUCT.into(),
+            }],
+            max_refreshes_day: 50,
+        },
     ])
 }
 
@@ -296,6 +306,12 @@ impl World {
         // The buyer: the desktop's assembly with in-memory edges.
         let vault = Arc::new(MemoryVault::default());
         throwaway_credentials(vault.as_ref())?;
+        // The market watch runs only while a market key is stored; the sample market never reads
+        // this throwaway one.
+        step(
+            vault.write("channel3", random_hex()?.as_bytes()),
+            "market key",
+        )?;
         let api = Arc::new(table_paypal::Client::sandbox(
             Arc::new(paypal::Recording(recorders.buyer.clone())),
             Arc::new(VaultCredentials(vault.clone())),
@@ -314,6 +330,7 @@ impl World {
         )?
         .with_secondary(api)
         .with_relay(Arc::new(relay::InProcessRelay(house_routes)));
+        runtime.attach_market(Arc::new(market::SampleMarket(clock.clone())));
         runtime.sandbox_pin_house(release);
         let request = wallet(
             runtime.sandbox_house_request(step(PayeeRef::new("sandbox-buyer"), "payee")?),

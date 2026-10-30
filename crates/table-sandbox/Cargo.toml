@@ -16,6 +16,7 @@ table-core.workspace = true
 table-client.workspace = true
 table-engine.workspace = true
 table-ledger.workspace = true
+table-market.workspace = true
 table-mcp.workspace = true
 table-paypal.workspace = true
 table-proto.workspace = true

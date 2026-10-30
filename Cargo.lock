@@ -4283,6 +4283,7 @@ dependencies = [
  "table-core",
  "table-engine",
  "table-ledger",
+ "table-market",
  "table-mcp",
  "table-paypal",
  "table-proto",
