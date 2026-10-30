@@ -70,6 +70,13 @@ export function SayIt({ className, compact = false, stepGold = true, timeline = 
   const clear = () => { sayClear(); setTyped(''); setPicked(null); box.current?.focus(); };
 
   const asking = chips.filter((c) => c.state === 'unsure');
+  // A question was answered: its card goes, so the reading line (which says what is left) takes the focus, never the page.
+  const readAs = useRef<HTMLParagraphElement>(null);
+  const was = useRef(asking.length);
+  useEffect(() => {
+    if (asking.length < was.current) readAs.current?.focus({ preventScroll: true });
+    was.current = asking.length;
+  }, [asking.length]);
   const sentence = useMemo(() => plainWords(chips), [chips]);
   // `focus`: a rule (its kind) of the form the approval window should open at, from "Change it in the form" on a part.
   const review = async (focus?: Chip['rule']) => {
@@ -92,7 +99,7 @@ export function SayIt({ className, compact = false, stepGold = true, timeline = 
         <h2 id={`${id}-h`} className="say-title">{compact ? SAY.titleShort : SAY.title}</h2>
         {compact ? null : <p className="say-sub">{SAY.sub}</p>}
       </header>
-      <form className="say-form" onSubmit={submit} role="search" aria-label={SAY.label}>
+      <form className="say-form" onSubmit={submit} aria-label={SAY.label}>
         <label className="say-sr" htmlFor={`${id}-in`}>{SAY.label}</label>
         <input id={`${id}-in`} ref={box} className="ui-field say-input" type="text" value={typed} placeholder={SAY.placeholder} autoComplete="off" spellCheck={false}
           maxLength={400} onChange={(e) => setTyped(e.target.value)} aria-describedby={`${id}-note`} />
@@ -114,7 +121,7 @@ export function SayIt({ className, compact = false, stepGold = true, timeline = 
         <TryList onPick={tryLine} />
       ) : (
         <div className="say-read">
-          <p className="say-readas" role="status">
+          <p className="say-readas" role="status" ref={readAs} tabIndex={-1}>
             <b>{SAY.readAs}</b>
             <span className="say-ai">{SAY.noAi}</span>
             <span className={`say-left${asking.length ? ' q' : ''}`}>{asking.length ? SAY.stillOpen(asking.length) : rules ? SAY.ready : ''}</span>

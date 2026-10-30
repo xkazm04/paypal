@@ -35,6 +35,7 @@
 .say .say-read { display: flex; flex-direction: column; gap: var(--sp-2); }
 .say .say-readas { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-3); margin: 0; }
 .say .say-readas b { font-weight: var(--fw-semibold); }
+.say .say-readas:focus { outline: none; }
 .say .say-ai { color: var(--dim); font-size: var(--fs-small); }
 .say .say-left { margin-left: auto; color: var(--teal-l); font-size: var(--fs-small); font-weight: var(--fw-semibold); }
 .say .say-left.q { color: var(--gold-l); }
