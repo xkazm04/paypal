@@ -5,7 +5,7 @@
 // Book; the file never leaves the page.
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type DragEvent } from 'react';
 import { formatMoney } from '../../lib/format';
-import { applyEdits, readAt } from '../../lib/proof/edits';
+import { applyEdits } from '../../lib/proof/edits';
 import { fromView, placesIn, toFile, toView, type Place } from '../../lib/proof/fileText';
 import { locate } from '../../lib/proof/locate';
 import { fingerprint } from '../../lib/proof/fingerprint';
@@ -13,9 +13,10 @@ import { CHECK_IDS, type CheckLine } from '../../lib/proof/checks';
 import { editsFor, type TamperId } from '../../lib/proof/tamper';
 import { PROOF_FILE_LIMIT, TOO_LARGE } from '../../lib/proof/verify';
 import { isCalm } from '../../design/motion';
-import { modeWord, PROOF_ALL_THAT_APPLY, PROOF_CAUGHT, PROOF_NOTHING, PROOF_NOTHING_SAID, PROOF_CHECKER as W, PROOF_SHORT, PROOF_CHECKS, PROOF_NOT_APPLICABLE, PROOF_NOT_CHECKED, PROOF_SOME_UNCHECKED, PROOF_VERSION_MATCH, PERMISSIONS_FINGERPRINT, TAMPER_WORDS, TAMPERS_SHOWN } from '../../lib/words';
+import { modeWord, PROOF_ALL_THAT_APPLY, PROOF_CAUGHT, PROOF_CHECKER as W, PROOF_SHORT, PROOF_CHECKS, PROOF_SOME_UNCHECKED, PROOF_VERSION_MATCH, PERMISSIONS_FINGERPRINT, TAMPER_WORDS, TAMPERS_SHOWN } from '../../lib/words';
 import { KeyId } from '../ownerKey';
 import { Btn, Chip, Kv, Seg } from '../ui';
+import { caption, changed, dashedWords, kindOf, reportText } from './describe';
 import { SidesCard } from './SidesCard';
 import { useProofRun, type Facts, type RunState } from './useProofRun';
 import './proofcheck.css';
@@ -39,37 +40,6 @@ const parse = (text: string): unknown => {
   }
 };
 const SIXTEEN = CHECK_IDS.length;
-
-/** The reason a dashed line is dashed: nothing of its kind in the deal, or a check not made. */
-function dashedWords(line: CheckLine): string {
-  if (vacuous(line)) return PROOF_NOTHING[line.id] ?? W.nothing;
-  if (!line.applies) return PROOF_NOT_APPLICABLE[line.id] ?? PROOF_CHECKER_OLDER;
-  if (line.detail.includes('cannot check Ed25519')) return W.noEd25519;
-  if (line.detail.includes('this page does not') || line.detail.includes('this page ran into')) return W.notYetBuilt;
-  return PROOF_NOT_CHECKED;
-}
-const PROOF_CHECKER_OLDER = 'Not checked: files saved by older versions of the wallet don’t carry this record.';
-
-type Kind = 'ok' | 'bad' | 'dashed';
-/** A line the verifier passed because the file has nothing of its kind (no approval, no money step, no PayPal
- *  order): shown dashed, never as a tick that claims something was compared. */
-const vacuous = (line: CheckLine): boolean => line.ok && PROOF_NOTHING_SAID[line.id]?.test(line.detail) === true;
-const kindOf = (line: CheckLine): Kind => (vacuous(line) ? 'dashed' : line.ok ? 'ok' : line.checked && line.applies ? 'bad' : 'dashed');
-
-/** Every place two files differ, as a path with what was there and what is there now. */
-function changes(before: unknown, after: unknown, path = ''): Array<{ path: string; before: unknown; after: unknown }> {
-  if (JSON.stringify(before) === JSON.stringify(after)) return [];
-  const object = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
-  if (object(before) && object(after) && Array.isArray(before) === Array.isArray(after)) {
-    const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
-    return [...keys].flatMap((k) => changes(before[k], after[k], `${path}/${k}`));
-  }
-  return [{ path, before, after }];
-}
-const brief = (v: unknown): string => {
-  const text = typeof v === 'string' ? v : JSON.stringify(v) ?? '—';
-  return text.length > 36 ? `${text.slice(0, 35)}…` : text;
-};
 
 export function ProofChecker({ source, samples = [], own, heading = true, lede = true, level = 3, autoRun = false, autoTamper = null, startEditing = false, demo = false }: {
   source: ProofSource;
@@ -426,64 +396,6 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
       <div className="pk-drop" aria-hidden="true"><span>{W.dropNow}</span></div>
     </div>
   );
-}
-
-/** What a tamper does to this file, in numbers a person recognises. */
-function caption(tid: TamperId, doc: unknown, edits: ReturnType<typeof editsFor> & object): string {
-  const first = edits[0];
-  if (!first) return '';
-  const before = readAt(doc, first.path);
-  const currency = String(readAt(doc, '/deal/terms/unit_price/currency') ?? 'USD');
-  const money = (minor: unknown): string => (typeof minor === 'number' ? formatMoney({ minor, currency } as Parameters<typeof formatMoney>[0]) : '—');
-  switch (tid) {
-    case 'price':
-    case 'receipt':
-    case 'rules':
-      return `${money(before)} → ${money(first.value)}`;
-    case 'paypal-amount':
-      return `${String(before)} → ${String(first.value)} ${currency}`;
-    case 'payee':
-      return `${String(before)} → ${String(first.value)}`;
-    case 'audit-line':
-      return 'one number, a deadline moved later';
-    case 'audit-gap':
-      return first.path.replace('/audit/', 'record ').replace(/^record (\d+)$/, (_m, n: string) => `one of the ${(readAt(doc, '/audit') as unknown[]).length} records, the ${Number(n) + 1}th, removed`);
-    case 'signature':
-      return 'message 3, its signature’s first character';
-    case 'refund':
-      return 'a call to refund the capture';
-    case 'owner-key':
-      return 'the buyer’s owner key in its place';
-    case 'shield-release':
-      return 'the owner’s release of the safety hold, removed';
-    case 'market-price':
-      return `${money(before)} → ${money(first.value)}, the lowest comparable`;
-    case 'group-winner':
-      return 'the other table named the winner';
-    case 'group-agreed':
-      return 'the other table: withdrawn → receipted';
-    case 'request-id':
-      return `${String(before).slice(0, 14)}… → a-second-request-id`;
-    default:
-      return '';
-  }
-}
-/** How many values a hand edit changed, with the first one. */
-function changed(before: unknown, after: unknown): string {
-  if (after === null) return W.editedByHand;
-  const all = changes(before, after);
-  const [first] = all;
-  if (!first) return W.editedByHand;
-  return all.length === 1 ? `${brief(first.before)} → ${brief(first.after)}` : `${all.length} values, by hand (the first: ${brief(first.before)} → ${brief(first.after)})`;
-}
-
-// ---- the verdict, the lines, what the file says -----------------------------------------------
-
-/** The report as plain text, to paste somewhere: one line per check, the checker's own line under each. */
-export function reportText(name: string, lines: ReadonlyArray<CheckLine | null>, verdict: string): string {
-  const mark = (l: CheckLine): string => (kindOf(l) === 'ok' ? '✓' : kindOf(l) === 'bad' ? '✗' : '–');
-  const body = lines.flatMap((l) => (l ? [`${mark(l)} ${PROOF_CHECKS[l.id] ?? l.id}\n    ${l.detail}`] : []));
-  return [name, verdict, '', ...body, '', 'Checked in the browser, not by the wallet. Compare the owner key with the one the owner shows you.'].join('\n');
 }
 
 function Verdict({ state, made, bad, dashed, caught, onRun }: { state: RunState; made: number; bad: number; dashed: number; caught: string[]; onRun: () => void }) {
