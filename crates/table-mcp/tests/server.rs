@@ -1442,3 +1442,71 @@ async fn a_looping_session_is_budgeted_and_its_refusals_stop_growing_the_audit_l
     assert!(last.to_string().contains("budget"), "{last}");
     shared.lock().unwrap().ledger.verify_audit().unwrap();
 }
+/// Posts one JSON-RPC message without an id (a notification) and returns the status and raw body.
+async fn notify(server: &Arc<Server>, grant: &Grant, method: &str) -> (StatusCode, Vec<u8>) {
+    let r = Request::builder()
+        .method("POST")
+        .uri("/mcp")
+        .header("host", "127.0.0.1:8765")
+        .header("content-type", "application/json")
+        .header("x-wallet-session", &grant.token)
+        .header("x-wallet-secret", &grant.secret)
+        .body(Body::from(
+            json!({"jsonrpc":"2.0","method":method,"params":{"requestId":1,"reason":"stopped"}})
+                .to_string(),
+        ))
+        .unwrap();
+    let response = server.clone().router().oneshot(r).await.unwrap();
+    let status = response.status();
+    let bytes = to_bytes(response.into_body(), 65536).await.unwrap();
+    (status, bytes.to_vec())
+}
+#[tokio::test]
+async fn every_protocol_notification_is_accepted_with_no_body_and_nothing_else_runs_without_an_id()
+{
+    let (wallet, deal, _, _) = support::setup(Side::Buyer, DealKind::Haggle);
+    let shared = Arc::new(Mutex::new(wallet));
+    let server = Server::new(
+        Box::new(Shared(shared.clone())),
+        8765,
+        Arc::new(FixedClock(100)),
+    )
+    .unwrap();
+    let grant = server
+        .grant(AgentScope {
+            deal_id: deal.id,
+            role: AgentRole::Negotiator,
+            category: Category::Parts,
+        })
+        .unwrap();
+    let audits = || shared.lock().unwrap().ledger.audit_count().unwrap();
+    let before = audits();
+    // Streamable HTTP: an accepted notification is answered 202 Accepted with no body. A client
+    // cancelling a call it gave up on (`notifications/cancelled`) must not be told 400.
+    let mut answered = Vec::new();
+    for method in ["notifications/initialized", "notifications/cancelled"] {
+        let (status, body) = notify(&server, &grant, method).await;
+        answered.push((method, status, String::from_utf8(body).unwrap()));
+    }
+    assert_eq!(
+        answered,
+        vec![
+            (
+                "notifications/initialized",
+                StatusCode::ACCEPTED,
+                String::new()
+            ),
+            (
+                "notifications/cancelled",
+                StatusCode::ACCEPTED,
+                String::new()
+            ),
+        ]
+    );
+    // A request without an id is still refused: no tool runs on a message nobody can answer.
+    assert_eq!(
+        notify(&server, &grant, "tools/call").await.0,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(audits(), before);
+}
