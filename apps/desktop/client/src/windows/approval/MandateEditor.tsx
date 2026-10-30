@@ -10,7 +10,7 @@
 //
 // Commands kept as built: mandate_list (via OwnerConfig), mandate_sign (privileged, idle-locked,
 // Windows Hello through session.unlock), mandate_revoke (privileged, one click).
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import type { ApprovalDraft } from '@bindings/ApprovalDraft';
 import type { Clause } from '@bindings/Clause';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
@@ -71,6 +71,19 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
   const d = drafts[key] ?? (base ? withFloorSeed(draftFrom(base, t0), seeded ? seedFloor : null) : seedRules ? draftFromRules(seedRules, t0) : newDraft(t0));
   const setD = (x: MandateDraft) => setDrafts((all) => ({ ...all, [key]: x }));
   const [pane, setPane] = useState<Pane | null>(null);
+  // "Change it in the form" on a part of the sentence: show the limits, scroll to that rule and mark it once.
+  const focusAt = spoken ? seedRules?.focus ?? null : null;
+  useEffect(() => {
+    if (focusAt === null) return;
+    setPane('levers');
+    const id = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-clause="${focusAt}"]`);
+      el?.scrollIntoView?.({ block: 'center' });
+      el?.classList.add('ow-flash');
+      setTimeout(() => el?.classList.remove('ow-flash'), 2200);
+    }, 350);
+    return () => clearTimeout(id);
+  }, [focusAt]);
   const [preview, setPreview] = useState(false);
   const [sheet, setSheet] = useState(false);
   const [info, setInfo] = useState<HTMLElement | null>(null);

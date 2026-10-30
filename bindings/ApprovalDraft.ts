@@ -11,4 +11,9 @@ import type { RescueLever } from "./RescueLever";
 /**
  * A draft carried from Main to the approval window. Closed shapes and typed values only.
  */
-export type ApprovalDraft = { "type": "band", floor: Money | null, ceiling: Money | null, } | { "type": "floor", mandate_id: MandateId, item_ref: ItemRef, floor: Money, } | { "type": "lever", lever: RescueLever, } | { "type": "table", counterparty: KeyId, house: HouseTableDraft | null, } | { "type": "rules", agent: AgentSlot, not_before: number, expires: number, clauses: Array<Clause>, };
+export type ApprovalDraft = { "type": "band", floor: Money | null, ceiling: Money | null, } | { "type": "floor", mandate_id: MandateId, item_ref: ItemRef, floor: Money, } | { "type": "lever", lever: RescueLever, } | { "type": "table", counterparty: KeyId, house: HouseTableDraft | null, } | { "type": "rules", agent: AgentSlot, not_before: number, expires: number, clauses: Array<Clause>, 
+/**
+ * The rule (its number, 1 to 9) the editor scrolls to and marks: "Change it in the form" on a
+ * part of the sentence. Absent: the editor opens at the top.
+ */
+focus?: number | null, };

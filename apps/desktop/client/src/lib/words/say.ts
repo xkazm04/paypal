@@ -42,6 +42,8 @@ export const SAY = {
   heard: 'Heard',
   noSpeech: 'Speaking isn’t available here, so type the sentence.',
   noSpeechTitle: 'This browser has no speech input',
+  inForm: 'Change it in the form',
+  inFormTitle: 'Opens the approval window on this rule, where you can change it and sign',
   readBack: 'Read it to me',
   readBackTitle: 'Reads what these rules allow aloud, with your browser’s own voice',
   stopReading: 'Stop reading',

@@ -6,7 +6,8 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from 'react';
 import { useMutation } from '../../../lib/hooks';
 import { parseMoneyText } from '../../../lib/format';
-import { plainWords, reachOf, type Chip } from '../../../lib/say/draft';
+import { CLAUSE_NUMBER } from '../../../lib/mandateRules';
+import { plainWords, reachOf, rulesOf, type Chip } from '../../../lib/say/draft';
 import { readEnds, type Question, type SayCtx } from '../../../lib/say/read';
 import { canReadAloud, listen, readAloud, speechSupport, type Listening } from '../../../lib/say/speech';
 import { sayAnswer, saySet, sayClear, sayUnanswer } from '../../../lib/say/store';
@@ -70,9 +71,12 @@ export function SayIt({ className, compact = false, stepGold = true, timeline = 
 
   const asking = chips.filter((c) => c.state === 'unsure');
   const sentence = useMemo(() => plainWords(chips), [chips]);
-  const review = async () => {
+  // `focus`: a rule (its kind) of the form the approval window should open at, from "Change it in the form" on a part.
+  const review = async (focus?: Chip['rule']) => {
     if (!rules) return;
-    const r = await open.run({ deal_id: null, target: 'mandate', draft: { type: 'rules', ...rules } });
+    const draft = focus && reading ? rulesOf(reading, ctx, CLAUSE_NUMBER[focus]) : rules;
+    if (!draft) return;
+    const r = await open.run({ deal_id: null, target: 'mandate', draft: { type: 'rules', ...draft } });
     if (r === null) { toast(SAY.opened, 'gold'); setOpened(true); onOpened?.(); }
   };
 
@@ -121,7 +125,7 @@ export function SayIt({ className, compact = false, stepGold = true, timeline = 
             {ours.length ? <li className="say-pillsep" aria-hidden="true">{SAY.filled}</li> : null}
             {ours.map((c, i) => <Pill key={c.key} c={c} i={theirs.length + i} on={picked === c.key} onPick={() => setPicked(picked === c.key ? null : c.key)} />)}
           </ul>
-          {detail ? <Detail c={detail} ctx={ctx} currency={reading.facts.currency} onDone={() => setPicked(null)} /> : null}
+          {detail ? <Detail c={detail} ctx={ctx} currency={reading.facts.currency} onDone={() => setPicked(null)} onForm={rules ? () => void review(detail.rule ?? undefined) : null} /> : null}
           {asking.map((c) => (c.question ? <Ask key={c.key} c={c} q={c.question} ctx={ctx} /> : null))}
           {sentence ? (
             <p className="say-plain"><b>{SAY.plain}</b> {sentence}
@@ -178,7 +182,7 @@ function Pill({ c, i, on, onPick }: { c: Chip; i: number; on: boolean; onPick: (
 }
 
 /** What a part allows in one sentence, the words it came from, and its edit (what the owner types is read again). */
-function Detail({ c, ctx, currency, onDone }: { c: Chip; ctx: SayCtx; currency: string; onDone: () => void }) {
+function Detail({ c, ctx, currency, onDone, onForm }: { c: Chip; ctx: SayCtx; currency: string; onDone: () => void; onForm: (() => void) | null }) {
   return (
     <div className="say-detail" role="group" aria-label={c.label}>
       <p className="say-says">{c.says}</p>
@@ -186,6 +190,7 @@ function Detail({ c, ctx, currency, onDone }: { c: Chip; ctx: SayCtx; currency: 
       {c.state === 'filled' ? <p className="say-heard">{SAY.filledNote}</p> : null}
       {c.state === 'open' ? <p className="say-heard">{SAY.openNote}</p> : null}
       {c.edit ? <ChipEdit c={c} ctx={ctx} currency={currency} onDone={onDone} /> : null}
+      {c.rule && onForm ? <Btn kind="plain" sm onClick={onForm} title={SAY.inFormTitle}>{SAY.inForm} ↗</Btn> : null}
     </div>
   );
 }

@@ -530,6 +530,7 @@ mod proof_file_tests {
             not_before,
             expires,
             clauses,
+            focus,
         } = draft
         else {
             panic!("not the rules variant");
@@ -537,6 +538,12 @@ mod proof_file_tests {
         assert_eq!(agent, AgentSlot::Negotiator);
         assert!(expires > not_before);
         assert_eq!(clauses.len(), 7);
+        assert_eq!(focus, None);
+        let with_focus = sent.replacen(r#""type":"rules""#, r#""type":"rules","focus":4"#, 1);
+        assert!(matches!(
+            serde_json::from_str::<ApprovalDraft>(&with_focus),
+            Ok(ApprovalDraft::Rules { focus: Some(4), .. })
+        ));
         let with_extra = sent.replacen(
             r#""agent":"negotiator""#,
             r#""agent":"negotiator","sign":true"#,

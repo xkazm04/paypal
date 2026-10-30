@@ -137,6 +137,21 @@ describe('Say it on the Charter', () => {
     expect(d.clauses.find((c) => c.type === 'band')).toMatchObject({ ceiling: { minor: 35000 } });
   });
 
+  it('"Change it in the form" hands over the same rules, pointed at that rule', async () => {
+    await say(MAYA);
+    fireEvent.click(within(pill('ask') as HTMLElement).getByRole('button'));
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(SAY.inForm) }));
+    await waitFor(() => expect(hoisted.opened).toHaveLength(1));
+    const d = (hoisted.opened[0] as ApprovalOpenArgs).draft;
+    if (d?.type !== 'rules') throw new Error('rules');
+    expect(d.focus).toBe(6);
+    expect(d.clauses.find((c) => c.type === 'human_present_over')).toMatchObject({ amount: { minor: 32000 } });
+    // and the plain button points at nothing
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(SAY.review) }));
+    await waitFor(() => expect(hoisted.opened).toHaveLength(2));
+    expect((hoisted.opened[1] as ApprovalOpenArgs).draft).not.toHaveProperty('focus');
+  });
+
   it('a typed edit that is not an amount is refused where it is typed', async () => {
     await say(MAYA);
     fireEvent.click(within(pill('ceiling') as HTMLElement).getByRole('button'));

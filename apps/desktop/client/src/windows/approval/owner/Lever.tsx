@@ -50,7 +50,7 @@ export function Lever({ n, title, value, currency, signed, ticks, tickNote, dir,
   const sliderMax = Math.round(range.max / range.unit);
   const slider = typed === null ? 0 : Math.min(toSlider(range, typed), sliderMax);
   return (
-    <div className={`ow-lever ${dir ? 'chg' : ''}`}>
+    <div className={`ow-lever ${dir ? 'chg' : ''}`} data-clause={n}>
       <div className="lh">
         <label className="lt" htmlFor={`${id}-v`} title={title}>{title}</label>
         {dir ? <DirChip dir={dir} /> : null}

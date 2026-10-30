@@ -341,7 +341,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
         // As check_draft: shape only (a mandate target, no deal, one clause of each kind, a start before the end).
         const numbers = draft.clauses.map((c) => CLAUSE_NUMBER[c.type]);
         if (t !== 'mandate' || dealId || !draft.clauses.length || draft.clauses.length > 9 || new Set(numbers).size !== numbers.length
-          || draft.not_before < 0 || draft.expires <= draft.not_before) fail('INVALID', 'the rules draft does not fit');
+          || draft.not_before < 0 || draft.expires <= draft.not_before || (draft.focus != null && (draft.focus < 1 || draft.focus > 9))) fail('INVALID', 'the rules draft does not fit');
         return;
       }
       case 'table': {

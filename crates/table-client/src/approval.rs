@@ -68,6 +68,11 @@ pub enum ApprovalDraft {
         not_before: i64,
         expires: i64,
         clauses: Vec<table_core::Clause>,
+        /// The rule (its number, 1 to 9) the editor scrolls to and marks: "Change it in the form" on a
+        /// part of the sentence. Absent: the editor opens at the top.
+        #[serde(default)]
+        #[ts(optional = nullable)]
+        focus: Option<u8>,
     },
 }
 /// The most clauses a rules draft may carry: one of each kind (Clause::number is 1 to 9).

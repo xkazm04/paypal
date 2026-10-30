@@ -139,7 +139,7 @@ export function amountText(minor: number, currency: Currency): string {
 
 // ---- the typed rules ---------------------------------------------------------------------------------
 
-export type RulesDraft = { agent: AgentSlot; not_before: number; expires: number; clauses: Clause[] };
+export type RulesDraft = { agent: AgentSlot; not_before: number; expires: number; clauses: Clause[]; /** The rule (1 to 9) the editor scrolls to. */ focus?: number };
 
 /** The item as the editor and the wallet name it: lower-case words joined by dashes (Rust's ItemRef charset). */
 export function itemRef(item: string): string {
@@ -151,7 +151,7 @@ export function itemRef(item: string): string {
  * is not sure, or that nobody can know yet, is left out or left empty for the editor to show; a said or a
  * safely filled part is carried exactly. The rules start now and end when the sentence said they end.
  */
-export function rulesOf(r: Reading, ctx: SayCtx): RulesDraft | null {
+export function rulesOf(r: Reading, ctx: SayCtx, focus?: number): RulesDraft | null {
   const f = r.facts;
   if (f.job !== 'buy' || r.selling) return null;
   const cur = f.currency;
@@ -171,7 +171,7 @@ export function rulesOf(r: Reading, ctx: SayCtx): RulesDraft | null {
   if (f.dayTotal !== null) clauses.push({ type: 'velocity', max_deals_day: f.dayDeals ?? 2, max_total_day: money(f.dayTotal) });
   clauses.push({ type: 'human_present_over', amount: money(f.ask ?? 0) });
   clauses.push({ type: 'payees', payees: [...payeesFor(f, ctx)] });
-  return { agent: 'negotiator', not_before: ctx.now, expires, clauses };
+  return { agent: 'negotiator', not_before: ctx.now, expires, clauses, ...(focus ? { focus } : {}) };
 }
 
 // ---- what the rules reach -----------------------------------------------------------------------------

@@ -896,6 +896,7 @@ async fn approval_open_targets_and_drafts_are_checked_prefill_only_and_never_sig
         not_before,
         expires,
         clauses,
+        focus: None,
     };
     let said = vec![
         Clause::Roles {
@@ -958,6 +959,50 @@ async fn approval_open_targets_and_drafts_are_checked_prefill_only_and_never_sig
         assert!(
             actor
                 .execute::<()>(caller("main", None), bad)
+                .await
+                .is_err()
+        );
+    }
+    // A focus names one of the nine rules, and only those.
+    for focus in [Some(4), Some(1), Some(9)] {
+        let focused = match sentence.clone() {
+            ApprovalDraft::Rules {
+                agent,
+                not_before,
+                expires,
+                clauses,
+                ..
+            } => ApprovalDraft::Rules {
+                agent,
+                not_before,
+                expires,
+                clauses,
+                focus,
+            },
+            other => other,
+        };
+        actor
+            .execute::<()>(
+                caller("main", None),
+                open(None, Some(ApprovalTarget::Mandate), Some(focused)),
+            )
+            .await
+            .unwrap();
+    }
+    for focus in [Some(0), Some(10), Some(255)] {
+        let focused = ApprovalDraft::Rules {
+            agent: AgentSlot::Negotiator,
+            not_before: 1_000,
+            expires: 2_000,
+            clauses: said.clone(),
+            focus,
+        };
+        assert!(
+            actor
+                .execute::<()>(
+                    caller("main", None),
+                    open(None, Some(ApprovalTarget::Mandate), Some(focused))
+                )
                 .await
                 .is_err()
         );

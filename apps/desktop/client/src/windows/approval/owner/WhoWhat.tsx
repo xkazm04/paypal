@@ -28,7 +28,7 @@ function WRow({ n, label, value, changed, onOpen }: { n: ReactNode; label: strin
     }
   };
   return (
-    <div className={`ui-row act ${changed ? 'chg' : ''}`} role="button" tabIndex={0} aria-haspopup="dialog" onClick={(e) => onOpen(e.currentTarget)} onKeyDown={key}>
+    <div className={`ui-row act ${changed ? 'chg' : ''}`} data-clause={n} role="button" tabIndex={0} aria-haspopup="dialog" onClick={(e) => onOpen(e.currentTarget)} onKeyDown={key}>
       <span className="cn">{n}</span>
       <span className="lbl">{label}</span>
       <span className="val" title={value}>{value}</span>

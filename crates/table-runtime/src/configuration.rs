@@ -143,6 +143,7 @@ impl Runtime {
                 not_before,
                 expires,
                 clauses,
+                focus,
                 ..
             } => {
                 // Shape only: a mandate target and no deal, a bounded list with one clause of each
@@ -158,6 +159,7 @@ impl Runtime {
                     || repeated
                     || *not_before < 0
                     || expires <= not_before
+                    || focus.is_some_and(|n| !(1..=9).contains(&n))
                 {
                     return Err(invalid());
                 }
