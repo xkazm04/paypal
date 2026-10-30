@@ -61,7 +61,7 @@ const brief = (v: unknown): string => {
   return text.length > 36 ? `${text.slice(0, 35)}…` : text;
 };
 
-export function ProofChecker({ source, sample, own, heading = true, lede = true }: {
+export function ProofChecker({ source, sample, own, heading = true, lede = true, level = 3 }: {
   source: ProofSource;
   /** The practice deal, to go back to (the page of its own offers it). */
   sample?: ProofSource;
@@ -71,7 +71,10 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true 
   heading?: boolean;
   /** False when the page around it already says what this is: only the privacy line is kept. */
   lede?: boolean;
+  /** The heading level of its sections: 3 under a sheet's title, 2 under a page's. */
+  level?: 2 | 3;
 }) {
+  const H = `h${level}` as 'h2' | 'h3';
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
   const editor = useRef<HTMLTextAreaElement>(null);
@@ -86,6 +89,11 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true 
   const [over, setOver] = useState(false);
   const [readError, setReadError] = useState<string | null>(null);
   const { state, start, reset } = useProofRun();
+  // Once a file has been checked it can be broken, and stays breakable while it is checked again.
+  const [hasChecked, setHasChecked] = useState(false);
+  useEffect(() => {
+    if (state.phase === 'done') setHasChecked(state.refused === null);
+  }, [state.phase, state.refused, state.run]);
 
   // A different file: everything starts again from it.
   useEffect(() => {
@@ -177,14 +185,14 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true 
   };
 
   const edits = tamper ? editsFor(tamper, original) : null;
-  const made = state.lines.filter(Boolean).length;
+  const made = state.made;
   const bad = state.lines.flatMap((l, i) => (l && kindOf(l) === 'bad' ? [i] : []));
   const firstBad = bad[0] ?? -1;
   const dashed = state.lines.filter((l) => l && kindOf(l) === 'dashed').length;
   const running = state.phase === 'running';
   const places = useMemo(() => placesIn(draft), [draft]);
 
-  const everChecked = state.phase === 'done' && state.refused === null;
+  const everChecked = hasChecked;
   const caughtBy = bad.map((i) => CHECK_IDS[i] ?? '');
   const goTo = (cid: string) => {
     const row = document.getElementById(`${id}-row-${cid}`);
@@ -200,12 +208,12 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true 
           <h2>{W.title}</h2>
           <p>{W.intro}</p>
         </header>
-      ) : lede ? <p className="pk-lede">{W.intro}</p> : <p className="pk-lede ui-hint">{W.private}</p>}
+      ) : lede ? <p className="pk-lede">{W.intro}</p> : null}
       <div className="pk-grid">
         <section className="pk-checks" aria-labelledby={`${id}-checks`}>
           <div className="pk-top">
-            <h3 id={`${id}-checks`}>{W.checksHead}</h3>
-            <Verdict state={state} made={made} bad={bad.length} dashed={dashed} onRun={() => void check(current, 'first')} />
+            <H id={`${id}-checks`} className="pk-h">{W.checksHead}</H>
+            <Verdict state={state} made={made} bad={bad.length} dashed={dashed} caught={caughtBy.map((cid) => PROOF_SHORT[cid] ?? cid)} onRun={() => void check(current, 'first')} />
             {by !== 'none' ? (
               <p className="pk-changed" role="status">
                 <span>{W.changed}</span>{' '}
@@ -223,17 +231,17 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true 
           </div>
           <ol className="pk-list">
             {CHECK_IDS.map((cid, i) => (
-              <Row key={cid} rowId={`${id}-row-${cid}`} id={cid} line={state.lines[i] ?? null} current={running && made === i} first={i === firstBad} run={state.run} />
+              <Row key={cid} rowId={`${id}-row-${cid}`} id={cid} line={state.lines[i] ?? null} before={state.before?.[i] ?? null} current={running && made === i} stale={running && i >= made && state.before !== null} first={i === firstBad} run={state.run} />
             ))}
           </ol>
           {state.refused ? <p className="pk-refused" role="alert">{state.refused}</p> : null}
           {notJson ? <p className="ui-hint">{W.notJson}</p> : null}
           {readError ? <p className="pk-refused" role="alert">{readError}</p> : null}
-          <h3 className="pk-sub">{W.limitsHead}</h3>
+          <H className="pk-h pk-sub">{W.limitsHead}</H>
           <ul className="pk-limits">{W.limits.map((t) => <li key={t}>{t}</li>)}</ul>
         </section>
         <aside className="pk-file" aria-label={W.fileHead}>
-          <h3 id={`${id}-tamper`}>{W.tamperHead}</h3>
+          <H id={`${id}-tamper`} className="pk-h">{W.tamperHead}</H>
           <p className="ui-hint">{everChecked ? W.tamperIntro : W.tamperFirst}</p>
           <div className="pk-tampers" role="group" aria-labelledby={`${id}-tamper`}>
             {TAMPERS_SHOWN.map((tid) => {
@@ -261,7 +269,7 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true 
             <Btn sm onClick={checkEdited} disabled={running}>{W.checkEdited}</Btn>
           </details>
 
-          <h3 className="pk-sub" id={`${id}-file`}>{W.fileHead}</h3>
+          <H className="pk-h pk-sub" id={`${id}-file`}>{W.fileHead}</H>
           <div className="pk-card">
             <div className="pk-name">
               <span className="mono">{fileName}</span>
@@ -327,7 +335,7 @@ function changed(before: unknown, after: unknown): string {
 
 // ---- the verdict, the lines, what the file says -----------------------------------------------
 
-function Verdict({ state, made, bad, dashed, onRun }: { state: RunState; made: number; bad: number; dashed: number; onRun: () => void }) {
+function Verdict({ state, made, bad, dashed, caught, onRun }: { state: RunState; made: number; bad: number; dashed: number; caught: string[]; onRun: () => void }) {
   const running = state.phase === 'running';
   const done = state.phase === 'done';
   const refused = done && state.refused !== null;
@@ -348,18 +356,21 @@ function Verdict({ state, made, bad, dashed, onRun }: { state: RunState; made: n
       <Btn kind={done || running ? 'default' : 'primary'} disabled={running} onClick={onRun}>
         {running ? W.running : done ? W.rerun : W.run}
       </Btn>
-      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{done ? `${word}. ${why}` : ''}</span>
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{done ? `${word}. ${why}${caught.length ? ` ${W.caughtBy}: ${caught.join(', ')}.` : ''}` : ''}</span>
     </div>
   );
 }
 
-function Row({ id, rowId, line, current, first, run }: { id: string; rowId: string; line: CheckLine | null; current: boolean; first: boolean; run: number }) {
+function Row({ id, rowId, line, before, current, stale, first, run }: { id: string; rowId: string; line: CheckLine | null; before: CheckLine | null; current: boolean; stale: boolean; first: boolean; run: number }) {
   const kind = line ? kindOf(line) : null;
+  // A line that holds still stays put; the one that changes is the one that moves.
+  const moved = before !== null && line !== null && !stale && kindOf(before) !== kind;
   const words = PROOF_CHECKS[id] ?? 'A check this page does not know.';
   const state = kind ?? (current ? 'now' : 'wait');
+  const still = before !== null && !moved;
   const sr = kind === 'ok' ? W.sr.passed : kind === 'bad' ? W.sr.failed : kind === 'dashed' ? W.sr.unchecked : '';
   return (
-    <li id={rowId} className={`pk-row ${state}${first ? ' first' : ''}`} key={`${id}-${run}`} data-check={id} aria-current={current ? 'step' : undefined}>
+    <li id={rowId} className={`pk-row ${state}${first ? ' first' : ''}${current && before ? ' scan' : ''}${stale ? ' stale' : ''}${still ? ' still' : ''}`} key={`${id}-${before === null || moved ? run : 'same'}`} data-check={id} aria-current={current ? 'step' : undefined}>
       <span className="pk-mark" aria-hidden="true">{kind === 'ok' ? '✓' : kind === 'bad' ? '✗' : kind === 'dashed' ? '–' : ''}</span>
       <div className="pk-body">
         {line ? (

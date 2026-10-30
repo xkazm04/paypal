@@ -24,7 +24,6 @@ export const PROOF_CHECKER = {
   noSignatures: 'This browser can’t check signatures, so signature checks read “not checked”. A current version of your browser can.',
   first: 'First to catch it',
   caughtBy: 'Caught by',
-  private: 'Checked in this page. Nothing is installed and the file is not sent anywhere.',
   tamperFirst: 'Check the file first, then break it.',
   caught: 'What it means',
   checkerSaid: 'The checker said',
@@ -79,9 +78,9 @@ export const PROOF_CHECKER = {
   // the page of its own
   page: {
     title: 'Check a proof',
-    lede: 'Drop a deal’s .tableproof file here, or use the practice deal, and see whether it holds. Then break it.',
+    lede: 'Drop a deal’s .tableproof file here, or use the practice deal, and see whether it holds. Then try to break it. It is all checked in this page: nothing is installed and the file is not sent anywhere.',
     use: 'Use the practice deal',
-    back: 'The Table, in the browser',
+    back: 'The Table · proof checker',
   },
 } as const;
 

@@ -11,7 +11,7 @@ export function ProofPage() {
         <h1 className="display">{PROOF_CHECKER.page.title}</h1>
         <p className="pf-lede">{PROOF_CHECKER.page.lede}</p>
       </header>
-      <ProofChecker source={{ ...SAMPLE_PROOF }} sample={{ ...SAMPLE_PROOF }} own={AUTHORITY_MANIFEST} heading={false} lede={false} />
+      <ProofChecker source={{ ...SAMPLE_PROOF }} sample={{ ...SAMPLE_PROOF }} own={AUTHORITY_MANIFEST} heading={false} lede={false} level={2} />
     </main>
   );
 }

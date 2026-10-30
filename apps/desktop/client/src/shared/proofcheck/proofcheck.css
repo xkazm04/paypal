@@ -6,8 +6,8 @@
 .pk-lede { margin-top: 0; }
 .pk-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--sp-6); align-items: start; }
 @media (max-width: 56rem) { .pk-grid { grid-template-columns: minmax(0, 1fr); } }
-.pk h3 { margin: 0 0 var(--sp-2); font-family: var(--label); font-stretch: var(--label-stretch); font-size: var(--fs-small); font-weight: var(--fw-semibold); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
-.pk h3.pk-sub { margin-top: var(--sp-6); }
+.pk .pk-h { margin: 0 0 var(--sp-2); font-family: var(--label); font-stretch: var(--label-stretch); font-size: var(--fs-small); font-weight: var(--fw-semibold); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
+.pk .pk-sub { margin-top: var(--sp-6); }
 
 /* ---- the verdict ------------------------------------------------------------------------------ */
 .pk-verdict { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3) var(--sp-4); flex-wrap: wrap; padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-3);
@@ -101,12 +101,12 @@
 .pk { --pk-bg: var(--bg); }
 .pk-sheet .pk, .ui-sheet .pk { --pk-bg: var(--sheet); }
 .pk-top { position: sticky; top: 0; z-index: 1; display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-1) 0 var(--sp-3); background: var(--pk-bg); }
-.pk-top h3 { margin: 0; }
+.pk-top .pk-h { margin: 0; }
 .pk-top .pk-verdict { margin: 0; }
 .pk-top .pk-changed { margin: 0; }
 .pk-caught { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); margin: 0; font-size: var(--fs-small); color: var(--muted); }
 .pk-caught .ui-chip { cursor: pointer; }
-.pk-file > h3:first-child { margin-top: 0; }
+.pk-file > .pk-h:first-child { margin-top: 0; }
 
 .ui-sheet.wide.pk-sheet { width: min(1180px, calc(100vw - 32px)); }
 .pk-changed { justify-content: flex-start; }
@@ -116,3 +116,8 @@
 .pk-edit summary::before { content: ''; width: .45em; height: .45em; border-right: 2px solid currentcolor; border-bottom: 2px solid currentcolor; transform: rotate(-45deg); transition: transform var(--dur-fast) var(--ease); }
 .pk-edit[open] summary::before { transform: rotate(45deg); }
 .pk-edit[open] summary { margin-bottom: var(--sp-2); }
+
+/* ---- checking again: the lines that hold still stay put, the one that changes is the one that moves ---- */
+.pk-row.still, .pk-row.still .pk-mark { animation: none; }
+.pk-row.stale { opacity: .72; }
+.pk-row.scan { opacity: 1; background: color-mix(in srgb, var(--teal) 10%, transparent); box-shadow: inset 3px 0 0 var(--teal); }
