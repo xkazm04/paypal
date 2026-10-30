@@ -18,7 +18,7 @@ export const REWIND_ANSWER = {
     if (partial) return `At least ${calls === 1 ? 'one PayPal money step' : `${calls.toLocaleString('en-US')} PayPal money steps`} this week${r}. Waiting never sent money.`;
     return `${calls === 0 ? 'No PayPal money step' : c} this week${r}. Waiting never sent money.`;
   },
-  sub: 'Replayed from the wallet’s own record. Play the week, drag the playhead, or open any step to see its deal.',
+  sub: 'Replayed from the wallet’s own record, then on into the next 72 hours as the wallet forecasts them. Play it, drag the playhead, or open any step to see its deal.',
 } as const;
 
 export const REWIND_CARD = {

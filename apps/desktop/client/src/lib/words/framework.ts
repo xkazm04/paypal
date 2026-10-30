@@ -172,7 +172,9 @@ export const SHORTCUT_GROUPS: readonly { title: string; keys: readonly (readonly
   ] },
   { title: 'Rewind', keys: [
     [['Space'], 'Play or pause the week'],
-    [['←', '→'], 'Move the playhead an hour (Shift: a day)'],
+    [['←', '→'], 'Move the playhead to the previous or next step, recorded or forecast (Shift: a day, Alt: an hour)'],
+    [['N'], 'Move the playhead to now'],
+    [['Home', 'End'], 'Start of the week, or the end of the forecast'],
   ] },
   { title: 'Tables', keys: [
     [['↑', '↓'], 'Move your price limit (Shift: 5 steps, Page Up/Down: 10)'],
