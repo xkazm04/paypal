@@ -225,22 +225,26 @@ describe('how far their price came down (the haggle’s result, buyer side)', ()
 
 describe('your agent accepted at your floor (seller side only)', () => {
   const usd = (minor: number) => ({ minor, currency: 'USD' as const });
-  const accept = (minor: number, by: 'you' | 'them' = 'you'): TranscriptStep => ({ seq: 4, by, typ: 'ACCEPT', price: usd(minor), at: NOW, verified: true });
-  const seller = { kind: 'haggle' as const, side: 'seller' as const, state: 'AGREED' as const };
+  // The real transcript shape: the ledger's display step for ACCEPT has price null
+  // (crates/table-ledger/src/display.rs:118, mock/backend.ts:952), so the agreed price is on the deal's terms.
+  const accept = (by: 'you' | 'them' = 'you'): TranscriptStep => ({ seq: 4, by, typ: 'ACCEPT', price: null, at: NOW, verified: true });
+  const base = entry('D-0193').deal;
+  const seller = (unit: number, state: Deal['state'] = 'AGREED'): Deal => ({ ...base, kind: 'haggle', side: 'seller', state, terms: { ...base.terms, unit_price: usd(unit) } });
   const band = { floor: usd(30000) };
-  it('says so when the accepted price equals the signed floor', () => {
-    expect(acceptedAtFloorLine(seller, band, [accept(30000)])).toBe(DEAL_AT_FLOOR);
-    expect(acceptedAtFloorLine({ ...seller, state: 'RECONCILED' }, band, [accept(30000)])).toBe(DEAL_AT_FLOOR);
+  it('says so when the agreed unit price equals the signed floor and the ACCEPT carries no price', () => {
+    expect(acceptedAtFloorLine(seller(30000), band, [accept()])).toBe(DEAL_AT_FLOOR);
+    expect(acceptedAtFloorLine(seller(30000, 'RECONCILED'), band, [accept()])).toBe(DEAL_AT_FLOOR);
   });
   it('is silent above the floor, before the deal is agreed, or when the other side accepted', () => {
-    expect(acceptedAtFloorLine(seller, band, [accept(30100)])).toBeNull();
-    expect(acceptedAtFloorLine({ ...seller, state: 'NEGOTIATING' }, band, [accept(30000)])).toBeNull();
-    expect(acceptedAtFloorLine(seller, band, [accept(30000, 'them')])).toBeNull();
-    expect(acceptedAtFloorLine(seller, band, undefined)).toBeNull();
+    expect(acceptedAtFloorLine(seller(30100), band, [accept()])).toBeNull();
+    expect(acceptedAtFloorLine(seller(30000, 'NEGOTIATING'), band, [accept()])).toBeNull();
+    expect(acceptedAtFloorLine(seller(30000), band, [accept('them')])).toBeNull();
+    expect(acceptedAtFloorLine(seller(30000), band, undefined)).toBeNull();
   });
-  it('never shows on the buyer side or without a floor', () => {
-    expect(acceptedAtFloorLine({ ...seller, side: 'buyer' }, band, [accept(30000)])).toBeNull();
-    expect(acceptedAtFloorLine(seller, { floor: null }, [accept(30000)])).toBeNull();
-    expect(acceptedAtFloorLine(seller, null, [accept(30000)])).toBeNull();
+  it('never shows on the buyer side, without a floor, or across currencies', () => {
+    expect(acceptedAtFloorLine({ ...seller(30000), side: 'buyer' }, band, [accept()])).toBeNull();
+    expect(acceptedAtFloorLine(seller(30000), { floor: null }, [accept()])).toBeNull();
+    expect(acceptedAtFloorLine(seller(30000), null, [accept()])).toBeNull();
+    expect(acceptedAtFloorLine(seller(30000), { floor: { minor: 30000, currency: 'EUR' } }, [accept()])).toBeNull();
   });
 });

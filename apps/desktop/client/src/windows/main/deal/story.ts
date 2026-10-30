@@ -214,16 +214,18 @@ export function standingFacts(d: Pick<Deal, 'kind' | 'side' | 'terms' | 'market'
 
 /**
  * The line that tells the seller its own agent accepted exactly at the signed floor, or null. Only
- * the seller's wallet holds that floor, so a buyer deal (or a band without one) never gets it. It is
- * arithmetic on the deal's own signed accept and band; nothing here decides or moves money.
+ * the seller's wallet holds that floor, so a buyer deal (or a band without one) never gets it. It
+ * compares the deal's agreed unit price with the signed floor (the signed ACCEPT carries no price of
+ * its own), once the seller's own verified ACCEPT is in the steps. Nothing here decides or moves money.
  */
-export function acceptedAtFloorLine(d: Pick<Deal, 'kind' | 'side' | 'state'>, band: Pick<DisplayBand, 'floor'> | null, steps: readonly TranscriptStep[] | undefined): string | null {
+export function acceptedAtFloorLine(d: Pick<Deal, 'kind' | 'side' | 'state' | 'terms'>, band: Pick<DisplayBand, 'floor'> | null, steps: readonly TranscriptStep[] | undefined): string | null {
   if (d.kind !== 'haggle' || d.side !== 'seller' || !band?.floor) return null;
   const agreed = pathFor(d.kind, d.side).indexOf('AGREED');
   const at = pathFor(d.kind, d.side).indexOf(d.state);
   if (!(at >= agreed || (at < 0 && d.state in BRANCH_AFTER))) return null;
-  const accept = (steps ?? []).find((s) => s.by === 'you' && s.typ === 'ACCEPT' && s.verified && s.price);
-  if (!accept?.price || accept.price.currency !== band.floor.currency || accept.price.minor !== band.floor.minor) return null;
+  const accept = (steps ?? []).find((s) => s.by === 'you' && s.typ === 'ACCEPT' && s.verified);
+  const price = d.terms.unit_price;
+  if (!accept || price.currency !== band.floor.currency || price.minor !== band.floor.minor) return null;
   return DEAL_AT_FLOOR;
 }
 
