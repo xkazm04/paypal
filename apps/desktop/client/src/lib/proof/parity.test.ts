@@ -9,6 +9,7 @@ import { AUTHORITY_MANIFEST } from '@bindings/authority';
 import golden from './sample/golden.tableproof?raw';
 import parity from './sample/parity.json';
 import { applyEdits, type Edit } from './edits';
+import { editsFor, type TamperId } from './tamper';
 import { checkProofText, type ProofReport } from './verify';
 
 type Variant = { name: string; edits: Edit[]; red: string[]; outcome: { report?: ProofReport; refused?: string } };
@@ -29,6 +30,12 @@ describe('the sample deal', () => {
     expect(outcome.report.verified).toBe(true);
     expect(lines(outcome.report)).toEqual(lines(wallet.golden));
     expect(outcome.report).toEqual(wallet.golden);
+  });
+});
+
+describe('the tamper control', () => {
+  it.each(wallet.variants.filter((v) => v.name !== 'not-a-proof').map((v) => [v.name, v] as const))('%s: makes the very edits the wallet tests make', (_name, variant) => {
+    expect(editsFor(variant.name as TamperId, JSON.parse(golden))).toEqual(variant.edits);
   });
 });
 

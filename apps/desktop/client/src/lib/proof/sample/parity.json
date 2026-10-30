@@ -19,14 +19,14 @@
       {
         "applies": true,
         "checked": true,
-        "detail": "agent signed 5 outbound, peer signed 3 inbound; head df8ecbd30cfd",
+        "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
         "id": "transcript",
         "ok": true
       },
       {
         "applies": true,
         "checked": true,
-        "detail": "1 countersign(s) bind terms 6a7583167073 and 212.00 USD; payee is in the owner-signed payee list",
+        "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
         "id": "countersign",
         "ok": true
       },
@@ -47,7 +47,7 @@
       {
         "applies": true,
         "checked": true,
-        "detail": "33 deal rows hash-consistent; chain head #342 62a438b75bf1",
+        "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
         "id": "audit",
         "ok": true
       },
@@ -110,7 +110,7 @@
       {
         "applies": true,
         "checked": true,
-        "detail": "evidence head 2dc9ba4790b5 signed by the deal's agent",
+        "detail": "evidence head f84150b471f4 signed by the deal's agent",
         "id": "evidence",
         "ok": true
       }
@@ -127,7 +127,7 @@
         {
           "op": "set",
           "path": "/deal/terms/unit_price/minor",
-          "value": 29900
+          "value": 29680
         }
       ],
       "name": "price",
@@ -152,7 +152,7 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "agent signed 5 outbound, peer signed 3 inbound; head df8ecbd30cfd",
+              "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
               "id": "transcript",
               "ok": true
             },
@@ -180,14 +180,14 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "33 deal rows hash-consistent; chain head #342 62a438b75bf1",
+              "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
               "id": "audit",
               "ok": true
             },
             {
               "applies": true,
               "checked": true,
-              "detail": "receipt states 212.00 USD but the signed terms agreed 299.00 USD",
+              "detail": "receipt states 212.00 USD but the signed terms agreed 296.80 USD",
               "id": "receipt",
               "ok": false
             },
@@ -292,14 +292,14 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "agent signed 5 outbound, peer signed 3 inbound; head df8ecbd30cfd",
+              "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
               "id": "transcript",
               "ok": true
             },
             {
               "applies": true,
               "checked": true,
-              "detail": "1 countersign(s) bind terms 6a7583167073 and 212.00 USD; payee is in the owner-signed payee list",
+              "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
               "id": "countersign",
               "ok": true
             },
@@ -429,14 +429,14 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "agent signed 5 outbound, peer signed 3 inbound; head df8ecbd30cfd",
+              "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
               "id": "transcript",
               "ok": true
             },
             {
               "applies": true,
               "checked": true,
-              "detail": "1 countersign(s) bind terms 6a7583167073 and 212.00 USD; payee is in the owner-signed payee list",
+              "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
               "id": "countersign",
               "ok": true
             },
@@ -457,7 +457,7 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "32 deal rows hash-consistent; chain head #342 62a438b75bf1",
+              "detail": "32 deal rows hash-consistent; chain head #342 6eb853988f7c",
               "id": "audit",
               "ok": true
             },
@@ -543,7 +543,7 @@
         {
           "op": "set",
           "path": "/transcript/2/raw",
-          "value": "eyJhbGciOiJFZERTQSIsImtpZCI6IjRiYTgzYTAyMWZkOTUxMDFiYTVmY2Y2MzYyOTg1ZWQxZmI2OWEwNTJlZTBiNWI4MDY5ZTZjN2U3NzUzYTMxODEifQ.eyJhdWQiOiIxMTcwNjQ5NTFjYzFkMDliYjIwMGQ3ZmIwNjRmODg3MGI5ZGNkMTE1NjQxMWFlMWFlMjliMjdlNWY0NWExYmJjIiwiYm9keSI6eyJkZWxpdmVyeSI6eyJkYXlzIjoxLCJ0eXBlIjoic2hpcF90aGVuX2NhcHR1cmUifSwicHJpY2UiOnsiY3VycmVuY3kiOiJVU0QiLCJtaW5vciI6MjM1MDB9LCJ0eXBlIjoiQ09VTlRFUiJ9LCJkZWFsX2lkIjoiMDFLOFcyUjZRNE41TTlUM1ZYWjdCMUNEMEUiLCJleHAiOjE3OTMwMDA4NDAsImlhdCI6MTc5MzAwMDI0MCwiaXNzIjoiNGJhODNhMDIxZmQ5NTEwMWJhNWZjZjYzNjI5ODVlZDFmYjY5YTA1MmVlMGI1YjgwNjllNmM3ZTc3NTNhMzE4MSIsIm5vbmNlIjpbMTU4LDk4LDY4LDExMSw1NywxODQsNjksMjQ0LDQ3LDY3LDE5MiwxMjUsMjYsMzMsMTc3LDI1NV0sInByZXYiOlsxNDEsNzUsMTI2LDIzMCwxMTQsMjMwLDE5MiwxNDgsMTcxLDM1LDE0MiwxMDYsMTE0LDEyLDI1NSwyMzUsMTcxLDE3MywyMzAsMTk3LDksMjI1LDE5NCwxMTYsNzUsMjM3LDg2LDEwMiw0LDE0LDIxNywxMzVdLCJzZXEiOjIsInR5cCI6IkNPVU5URVIiLCJ2IjoxfQ.Au3aiEH9GHhwCrzMzQZXnYY47O1RzRW2FJkbDhjhta6g6La2-xpr6-os4FhptyGh0_cuus8fwgVyp1MLABd_Dg"
+          "value": "eyJhbGciOiJFZERTQSIsImtpZCI6IjRiYTgzYTAyMWZkOTUxMDFiYTVmY2Y2MzYyOTg1ZWQxZmI2OWEwNTJlZTBiNWI4MDY5ZTZjN2U3NzUzYTMxODEifQ.eyJhdWQiOiIxMTcwNjQ5NTFjYzFkMDliYjIwMGQ3ZmIwNjRmODg3MGI5ZGNkMTE1NjQxMWFlMWFlMjliMjdlNWY0NWExYmJjIiwiYm9keSI6eyJkZWxpdmVyeSI6eyJkYXlzIjozLCJ0eXBlIjoic2hpcF90aGVuX2NhcHR1cmUifSwicHJpY2UiOnsiY3VycmVuY3kiOiJVU0QiLCJtaW5vciI6MjM1MDB9LCJ0eXBlIjoiQ09VTlRFUiJ9LCJkZWFsX2lkIjoiMDFLOFcyUjZRNE41TTlUM1ZYWjdCMUNEMEUiLCJleHAiOjE3OTMwMDA4NDAsImlhdCI6MTc5MzAwMDI0MCwiaXNzIjoiNGJhODNhMDIxZmQ5NTEwMWJhNWZjZjYzNjI5ODVlZDFmYjY5YTA1MmVlMGI1YjgwNjllNmM3ZTc3NTNhMzE4MSIsIm5vbmNlIjpbMTU4LDk4LDY4LDExMSw1NywxODQsNjksMjQ0LDQ3LDY3LDE5MiwxMjUsMjYsMzMsMTc3LDI1NV0sInByZXYiOlsxMDEsMiwxODQsMTAxLDE1MywxNjEsNTksNCwyMDEsNTIsNDMsMTkxLDIwMSwyMiwxOTgsMTY4LDE4NywxMCwxNDMsMTA5LDE5Niw5MSwxOTAsNDAsNjMsMTE3LDEzNCwyMTAsMTc5LDQ2LDEzNSwyNDJdLCJzZXEiOjIsInR5cCI6IkNPVU5URVIiLCJ2IjoxfQ.AXgwk1zW3aKLrWHkqfrTaT80Hj-2DbaDNEEPMKOmilhAsqjLbZZxNZerYei8vCa-D9qonbrJf8LxIhcs-gt4BA"
         }
       ],
       "name": "signature",
@@ -575,7 +575,7 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "1 countersign(s) bind terms 6a7583167073 and 212.00 USD; payee is in the owner-signed payee list",
+              "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
               "id": "countersign",
               "ok": true
             },
@@ -596,7 +596,7 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "33 deal rows hash-consistent; chain head #342 62a438b75bf1",
+              "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
               "id": "audit",
               "ok": true
             },
@@ -706,7 +706,7 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "agent signed 5 outbound, peer signed 3 inbound; head df8ecbd30cfd",
+              "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
               "id": "transcript",
               "ok": true
             },
@@ -734,7 +734,7 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "33 deal rows hash-consistent; chain head #342 62a438b75bf1",
+              "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
               "id": "audit",
               "ok": true
             },
@@ -845,14 +845,14 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "agent signed 5 outbound, peer signed 3 inbound; head df8ecbd30cfd",
+              "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
               "id": "transcript",
               "ok": true
             },
             {
               "applies": true,
               "checked": true,
-              "detail": "1 countersign(s) bind terms 6a7583167073 and 212.00 USD; payee is in the owner-signed payee list",
+              "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
               "id": "countersign",
               "ok": true
             },
@@ -873,7 +873,7 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "33 deal rows hash-consistent; chain head #342 62a438b75bf1",
+              "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
               "id": "audit",
               "ok": true
             },
@@ -983,14 +983,14 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "agent signed 5 outbound, peer signed 3 inbound; head df8ecbd30cfd",
+              "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
               "id": "transcript",
               "ok": true
             },
             {
               "applies": true,
               "checked": true,
-              "detail": "1 countersign(s) bind terms 6a7583167073 and 212.00 USD; payee is in the owner-signed payee list",
+              "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
               "id": "countersign",
               "ok": true
             },
@@ -1011,7 +1011,7 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "33 deal rows hash-consistent; chain head #342 62a438b75bf1",
+              "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
               "id": "audit",
               "ok": true
             },
@@ -1121,14 +1121,14 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "agent signed 5 outbound, peer signed 3 inbound; head df8ecbd30cfd",
+              "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
               "id": "transcript",
               "ok": true
             },
             {
               "applies": true,
               "checked": true,
-              "detail": "1 countersign(s) bind terms 6a7583167073 and 212.00 USD; payee is in the owner-signed payee list",
+              "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
               "id": "countersign",
               "ok": true
             },
@@ -1149,7 +1149,7 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "33 deal rows hash-consistent; chain head #342 62a438b75bf1",
+              "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
               "id": "audit",
               "ok": true
             },
@@ -1234,7 +1234,7 @@
         {
           "op": "set",
           "path": "/mandate/payload/clauses/3/ceiling/minor",
-          "value": 60000
+          "value": 52000
         }
       ],
       "name": "rules",
@@ -1259,7 +1259,7 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "agent signed 5 outbound, peer signed 3 inbound; head df8ecbd30cfd",
+              "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
               "id": "transcript",
               "ok": true
             },
@@ -1287,7 +1287,7 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "33 deal rows hash-consistent; chain head #342 62a438b75bf1",
+              "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
               "id": "audit",
               "ok": true
             },
@@ -1399,14 +1399,14 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "agent signed 5 outbound, peer signed 3 inbound; head df8ecbd30cfd",
+              "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
               "id": "transcript",
               "ok": true
             },
             {
               "applies": true,
               "checked": true,
-              "detail": "1 countersign(s) bind terms 6a7583167073 and 212.00 USD; payee is in the owner-signed payee list",
+              "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
               "id": "countersign",
               "ok": true
             },
@@ -1427,7 +1427,7 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "33 deal rows hash-consistent; chain head #342 62a438b75bf1",
+              "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
               "id": "audit",
               "ok": true
             },
@@ -1570,14 +1570,14 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "agent signed 5 outbound, peer signed 3 inbound; head df8ecbd30cfd",
+              "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
               "id": "transcript",
               "ok": true
             },
             {
               "applies": true,
               "checked": true,
-              "detail": "1 countersign(s) bind terms 6a7583167073 and 212.00 USD; payee is in the owner-signed payee list",
+              "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
               "id": "countersign",
               "ok": true
             },
@@ -1598,7 +1598,7 @@
             {
               "applies": true,
               "checked": true,
-              "detail": "33 deal rows hash-consistent; chain head #342 62a438b75bf1",
+              "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
               "id": "audit",
               "ok": true
             },

@@ -165,7 +165,7 @@ pub fn sample_bundle() -> Made<ProofBundle> {
 
     let deal_id: DealId = "01K8W2R6Q4N5M9T3VXZ7B1CD0E".parse()?;
     let mandate_id = "01K8W2R6Q0F4H8J2KMNPQRSTVW".parse()?;
-    let delivery = Delivery::ShipThenCapture { days: 1 };
+    let delivery = Delivery::ShipThenCapture { days: 3 };
     let terms_at = |minor: i64| -> Made<Terms> {
         Ok(Terms {
             item_ref: ItemRef::new(ITEM)?,
@@ -841,6 +841,24 @@ pub fn variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
         .iter()
         .position(|c| c.path.ends_with("/capture"))
         .ok_or("no capture call")?;
+    // The edits scale with what the file holds, so the same ones work on any file shaped like it.
+    let amount = bundle.deal.terms.amount()?;
+    let raised = amount.minor() / 5 * 7;
+    let tenth = Money::new(amount.minor() / 10, Currency::USD)?;
+    let band = bundle
+        .mandate
+        .payload
+        .clauses
+        .iter()
+        .position(|c| matches!(c, Clause::Band { .. }))
+        .ok_or("no band clause")?;
+    let ceiling = match bundle.mandate.payload.clauses.get(band) {
+        Some(Clause::Band {
+            ceiling: Some(ceiling),
+            ..
+        }) => ceiling.minor() * 2,
+        _ => return Err("no ceiling".into()),
+    };
     let refund = format!(
         "/v2/payments/captures/{}/refund",
         bundle.deal.paypal.capture.as_deref().unwrap_or("CAPTURE")
@@ -848,7 +866,7 @@ pub fn variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
     Ok(vec![
         Variant {
             name: "price",
-            edits: vec![Edit::set("/deal/terms/unit_price/minor", json!(29_900))],
+            edits: vec![Edit::set("/deal/terms/unit_price/minor", json!(raised))],
             red: &["countersign", "paypal_order", "receipt", "evidence"],
         },
         Variant {
@@ -881,7 +899,7 @@ pub fn variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
             name: "paypal-amount",
             edits: vec![Edit::set(
                 "/paypal_calls/0/binding/purchase_units/0/amount/value",
-                json!("21.20"),
+                json!(tenth.decimal()),
             )],
             red: &["paypal_order", "evidence"],
         },
@@ -895,14 +913,14 @@ pub fn variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
         },
         Variant {
             name: "receipt",
-            edits: vec![Edit::set("/receipts/0/amount_minor", json!(2_120))],
+            edits: vec![Edit::set("/receipts/0/amount_minor", json!(tenth.minor()))],
             red: &["receipt", "evidence"],
         },
         Variant {
             name: "rules",
             edits: vec![Edit::set(
-                "/mandate/payload/clauses/3/ceiling/minor",
-                json!(60_000),
+                format!("/mandate/payload/clauses/{band}/ceiling/minor"),
+                json!(ceiling),
             )],
             red: &["mandate", "countersign", "authority", "evidence"],
         },
