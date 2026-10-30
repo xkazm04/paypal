@@ -358,3 +358,68 @@ describe('it can never sign anything', () => {
     expect(JSON.parse(JSON.stringify(r.facts))).toEqual(r.facts);
   });
 });
+
+describe('more ways a person says it', () => {
+  it('"ask before spending more than"', () => {
+    const r = say('Buy me a 4k monitor for under 400 bucks, ask before spending more than 350, 5 offers max, until monday');
+    expect(r.facts).toMatchObject({ job: 'buy', item: '4k monitor', ceiling: usd(400), ask: usd(350), offers: 5, ends: at(2026, 11, 2, 18) });
+    expect(r.questions).toEqual([]);
+    expect(r.leftover).toEqual([]);
+  });
+  it('"don\'t pay more than"', () => {
+    const r = say("Find a laptop stand, don't pay more than $80");
+    expect(r.facts).toMatchObject({ job: 'buy', item: 'laptop stand', ceiling: usd(80) });
+    expect(r.leftover).toEqual([]);
+  });
+  it('"pay up to ... for ..." and "spend"', () => {
+    expect(say('Pay up to $340 for a monitor').facts).toMatchObject({ job: 'buy', item: 'monitor', ceiling: usd(340) });
+    expect(say('Spend at most $75 on a desk lamp').facts).toMatchObject({ job: 'buy', item: 'desk lamp', ceiling: usd(75) });
+  });
+  it('a trailing dollar sign and "end of day" before a weekday', () => {
+    expect(say('Haggle for a mouse up to 40$').facts.ceiling).toBe(usd(40));
+    expect(say('Haggle for a mouse up to $40, by end of day friday').facts.ends).toBe(at(2026, 10, 30, 18));
+  });
+  it('"cheapest" and friends are not part of the item', () => {
+    expect(say('Find me the cheapest standing desk under $500').facts.item).toBe('standing desk');
+  });
+  it('"this friday" on a friday evening is asked, not guessed', () => {
+    const r = say('Haggle for a monitor up to $340, until this friday', {}, ctx(FRI_EVE));
+    expect(r.questions.map((q) => q.id)).toContain('ends-day');
+    expect(r.facts.ends).toBeNull();
+  });
+  it('a style it cannot express is shown, not silently dropped', () => {
+    const r = say('Haggle hard for a monitor up to $340');
+    expect(r.facts.ceiling).toBe(usd(340));
+    expect(r.leftover.join(' ')).toMatch(/hard/);
+  });
+});
+
+describe('whatever is typed, it never throws and never signs', () => {
+  const junk = [
+    '', ' ', '$', '$$$', '1e9', '999999999999999999999', '-5', '0', '"', "'", '|||', '\u0000', '👍', 'ask me above', 'up to', 'until', 'until until until', 'x'.repeat(500),
+    'ask me above $', 'up to $999999999999', 'for 0 days', 'for 99999999 days', 'until february 31', 'until 25pm', 'until 13:99', 'six hundred and', 'a hundred a thousand',
+    '$1,2,3', '€€€5', 'haggle haggle haggle', 'sell sell buy buy', 'ask me every time every time',
+  ];
+  it('reads or declines every one of them', () => {
+    for (const t of junk) {
+      const r = say(t);
+      expect(JSON.parse(JSON.stringify(r.facts)), JSON.stringify(t)).toEqual(r.facts);
+      expect(Number.isFinite(r.facts.ceiling ?? 0), JSON.stringify(t)).toBe(true);
+    }
+  });
+  it('seeded random sentences from its own vocabulary never throw and keep every number an integer in range', () => {
+    const words = ['haggle', 'for', 'a', 'monitor', 'up', 'to', '$340', 'ask', 'me', 'above', '$320', 'six', 'offers', 'until', 'friday', 'tomorrow', '5pm', 'and', 'at', 'most', 'no', 'more', 'than', '$1,200', '3', 'days', 'a', 'day', 'house', 'seller', 'with', 'the', '€', 'every', 'time', 'sell', 'buy', 'supplies', 'each', 'daily', 'limit', '|', ',', '.'];
+    let seed = 12345;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+    for (let i = 0; i < 400; i++) {
+      const n = 1 + Math.floor(rnd() * 14);
+      const text = Array.from({ length: n }, () => words[Math.floor(rnd() * words.length)]).join(' ');
+      const r = say(text);
+      for (const v of [r.facts.ceiling, r.facts.ask, r.facts.dayTotal, r.facts.offers, r.facts.dayDeals, r.facts.ends]) {
+        if (v !== null) expect(Number.isInteger(v), text).toBe(true);
+      }
+      if (r.facts.offers !== null) expect(r.facts.offers >= 1 && r.facts.offers <= 255, text).toBe(true);
+      if (r.facts.ceiling !== null) expect(r.facts.ceiling > 0, text).toBe(true);
+    }
+  });
+});

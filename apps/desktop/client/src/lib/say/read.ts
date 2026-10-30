@@ -136,7 +136,7 @@ function normalize(raw: string): string {
   s = s.replace(/\b(\d[\d,]*(?:\.\d{1,2})?)\s*(?:us\s+)?(?:dollars?|bucks?|usd)\b/g, '$$$1');
   s = s.replace(/\b(\d[\d,]*(?:\.\d{1,2})?)\s*(?:euros?|eur)\b/g, '€$1');
   s = s.replace(/\b(\d[\d,]*(?:\.\d{1,2})?)\s*(?:pounds?|gbp|quid)\b/g, '£$1');
-  s = s.replace(/([$€£])\s+(\d)/g, '$1$2');
+  s = s.replace(/([$€£])\s+(\d)/g, '$1$2').replace(/(\d[\d,]*(?:\.\d{1,2})?)([$€£])(?!\d)/g, '$2$1');
   // Punctuation becomes a hard break; a comma inside digits (1,200) and a decimal point stay.
   s = s.replace(/[;!?()]+|:(?!\d)/g, ' | ').replace(/,(?!\d{3}(?!\d))/g, ' | ').replace(/\.(?!\d)/g, ' | ');
   return s.replace(/\s+/g, ' ').trim();
@@ -208,11 +208,13 @@ const FILLER = new Set([
   'rules', 'new', 'there', 'that', 'this', 'these', 'those', 'is', 'are', 'be', 'been', 'am', 'do', 'does', 'did', 'have', 'has', 'if', 'when',
   'whenever', 'as', 'long', 'much', 'many', 'per', 'each', 'every', 'from', 'into', 'out', 'about', 'start', 'starting', 'now', 'ok', 'okay', 'hey',
   'hi', 'hello', 'alright', 'thanks', 'thank', 'first', 'item', 'price', 'try', 'go',
+  'cheapest', 'cheap', 'best', 'good', 'nice', 'decent', 'great',
 ]);
 // Words that must never vanish as filler: they change what a rule means.
 const MEANING = new Set(['not', 'never', 'no', "don't", 'dont', 'except', 'unless', 'without', 'above', 'over', 'under', 'below', 'less', 'least', 'min', 'max', 'minimum', 'maximum']);
-const BUY = new Set(['haggle', 'haggling', 'bargain', 'bargaining', 'negotiate', 'negotiating', 'buy', 'buying', 'purchase', 'purchasing', 'order', 'ordering', 'grab', 'get', 'getting', 'find', 'finding', 'source', 'sourcing', 'shop', 'shopping', 'restock', 'restocking', 'pick', 'hunt', 'hunting', 'look', 'looking', 'score']);
+const BUY = new Set(['haggle', 'haggling', 'bargain', 'bargaining', 'negotiate', 'negotiating', 'buy', 'buying', 'purchase', 'purchasing', 'order', 'ordering', 'grab', 'get', 'getting', 'find', 'finding', 'source', 'sourcing', 'shop', 'shopping', 'restock', 'restocking', 'pick', 'hunt', 'hunting', 'look', 'looking', 'score', 'pay', 'paying', 'spend', 'spending']);
 const SELL = new Set(['sell', 'selling', 'list', 'listing', 'flip', 'unload']);
+const ARTICLES = new Set(['a', 'an', 'the', 'my', 'some', 'one']);
 const ANYTHING = new Set(['anything', 'something', 'stuff', 'things', 'supplies', 'items', 'goods', 'whatever', 'stock', 'office', 'equipment']);
 
 const slug = (words: readonly string[]): string => words.join('-').replace(/[^a-z0-9\-_.:@+]/g, '').replace(/-{2,}/g, '-').replace(/^-|-$/g, '').slice(0, 128);
@@ -266,7 +268,7 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
   const endAt = (daysAhead: number, secs: number): number => t0.midnight + daysAhead * DAY + secs;
   type EndsHit = { at: number | null; heard: string; ask?: { secs: number; label: string } };
   const endsHits: EndsHit[] = [];
-  const dayWords = take(work, new RegExp(String.raw`\b(?:until|till|til|through|thru|by|before|ending|ends?|expir(?:es|ing|e)|no later than)\s+(?:on\s+)?(?:(next|this|coming)\s+)?(?:${WD}|(today|tonight|tomorrow))(?:\s+(?:at\s+|by\s+)?${TIME})?`, 'g'));
+  const dayWords = take(work, new RegExp(String.raw`\b(?:until|till|til|through|thru|by|before|ending|ends?|expir(?:es|ing|e)|no later than)\s+(?:(?:the\s+)?end of (?:the\s+)?(?:day\s+)?)?(?:on\s+)?(?:(next|this|coming)\s+)?(?:${WD}|(today|tonight|tomorrow))(?:\s+(?:at\s+|by\s+)?${TIME})?`, 'g'));
   for (const { m, heard: h } of dayWords) {
     const [, prefix, wdName, rel, h12, m12, ap, h24, m24, noon, midnight] = m;
     const given = timeOfDay([h12, m12, ap, h24, m24, noon, midnight]);
@@ -279,7 +281,7 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
       let ahead = (wd - t0.wd + 7) % 7;
       if (prefix === 'next' && ahead === 0) ahead = 7;
       const sameDay = ahead === 0;
-      if (sameDay && !prefix) {
+      if (sameDay && prefix !== 'next') {
         const todayEnd = endAt(0, secs);
         // Today's end is far enough off to mean today; otherwise "Friday" is today or a week away: ask.
         if (todayEnd - ctx.now >= 3 * 3600) { endsHits.push({ at: todayEnd, heard: h }); continue; }
@@ -321,19 +323,20 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
   const dayDealHits = take(work, new RegExp(String.raw`\b(?:(?:${IN})\s+)?(\d{1,3})\s+(?:deals?|purchases?|buys?|orders?|haggles?|payments?|tables?)\s*(?:a|per|each|every)\s*day\b`, 'g'));
 
   // -- how many offers
-  const offerHits = take(work, new RegExp(String.raw`\b(?:(?:${IN}|make|try|do|allow)\s+)?(\d{1,3})\s+(?:counter-?\s?)?(?:offers?|rounds?|tries|attempts?|bids?|counters?|back and forths?)\b`, 'g'));
+  const offerHits = take(work, new RegExp(String.raw`\b(?:(?:${IN}|make|try|do|allow)\s+)?(\d{1,3})\s+(?:counter-?\s?)?(?:offers?|rounds?|tries|attempts?|bids?|counters?|back and forths?)(?:\s+(?:max|maximum|tops|at most|or fewer|or less))?\b`, 'g'));
   // "until the cows come home": an end was asked for and cannot be read
   for (const { heard: h } of take(work, /\b(?:until|till|til)\b[^|]*/g)) endsHits.push({ at: null, heard: h });
 
   // -- when to ask the owner
   const askOver = take(work, new RegExp(String.raw`\b${ASKV}\s+me\b(?:\s+(?:first|again|before\s+\w+))?[^|$€£\d]{0,30}?\b${OVER}\s+(${AMT})`, 'g'));
+  const askBefore = take(work, new RegExp(String.raw`\bask\s+(?:before|if|when)\b[^|$€£\d]{0,30}?\b${OVER}\s+(${AMT})`, 'g'));
   const askAlways = take(work, new RegExp(String.raw`\b(?:always\s+${ASKV}\s+me|${ASKV}\s+me\s+(?:every time|each time|always|(?:about\s+)?every(?:thing| payment| purchase| deal)|before\s+(?:paying|you pay|any payment|anything|buying|you buy|spending|you spend|every payment|each payment)|first))\b`, 'g'));
 
   // -- selling is not read from a sentence
   const floorHits = take(work, new RegExp(String.raw`\b(?:at least|no less than|not less than|minimum(?: of)?|min(?: of)?|not (?:below|under)|no lower than|floor(?: of)?|for at least)\s+(${AMT})`, 'g'));
 
   // -- the most you'll pay
-  const ceilingHits = take(work, new RegExp(String.raw`\b(?:up to|at most|max(?:imum)?(?: of| price of)?|a maximum of|no more than|not more than|not (?:above|over|beyond)|under|below|less than|within|limit(?:ed)?(?: to| of)?|cap(?:ped)?(?: at| of)?|budget(?: of| is)?|ceiling(?: of| at)?|tops? out at|as much as|go as high as|not exceeding|never (?:more than|above|over|pay more than))\s+(${AMT})|\b(${AMT})\s+(?:max(?:imum)?|tops|at most|or less|or under|or below|and under|and below|limit)\b`, 'g'));
+  const ceilingHits = take(work, new RegExp(String.raw`\b(?:up to|at most|max(?:imum)?(?: of| price of)?|a maximum of|no more than|not more than|not (?:above|over|beyond)|under|below|less than|within|limit(?:ed)?(?: to| of)?|cap(?:ped)?(?: at| of)?|budget(?: of| is)?|ceiling(?: of| at)?|tops? out at|as much as|go as high as|not exceeding|never (?:more than|above|over|pay more than)|(?:don't|do not|dont)\s+(?:pay|spend|go|agree(?: to)?)(?:\s+(?:more than|above|over|beyond|past)))\s+(${AMT})|\b(${AMT})\s+(?:max(?:imum)?|tops|at most|or less|or under|or below|and under|and below|limit)\b`, 'g'));
 
   // lone amounts with a currency mark are asked about, never assumed
   const lone = take(work, new RegExp(String.raw`[$€£]\d[\d,]*(?:\.\d{1,2})?`, 'g'));
@@ -363,17 +366,20 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
   let inItem = false;
   let itemDone = false;
   let verbSeen = false;
+  let sawArticle = false;
   for (const seg of work.s.split('|')) {
     const toks = seg.split(/\s+/).filter(Boolean);
     let run: string[] = [];
     const flush = () => { if (run.length) stray.push(run.join(' ')); run = []; };
-    for (const tok of toks) {
+    for (const [at, tok] of toks.entries()) {
       const w = tok.replace(/^["']+|["']+$/g, '');
       if (!w) continue;
       if (!verbSeen && BUY.has(w)) { verbSeen = true; jobWord = true; inItem = true; flush(); continue; }
       if (SELL.has(w)) { selling = true; flush(); continue; }
       if (inItem && !itemDone) {
-        if (FILLER.has(w) && !MEANING.has(w)) { if (itemWords.length) itemDone = true; continue; }
+        if (FILLER.has(w) && !MEANING.has(w)) { if (ARTICLES.has(w) && !itemWords.length) sawArticle = true; if (itemWords.length) itemDone = true; continue; }
+        // "haggle hard for a monitor": a word before the item's own "for a" is a manner, not the item
+        if (!itemWords.length && !sawArticle && toks.slice(at + 1, at + 4).some((t, k, rest) => (t === 'for' || t === 'to') && ARTICLES.has(rest[k + 1] ?? ''))) { run.push(w); continue; }
         if (itemWords.length < 6) { itemWords.push(w); continue; }
       }
       if (FILLER.has(w) && !MEANING.has(w)) { flush(); continue; }
@@ -404,7 +410,7 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
 
   pick('ceiling', asHits(ceilingHits, 1, 2), (v) => { facts.ceiling = v; }, { id: 'ceiling-which', text: SAY_Q.ceilingWhich });
   if (facts.ceiling !== null && facts.ceiling <= 0) { facts.ceiling = null; unsure.add('ceiling'); heard.ceiling = heard.ceiling ?? ''; questions.push({ id: 'ceiling', slot: 'ceiling', text: SAY_Q.zero, answer: { kind: 'amount', label: SAY_Q.ceilingLabel } }); delete from.ceiling; }
-  const askHits = asHits(askOver, 1);
+  const askHits = asHits([...askOver, ...askBefore], 1);
   if (askAlways.length) askHits.push({ value: '0', heard: askAlways[0]?.heard ?? '' });
   pick('ask', askHits, (v) => { facts.ask = v; }, { id: 'ask-which', text: SAY_Q.askWhich });
 

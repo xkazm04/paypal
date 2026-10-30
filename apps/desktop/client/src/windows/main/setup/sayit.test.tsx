@@ -178,7 +178,7 @@ describe('speech is only an input behind a feature check', () => {
   });
 
   it('with one, what is heard is typed for the owner to check and read like typing', async () => {
-    let rec: { onresult?: (e: unknown) => void; onend?: () => void } = {};
+    let rec: { onresult: ((e: unknown) => void) | null; onend: (() => void) | null } = { onresult: null, onend: null };
     class Fake {
       lang = ''; interimResults = false; continuous = false; maxAlternatives = 1;
       onresult: ((e: unknown) => void) | null = null; onerror: ((e: { error: string }) => void) | null = null; onend: (() => void) | null = null;
