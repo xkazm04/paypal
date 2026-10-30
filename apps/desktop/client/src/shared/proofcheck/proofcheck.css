@@ -130,3 +130,7 @@
 .pk-alist li.bad .pk-mark { background: var(--refuse); border-color: var(--refuse); color: var(--on-refuse); }
 .pk-alist li.bad { background: color-mix(in srgb, var(--refuse) 9%, transparent); }
 .pk-alist li.dashed .pk-mark { border-style: dashed; color: var(--dim); }
+
+/* A button that is busy keeps the keyboard focus (aria-disabled, not disabled), so a person who pressed it
+   is not thrown back to the top of the page. */
+.pk .pk-tamper[aria-disabled='true'] { opacity: .6; cursor: default; }

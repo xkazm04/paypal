@@ -318,7 +318,7 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
                   const e = editsFor(tid, original);
                   const w = TAMPER_WORDS[tid];
                   return (
-                    <button key={tid} type="button" className="pk-tamper" aria-pressed={tamper === tid} disabled={!e || running || !everChecked} onClick={() => applyTamper(tid)}>
+                    <button key={tid} type="button" className="pk-tamper" aria-pressed={tamper === tid} disabled={!e || !everChecked} aria-disabled={running || undefined} onClick={() => { if (!running) applyTamper(tid); }}>
                       <b>{w.label}</b>
                       <span>{e ? caption(tid, original, e) : w.what}</span>
                     </button>
@@ -338,7 +338,7 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
               <textarea id={`${id}-text`} ref={editor} className="pk-text mono" spellCheck={false} wrap="off" rows={16} value={draft} aria-describedby={`${id}-hint`}
                 onChange={(e) => setDraft(e.target.value)} />
               <p className="ui-hint" aria-live="polite">{notJson ? W.notJson : W.live}</p>
-              <Btn sm onClick={() => checkEdited()} disabled={running}>{W.checkEdited}</Btn>
+              <Btn sm aria-disabled={running || undefined} onClick={() => { if (!running) checkEdited(); }}>{W.checkEdited}</Btn>
             </div>
           )}
 
@@ -445,7 +445,7 @@ function Verdict({ state, made, bad, dashed, caught, onRun }: { state: RunState;
         {running ? <span className="pk-bar" aria-hidden="true"><i className="pk-fill" style={{ width: `${(made / SIXTEEN) * 100}%` }} /></span> : null}
         {why ? <span className="pk-why" aria-hidden="true">{why}</span> : null}
       </div>
-      <Btn kind={done || running ? 'default' : 'primary'} disabled={running} onClick={onRun}>
+      <Btn kind={done || running ? 'default' : 'primary'} aria-disabled={running || undefined} onClick={running ? undefined : onRun}>
         {running ? W.running : done ? W.rerun : W.run}
       </Btn>
       <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{done ? `${word}. ${why}${caught.length ? ` ${W.caughtBy}: ${caught.join(', ')}.` : ''}` : ''}</span>
