@@ -4,11 +4,17 @@ use std::sync::atomic::Ordering;
 
 const DEFAULT_PORT: u16 = 1443;
 
-fn port() -> Result<u16, String> {
+struct Options {
+    port: u16,
+    rehearse: bool,
+}
+fn options() -> Result<Options, String> {
     let mut args = std::env::args().skip(1);
     let mut port = DEFAULT_PORT;
+    let mut rehearse = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--rehearse" => rehearse = true,
             "--port" => {
                 port = args
                     .next()
@@ -17,18 +23,22 @@ fn port() -> Result<u16, String> {
                     .ok_or("--port needs a port number")?;
             }
             "--help" | "-h" => {
-                println!("table-sandbox [--port <n>]  (default {DEFAULT_PORT})");
+                println!("table-sandbox [--port <n>] [--rehearse]");
+                println!(
+                    "  --port <n>   serve the live page and /mcp on 127.0.0.1:<n> (default {DEFAULT_PORT})"
+                );
+                println!("  --rehearse   a scripted client (no AI) walks the judge's path once");
                 std::process::exit(0);
             }
             other => return Err(format!("unknown argument: {other}")),
         }
     }
-    Ok(port)
+    Ok(Options { port, rehearse })
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let port = port()?;
+    let Options { port, rehearse } = options()?;
     let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
         .await
         .map_err(|_| format!("port {port} is taken; pass --port <n>"))?;
@@ -63,6 +73,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         table_sandbox::front::dollars(table_sandbox::RULE_IN_PERSON),
     );
     println!();
+    if rehearse {
+        app.rehearsal.store(true, Ordering::Relaxed);
+        println!(
+            "  Rehearsal: a scripted client (no AI) walks the judge's path now. Connect your own"
+        );
+        println!("  agent app any time; it meets the same rule.");
+        tokio::spawn(table_sandbox::rehearsal::rehearse(
+            format!("{url}/mcp"),
+            std::time::Duration::from_millis(2500),
+        ));
+        println!();
+    }
     println!("  time   call                          verdict and the rule that answered it");
     // `localhost` resolves to ::1 first on many machines: answer there too when it is free.
     if let Ok(v6) = tokio::net::TcpListener::bind((std::net::Ipv6Addr::LOCALHOST, port)).await {

@@ -89,7 +89,7 @@ function renderFacts() {
 
   const live = s.calls > 0;
   $("status").classList.toggle("live", live);
-  text("status-text", live ? "Agent connected · table " + s.table_number : "Waiting for your agent");
+  text("status-text", s.rehearsal ? "Scripted rehearsal (no AI) · table " + s.table_number : live ? "Agent connected · table " + s.table_number : "Waiting for your agent");
 
   const deal = s.deal;
   const table = s.table && deal && s.table.deal_id === deal.id ? s.table : null;
@@ -384,7 +384,7 @@ function renderChart() {
     const px = x(i), py = y(p.price);
     if (p.side === "yes") {
       svg.append(el("circle", { cx: px, cy: py, r: 9, class: "yes-ring" }));
-      svg.append(el("text", { x: px, y: py - 14, "text-anchor": "middle", class: "yes-label" }, "house: yes"));
+      svg.append(el("text", { x: px, y: py + 24, "text-anchor": "middle", class: "yes-label" }, "house: yes"));
     } else if (p.side === "refused") {
       svg.append(el("line", { x1: px - 6, y1: py - 6, x2: px + 6, y2: py + 6, class: "x" }));
       svg.append(el("line", { x1: px - 6, y1: py + 6, x2: px + 6, y2: py - 6, class: "x" }));

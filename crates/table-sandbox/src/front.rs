@@ -66,6 +66,8 @@ pub struct App {
     pub echo: AtomicBool,
     /// Colour the terminal lines (a terminal that renders ANSI, and no `NO_COLOR`).
     pub color: AtomicBool,
+    /// A scripted rehearsal (no AI) is driving `/mcp`; the page says so.
+    pub rehearsal: AtomicBool,
 }
 impl std::fmt::Debug for App {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -123,6 +125,7 @@ impl App {
             booted: Instant::now(),
             echo: AtomicBool::new(false),
             color: AtomicBool::new(false),
+            rehearsal: AtomicBool::new(false),
         }))
     }
     /// The live world (the table now open).
@@ -522,6 +525,7 @@ impl App {
         };
         json!({
             "port": self.port,
+            "rehearsal": self.rehearsal.load(Ordering::Relaxed),
             "item": crate::ITEM,
             "table_number": world.as_ref().map_or(0, |w| w.number),
             "rule": {
