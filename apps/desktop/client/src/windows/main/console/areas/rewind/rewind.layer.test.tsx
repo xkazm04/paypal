@@ -104,6 +104,15 @@ describe('the Rewind', () => {
     expect(slider.getAttribute('aria-valuetext')).toContain(REWIND_AHEAD.forecastWord);
   }, 60_000);
 
+  it('says what happens first if she does nothing, and counts down to it', async () => {
+    const r = await renderLayerAtScale({ level: 'rewind' }, null);
+    const line = await waitFor(() => { const e = r.layer.querySelector('.rw-nextline'); expect(e).not.toBeNull(); return e as HTMLElement; });
+    expect(line.textContent).toContain(REWIND_AHEAD.next);
+    expect(line.textContent).toMatch(/nothing is paid|hold .* ends on its own|collected|put on hold/);
+    const t = line.querySelector('time');
+    expect(t?.getAttribute('aria-label')).toMatch(/left$/);
+  }, 60_000);
+
   it('zooms the track to the next 72 hours and back, keeping every forecast tick', async () => {
     const r = await renderLayerAtScale({ level: 'rewind' }, 'small');
     await waitFor(() => expect(r.layer.querySelector('.rw-tick.fut')).not.toBeNull());

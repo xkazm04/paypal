@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type Keyboard
 import type { Deal } from '@bindings/Deal';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { Reach } from '../../../../../lib/say/draft';
-import { formatMinor } from '../../../../../lib/format';
+import { countdown, countdownWords, formatMinor } from '../../../../../lib/format';
 import type { Peek } from '../../../../../lib/say/join';
 import { REWIND_AHEAD, REWIND_BAR, REWIND_HUB, REWIND_THIS_WEEK, REWIND_TRUNCATED } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
@@ -168,6 +168,8 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
   const ruleEndF = ahead?.reach && ahead.reach.until > r.now ? frac(Math.min(ahead.reach.until, r.limit)) : null;
   const ruleBeyond = !!ahead?.reach && ahead.reach.until > r.limit;
   const nowWord = REWIND_AHEAD.nowAt(stepTime(r.now));
+  // What happens first if she does nothing, and how long until it: the headline counts down.
+  const nextTick = r.ahead ? (ahead?.ticks ?? []).find((t) => !t.untimed && !t.conditional && t.at > r.now) : undefined;
 
   return (
     <div className={`rw-bar${r.ahead ? ' has-ahead' : ''}${isAhead ? ' is-ahead' : ''}${crossed ? ` crossed-${crossed}` : ''}`} role="group" aria-label={r.ahead ? REWIND_AHEAD.label : REWIND_BAR.label}>
@@ -196,6 +198,12 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
       {r.ahead && ahead ? (
         <p className={`rw-walk${ahead.headline.known ? '' : ' unknown'}${isAhead ? ' ahead' : ''}`} role="status" aria-live="polite">
           <b>{ahead.headline.lead}:</b> <span>{ahead.headline.rest}</span>
+        </p>
+      ) : null}
+      {nextTick ? (
+        <p className="rw-nextline">
+          <b>{REWIND_AHEAD.next}</b> {futureSaid(nextTick.line, ahead?.titleOf(nextTick.line.deal_id, nextTick.line.label) ?? nextTick.line.label)} ·{' '}
+          <time className="num" aria-label={countdownWords(nextTick.at, r.now)}><span aria-hidden="true">{REWIND_AHEAD.nextIn(countdown(nextTick.at, r.now))}</span></time>
         </p>
       ) : null}
       {r.ahead && ahead?.reach && ahead.peeks.length ? <Peeks reach={ahead.reach} peeks={ahead.peeks} onOpenDeal={onOpenDeal} /> : null}

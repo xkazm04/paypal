@@ -135,6 +135,9 @@
 /* ---------- the right of "now": the forecast, dashed (rewind/future.ts), and the rules just said ---------- */
 .ar-rewind .rw-host .rw-walk { margin: 0; padding: var(--sp-1) 0; font: var(--fw-medium) var(--fs-title3)/1.4 var(--font); color: var(--muted); }
 .ar-rewind .rw-host .rw-walk b { color: var(--text); font-weight: var(--fw-semibold); }
+.ar-rewind .rw-host .rw-nextline { margin: 0; padding-bottom: var(--sp-1); color: var(--muted); font-size: var(--fs-body); line-height: 1.4; }
+.ar-rewind .rw-host .rw-nextline b { color: var(--text); font-weight: var(--fw-semibold); }
+.ar-rewind .rw-host .rw-nextline time { color: var(--gold-l); font-weight: var(--fw-semibold); }
 .ar-rewind .rw-host .rw-walk.unknown span { border-bottom: 1px dashed var(--dim); }
 .ar-rewind .rw-host .rw-walk.ahead { color: var(--text); }
 .ar-rewind .rw-host .rw-walk.ahead b { color: var(--gold-l); }
