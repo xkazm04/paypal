@@ -113,6 +113,20 @@ describe('the Rewind', () => {
     expect(t?.getAttribute('aria-label')).toMatch(/left$/);
   }, 60_000);
 
+  it('a past week ends where it always did: no Now line, no forecast, no headline', async () => {
+    const r = await renderLayerAtScale({ level: 'rewind' }, 'small');
+    await waitFor(() => expect(r.layer.querySelector('.rw-now')).not.toBeNull());
+    fireEvent.click(within(r.layer).getByRole('button', { name: REWIND_BAR.before }));
+    await waitFor(() => expect(r.layer.querySelector('.rw-now')).toBeNull());
+    expect(r.layer.querySelector('.rw-walk')).toBeNull();
+    expect(r.layer.querySelectorAll('.rw-tick.fut')).toHaveLength(0);
+    expect(r.layer.querySelector('.rw-zoom')).toBeNull();
+    const slider = within(r.layer).getByRole('slider', { name: REWIND_BAR.playhead });
+    // the playhead stops at the week's end, as before
+    // (a week that holds a clock change is an hour longer or shorter)
+    expect(Math.abs(Number(slider.getAttribute('aria-valuemax')) - Number(slider.getAttribute('aria-valuemin')) - 7 * 86400)).toBeLessThanOrEqual(3600);
+  }, 60_000);
+
   it('zooms the track to the next 72 hours and back, keeping every forecast tick', async () => {
     const r = await renderLayerAtScale({ level: 'rewind' }, 'small');
     await waitFor(() => expect(r.layer.querySelector('.rw-tick.fut')).not.toBeNull());
