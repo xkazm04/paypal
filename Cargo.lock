@@ -4288,6 +4288,7 @@ dependencies = [
  "table-proto",
  "table-relay",
  "table-runtime",
+ "table-verify",
  "tokio",
  "tower",
  "ulid",

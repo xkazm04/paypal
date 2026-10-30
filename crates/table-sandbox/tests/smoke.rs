@@ -178,6 +178,11 @@ async fn an_outside_agent_is_told_no_at_the_signed_limit_and_paypal_is_never_ask
         ]
     );
     assert!(journal.iter().all(|e| e.paypal == 0));
+
+    // The table's own proof file verifies with the offline verifier.
+    let (bundle, report) = h.app.proof_now().await.unwrap();
+    assert_eq!(bundle.deal.id.to_string(), deal);
+    assert!(report.verified(), "{:#?}", report.checks);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -39,6 +39,8 @@ struct Facts {
     read: Option<Instant>,
     safety: Option<SafetyRecord>,
     audit: Vec<table_client::AuditRow>,
+    /// The offline verifier's report on this table's own proof file.
+    proof: Option<Value>,
 }
 
 pub struct App {
@@ -134,6 +136,7 @@ impl App {
             .route("/api/state", get(state))
             .route("/api/journal", get(journal))
             .route("/api/fresh", post(fresh))
+            .route("/api/proof", get(proof))
             .with_state(self)
     }
     fn hosts(&self) -> [String; 2] {
@@ -435,8 +438,37 @@ impl App {
             .await
             .map(|page| page.rows)
             .unwrap_or_default();
+        facts.proof = self.proof(world).await.map(|bundle| {
+            let report = table_verify::verify_bundle(&bundle);
+            let checks: Vec<Value> = report
+                .checks
+                .iter()
+                .map(|c| json!({"name": c.name, "ok": c.ok, "checked": c.checked, "applies": c.applies}))
+                .collect();
+            json!({
+                "verified": report.verified(),
+                "passed": report.checks.iter().filter(|c| c.ok).count(),
+                "applies": report.checks.iter().filter(|c| c.applies).count(),
+                "checks": checks,
+            })
+        });
         facts.read = Some(Instant::now());
         facts.clone()
+    }
+    /// This table's proof file, exported by the wallet as the console's "Save proof" does.
+    async fn proof(&self, world: &World) -> Option<table_proto::ProofBundle> {
+        world
+            .actor
+            .execute(main_window(), Action::ExportProof(world.deal_id))
+            .await
+            .ok()
+    }
+    /// The proof file of the table now open, and the offline verifier's verdict on it.
+    pub async fn proof_now(&self) -> Option<(table_proto::ProofBundle, table_verify::Report)> {
+        let world = self.world()?;
+        let bundle = self.proof(&world).await?;
+        let report = table_verify::verify_bundle(&bundle);
+        Some((bundle, report))
     }
     /// The whole-ledger safety verdict, read now (for the exit summary).
     pub async fn safety(&self) -> Option<SafetyRecord> {
@@ -498,6 +530,7 @@ impl App {
             "table": self.journal.table(),
             "safety": facts.safety,
             "audit": facts.audit,
+            "proof": facts.proof,
         })
     }
 }
@@ -609,4 +642,28 @@ async fn fresh(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
         Ok(number) => Json(json!({"table_number": number})).into_response(),
         Err(error) => (StatusCode::SERVICE_UNAVAILABLE, error.to_string()).into_response(),
     }
+}
+/// The table's proof file, as a download the offline verifier (`table-verify`) checks.
+async fn proof(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
+    if !app.door(&headers) {
+        return refused_door();
+    }
+    let Some((bundle, _)) = app.proof_now().await else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "no proof yet").into_response();
+    };
+    let Ok(bytes) = serde_json::to_vec_pretty(&bundle) else {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "proof unreadable").into_response();
+    };
+    let name = format!(
+        "attachment; filename=\"table-{}.tableproof\"",
+        bundle.deal.id
+    );
+    (
+        [
+            (header::CONTENT_TYPE, "application/json".to_owned()),
+            (header::CONTENT_DISPOSITION, name),
+        ],
+        bytes,
+    )
+        .into_response()
 }

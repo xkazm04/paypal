@@ -20,6 +20,7 @@ table-mcp.workspace = true
 table-paypal.workspace = true
 table-proto.workspace = true
 table-relay.workspace = true
+table-verify.workspace = true
 house-seller = { path = "../../services/house-seller" }
 rendezvous = { path = "../../services/rendezvous" }
 axum.workspace = true

@@ -83,6 +83,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ),
         None => println!("  The wallet's own safety check could not be read."),
     }
+    if let Some((bundle, report)) = app.proof_now().await {
+        let passed = report.checks.iter().filter(|c| c.ok).count();
+        println!(
+            "  This table's proof file ({}): {} by the offline verifier, {} checks pass.",
+            bundle.deal.id,
+            if report.verified() {
+                "verified"
+            } else {
+                "not verified"
+            },
+            passed
+        );
+    }
     if let Some(world) = app.world() {
         world.close().await;
     }

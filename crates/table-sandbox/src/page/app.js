@@ -103,6 +103,7 @@ function renderFacts() {
   }
   renderBanner(deal);
   renderSafety(s.safety);
+  renderProof(s.proof);
   renderAudit(s.audit || []);
 }
 
@@ -150,6 +151,24 @@ function renderSafety(safety) {
   line("", "PayPal calls on refused deals: " + safety.refused_deal_calls);
   const head = hex(safety.head);
   if (head) line("hash", "head " + head.slice(0, 16) + "…");
+}
+
+function renderProof(proof) {
+  const el = $("proof");
+  el.textContent = "";
+  if (!proof) return;
+  const head = document.createElement("div");
+  head.className = proof.verified ? "ok" : "no";
+  head.textContent = proof.verified
+    ? "This table's proof file verifies offline: " + proof.passed + " checks pass"
+    : "This table's proof file: " + proof.passed + " of " + proof.applies + " checks pass";
+  const link = document.createElement("a");
+  link.href = "/api/proof";
+  link.textContent = "Download the proof file";
+  const how = document.createElement("div");
+  how.className = "small";
+  how.textContent = "Check it yourself: cargo run -p table-verify --bin table-verify -- <file>";
+  el.append(head, link, how);
 }
 
 function renderAudit(rows) {
