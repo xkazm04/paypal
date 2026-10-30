@@ -44,6 +44,29 @@ pub struct Entry {
     /// Requests the buyer wallet's PayPal client had tried to send, after this call.
     pub paypal: u64,
     pub ms: u64,
+    /// Which table (world) the call went to.
+    pub table: u32,
+}
+impl Entry {
+    /// A line the sandbox itself writes (a fresh table opening), not an agent's call.
+    pub fn marker(table: u32, at: u64, rule: String, paypal: u64) -> Self {
+        Self {
+            seq: 0,
+            at,
+            method: "sandbox/table".into(),
+            tool: None,
+            args: None,
+            outcome: Outcome::Protocol,
+            code: None,
+            clause: None,
+            rule,
+            detail: None,
+            told: None,
+            paypal,
+            ms: 0,
+            table,
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -73,9 +96,9 @@ impl Journal {
     pub fn all(&self) -> Vec<Entry> {
         self.after(0)
     }
-    pub fn set_table(&self, table: Value) {
+    pub fn set_table(&self, table: Option<Value>) {
         if let Ok(mut held) = self.table.lock() {
-            *held = Some(table);
+            *held = table;
         }
     }
     pub fn table(&self) -> Option<Value> {
@@ -165,6 +188,7 @@ pub fn read(request: Option<&Value>, status: u16, answer: Option<&Value>) -> Ent
         told: None,
         paypal: 0,
         ms: 0,
+        table: 0,
     };
     if !(200..300).contains(&status) {
         entry.outcome = Outcome::Error;

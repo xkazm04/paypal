@@ -76,6 +76,13 @@ async fn an_outside_agent_is_told_no_at_the_signed_limit_and_paypal_is_never_ask
         .rpc(1, "initialize", json!({"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"1"}}))
         .await;
     assert_eq!(init["result"]["serverInfo"]["name"], "table-wallet");
+    // The negotiator's compiled-in playbook rides along as the server's instructions.
+    assert!(
+        init["result"]["instructions"]
+            .as_str()
+            .unwrap()
+            .starts_with("# Role: buyer haggler")
+    );
 
     // The negotiator's catalog: five tools, none of them pays.
     let tools = h.rpc(2, "tools/list", json!({})).await;
@@ -152,8 +159,8 @@ async fn an_outside_agent_is_told_no_at_the_signed_limit_and_paypal_is_never_ask
     assert_eq!(refusal(&pay).0, "tool_absent");
 
     // Nothing reached PayPal, from either wallet.
-    assert_eq!(h.app.buyer_paypal.asked(), 0);
-    assert_eq!(h.app.house_paypal.asked(), 0);
+    assert_eq!(h.app.recorders.buyer.asked(), 0);
+    assert_eq!(h.app.recorders.house.asked(), 0);
 
     // The journal saw every call with the rule that answered it.
     let journal = h.app.journal.all();
@@ -214,4 +221,56 @@ async fn the_front_door_refuses_browsers_and_foreign_hosts() {
         .await
         .unwrap();
     assert_eq!(state["paypal"]["buyer"], 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_fresh_table_is_a_new_house_and_wallet_under_the_same_rule() {
+    let h = Harness::boot().await;
+    let ready = |t: &Value| {
+        t["allowed"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("send_offer"))
+    };
+    let first = h.table_until(ready).await;
+    let fresh = h
+        .http
+        .post(format!("{}/api/fresh", h.url))
+        .header("x-sandbox", "fresh")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(fresh.status(), 200);
+    // Without the page's header the door stays shut.
+    let forged = h
+        .http
+        .post(format!("{}/api/fresh", h.url))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(forged.status(), 403);
+    let second = h.table_until(ready).await;
+    assert_ne!(first["deal_id"], second["deal_id"]);
+    assert_eq!(second["history"].as_array().unwrap().len(), 1);
+    let over = h
+        .call(
+            9,
+            "send_offer",
+            json!({"deal_id":second["deal_id"],"price":"341.00","delivery":{"type":"digital_now"}}),
+        )
+        .await;
+    assert_eq!(refusal(&over), ("outside_band", Some(4)));
+    // The wallet's own whole-ledger check reads clean, and names the refusal.
+    let state = h.app.snapshot().await;
+    assert_eq!(state["table_number"], 2);
+    assert_eq!(state["safety"]["intact"], true);
+    assert_eq!(state["safety"]["violations_total"], 0);
+    assert_eq!(state["safety"]["refused_deal_calls"], 0);
+    assert!(
+        h.app
+            .journal
+            .all()
+            .iter()
+            .any(|e| e.method == "sandbox/table" && e.table == 2)
+    );
 }

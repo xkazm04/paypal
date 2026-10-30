@@ -185,128 +185,191 @@ impl house_seller::Log for Quiet {
     fn line(&self, _: &str) {}
 }
 
-/// A booted sandbox: the wallet actor with its MCP server, the house, and the front's state.
-pub struct Sandbox {
-    pub app: Arc<front::App>,
-    pub deal: Deal,
-    pub house: house_seller::House,
+/// What each wallet's PayPal client tried to send, across every table this sandbox opened.
+#[derive(Debug, Clone, Default)]
+pub struct Recorders {
+    pub buyer: Arc<paypal::Recorder>,
+    pub house: Arc<paypal::Recorder>,
 }
-impl std::fmt::Debug for Sandbox {
+
+/// One table's world: a fresh house seller and a fresh buyer wallet, paired, the owner's rule
+/// signed, the house's table joined, the outside agent's slot seated and the wallet's loopback
+/// MCP server serving. `number` counts the tables this sandbox opened.
+pub struct World {
+    pub number: u32,
+    pub actor: table_runtime::ActorHandle,
+    pub slot: Arc<engine::Slot>,
+    pub deal_id: DealId,
+    deal: Arc<std::sync::Mutex<Deal>>,
+    house: tokio::sync::Mutex<Option<house_seller::House>>,
+    listener: tokio::task::JoinHandle<()>,
+}
+impl std::fmt::Debug for World {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Sandbox")
-            .field("deal", &self.deal.id)
+        f.debug_struct("World")
+            .field("number", &self.number)
+            .field("deal", &self.deal_id)
             .finish_non_exhaustive()
     }
+}
+impl Drop for World {
+    fn drop(&mut self) {
+        self.listener.abort();
+    }
+}
+impl World {
+    /// The deal as the wallet last published it.
+    pub fn deal(&self) -> Option<Deal> {
+        self.deal.lock().ok().map(|d| d.clone())
+    }
+    /// Ends the live run and stops the house (its tick in flight finishes first).
+    pub async fn close(&self) {
+        if let Some(live) = self.slot.live() {
+            self.slot.end(live.run);
+        }
+        if let Some(house) = self.house.lock().await.take() {
+            house.drain().await;
+        }
+    }
+    pub async fn open(number: u32, recorders: &Recorders) -> Result<Self, BootError> {
+        let clock: Arc<dyn Clock> = Arc::new(table_runtime::SystemClock);
+        let now = clock.now();
+
+        // The house: its own keys, its signed rule and the release that pins both.
+        let house_owner = random_key()?;
+        let house_agent = random_key()?;
+        let payload = MandatePayload {
+            id: MandateId(ulid::Ulid::new()),
+            version: 1,
+            agent_key: house_agent.verifying_key().to_bytes(),
+            clauses: house_clauses(now)?,
+            not_before: now.saturating_sub(60),
+            expires: now.saturating_add(30 * 86_400),
+        };
+        step(payload.validate(), "house rule")?;
+        let mandate = OpenMandate {
+            owner_sig: step(
+                AgentSigner::from_key(house_owner.clone()).sign_payload(&payload),
+                "house rule signature",
+            )?,
+            payload,
+        };
+        let commitment = step(mandate.payload.hash(), "house rule hash")?;
+        let release = table_proto::HouseRelease {
+            owner_key: house_owner.verifying_key().to_bytes(),
+            agent_key: house_agent.verifying_key().to_bytes(),
+            payee: step(PayeeRef::new(HOUSE_PAYEE), "payee")?,
+            mandate_commitment: commitment,
+            owner_signature: house_owner.sign(&commitment.0).to_bytes().to_vec(),
+        };
+        let house_vault = Arc::new(MemoryVault::default());
+        throwaway_credentials(house_vault.as_ref())?;
+        let store = Arc::new(rendezvous::MemoryStore::new(clock.clone()));
+        let seller = step(
+            house_seller::Seller::new(house_seller::SellerParts {
+                ledger: step(table_ledger::Ledger::in_memory(), "house ledger")?,
+                owner: house_owner,
+                agent: house_agent,
+                release: release.clone(),
+                mandate,
+                api: Arc::new(table_paypal::Client::sandbox(
+                    Arc::new(paypal::Recording(recorders.house.clone())),
+                    Arc::new(VaultCredentials(house_vault)),
+                    clock.clone(),
+                    Arc::new(paypal::NoDelay),
+                )),
+                clock: clock.clone(),
+                relay: store.clone(),
+            }),
+            "house seller",
+        )?
+        .with_log(Arc::new(Quiet));
+        let house = house_seller::start(seller);
+        let house_routes = house_seller::router(store, house.handle.clone());
+
+        // The buyer: the desktop's assembly with in-memory edges.
+        let vault = Arc::new(MemoryVault::default());
+        throwaway_credentials(vault.as_ref())?;
+        let api = Arc::new(table_paypal::Client::sandbox(
+            Arc::new(paypal::Recording(recorders.buyer.clone())),
+            Arc::new(VaultCredentials(vault.clone())),
+            clock.clone(),
+            Arc::new(paypal::NoDelay),
+        ));
+        let mut runtime = step(
+            table_runtime::Runtime::new(
+                step(table_ledger::Ledger::in_memory(), "wallet ledger")?,
+                vault,
+                Arc::new(NoOwnerPresent),
+                api.clone(),
+                clock.clone(),
+            ),
+            "wallet",
+        )?
+        .with_secondary(api)
+        .with_relay(Arc::new(relay::InProcessRelay(house_routes)));
+        runtime.sandbox_pin_house(release);
+        let request = wallet(
+            runtime.sandbox_house_request(step(PayeeRef::new("sandbox-buyer"), "payee")?),
+            "house request",
+        )?;
+        let response = step(house.handle.table(request).await, "house table")?;
+        let deal = wallet(
+            runtime.sandbox_join_house_table(
+                response,
+                owner_clauses(now)?,
+                now.saturating_add(86_400),
+            ),
+            "join the house table",
+        )?;
+        let slot = Arc::new(engine::Slot::default());
+        runtime.sandbox_engine(
+            Arc::new(engine::OutsideAgent(slot.clone())),
+            engine::OutsideAgent::info(),
+        );
+        let (actor, mut events) = wallet(
+            table_runtime::spawn_networked(runtime).await,
+            "wallet MCP server",
+        )?;
+        let deal_id = deal.id;
+        let held = Arc::new(std::sync::Mutex::new(deal));
+        let published = held.clone();
+        let listener = tokio::spawn(async move {
+            use tokio::sync::broadcast::error::RecvError;
+            loop {
+                match events.recv().await {
+                    Ok(table_runtime::WalletEvent::Deal(changed)) if changed.deal.id == deal_id => {
+                        if let Ok(mut deal) = published.lock() {
+                            *deal = changed.deal;
+                        }
+                    }
+                    Ok(_) | Err(RecvError::Lagged(_)) => {}
+                    Err(RecvError::Closed) => break,
+                }
+            }
+        });
+        Ok(Self {
+            number,
+            actor,
+            slot,
+            deal_id,
+            deal: held,
+            house: tokio::sync::Mutex::new(Some(house)),
+            listener,
+        })
+    }
+}
+
+/// A booted sandbox: the front's state, holding the live world.
+#[derive(Debug)]
+pub struct Sandbox {
+    pub app: Arc<front::App>,
 }
 
 /// Assembles everything; `port` is where the front will be served (its Host allowlist).
 pub async fn boot(port: u16) -> Result<Sandbox, BootError> {
-    let clock: Arc<dyn Clock> = Arc::new(table_runtime::SystemClock);
-    let now = clock.now();
-
-    // The house: its own keys, its signed rule and the release that pins both.
-    let house_owner = random_key()?;
-    let house_agent = random_key()?;
-    let payload = MandatePayload {
-        id: MandateId(ulid::Ulid::new()),
-        version: 1,
-        agent_key: house_agent.verifying_key().to_bytes(),
-        clauses: house_clauses(now)?,
-        not_before: now.saturating_sub(60),
-        expires: now.saturating_add(30 * 86_400),
-    };
-    step(payload.validate(), "house rule")?;
-    let mandate = OpenMandate {
-        owner_sig: step(
-            AgentSigner::from_key(house_owner.clone()).sign_payload(&payload),
-            "house rule signature",
-        )?,
-        payload,
-    };
-    let commitment = step(mandate.payload.hash(), "house rule hash")?;
-    let release = table_proto::HouseRelease {
-        owner_key: house_owner.verifying_key().to_bytes(),
-        agent_key: house_agent.verifying_key().to_bytes(),
-        payee: step(PayeeRef::new(HOUSE_PAYEE), "payee")?,
-        mandate_commitment: commitment,
-        owner_signature: house_owner.sign(&commitment.0).to_bytes().to_vec(),
-    };
-    let house_paypal = Arc::new(paypal::Recorder::default());
-    let house_vault = Arc::new(MemoryVault::default());
-    throwaway_credentials(house_vault.as_ref())?;
-    let store = Arc::new(rendezvous::MemoryStore::new(clock.clone()));
-    let seller = step(
-        house_seller::Seller::new(house_seller::SellerParts {
-            ledger: step(table_ledger::Ledger::in_memory(), "house ledger")?,
-            owner: house_owner,
-            agent: house_agent,
-            release: release.clone(),
-            mandate,
-            api: Arc::new(table_paypal::Client::sandbox(
-                Arc::new(paypal::Recording(house_paypal.clone())),
-                Arc::new(VaultCredentials(house_vault)),
-                clock.clone(),
-                Arc::new(paypal::NoDelay),
-            )),
-            clock: clock.clone(),
-            relay: store.clone(),
-        }),
-        "house seller",
-    )?
-    .with_log(Arc::new(Quiet));
-    let house = house_seller::start(seller);
-    let house_routes = house_seller::router(store, house.handle.clone());
-
-    // The buyer: the desktop's assembly with in-memory edges.
-    let buyer_paypal = Arc::new(paypal::Recorder::default());
-    let vault = Arc::new(MemoryVault::default());
-    throwaway_credentials(vault.as_ref())?;
-    let api = Arc::new(table_paypal::Client::sandbox(
-        Arc::new(paypal::Recording(buyer_paypal.clone())),
-        Arc::new(VaultCredentials(vault.clone())),
-        clock.clone(),
-        Arc::new(paypal::NoDelay),
-    ));
-    let mut runtime = step(
-        table_runtime::Runtime::new(
-            step(table_ledger::Ledger::in_memory(), "wallet ledger")?,
-            vault,
-            Arc::new(NoOwnerPresent),
-            api.clone(),
-            clock.clone(),
-        ),
-        "wallet",
-    )?
-    .with_secondary(api)
-    .with_relay(Arc::new(relay::InProcessRelay(house_routes)));
-    runtime.sandbox_pin_house(release);
-    let request = wallet(
-        runtime.sandbox_house_request(step(PayeeRef::new("sandbox-buyer"), "payee")?),
-        "house request",
-    )?;
-    let response = step(house.handle.table(request).await, "house table")?;
-    let deal = wallet(
-        runtime.sandbox_join_house_table(response, owner_clauses(now)?, now.saturating_add(86_400)),
-        "join the house table",
-    )?;
-    let slot = Arc::new(engine::Slot::default());
-    runtime.sandbox_engine(
-        Arc::new(engine::OutsideAgent(slot.clone())),
-        engine::OutsideAgent::info(),
-    );
-    let (actor, events) = wallet(
-        table_runtime::spawn_networked(runtime).await,
-        "wallet MCP server",
-    )?;
-    let app = front::App::new(front::Parts {
-        actor,
-        events,
-        slot,
-        deal: deal.clone(),
-        port,
-        buyer_paypal,
-        house_paypal,
-    })
-    .map_err(|_| BootError::Step("front"))?;
-    Ok(Sandbox { app, deal, house })
+    let recorders = Recorders::default();
+    let world = World::open(1, &recorders).await?;
+    let app = front::App::new(world, recorders, port).map_err(|_| BootError::Step("front"))?;
+    Ok(Sandbox { app })
 }

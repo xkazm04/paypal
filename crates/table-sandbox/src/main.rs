@@ -62,16 +62,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _ = tokio::signal::ctrl_c().await;
     });
     serving.await?;
-    let state = app.snapshot();
+    let state = app.snapshot().await;
     println!();
     println!(
-        "  Stopped. {} calls, {} answered, {} refused. PayPal asked: {} (your wallet), {} (the house).",
+        "  Stopped. {} calls: {} answered, {} refused. PayPal asked: {} by your wallet, {} by the house.",
         state["calls"],
         state["answered"],
         state["refused"],
         state["paypal"]["buyer"],
         state["paypal"]["house"]
     );
-    sandbox.house.drain().await;
+    match app.safety().await {
+        Some(safety) => println!(
+            "  The wallet's own safety check: audit chain {} ({} records), {} violations, {} refused agent requests, {} PayPal calls on refused deals.",
+            if safety.intact { "intact" } else { "BROKEN" },
+            safety.records,
+            safety.violations_total,
+            safety.refusals,
+            safety.refused_deal_calls
+        ),
+        None => println!("  The wallet's own safety check could not be read."),
+    }
+    if let Some(world) = app.world() {
+        world.close().await;
+    }
     Ok(())
 }
