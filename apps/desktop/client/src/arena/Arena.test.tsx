@@ -77,6 +77,38 @@ describe('Break The Table', () => {
   });
 });
 
+describe('the arena, structurally accessible', () => {
+  beforeEach(() => resetMockState());
+  afterEach(() => { cleanup(); setHarnessBackend(null); });
+
+  const check = () => {
+    const ids = [...document.querySelectorAll('[id]')].map((e) => e.id);
+    expect(new Set(ids).size, 'unique ids').toBe(ids.length);
+    for (const b of document.querySelectorAll('button, a[href], textarea')) {
+      const name = (b.getAttribute('aria-label') ?? b.textContent ?? '').trim() || (b.id ? document.querySelector(`label[for="${b.id}"]`)?.textContent?.trim() : '');
+      expect(name, b.outerHTML.slice(0, 80)).toBeTruthy();
+    }
+    for (const el of document.querySelectorAll('[aria-describedby], [aria-labelledby]')) {
+      for (const ref of `${el.getAttribute('aria-describedby') ?? ''} ${el.getAttribute('aria-labelledby') ?? ''}`.split(/\s+/).filter(Boolean)) {
+        expect(document.getElementById(ref), `#${ref}`).not.toBeNull();
+      }
+    }
+    for (const li of document.querySelectorAll('li')) expect(['UL', 'OL']).toContain(li.parentElement?.tagName);
+    for (const img of document.querySelectorAll('[role="img"]')) expect(img.getAttribute('aria-label')).toBeTruthy();
+    expect(document.querySelectorAll('h1')).toHaveLength(1);
+  };
+
+  it('holds before, during and after a round', async () => {
+    mountArena();
+    check();
+    act(() => { fireEvent.keyDown(window, { key: '3' }); });
+    await screen.findByText('Maya signed: offers from $250 to $340.', undefined, { timeout: 2000 });
+    check();
+    act(() => { fireEvent.keyDown(window, { key: 'c' }); });
+    check();
+  });
+});
+
 describe('your attacks, as a file', () => {
   it('carries each played attack’s record, the summary and the command, nothing else', () => {
     const played = [RECORD.attacks[0]!, RECORD.attacks[0]!, RECORD.attacks[10]!];
