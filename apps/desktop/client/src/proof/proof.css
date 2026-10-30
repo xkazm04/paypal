@@ -5,3 +5,5 @@
 .pf-head .kicker { margin: 0 0 var(--sp-2); }
 .pf-head h1 { margin: 0; font-size: var(--fs-display); }
 .pf-lede { margin: var(--sp-2) 0 0; max-width: 44rem; color: var(--muted); }
+.pf-watch { margin: var(--sp-3) 0 0; }
+.pf-watch .ui-btn { text-decoration: none; display: inline-flex; align-items: center; }

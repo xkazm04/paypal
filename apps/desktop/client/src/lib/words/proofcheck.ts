@@ -115,6 +115,8 @@ export const PROOF_CHECKER = {
     title: 'Check a proof',
     lede: 'Drop a deal’s .tableproof file here, or use the practice deal, and see whether it holds. Then try to break it. It is all checked in this page: nothing is installed and the file is not sent anywhere.',
     use: 'Use the practice deal',
+    watch: 'Watch it play through',
+    stop: 'Stop and try it yourself',
     back: 'The Table · proof checker',
   },
 } as const;
