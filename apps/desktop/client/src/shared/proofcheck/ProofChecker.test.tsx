@@ -88,7 +88,9 @@ describe('a tamper', () => {
     const lonely = JSON.parse(SAMPLE_PROOF.text) as { closed_mandates: unknown[] };
     lonely.closed_mandates = [];
     render(<ProofChecker source={{ name: 'x.tableproof', text: JSON.stringify(lonely) }} own={null} />);
-    expect((screen.getByRole('button', { name: /Pay someone else/ }) as HTMLButtonElement).disabled).toBe(true);
+    // a file with no approval has no payee to swap: the button is not there at all
+    expect(screen.queryByRole('button', { name: /Pay someone else/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Rewrite a market price/ })).toBeNull();
     expect((screen.getByRole('button', { name: /Raise the price/ }) as HTMLButtonElement).disabled).toBe(true); // until the first check
   });
 });
