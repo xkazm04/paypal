@@ -2760,7 +2760,8 @@ agent-negotiation-run value-2 (ask a07e05ac): the owner chose "Keep as is, expla
   under `apps/desktop/client/src/lib/proof/sample/`; `cargo test -p table-client` fails when they are stale.
 - **Dependencies**: no new npm package. `table-client` now depends on `ed25519-dalek` and `base64`, both already in the workspace
   (they sign the practice deals and read their messages).
-- **Not worked out in the browser yet**: the house seller's signed record (`house_record`); a file that carries one reads
-  "not checked: this page can't make this check yet", never passed. Group and market-price checks are worked out.
+- **All sixteen checks are worked out in the browser**, the house seller's signed record included. Held to the Rust verifier on the
+  practice deals and on eight proof files the wallet's own runtime wrote (`src/lib/proof/real/`, `real.json` from
+  `cargo run -p table-client --bin real-proofs`); a Rust test fails if the verifier's word on one of them changes.
 - **Existing tests moved with the added mock deal** (each commented): module count (Tables 6 to 7), the ledger's money in (27.50 to
   239.50), the Rewind's history, the film record's paid steps.

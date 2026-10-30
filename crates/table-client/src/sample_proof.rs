@@ -30,6 +30,8 @@ use table_proto::{
 
 type Made<T> = Result<T, Box<dyn std::error::Error>>;
 
+/// The proof files the wallet's own runtime wrote, kept as a second corpus for the browser checker.
+pub const REAL_DIR: &str = "../../apps/desktop/client/src/lib/proof/real";
 /// Where the client reads the sample from, relative to this crate.
 pub const CLIENT_DIR: &str = "../../apps/desktop/client/src/lib/proof/sample";
 /// The sample file's name.
@@ -1562,6 +1564,28 @@ pub fn files() -> Made<Vec<(String, Vec<u8>)>> {
     Ok(out)
 }
 
+/// The verifier's word on every `.tableproof` in `dir` (by file name), as the JSON the client's parity test reads.
+pub fn outcomes_in(dir: &std::path::Path) -> Made<Vec<u8>> {
+    let mut names: Vec<_> = std::fs::read_dir(dir)?
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|x| x == "tableproof"))
+        .collect();
+    names.sort();
+    let mut all = serde_json::Map::new();
+    for path in names {
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or("file name")?
+            .to_owned();
+        all.insert(name, outcome(&std::fs::read(&path)?));
+    }
+    let mut out = serde_json::to_vec_pretty(&Value::Object(all))?;
+    out.push(b'\n');
+    Ok(out)
+}
+
 /// Writes every file into `dir`.
 pub fn write_to(dir: &std::path::Path) -> Made<()> {
     std::fs::create_dir_all(dir)?;
@@ -1631,6 +1655,19 @@ mod tests {
                 }
             }
         }
+        Ok(())
+    }
+
+    /// Files the wallet's runtime wrote are kept beside the verifier's word on each; the word must still be
+    /// the verifier's (a change to a check is a deliberate regeneration, never a silent one).
+    #[test]
+    fn the_real_files_keep_the_words_the_verifier_gave_them() -> Made<()> {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(REAL_DIR);
+        let kept = std::fs::read(dir.join("real.json"))?;
+        assert!(
+            kept == outcomes_in(&dir)?,
+            "the verifier now says something else about a real file: run `cargo run -p table-client --bin real-proofs -- {REAL_DIR} {REAL_DIR}/real.json`"
+        );
         Ok(())
     }
 

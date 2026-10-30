@@ -6,8 +6,9 @@ import { canonical } from './jcs';
 import { same, type Bytes } from './bytes';
 import { payloadHash, clauseOf } from './mandate';
 
-/** An `Err(String)` of the Rust checks: the check did not pass, for this reason. */
-export class Why extends Error {}
+import { Why } from './why';
+
+export { Why };
 type Rec = Record<string, unknown>;
 
 export type MoneyOp = 'create' | 'authorize' | 'capture' | 'void' | 'invoice-create' | 'invoice-send';

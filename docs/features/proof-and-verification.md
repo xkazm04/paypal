@@ -150,9 +150,10 @@ inside the app, on the owner's own ledger, as "Your safety record".
     twin of the verifier: all sixteen checks, under the same ids and with the same wording, on
     WebCrypto's Ed25519 (held to `verify_strict`: a malleated signature and a small-order key are
     refused), SHA-256 and RFC 8785 canonical bytes. It reads a file as strictly as Rust does (a file
-    that does not read is "not a proof file"). Only the house seller's signed record is not worked out
-    there yet: a file that carries one reads "not checked: this page can't make this check yet", never
-    passed. Where it shows:
+    that does not read is "not a proof file"). All sixteen checks are worked out there, the house seller's signed record
+    included (a browser that cannot check Ed25519 says so on every signature line instead of guessing).
+    It is held to the Rust verifier on the practice deals and on eight proof files the wallet's own runtime
+    wrote (`src/lib/proof/real/`, with `real.json`, the verifier's word on each). Where it shows:
     - **`proof.html`**, a static page with no wallet and no backend: drop a `.tableproof`, or use a
       practice deal; the lines tick one by one, then the person breaks the file (a ready-made break, or
       typing over the file's text, checked as they type) and sees which lines turn red, the first
@@ -224,7 +225,7 @@ IPC commands (from `crates/table-client/src/authority_table.rs`):
 ## Tests that pin it
 
 - `crates/table-client/src/sample_proof.rs`: each practice deal verifies and its dashed lines are exactly the ones it has nothing for; each tamper turns exactly the named checks red; the committed files are current.
-- `apps/desktop/client/src/lib/proof/parity.test.ts`: the browser checker's report equals the wallet verifier's for every practice deal and tampered copy; `primitives.test.ts`: canonical JSON, base64url, Ed25519 strictness, the editor's text; `sides.test.ts`: the two files of one sale agree and a change shows on its line; `shared/proofcheck/ProofChecker.test.tsx`: the checker as a person meets it.
+- `apps/desktop/client/src/lib/proof/parity.test.ts`: the browser checker's report equals the wallet verifier's for every practice deal and tampered copy; `real.test.ts`: and for eight files the runtime wrote (the house seller's record kept, and found shortened); `primitives.test.ts`: canonical JSON, base64url, Ed25519 strictness, the editor's text; `sides.test.ts`: the two files of one sale agree and a change shows on its line; `shared/proofcheck/ProofChecker.test.tsx`: the checker as a person meets it.
 
 - `crates/table-runtime/src/proof_tests.rs`:
   `a_v2_proof_shows_the_checklist_behind_each_owner_decision_and_one_request_per_step`.

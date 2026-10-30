@@ -11,6 +11,7 @@ import { canonical, canonicalBytes } from './jcs';
 import { isPublicKey, verifyStrict } from './ed25519';
 import { verifyEnvelope, signedBody, ProtocolError } from './envelope';
 import { clauseOf, invalidPayload } from './mandate';
+import { compareHeads, headSigned, headsConsistent, prefixContradicts, prefixSigned, releaseHolds } from './house';
 import { marketDigest, marketValid, type MarketRef, ordinal, percentile, productValid, readMarketRef } from './market';
 import {
   callHasOperation, decisionFits, detailOf, field, judge, moneyKind, rule, rulesFor, sameDecided, termsAmount, textField, Why,
@@ -510,15 +511,51 @@ async function shield(run: Run): Promise<string> {
   return `${holds} hold(s) or block(s), ${refused} refused step(s); ${releasedSteps} money step(s) after a hold, each under the owner's release for these terms`;
 }
 
-async function houseRecord({ b }: Run): Promise<string> {
+/** The house seller's signed heads, kept beside this deal's receipt and after it, verify against the pinned
+ *  house key, the pin is the house this deal was made with, and the house's record never got shorter or was
+ *  rewritten after the receipt. */
+async function houseRecord(run: Run): Promise<string> {
+  const { b } = run;
   const o = older(b);
   if (o) throw o;
   const kept = rowsOf(b, 'house.head_kept');
-  if (b.house === null) {
+  const house = b.house;
+  if (house === null) {
     if (kept.length === 0) throw absent('not checked: this deal kept no copy of the house seller\'s signed record');
     throw new Why('the deal kept the house\'s record, but the file leaves it out');
   }
-  throw unmade('not checked: this page does not check the house seller\'s signed record yet');
+  needSignatures(run);
+  const { release, heads } = house;
+  if (!(await releaseHolds(release))) throw new Why('the house release pin does not verify');
+  if (!same(release.agent_key, b.counterparty.agent_key)) throw new Why('the release pin is not the house this deal was made with');
+  const first = heads[0];
+  const base = first?.receipt ? first : undefined;
+  if (!base) throw new Why('the file has no head kept beside the receipt');
+  if (heads.filter((h) => h.receipt).length !== 1) throw new Why('more than one head is marked as the receipt\'s');
+  const [row, ...rest] = kept;
+  if (!row || rest.length > 0) throw new Why('the deal\'s rows do not record exactly one kept head');
+  const d = detailOf(row);
+  const at = base.head.head;
+  const epoch = byteArray(field(d, 'epoch'), 32);
+  const audit = byteArray(field(d, 'audit_head'), 32);
+  if (!epoch || !same(epoch, at.epoch) || field(d, 'row_count') !== at.row_count || !audit || !same(audit, at.audit_head)) {
+    throw new Why('the receipt\'s head differs from the one the deal\'s rows recorded');
+  }
+  for (const [index, entry] of heads.entries()) {
+    if (!(await headSigned(entry.head, release))) throw new Why(`head ${index + 1} is not signed by the pinned house key`);
+    if (entry.prefix) {
+      if (!(await prefixSigned(entry.prefix, release))) throw new Why(`prefix ${index + 1} is not signed by the pinned house key`);
+      if (prefixContradicts(at, entry.prefix.prefix)) throw new Why('the house signed a different history at your receipt');
+    }
+    if (index === 0) continue;
+    if (entry.kept_at < (heads[index - 1] as { kept_at: number }).kept_at) throw new Why('the heads are not in the order they were kept');
+    const prefix = entry.prefix && entry.prefix.prefix.row_count === at.row_count ? entry.prefix.prefix : null;
+    const verdict = compareHeads(at, entry.head.head, prefix);
+    if (verdict === 'shorter') throw new Why(`the house's record got shorter after your receipt: ${at.row_count} entries, then ${entry.head.head.row_count}`);
+    if (verdict === 'rewritten') throw new Why('the house\'s record was rewritten after your receipt');
+  }
+  const consistent = await headsConsistent(heads.map((h) => h.head), release);
+  return `${at.row_count} entries at your receipt; ${consistent}; signed by the pinned house key`;
 }
 
 /** The market product the owner bound to the item in the rules' market-watch clause; for an item with no

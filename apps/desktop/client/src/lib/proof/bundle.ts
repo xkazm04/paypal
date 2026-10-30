@@ -3,6 +3,7 @@
 // proof file", never a green line. Hashes, keys and signatures are written by the wallet as JSON arrays
 // of byte values; they come out here as bytes.
 import { type Bytes } from './bytes';
+import { type House, readHouse } from './house';
 import { type MarketRef, readMarketRef } from './market';
 import { CURRENCIES, type Money, readMoney } from './money';
 import { bytes, flag, label, list, maybe, oneOf, rec, type Rec, refuse, text, ulid, whole } from './read';
@@ -276,7 +277,7 @@ export interface Bundle {
   audit_head: { seq: number; hash: Bytes };
   authority_manifest: Bytes | null;
   group: Group | null;
-  house: unknown;
+  house: House | null;
   evidence_head: Bytes;
   evidence_sig: Bytes;
 }
@@ -341,7 +342,7 @@ export function readBundle(value: unknown): Bundle {
     audit_head: { seq: whole(head.seq), hash: bytes(head.hash, 32) },
     authority_manifest: maybe(r.authority_manifest, (m) => bytes(m, 32)),
     group: maybe(r.group, readGroup),
-    house: r.house ?? null,
+    house: maybe(r.house, readHouse),
     evidence_head: bytes(r.evidence_head, 32),
     evidence_sig: bytes(r.evidence_sig),
   };
