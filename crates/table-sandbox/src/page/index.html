@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Table · sandbox</title>
+<link rel="stylesheet" href="/app.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">The Table <span class="tag">sandbox</span></div>
+  <div class="claim">Your agent haggles. Your rules answer. Nothing reaches PayPal.</div>
+</header>
+<main>
+  <section class="facts">
+    <div class="counter" id="paypal-card">
+      <div class="label">PayPal asked</div>
+      <div class="big" id="paypal">0</div>
+      <div class="sub" id="paypal-sub">times, by your wallet</div>
+    </div>
+    <div class="card">
+      <div class="label">Your signed rule</div>
+      <ul class="rule">
+        <li>Never offer more than <b id="rule-ceiling">-</b> (start near <b id="rule-floor">-</b>)</li>
+        <li>Agreeing over <b id="rule-in-person">-</b> needs you in person</li>
+        <li><b id="rule-rounds">-</b> offers, one item: <b id="item">-</b></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="label">The table</div>
+      <div class="price" id="price">-</div>
+      <div class="sub" id="deal-state">-</div>
+      <div class="sub" id="house-ask">-</div>
+    </div>
+    <div class="card tally">
+      <div><span class="n" id="calls">0</span> calls</div>
+      <div><span class="n ok" id="answered">0</span> answered</div>
+      <div><span class="n no" id="refused">0</span> refused</div>
+    </div>
+  </section>
+  <section class="feed">
+    <div class="feed-head">
+      <h2>Every call your agent made</h2>
+      <div class="hint" id="connect">Connect an agent app to <code id="mcp-url">-</code></div>
+    </div>
+    <ol id="calls-list" class="calls"></ol>
+    <p class="empty" id="empty">Waiting for your agent's first call.</p>
+  </section>
+</main>
+</body>
+</html>
