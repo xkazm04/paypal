@@ -26,6 +26,7 @@ pub use run_state::*;
 mod settings;
 pub use settings::*;
 pub mod playbooks;
+pub mod sample_proof;
 pub mod tray;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
