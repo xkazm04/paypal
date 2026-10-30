@@ -20,8 +20,10 @@ import type { WalletError } from '../../../../../lib/contract';
 import { clockLabel, formatMoney, shortHash, shortId } from '../../../../../lib/format';
 import { useMutation, useQuery } from '../../../../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../../../../lib/lazy';
+import { SAMPLE_DEAL_ID, SAMPLE_DEAL_LABEL } from '../../../../../lib/proof/sampleId';
+import { backend } from '../../../../../lib/runtime';
 import {
-  DEAL_ACT, DEAL_CARD, DEAL_DETAILS, DEAL_FIGS, DEAL_KICKER, DEAL_SIDE, DEAL_STORY, DEAL_WHO, houseRecordWord, houseWords, INSTRUCTIONS, kindWord, LATEST_OF, NOTICE_WHAT, OPEN_THE_DEAL, rulesName, silenceWords, TABLES_WATCH,
+  DEAL_ACT, DEAL_CARD, DEAL_DETAILS, DEAL_FIGS, DEAL_KICKER, DEAL_SIDE, DEAL_STORY, DEAL_WHO, houseRecordWord, houseWords, INSTRUCTIONS, kindWord, LATEST_OF, NOTICE_WHAT, OPEN_THE_DEAL, PROOF_CHECKER, rulesName, silenceWords, TABLES_WATCH,
 } from '../../../../../lib/words';
 import { RunBadge, WalletNotice } from '../../../../../shared/honesty';
 import { MODULE } from '../../../../../shared/modules';
@@ -102,6 +104,8 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
   const ended = isTerminal(deal);
   const atFloor = acceptedAtFloorLine(deal, disp.band, tr.data);
 
+  // The browser preview signs one practice deal; the wallet itself checks files through the Book.
+  const signed = backend().kind === 'mock' ? { sample: deal.id === SAMPLE_DEAL_ID, label: SAMPLE_DEAL_LABEL, open: () => nav.deal(SAMPLE_DEAL_ID) } : null;
   const cards: LensCard[] = [
     {
       id: 'story', label: DEAL_CARD.story,
@@ -128,8 +132,8 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
     {
       id: 'proof', label: DEAL_CARD.proof,
       value: refs ? DEAL_CARD.proofHas(refs) : deal.state === 'REFUSED' ? DEAL_CARD.proofNever : DEAL_CARD.proofNone,
-      note: DEAL_CARD.proofNote, chip: houseRecord?.warns ? houseRecord.text : undefined, chipTone: houseRecord?.tone,
-      view: { title: DEAL_CARD.proofView, sub: DEAL_CARD.proofSub, render: () => <ProofView deal={deal} band={disp.band} onFresh={(e) => setFresh({ id: deal.id, e })} fresh={fresh && fresh.id === deal.id ? fresh.e : null} /> },
+      note: DEAL_CARD.proofNote, chip: signed?.sample ? PROOF_CHECKER.card.value : houseRecord?.warns ? houseRecord.text : undefined, chipTone: signed?.sample ? 'teal' : houseRecord?.tone,
+      view: { title: DEAL_CARD.proofView, sub: DEAL_CARD.proofSub, render: () => <ProofView deal={deal} band={disp.band} onFresh={(e) => setFresh({ id: deal.id, e })} fresh={fresh && fresh.id === deal.id ? fresh.e : null} signed={signed} /> },
     },
   ];
 

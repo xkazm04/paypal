@@ -1,0 +1,2801 @@
+[
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/24/hash/10"
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/22/hash/10",
+        "value": 0
+      },
+      {
+        "op": "set",
+        "path": "/audit/3/prev_hash/5",
+        "value": true
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/evidence_head/12"
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/5/prev_hash/21"
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/operations/1/decided_by/mandate_hash/2",
+        "value": 12
+      },
+      {
+        "op": "set",
+        "path": "/audit/26/hash/22",
+        "value": ""
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/16/hash/20",
+        "value": -1
+      }
+    ],
+    "source": "real/seller-receipted"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/receipts/0/transcript_head/18",
+        "value": -1
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "cdc69c2efc7e6dd2a12cd85e04a36032ab1b158f8217b36c159b5bcfb8f72eb6",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/closed_mandates/0/mandate/payee",
+        "value": "merchan0"
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit_head/hash/28",
+        "value": 4294967296
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/0/prev_hash/21",
+        "value": -1
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/evidence_sig/9",
+        "value": 0
+      },
+      {
+        "op": "set",
+        "path": "/audit/7/seq",
+        "value": 19
+      },
+      {
+        "op": "remove",
+        "path": "/audit/1/prev_hash/30"
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "f87ba3d43dae5562406042a8bb0c90235095d3966d4cbe2895a253b137d308db",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/deal/transcript_head/18",
+        "value": 0
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/27/hash"
+      },
+      {
+        "op": "set",
+        "path": "/closed_mandates/0/mandate/agent_sig/20",
+        "value": 1188
+      },
+      {
+        "op": "set",
+        "path": "/evidence_sig/8",
+        "value": 0
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/16/seq",
+        "value": ""
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/15/hash/27"
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/2/at"
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/31/prev_hash/8",
+        "value": 144
+      },
+      {
+        "op": "remove",
+        "path": "/audit/3/prev_hash/25"
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/14/prev_hash/6"
+      },
+      {
+        "op": "remove",
+        "path": "/audit/2/prev_hash/24"
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "aab1b90396641f7f1c2d4a6eac7a4b4d8d7785a61fa3f5c179fb62b7ab9c978b",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/house/heads/0/head/head/audit_head/28",
+        "value": 126
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "e3224944f504c1598ffbf44f18a93930d9a27bc98ad8002d7c34d3cb31bf3546",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/paypal_calls/2/body/purchase_units/0/zz_extra",
+        "value": 1
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/1/hash/10",
+        "value": {}
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/7/prev_hash/2",
+        "value": {}
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/2/hash"
+      },
+      {
+        "op": "set",
+        "path": "/mandate/payload/expires",
+        "value": 9007199254740991
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/mandate/owner_sig/18",
+        "value": 4294967296
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/authority_manifest/17",
+        "value": null
+      },
+      {
+        "op": "set",
+        "path": "/audit/5/prev_hash/28",
+        "value": 256
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/evidence_sig/12",
+        "value": 65536
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/1/prev_hash/24",
+        "value": 9007199254740991
+      },
+      {
+        "op": "set",
+        "path": "/deal/transcript_head/5",
+        "value": -1
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/20/prev_hash/20"
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/9/hash/6"
+      }
+    ],
+    "source": "real/seller-receipted"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/21/prev_hash/21"
+      }
+    ],
+    "source": "real/seller-receipted"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/14/prev_hash/25",
+        "value": null
+      },
+      {
+        "op": "set",
+        "path": "/audit/12/action",
+        "value": ".countersigned"
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/11/prev_hash/13",
+        "value": true
+      }
+    ],
+    "source": "real/seller-receipted"
+  },
+  {
+    "digest": "d3a1998a688d9e6fb393f4453fcad5a953650338e52f442377342e9e93a6f084",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/6/prev_hash/7",
+        "value": 93
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/receipts/0/transcript_head/10",
+        "value": 1e+21
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/deal/terms/zz_extra",
+        "value": 1
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "2864c957ec52f46fabb786106bdb915e9a8971799ca9837e010bc1646308507a",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/9/prev_hash/14",
+        "value": 0
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "7306bd225c6f26e8099bb60a8e922215c7c2dd881bf354c6e62cf28b489fc01e",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/evidence_head/28",
+        "value": 169
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/6/hash/19",
+        "value": null
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/9/prev_hash/13"
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/20/hash/1"
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/18/actor",
+        "value": -1
+      },
+      {
+        "op": "set",
+        "path": "/audit/30/prev_hash/16",
+        "value": "x"
+      },
+      {
+        "op": "remove",
+        "path": "/closed_mandates/0/mandate/agent_sig/52"
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/10/prev_hash/5"
+      },
+      {
+        "op": "remove",
+        "path": "/audit/8/hash/14"
+      },
+      {
+        "op": "remove",
+        "path": "/audit/18/hash/19"
+      }
+    ],
+    "source": "real/seller-receipted"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/18/hash/24"
+      },
+      {
+        "op": "set",
+        "path": "/audit/32/prev_hash/9",
+        "value": null
+      }
+    ],
+    "source": "real/seller-receipted"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/mandate/payload/id",
+        "value": true
+      },
+      {
+        "op": "set",
+        "path": "/audit/5/hash/1",
+        "value": 0
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/33/prev_hash/6",
+        "value": {}
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/13/prev_hash/6",
+        "value": 1221
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "a2aed971f59a708a3a5cc99c5fc5928a2ebd0faf7b5133a1a404ce8ddac3645d",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/19/hash/6",
+        "value": 22
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/evidence_sig/55",
+        "value": 9007199254740991
+      },
+      {
+        "op": "remove",
+        "path": "/audit/3/prev_hash/29"
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/5/hash/22",
+        "value": true
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/evidence_sig/2",
+        "value": 4294967296
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/17/hash/30"
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/0/hash/14",
+        "value": -1
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/7/hash/19"
+      },
+      {
+        "op": "set",
+        "path": "/audit/21/seq",
+        "value": 0
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/group/tables/0/rows/0/hash/26",
+        "value": []
+      },
+      {
+        "op": "set",
+        "path": "/audit/7/hash/4",
+        "value": 46
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "a1a996cd34e924dce7fa2fcc774c3dd85125067db2daf3f148286c241b91af7f",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/20/hash/16",
+        "value": 0
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "181fa02193bc5bc2bd614157989b4684defc3a2caa66aa9ad733192fb7449747",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/21/prev_hash/10",
+        "value": 171
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "a96f63e8cd96467d7c56400a31c1142b94689848be6964c2bb30b52bfc94f932",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/evidence_sig/26"
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/counterparty/agent_key/7",
+        "value": 81
+      },
+      {
+        "op": "remove",
+        "path": "/audit/10/hash/27"
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/mandate/payload/agent_key/30",
+        "value": 1e+21
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/evidence_sig/4",
+        "value": true
+      },
+      {
+        "op": "set",
+        "path": "/audit/4/hash/9",
+        "value": 140
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/2/prev_hash/23",
+        "value": -1
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/deal/transcript_head/12",
+        "value": 1e+21
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/8/prev_hash/12"
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/6/hash/1",
+        "value": []
+      },
+      {
+        "op": "set",
+        "path": "/audit/7/prev_hash/21",
+        "value": 128
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "213ad07cafa04089ff57b6c7ffa99efc6975ea129f7880a09a8ae6702758b8a3",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/34/prev_hash/26",
+        "value": 114
+      }
+    ],
+    "source": "real/seller-receipted"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/deal/transcript_head/13",
+        "value": "x"
+      },
+      {
+        "op": "set",
+        "path": "/audit/11/hash/12",
+        "value": 150
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/house/heads/1/head/signature/43",
+        "value": 256
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/1/prev_hash/10",
+        "value": 65536
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/23/hash/8",
+        "value": 4294967296
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/19/hash/5"
+      }
+    ],
+    "source": "real/seller-receipted"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/group/tables/0/rows/0",
+        "value": {
+          "action": "group.won",
+          "actor": "policy",
+          "at": 100,
+          "detail_json": "{\"group_id\":\"01M669J217VDRB0V1JNMED7VKY\"}",
+          "hash": [
+            14,
+            248,
+            54,
+            90,
+            21,
+            37,
+            223,
+            175,
+            224,
+            224,
+            221,
+            196,
+            81,
+            63,
+            48,
+            15,
+            217,
+            251,
+            130,
+            122,
+            150,
+            39,
+            75,
+            57,
+            10,
+            218,
+            2,
+            219,
+            16,
+            229,
+            27,
+            142
+          ],
+          "prev_hash": [
+            106,
+            147,
+            144,
+            69,
+            29,
+            85,
+            146,
+            215,
+            192,
+            179,
+            253,
+            131,
+            230,
+            178,
+            153,
+            5,
+            246,
+            92,
+            29,
+            50,
+            254,
+            147,
+            118,
+            210,
+            10,
+            92,
+            227,
+            209,
+            28,
+            239,
+            167,
+            1
+          ],
+          "seq": 32
+        }
+      },
+      {
+        "op": "set",
+        "path": "/audit/11/prev_hash/27",
+        "value": []
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/6/hash/30",
+        "value": 1e+21
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/2/hash/28",
+        "value": 4294967296
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fcf8d78df31eeb7e39f4794cf2476888815fb52696d320b748489d091ae9df49",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/18/hash/23",
+        "value": 228
+      },
+      {
+        "op": "set",
+        "path": "/house/heads/1/head/signature/1",
+        "value": 176
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "d5ea9e64587f555d22536f07ba15ae3338115736577d0ad7595f2bec5ba6352d",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/32/prev_hash/23",
+        "value": 215
+      }
+    ],
+    "source": "real/seller-receipted"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/10/hash/26",
+        "value": 9007199254740991
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/7/prev_hash/29",
+        "value": 9007199254740991
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/operations/2/request_id",
+        "value": -1
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/2/hash/26",
+        "value": {}
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/deal/market/response_hash/10",
+        "value": []
+      },
+      {
+        "op": "set",
+        "path": "/audit/1/hash/3",
+        "value": -1
+      },
+      {
+        "op": "remove",
+        "path": "/audit/24/actor"
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/mandate/owner_sig/57",
+        "value": 1e+21
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/0/hash/7",
+        "value": -1
+      },
+      {
+        "op": "set",
+        "path": "/counterparty/agent_key/29",
+        "value": 0
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fcdbf419e260c810975703ef6bca8d617e8ddb67254e1ce60ed9587702ea45c1",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/mandate/payload/clauses/4/max_deals_day",
+        "value": 256
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/6/prev_hash/10",
+        "value": 4294967296
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/32/prev_hash/5",
+        "value": 22
+      },
+      {
+        "op": "set",
+        "path": "/audit/35/prev_hash/23",
+        "value": 256
+      }
+    ],
+    "source": "real/seller-receipted"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/counterparty/owner_key/5",
+        "value": 65536
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "29911922ac99c9b69e597f285313b915aced91c4205b6b7404298c9bd1cab7f7",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/1/prev_hash/7",
+        "value": 46
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "167a878cb23ef3febe8ecc30b2d84544dc8cac73c0862d97dc649d225d2a4945",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/15/prev_hash/24",
+        "value": 37
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/15/hash/2",
+        "value": 1187
+      },
+      {
+        "op": "set",
+        "path": "/audit/21/prev_hash/3",
+        "value": 0
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/8/action"
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "42a7af63ef04a5e359958372f2f29cabfc0097027c32ed2886a957888f4dc839",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/authority_manifest/14",
+        "value": 0
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/9/hash/27",
+        "value": 1e+21
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "a42b753b2eaf6af68ed2d82c0fc46b072ac0b3a2b38a9985185f8254817270d2",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/evidence_head/13",
+        "value": 0
+      }
+    ],
+    "source": "real/seller-receipted"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/6/prev_hash/12",
+        "value": 1079
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "69a8c581e38986832c96ab027de2104a7941ce742675c0d2d5246aa64dc9e045",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/mandate/owner_sig/10",
+        "value": 0
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/18/prev_hash/8",
+        "value": 9007199254740991
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/6/prev_hash/14",
+        "value": 1220
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/evidence_head/20"
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/23/action",
+        "value": []
+      },
+      {
+        "op": "set",
+        "path": "/audit/6/prev_hash/1",
+        "value": 9007199254740991
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/16/hash/3",
+        "value": -1
+      },
+      {
+        "op": "remove",
+        "path": "/audit/32/prev_hash/2"
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/13/hash",
+        "value": ""
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/7/hash/7",
+        "value": 256
+      },
+      {
+        "op": "set",
+        "path": "/audit/3/hash/13",
+        "value": 1.5
+      },
+      {
+        "op": "set",
+        "path": "/audit/7/prev_hash/26",
+        "value": 1106
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/deal/market/response_hash/30",
+        "value": 9007199254740991
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/mandate/owner_sig/0",
+        "value": 164
+      },
+      {
+        "op": "set",
+        "path": "/audit/23/prev_hash/13",
+        "value": 1e+21
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/28/hash/11",
+        "value": []
+      },
+      {
+        "op": "remove",
+        "path": "/audit/27/hash"
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/9/prev_hash/19",
+        "value": null
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/house/release/owner_key/27",
+        "value": 256
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "a75d3d1cdd30a5579d726169faf76869c10e0741afa0ffed9fbcff023f9d1838",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/15/prev_hash/20",
+        "value": 48
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/15/action",
+        "value": "shield.AAAA"
+      },
+      {
+        "op": "set",
+        "path": "/closed_mandates/0/mandate/agent_sig/54",
+        "value": {}
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "da7a7800292d1bdd974f99ab50a6019db19723b499578416ff9c778ce87ea7f2",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/2/prev_hash/27",
+        "value": 188
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "6bc3daa5d2344eef37e64d2c5e347afbed330e9cfc324d69b66a41b8b3ae094c",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/11/action",
+        "value": ".accepted"
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/closed_mandates/0/mandate/terms_hash/11"
+      },
+      {
+        "op": "set",
+        "path": "/audit/20/prev_hash/22",
+        "value": 128
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/8/prev_hash/21"
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/1/prev_hash/6",
+        "value": true
+      },
+      {
+        "op": "remove",
+        "path": "/house/heads/0/head/signature/39"
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "ca39e5a4f0650bda1046d9ba868fed470651e14e8acdc8604a46c6691a91a8b4",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/deal/terms/unit_price/minor",
+        "value": 256
+      },
+      {
+        "op": "set",
+        "path": "/audit/14/hash/2",
+        "value": 134
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/17/prev_hash",
+        "value": {}
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/1",
+        "value": null
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/2/prev_hash/17",
+        "value": []
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/counterparty/owner_key/6"
+      },
+      {
+        "op": "set",
+        "path": "/authority_manifest/28",
+        "value": 4294967296
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "40113906efed035db581a68464b2b044577b68d72300b78fb22a1bacf8084fb2",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/24/detail_json",
+        "value": "{\"authorization_at\":100,\"due_at\":259300"
+      },
+      {
+        "op": "set",
+        "path": "/audit/12/prev_hash/2",
+        "value": 0
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/deal/shield_release/terms_hash/31",
+        "value": true
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/closed_mandates/0/mandate/agent_sig/36",
+        "value": 1196
+      }
+    ],
+    "source": "real/seller-receipted"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/2/prev_hash/16"
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "481c9bf11e598fa23bd87ffa50c454890689596e6423bed08ff3bfbfaf8acc98",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/6/prev_hash/4",
+        "value": 23
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/evidence_sig/48",
+        "value": ""
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "64d19ccf277d90c1bdb8ccc1b0e939d3c31de0652b7f42cac513f4260cfabab7",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/7/prev_hash/26",
+        "value": 31
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/deal/market/response_hash/5",
+        "value": []
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/14/hash/23"
+      },
+      {
+        "op": "set",
+        "path": "/audit/0/prev_hash/7",
+        "value": 4294967296
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/2/prev_hash/21"
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/mandate/payload/clauses/3/floor/currency",
+        "value": null
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/12/hash/31",
+        "value": 0
+      },
+      {
+        "op": "set",
+        "path": "/audit/13/hash/22",
+        "value": 1.5
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/1/hash/29",
+        "value": 1096
+      },
+      {
+        "op": "set",
+        "path": "/authority_manifest/2",
+        "value": 80
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/8/hash/20",
+        "value": 1e+21
+      },
+      {
+        "op": "set",
+        "path": "/audit/30/prev_hash/18",
+        "value": "x"
+      },
+      {
+        "op": "set",
+        "path": "/mandate/payload/clauses/5/amount",
+        "value": true
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/group/tables/2/rows/0/hash/25",
+        "value": 1114
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/closed_mandates/0/mandate/agent_sig/41",
+        "value": 65536
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/deal/market/certificate/raw_sha256/4"
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/deal/market/p75",
+        "value": -1
+      },
+      {
+        "op": "set",
+        "path": "/counterparty/agent_key/5",
+        "value": null
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "b6333973a04dafbee9ca39a3dac5e688b16893610247be8ce7197d3516e2387f",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/8/prev_hash/9",
+        "value": 229
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "40113906efed035db581a68464b2b044577b68d72300b78fb22a1bacf8084fb2",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/12/prev_hash/11",
+        "value": 0
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/evidence_head/21",
+        "value": {}
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "cef04d3a723c59de8ce511995ff61fe0ae76a48123974e184d837c42485f0862",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/deal/transcript_head/3",
+        "value": 0
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/35/prev_hash/19",
+        "value": true
+      },
+      {
+        "op": "remove",
+        "path": "/deal/market/certificate/comparables/1/minor"
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/14/hash/25"
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "cbadbeff1886cb123a00326fc51e0246ee93b2048e4193843483837ba657668f",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/evidence_sig/60",
+        "value": 94
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/mandate/payload/clauses/2/type",
+        "value": null
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/20/hash/12"
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/19/prev_hash/16"
+      },
+      {
+        "op": "remove",
+        "path": "/audit/8/hash/19"
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/8/prev_hash/6",
+        "value": []
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/mandate/owner_sig/41",
+        "value": 1.5
+      },
+      {
+        "op": "remove",
+        "path": "/audit/0/hash"
+      },
+      {
+        "op": "set",
+        "path": "/audit/20/prev_hash/12",
+        "value": "x"
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/1/prev_hash/17",
+        "value": ""
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/28/hash/14",
+        "value": 0
+      },
+      {
+        "op": "set",
+        "path": "/closed_mandates/0/mandate/open_mandate_hash/8",
+        "value": "x"
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/evidence_head/9"
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/10/hash/8",
+        "value": -1
+      },
+      {
+        "op": "set",
+        "path": "/audit/9/actor",
+        "value": "polic0"
+      },
+      {
+        "op": "set",
+        "path": "/group/tables/0/rows/1/prev_hash/16",
+        "value": 246
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/deal/market/response_hash/5"
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/33/hash/12",
+        "value": 65536
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/23/hash/19",
+        "value": 1e+21
+      },
+      {
+        "op": "remove",
+        "path": "/authority_manifest/14"
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/20/at",
+        "value": ""
+      },
+      {
+        "op": "remove",
+        "path": "/paypal_calls/1/body/id"
+      },
+      {
+        "op": "remove",
+        "path": "/audit/26/hash/20"
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/12/hash/1",
+        "value": null
+      },
+      {
+        "op": "remove",
+        "path": "/audit/16/detail_json"
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/12/prev_hash/29",
+        "value": 9007199254740991
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "32c77d816e187cef60e06fb84db23d9be061cfe1b36e5741879b74696e5343dc",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/17/prev_hash/12",
+        "value": 49
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "29911922ac99c9b69e597f285313b915aced91c4205b6b7404298c9bd1cab7f7",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/group/tables/1/rows/1/prev_hash/6",
+        "value": 91
+      },
+      {
+        "op": "set",
+        "path": "/audit/2/prev_hash/13",
+        "value": 215
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/37/hash/25"
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/deal/transcript_head/28"
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/23/prev_hash/2",
+        "value": -1
+      },
+      {
+        "op": "set",
+        "path": "/audit/24/hash/3",
+        "value": 187
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/13/hash/26",
+        "value": -1
+      },
+      {
+        "op": "set",
+        "path": "/audit/9/prev_hash/5",
+        "value": 38
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit_head/hash/7",
+        "value": []
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/house/release/owner_key",
+        "value": 0
+      },
+      {
+        "op": "set",
+        "path": "/audit/28/hash/19",
+        "value": 204
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/26/hash/2",
+        "value": "x"
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "b15ea7fe2c9695b4fe9203be3110a9c9bb50711c593d1064133bb8aa375e1eed",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/transcript/4/raw",
+        "value": "x"
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/group/tables/1/rows/0/prev_hash/15"
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/authority_manifest/23"
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/21/hash/30"
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/24/prev_hash/3"
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "96f483a2b609bec78b8e5864dff150a151e4e2127d6ff6050affbc272b783301",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/paypal_calls/2/binding",
+        "value": -1
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/19/hash/25",
+        "value": []
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/4/hash/17"
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "b94ed51739b0b9df9ca7ed0181a7cf7925da1cde71a4d2f53c72cd1a95c4178f",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/group/tables/0/rows/0/hash/9",
+        "value": 78
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/evidence_head/11",
+        "value": null
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/evidence_sig/43",
+        "value": 1025
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "89aadca8a5afdf7d9ffe79d32ab6918b3f5b1b8c2fdee6682cd5b1eacb57ed91",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/counterparty/agent_key/5",
+        "value": 0
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/1/prev_hash/24",
+        "value": 145
+      },
+      {
+        "op": "set",
+        "path": "/mandate/owner_sig/46",
+        "value": 1121
+      },
+      {
+        "op": "set",
+        "path": "/mandate/payload/clauses/5/type",
+        "value": "human_present_ovex"
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "8e5cc6a30c8b4097143e6de34528dc9db9250a2b4caa4543c658336bc8e12d42",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/24/hash/21",
+        "value": 150
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "6a0881909c1c3fbf7de18a1f911bdbd17dd0949711d4b0132f069934c5fa1b88",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/2/prev_hash/1",
+        "value": 0
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/1/prev_hash/31",
+        "value": []
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/28/prev_hash/28",
+        "value": "x"
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "b49819033e0787c07ccaa77f7096c23084c3b01f8764b046b75d0d9890d02ea0",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/group/tables/0/rows/0/action",
+        "value": "AAAA.opened"
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/8/action"
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/8/hash/16",
+        "value": 9007199254740991
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/27/hash/17",
+        "value": 256
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/14/hash/4",
+        "value": -1
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/mandate/payload/clauses/5/amount"
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/16/hash/21",
+        "value": 9007199254740991
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/3/prev_hash/27",
+        "value": 0
+      },
+      {
+        "op": "set",
+        "path": "/audit/29/hash/7",
+        "value": ""
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/21/prev_hash/31",
+        "value": true
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/23/hash/20"
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/group/tables/1/rows/1/prev_hash/31",
+        "value": 4294967296
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/12/prev_hash/20"
+      },
+      {
+        "op": "remove",
+        "path": "/deal/transcript_head/30"
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "f369a00324eb3c724d4f45175950f3a71bf5f030f2e1cda245e98a4b94be6afa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/house/release/owner_signature/13"
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/operations/2/operation",
+        "value": 0
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/8/prev_hash/17",
+        "value": 256
+      },
+      {
+        "op": "set",
+        "path": "/evidence_sig/44",
+        "value": 9007199254740991
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/evidence_head/30",
+        "value": 1e+21
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/3/prev_hash/1",
+        "value": "x"
+      },
+      {
+        "op": "remove",
+        "path": "/deal/market/response_hash/30"
+      }
+    ],
+    "source": "real/seller-resolved"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/2/hash/22",
+        "value": 1e+21
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/group/tables/1/rows/0/prev_hash/10"
+      },
+      {
+        "op": "remove",
+        "path": "/group/tables/1/rows/0/detail_json"
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/9/hash/24"
+      },
+      {
+        "op": "remove",
+        "path": "/audit/7/prev_hash/27"
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/20/prev_hash/2"
+      }
+    ],
+    "source": "real/seller-receipted"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/22/prev_hash/14"
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/10/prev_hash/19",
+        "value": []
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "remove",
+        "path": "/audit/2/prev_hash"
+      },
+      {
+        "op": "remove",
+        "path": "/audit/1/hash/30"
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "aefe905a78886e00b8f39f25632ec92fd2353add32051c2a56ab58d55868a446",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/13/detail_json",
+        "value": "{\"rule\":null,\"terms_hash\":[27,235,226,140,38,191,122,211,166,242,110,192,10,9,110,242,83,58,25,3,175,26,191,3,234,86,130,3,115,44,208,27],\"verdict\":\"CLEAR\"0"
+      }
+    ],
+    "source": "sample/golden"
+  },
+  {
+    "digest": "ea7dfea86f92006f33e1ba44fe0ba90ae1496b1a331e484ad444fd38ddc08d37",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/0/hash/8",
+        "value": 84
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "5e980d2fff6b111ccf787ac3a804344d4c7c209b2b8d9028dbba1e82dc897517",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/8/hash/8",
+        "value": 81
+      }
+    ],
+    "source": "real/seller-agreed-market"
+  },
+  {
+    "digest": "79ef11c9f1d1fdfd7078a1bf23f41ac6d8d162627b9becba0737c09d1a3b0453",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/4/hash/13",
+        "value": 112
+      }
+    ],
+    "source": "real/house-buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/closed_mandates/0/mandate/agent_sig/58",
+        "value": []
+      },
+      {
+        "op": "set",
+        "path": "/audit/15/hash/1",
+        "value": 105
+      }
+    ],
+    "source": "real/seller-authorized"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/12/prev_hash/8",
+        "value": -1
+      }
+    ],
+    "source": "sample/buyer"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/11/hash/10",
+        "value": 9007199254740991
+      },
+      {
+        "op": "set",
+        "path": "/audit/20/hash/6",
+        "value": true
+      }
+    ],
+    "source": "sample/busy"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/mandate/payload/agent_key/1",
+        "value": 9007199254740991
+      }
+    ],
+    "source": "real/nothing-yet"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/6/hash/28",
+        "value": 1e+21
+      }
+    ],
+    "source": "real/buyer-group-agreed"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/3/prev_hash/10",
+        "value": 1109
+      }
+    ],
+    "source": "real/house-buyer-shorter"
+  },
+  {
+    "digest": "fb2973e68207467afcd9177c73b19f20885f2d632708157e03b3248258f906fa",
+    "edits": [
+      {
+        "op": "set",
+        "path": "/audit/28/hash/16",
+        "value": 4294967296
+      }
+    ],
+    "source": "real/seller-receipted"
+  }
+]

@@ -1,0 +1,2950 @@
+{
+  "samples": {
+    "busy": {
+      "golden": {
+        "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+        "checks": [
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "table.proof.v2",
+            "id": "format",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "mandate 01K8W4C9X0A3B6D9E2G5K8N1QS v2",
+            "id": "mandate",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "agent signed 6 outbound, peer signed 3 inbound; head 0ff78e270802",
+            "id": "transcript",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "1 countersign(s) bind terms 63370d1da313 and 249.00 USD; payee is in the owner-signed payee list",
+            "id": "countersign",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+            "id": "authority",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+            "id": "paypal_order",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
+            "id": "audit",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+            "id": "receipt",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+            "id": "owner_saw",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "1 step(s) checked again with PayPal, each under the one request id it was first sent with (0 re-send(s), 1 PayPal call(s))",
+            "id": "one_request",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "2 tables, this one agreed; 1 withdrawn by the group rule after the win",
+            "id": "group",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "1 hold(s) or block(s), 0 refused step(s); 3 money step(s) after a hold, each under the owner's release for these terms",
+            "id": "shield",
+            "ok": true
+          },
+          {
+            "applies": false,
+            "checked": false,
+            "detail": "not checked: this deal kept no copy of the house seller's signed record",
+            "id": "house_record",
+            "ok": false
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "249.00 USD is the 100th percentile of 7 market prices for product dell-p2422h; quartiles 126.50 / 135.00 / 146.00 computed again from them; agreed on record 72e6b6f4105e (response 1403980e6e2f)",
+            "id": "market",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+            "id": "permissions",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "evidence head 8de004343957 signed by the deal's agent",
+            "id": "evidence",
+            "ok": true
+          }
+        ],
+        "deal_id": "01K8W4C9X7D2F6H0J3M5P8R1TV",
+        "mode": "sandbox",
+        "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+        "same_version": true,
+        "verified": true
+      },
+      "variants": [
+        {
+          "edits": [
+            {
+              "op": "remove",
+              "path": "/audit/16"
+            }
+          ],
+          "name": "shield-release",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W4C9X0A3B6D9E2G5K8N1QS v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 0ff78e270802",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 63370d1da313 and 249.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "38 deal rows hash-consistent; chain head #350 b7c5636f68a8",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 step(s) checked again with PayPal, each under the one request id it was first sent with (0 re-send(s), 1 PayPal call(s))",
+                  "id": "one_request",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 tables, this one agreed; 1 withdrawn by the group rule after the win",
+                  "id": "group",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "the create step (record #105) went ahead while the safety check held the deal, with no release by the owner for these terms",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "249.00 USD is the 100th percentile of 7 market prices for product dell-p2422h; quartiles 126.50 / 135.00 / 146.00 computed again from them; agreed on record 72e6b6f4105e (response 1403980e6e2f)",
+                  "id": "market",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W4C9X7D2F6H0J3M5P8R1TV",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "shield",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/deal/market/certificate/comparables/0/minor",
+              "value": 5000
+            }
+          ],
+          "name": "market-price",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W4C9X0A3B6D9E2G5K8N1QS v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 0ff78e270802",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 63370d1da313 and 249.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 step(s) checked again with PayPal, each under the one request id it was first sent with (0 re-send(s), 1 PayPal call(s))",
+                  "id": "one_request",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 tables, this one agreed; 1 withdrawn by the group rule after the win",
+                  "id": "group",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 hold(s) or block(s), 0 refused step(s); 3 money step(s) after a hold, each under the owner's release for these terms",
+                  "id": "shield",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "the deal's latest market record is not the one its rows recorded",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W4C9X7D2F6H0J3M5P8R1TV",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "market",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/group/winner",
+              "value": "01K8W4C9X2Q7S0V3Y6Z9A2C5EG"
+            }
+          ],
+          "name": "group-winner",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W4C9X0A3B6D9E2G5K8N1QS v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 0ff78e270802",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 63370d1da313 and 249.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 step(s) checked again with PayPal, each under the one request id it was first sent with (0 re-send(s), 1 PayPal call(s))",
+                  "id": "one_request",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "the group's winner is not the table that won it",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 hold(s) or block(s), 0 refused step(s); 3 money step(s) after a hold, each under the owner's release for these terms",
+                  "id": "shield",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "249.00 USD is the 100th percentile of 7 market prices for product dell-p2422h; quartiles 126.50 / 135.00 / 146.00 computed again from them; agreed on record 72e6b6f4105e (response 1403980e6e2f)",
+                  "id": "market",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W4C9X7D2F6H0J3M5P8R1TV",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "group",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/group/tables/1/state",
+              "value": "RECEIPTED"
+            }
+          ],
+          "name": "group-agreed",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W4C9X0A3B6D9E2G5K8N1QS v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 0ff78e270802",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 63370d1da313 and 249.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 step(s) checked again with PayPal, each under the one request id it was first sent with (0 re-send(s), 1 PayPal call(s))",
+                  "id": "one_request",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 tables of the group agreed",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 hold(s) or block(s), 0 refused step(s); 3 money step(s) after a hold, each under the owner's release for these terms",
+                  "id": "shield",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "249.00 USD is the 100th percentile of 7 market prices for product dell-p2422h; quartiles 126.50 / 135.00 / 146.00 computed again from them; agreed on record 72e6b6f4105e (response 1403980e6e2f)",
+                  "id": "market",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W4C9X7D2F6H0J3M5P8R1TV",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "group",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/operations/2/request_id",
+              "value": "a-second-request-id"
+            }
+          ],
+          "name": "request-id",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W4C9X0A3B6D9E2G5K8N1QS v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 0ff78e270802",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 63370d1da313 and 249.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "capture (attempt 1): no money.authorized row records its authority",
+                  "id": "authority",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "the capture step (attempt 1) is recorded under a request id its rows never name",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 tables, this one agreed; 1 withdrawn by the group rule after the win",
+                  "id": "group",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 hold(s) or block(s), 0 refused step(s); 3 money step(s) after a hold, each under the owner's release for these terms",
+                  "id": "shield",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "249.00 USD is the 100th percentile of 7 market prices for product dell-p2422h; quartiles 126.50 / 135.00 / 146.00 computed again from them; agreed on record 72e6b6f4105e (response 1403980e6e2f)",
+                  "id": "market",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W4C9X7D2F6H0J3M5P8R1TV",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "authority",
+            "one_request",
+            "evidence"
+          ]
+        }
+      ]
+    },
+    "buyer": {
+      "golden": {
+        "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+        "checks": [
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "table.proof.v2",
+            "id": "format",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "mandate 01K8W2R6Q9G5J8M2P4S7V0XZBD v1",
+            "id": "mandate",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "agent signed 3 outbound, peer signed 6 inbound; head 65aa03c863c2",
+            "id": "transcript",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "no countersign in this deal",
+            "id": "countersign",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "no money operation in this deal",
+            "id": "authority",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "no PayPal order in this deal, so no order binding to compare",
+            "id": "paypal_order",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "19 deal rows hash-consistent; chain head #43 7acd91e6d929",
+            "id": "audit",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+            "id": "receipt",
+            "ok": true
+          },
+          {
+            "applies": false,
+            "checked": false,
+            "detail": "not checked: no money step in this deal was the owner's decision",
+            "id": "owner_saw",
+            "ok": false
+          },
+          {
+            "applies": false,
+            "checked": false,
+            "detail": "not checked: no money step in this deal needed a second look at PayPal",
+            "id": "one_request",
+            "ok": false
+          },
+          {
+            "applies": false,
+            "checked": false,
+            "detail": "not checked: this deal was not one table of a shop-around group",
+            "id": "group",
+            "ok": false
+          },
+          {
+            "applies": false,
+            "checked": false,
+            "detail": "not checked: the safety check never held or refused a step in this deal",
+            "id": "shield",
+            "ok": false
+          },
+          {
+            "applies": false,
+            "checked": false,
+            "detail": "not checked: this deal kept no copy of the house seller's signed record",
+            "id": "house_record",
+            "ok": false
+          },
+          {
+            "applies": false,
+            "checked": false,
+            "detail": "not checked: the deal had no market price when it was agreed",
+            "id": "market",
+            "ok": false
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+            "id": "permissions",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "evidence head 389c75a19250 signed by the deal's agent",
+            "id": "evidence",
+            "ok": true
+          }
+        ],
+        "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+        "mode": "sandbox",
+        "owner_key_id": "74df5d3935744076da6e3c8e33e2d142545c692f3f5adcb1bd20e4b3e4d3a9fa",
+        "same_version": true,
+        "verified": true
+      },
+      "variants": [
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/deal/terms/unit_price/minor",
+              "value": 29680
+            }
+          ],
+          "name": "price",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W2R6Q9G5J8M2P4S7V0XZBD v1",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 3 outbound, peer signed 6 inbound; head 65aa03c863c2",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "no countersign in this deal",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "no money operation in this deal",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "no PayPal order in this deal, so no order binding to compare",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "19 deal rows hash-consistent; chain head #43 7acd91e6d929",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "receipt states 212.00 USD but the signed terms agreed 296.80 USD",
+                  "id": "receipt",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal was the owner's decision",
+                  "id": "owner_saw",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "74df5d3935744076da6e3c8e33e2d142545c692f3f5adcb1bd20e4b3e4d3a9fa",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "receipt",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/deal/transcript_head",
+              "value": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          ],
+          "name": "transcript-head",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W2R6Q9G5J8M2P4S7V0XZBD v1",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "transcript does not end at the deal's transcript head",
+                  "id": "transcript",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "no countersign in this deal",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "no money operation in this deal",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "no PayPal order in this deal, so no order binding to compare",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "19 deal rows hash-consistent; chain head #43 7acd91e6d929",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal was the owner's decision",
+                  "id": "owner_saw",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "74df5d3935744076da6e3c8e33e2d142545c692f3f5adcb1bd20e4b3e4d3a9fa",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "transcript",
+            "evidence"
+          ]
+        }
+      ]
+    },
+    "monitor": {
+      "golden": {
+        "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+        "checks": [
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "table.proof.v2",
+            "id": "format",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2",
+            "id": "mandate",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
+            "id": "transcript",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
+            "id": "countersign",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+            "id": "authority",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+            "id": "paypal_order",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+            "id": "audit",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+            "id": "receipt",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+            "id": "owner_saw",
+            "ok": true
+          },
+          {
+            "applies": false,
+            "checked": false,
+            "detail": "not checked: no money step in this deal needed a second look at PayPal",
+            "id": "one_request",
+            "ok": false
+          },
+          {
+            "applies": false,
+            "checked": false,
+            "detail": "not checked: this deal was not one table of a shop-around group",
+            "id": "group",
+            "ok": false
+          },
+          {
+            "applies": false,
+            "checked": false,
+            "detail": "not checked: the safety check never held or refused a step in this deal",
+            "id": "shield",
+            "ok": false
+          },
+          {
+            "applies": false,
+            "checked": false,
+            "detail": "not checked: this deal kept no copy of the house seller's signed record",
+            "id": "house_record",
+            "ok": false
+          },
+          {
+            "applies": false,
+            "checked": false,
+            "detail": "not checked: the deal had no market price when it was agreed",
+            "id": "market",
+            "ok": false
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+            "id": "permissions",
+            "ok": true
+          },
+          {
+            "applies": true,
+            "checked": true,
+            "detail": "evidence head f7471be7c02d signed by the deal's agent",
+            "id": "evidence",
+            "ok": true
+          }
+        ],
+        "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+        "mode": "sandbox",
+        "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+        "same_version": true,
+        "verified": true
+      },
+      "variants": [
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/deal/terms/unit_price/minor",
+              "value": 29680
+            }
+          ],
+          "name": "price",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "attempt 1: closed mandate does not bind this deal's mandate, terms and amount",
+                  "id": "countersign",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "/v2/checkout/orders: custom_id is not this deal's terms hash",
+                  "id": "paypal_order",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "receipt states 212.00 USD but the signed terms agreed 296.80 USD",
+                  "id": "receipt",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "countersign",
+            "paypal_order",
+            "receipt",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/audit/1/detail_json",
+              "value": "{\"authorization_at\":null,\"due_at\":1798184000}"
+            }
+          ],
+          "name": "audit-line",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "row 63: hash does not match its contents",
+                  "id": "audit",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "audit",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "remove",
+              "path": "/audit/27"
+            }
+          ],
+          "name": "audit-gap",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "capture (attempt 1): an owner capture with no owner decision in the approval window before it",
+                  "id": "authority",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "33 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "the owner's capture step (record #329) has no earlier record of the checklist the owner saw",
+                  "id": "owner_saw",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "authority",
+            "owner_saw",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/transcript/2/raw",
+              "value": "eyJhbGciOiJFZERTQSIsImtpZCI6IjRiYTgzYTAyMWZkOTUxMDFiYTVmY2Y2MzYyOTg1ZWQxZmI2OWEwNTJlZTBiNWI4MDY5ZTZjN2U3NzUzYTMxODEifQ.eyJhdWQiOiIxMTcwNjQ5NTFjYzFkMDliYjIwMGQ3ZmIwNjRmODg3MGI5ZGNkMTE1NjQxMWFlMWFlMjliMjdlNWY0NWExYmJjIiwiYm9keSI6eyJkZWxpdmVyeSI6eyJkYXlzIjozLCJ0eXBlIjoic2hpcF90aGVuX2NhcHR1cmUifSwicHJpY2UiOnsiY3VycmVuY3kiOiJVU0QiLCJtaW5vciI6MjM1MDB9LCJ0eXBlIjoiQ09VTlRFUiJ9LCJkZWFsX2lkIjoiMDFLOFcyUjZRNE41TTlUM1ZYWjdCMUNEMEUiLCJleHAiOjE3OTMwMDA4NDAsImlhdCI6MTc5MzAwMDI0MCwiaXNzIjoiNGJhODNhMDIxZmQ5NTEwMWJhNWZjZjYzNjI5ODVlZDFmYjY5YTA1MmVlMGI1YjgwNjllNmM3ZTc3NTNhMzE4MSIsIm5vbmNlIjpbMTU4LDk4LDY4LDExMSw1NywxODQsNjksMjQ0LDQ3LDY3LDE5MiwxMjUsMjYsMzMsMTc3LDI1NV0sInByZXYiOlsxMDEsMiwxODQsMTAxLDE1MywxNjEsNTksNCwyMDEsNTIsNDMsMTkxLDIwMSwyMiwxOTgsMTY4LDE4NywxMCwxNDMsMTA5LDE5Niw5MSwxOTAsNDAsNjMsMTE3LDEzNCwyMTAsMTc5LDQ2LDEzNSwyNDJdLCJzZXEiOjIsInR5cCI6IkNPVU5URVIiLCJ2IjoxfQ.AXgwk1zW3aKLrWHkqfrTaT80Hj-2DbaDNEEPMKOmilhAsqjLbZZxNZerYei8vCa-D9qonbrJf8LxIhcs-gt4BA"
+            }
+          ],
+          "name": "signature",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "message 3: bad signature or signing key",
+                  "id": "transcript",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "transcript",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/closed_mandates/0/mandate/payee",
+              "value": "someone-else"
+            }
+          ],
+          "name": "payee",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "attempt 1: agent signature over the closed mandate does not verify",
+                  "id": "countersign",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "/v2/checkout/orders: PayPal payee is not the countersigned payee",
+                  "id": "paypal_order",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "countersign",
+            "paypal_order",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/paypal_calls/0/binding/purchase_units/0/amount/value",
+              "value": "21.20"
+            }
+          ],
+          "name": "paypal-amount",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "/v2/checkout/orders: PayPal amount is not the signed amount",
+                  "id": "paypal_order",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "paypal_order",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/paypal_calls/3/path",
+              "value": "/v2/payments/captures/3C679366HH908993F/refund"
+            }
+          ],
+          "name": "refund",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "money-shaped POST /v2/payments/captures/3C679366HH908993F/refund has no known operation",
+                  "id": "authority",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "authority",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/receipts/0/amount_minor",
+              "value": 2120
+            }
+          ],
+          "name": "receipt",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "receipt fields differ from the signed receipt",
+                  "id": "receipt",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "receipt",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/mandate/payload/clauses/3/ceiling/minor",
+              "value": 52000
+            }
+          ],
+          "name": "rules",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "owner signature over the mandate does not verify",
+                  "id": "mandate",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "attempt 1: closed mandate does not bind this deal's mandate, terms and amount",
+                  "id": "countersign",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "authorize (attempt 1): the mandate behind a authorize is not this deal's signed mandate",
+                  "id": "authority",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "mandate",
+            "countersign",
+            "authority",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/format",
+              "value": "table.proof.v1"
+            }
+          ],
+          "name": "relabel",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "a first-format file carries records only the second format has",
+                  "id": "format",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: a file in the first proof format does not carry this record",
+                  "id": "owner_saw",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: a file in the first proof format does not carry this record",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: a file in the first proof format does not carry this record",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: a file in the first proof format does not carry this record",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: a file in the first proof format does not carry this record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: a file in the first proof format does not carry this record",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: a file in the first proof format does not carry this record",
+                  "id": "permissions",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "format",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/owner_key",
+              "value": [
+                86,
+                230,
+                74,
+                209,
+                30,
+                75,
+                33,
+                22,
+                97,
+                93,
+                63,
+                108,
+                235,
+                183,
+                126,
+                121,
+                145,
+                174,
+                6,
+                190,
+                205,
+                239,
+                110,
+                67,
+                198,
+                120,
+                138,
+                8,
+                35,
+                185,
+                86,
+                30
+              ]
+            }
+          ],
+          "name": "owner-key",
+          "outcome": {
+            "report": {
+              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "owner signature over the mandate does not verify",
+                  "id": "mandate",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "id": "audit",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "id": "owner_saw",
+                  "ok": true
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "74df5d3935744076da6e3c8e33e2d142545c692f3f5adcb1bd20e4b3e4d3a9fa",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "mandate",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "remove",
+              "path": "/deal"
+            }
+          ],
+          "name": "not-a-proof",
+          "outcome": {
+            "refused": "This file is not a proof file saved by this wallet, so there is nothing to check."
+          },
+          "red": []
+        }
+      ]
+    }
+  }
+}

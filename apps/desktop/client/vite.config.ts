@@ -5,7 +5,7 @@ import { sourceLocPlugin } from './scripts/babel/source-loc-vite-plugin.mjs';
 
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
-// Three Tauri windows, three pages. The CSP is `script-src 'self'; style-src 'self'`,
+// Three Tauri windows, three pages, and the proof checker's page (a plain static page, no wallet). The CSP is `script-src 'self'; style-src 'self'`,
 // so everything must ship as bundled files: no inline scripts, no inline <style>.
 export default defineConfig({
   // sourceLocPlugin is inert unless THE_TABLE_INSPECTOR=1 (npm run tauri:dev:test).
@@ -31,6 +31,8 @@ export default defineConfig({
         main: here('./index.html'),
         tumbler: here('./tumbler.html'),
         approval: here('./approval.html'),
+        // The proof checker on a page of its own (no wallet, no backend): a static page like the director.
+        proof: here('./proof.html'),
         // Dev-only: the scenario director (src/director), served by `vite` dev and absent from the
         // release bundle (Tauri ships dist/). Built statically only by `pnpm build:director`
         // (THE_TABLE_DIRECTOR_BUILD=1) for the no-install judge path.

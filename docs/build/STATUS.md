@@ -2811,3 +2811,21 @@ film's and the preview's haggle prices now come from the engine.
 Gates on the branch: client typecheck clean, vitest 214 files / 2042 tests, build clean; cargo fmt
 clean, clippy (workspace, all targets, -D warnings) and `cargo test --workspace` (see the hackathon log
 for the final run).
+
+## Proof checker in the browser (2026-10-30, hackathon branch)
+
+`table-verify`'s sixteen checks, run in a browser with nothing installed (`apps/desktop/client/src/lib/proof/`,
+`shared/proofcheck/`, `proof.html`), with a tamper control and a two-sided comparison; see
+[proof-and-verification.md](../features/proof-and-verification.md) step 10.
+- **No new IPC command** (`deal_export_proof` and `proof_check` already had rows); the mock answers them: the first downloads the
+  one signed practice deal (`D-0195`, added to Maya's mock world) and refuses every other deal in plain words, the second picks a
+  file in the browser and checks it in the page. The permissions fingerprint did not change.
+- **Practice deals**: `table_client::sample_proof` (three deals), bin `sample-proof`. The files and `parity.json` are committed
+  under `apps/desktop/client/src/lib/proof/sample/`; `cargo test -p table-client` fails when they are stale.
+- **Dependencies**: no new npm package. `table-client` now depends on `ed25519-dalek` and `base64`, both already in the workspace
+  (they sign the practice deals and read their messages).
+- **All sixteen checks are worked out in the browser**, the house seller's signed record included. Held to the Rust verifier on the
+  practice deals and on eight proof files the wallet's own runtime wrote (`src/lib/proof/real/`, `real.json` from
+  `cargo run -p table-client --bin real-proofs`); a Rust test fails if the verifier's word on one of them changes.
+- **Existing tests moved with the added mock deal** (each commented): module count (Tables 6 to 7), the ledger's money in (27.50 to
+  239.50), the Rewind's history, the film record's paid steps.
