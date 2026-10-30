@@ -100,6 +100,11 @@ describe('the headline', () => {
   it('says nothing is scheduled, still with $0', () => {
     expect(headlineOf([]).rest).toBe('$0 leaves. Nothing is scheduled.');
   });
+  it('says nothing leaves, and invents no currency, when none is known', () => {
+    const h = headlineOf([], null);
+    expect(h.rest).toBe('Nothing leaves. Nothing is scheduled.');
+    expect(headlineOf([], 'EUR').rest).toBe('€0 leaves. Nothing is scheduled.');
+  });
   it('is dashed, never zero, when the forecast could not be read', () => {
     const h = headlineOf(null);
     expect(h.known).toBe(false);

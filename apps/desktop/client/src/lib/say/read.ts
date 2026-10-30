@@ -91,6 +91,7 @@ const UNITS: Record<string, number> = {
   thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
 };
 const TENS: Record<string, number> = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+const QUANTITY = /^(?:counter-?offers?|offers?|rounds?|tries|attempts?|bids?|counters?|deals?|purchases?|buys?|orders?|haggles?|payments?|tables?|days?|weeks?|hours?|dollars?|bucks?|usd|euros?|eur|pounds?|gbp|time|times)$/;
 const isNumWord = (w: string | undefined): boolean => w !== undefined && (w in UNITS || w in TENS || w === 'hundred' || w === 'thousand');
 
 /** "three hundred and forty" -> "340", "a hundred" -> "100", "twenty-five" -> "25". */
@@ -122,7 +123,11 @@ function spokenNumbers(s: string): string {
       if (k < words.length && (isNumWord(words[k]))) { j = k; continue; }
       break;
     }
-    out.push(String(total + cur));
+    // A lone "one" in front of a thing ("buy one monitor") is the article, not a count: it becomes a digit only before a
+    // quantity word ("one offer", "one deal a day") or at the end.
+    const after = words[nextWord(last)];
+    if (last === i && w === 'one' && after !== undefined && !QUANTITY.test(after)) out.push(w);
+    else out.push(String(total + cur));
     i = last + 1;
   }
   return out.join('');
@@ -212,7 +217,7 @@ const OVER = String.raw`(?:above|over|more than|beyond|past|exceeds?|exceeding|g
 const FILLER = new Set([
   'a', 'an', 'the', 'my', 'mine', 'some', 'any', 'for', 'to', 'of', 'on', 'in', 'at', 'by', 'and', 'then', 'but', 'so', 'also', 'just', 'please',
   'i', "i'd", "i'll", "i'm", "i've", 'we', 'you', 'your', 'it', 'its', "it's", 'me', 'us', 'our', 'agent', 'agents', 'assistant', 'wallet', 'table',
-  'like', 'would', 'could', 'can', 'should', 'will', 'shall', 'may', 'let', 'set', 'make', 'up', 'rule',
+  'one', 'like', 'would', 'could', 'can', 'should', 'will', 'shall', 'may', 'let', 'set', 'make', 'up', 'rule',
   'rules', 'new', 'there', 'that', 'this', 'these', 'those', 'is', 'are', 'be', 'been', 'am', 'do', 'does', 'did', 'have', 'has', 'if', 'when',
   'whenever', 'as', 'long', 'much', 'many', 'per', 'each', 'every', 'from', 'into', 'out', 'about', 'start', 'starting', 'now', 'ok', 'okay', 'hey',
   'hi', 'hello', 'alright', 'thanks', 'thank', 'first', 'item', 'price', 'try', 'go',
@@ -360,7 +365,6 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
     .filter((c): c is Currency => c !== null);
   const used = [...new Set(marks)];
   if (answers.currency && used.includes(answers.currency as Currency)) facts.currency = answers.currency as Currency;
-  else if (answers.currency && /^[A-Z]{3}$/.test(answers.currency)) facts.currency = answers.currency as Currency;
   else if (used.length === 1 && used[0]) facts.currency = used[0];
   else if (used.length > 1) {
     facts.currency = used[0] ?? 'USD';
@@ -373,7 +377,9 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
 
   // ---- who the sentence is about: the job and the one item, from what is left
   let jobWord = false;
-  let selling = floorHits.length > 0;
+  // "Leave it out" on the selling question: the rest of the sentence is read as the buying rule it is.
+  const sellingLeft = answers.selling === 'leave';
+  let selling = floorHits.length > 0 && !sellingLeft;
   let itemWords: string[] = [];
   const stray: string[] = [];
   let inItem = false;
@@ -389,7 +395,7 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
       if (!w) continue;
       // a second verb before the item ("want to buy", "need to get") is only a verb
       if (BUY.has(w) && (!verbSeen || (inItem && !itemWords.length))) { verbSeen = true; jobWord = true; inItem = true; flush(); continue; }
-      if (SELL.has(w)) { selling = true; flush(); continue; }
+      if (SELL.has(w)) { selling = !sellingLeft; flush(); continue; }
       if (inItem && !itemDone) {
         if (FILLER.has(w) && !MEANING.has(w)) { if (ARTICLES.has(w) && !itemWords.length) sawArticle = true; if (itemWords.length) itemDone = true; continue; }
         // "haggle hard for a monitor": a word before the item's own "for a" is a manner, not the item
@@ -490,7 +496,8 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
   if (facts.ask !== null && facts.ceiling !== null && facts.ask >= facts.ceiling && facts.ask > 0 && !answers['ask-over']) {
     ask({ id: 'ask-over', slot: 'ask', text: SAY_Q.askOver(currencyText(facts.ask, cur), currencyText(facts.ceiling, cur)), answer: { kind: 'choice', choices: [{ value: 'every', label: SAY_Q.askEvery }, { value: 'keep', label: SAY_Q.askKeep(currencyText(facts.ceiling, cur)) }] } });
   }
-  if (answers['ask-over'] === 'every') { facts.ask = 0; from.ask = 'said'; }
+  // "Ask me every time" settles the contradiction, but never overrides what the owner typed into the chip afterwards.
+  if (answers['ask-over'] === 'every' && answers.ask === undefined && answers['ask-which'] === undefined) { facts.ask = 0; from.ask = 'said'; }
 
   if (facts.job === 'buy') {
     if (!facts.item && !facts.anything && !unsure.has('item')) ask({ id: 'item', slot: 'item', text: SAY_Q.item, answer: { kind: 'text', label: SAY_Q.itemLabel } });

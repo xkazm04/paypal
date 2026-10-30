@@ -117,13 +117,15 @@ describe('the Rewind', () => {
     const r = await renderLayerAtScale({ level: 'rewind' }, 'small');
     await waitFor(() => expect(r.layer.querySelector('.rw-tick.fut')).not.toBeNull());
     const n = r.layer.querySelectorAll('.rw-tick.fut').length;
-    const left = () => [...r.layer.querySelectorAll<HTMLElement>('.rw-tick.fut')].map((e) => e.style.left).join('|');
+    // the clock ticks while this runs, so positions are compared to a tenth of a percent
+    const left = () => [...r.layer.querySelectorAll<HTMLElement>('.rw-tick.fut')].map((e) => Number.parseFloat(/calc\(([\d.]+)%/.exec(e.style.left)?.[1] ?? 'NaN'));
+    const same = (a: number[], b: number[]) => a.length === b.length && a.every((x, i) => Math.abs(x - (b[i] ?? NaN)) < 0.1);
     const week = left();
     fireEvent.click(within(r.layer).getByRole('button', { name: REWIND_AHEAD.zoom.ahead }));
-    await waitFor(() => expect(left()).not.toBe(week));
+    await waitFor(() => expect(same(left(), week)).toBe(false));
     expect(r.layer.querySelectorAll('.rw-tick.fut')).toHaveLength(n);
     fireEvent.click(within(r.layer).getByRole('button', { name: REWIND_AHEAD.zoom.week }));
-    await waitFor(() => expect(left()).toBe(week));
+    await waitFor(() => expect(same(left(), week)).toBe(true));
   }, 60_000);
 
   it('says a rule, shows what it allows over the same hours, and lines her open tables up against it', async () => {

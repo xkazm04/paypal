@@ -3,6 +3,7 @@
 // the whole timeline, which counts only what the forecast states. Pure: no React, no IPC. The forecast
 // itself is Rust's (AttentionSnapshot.forecast, crates/table-attention forecast.rs; the browser mock
 // mirrors it); nothing here decides what happens, it only draws what Rust says silence does.
+import type { Currency } from '@bindings/Currency';
 import type { ForecastLine } from '@bindings/ForecastLine';
 import { formatMinor } from '../../../../../lib/format';
 import type { Reach } from '../../../../../lib/say/draft';
@@ -73,7 +74,7 @@ export type Headline = {
 };
 
 /** The headline over the whole timeline. The Tumbler builds its own from the same walkAway(), so they agree. */
-export function headlineOf(forecast: ForecastLine[] | null | undefined, walletCurrency: 'USD' | null = 'USD'): Headline {
+export function headlineOf(forecast: ForecastLine[] | null | undefined, walletCurrency: Currency | null = 'USD'): Headline {
   const lead = REWIND_AHEAD.walkAway;
   const w = walkAway({ forecast, wallet_spend_today_currency: walletCurrency });
   if (!w.known) return { lead, rest: REWIND_AHEAD.unknown, known: false, out: null, holds: 0 };

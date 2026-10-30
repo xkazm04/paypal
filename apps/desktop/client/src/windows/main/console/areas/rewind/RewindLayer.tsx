@@ -13,7 +13,7 @@ import { formatCount } from '../../../../../lib/data/counts';
 import { usePrefersReducedMotion } from '../../../../../lib/hooks';
 import { reachOf } from '../../../../../lib/say/draft';
 import { useSayReading } from '../../../setup/useSay';
-import { SayIt } from '../../../setup/SayIt';
+import { SayPanel } from '../../../setup/SayIt';
 import { lazyPart } from '../../../../../lib/lazy';
 import {
   LAYER_LOADING, REWIND_ANSWER, REWIND_BAR, REWIND_CARD, REWIND_KICKER, REWIND_TAPE, REWIND_THIS_WEEK, REWIND_TRUNCATED,
@@ -93,7 +93,7 @@ export function RewindLayer({ nav, state }: LayerProps) {
         // The hub and the scrubber are the page's picture (its heaviest part): they take the last turn,
         // the tape (the list) comes before them (stagger.tsx). Above them, the sentence that draws on them.
         <>
-        <SayIt compact />
+        <SayPanel said={said} compact />
         <Reveal wave={3} sizeKey="rewind:hub" skeleton={<Skeleton className="rw-host" h="23rem" />}>
           <div className="rw-host" ref={picture}>
             <Suspense fallback={<p className="layer-loading" role="status">{LAYER_LOADING}</p>}>

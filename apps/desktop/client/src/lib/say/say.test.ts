@@ -507,3 +507,36 @@ describe('phrasings a judge might try', () => {
     expect(facts('Haggle for a monitor up to $340, until the end of the month').facts.ends).toBe(at(2026, 10, 31, 18));
   });
 });
+
+describe('reviewed: answers never undo each other, and "one" is not part of an item', () => {
+  it('an edit of the ask chip survives an earlier "ask every time" answer', () => {
+    const t = 'Haggle for a monitor up to $300, ask me above $320';
+    expect(say(t, { 'ask-over': 'every' }).facts.ask).toBe(0);
+    expect(say(t, { 'ask-over': 'every', ask: '100' }).facts.ask).toBe(usd(100));
+  });
+  it('leaving the selling part out reads the rest as the buying rule it is', () => {
+    const t = 'buy a monitor up to $300 and sell my old chair';
+    const first = say(t);
+    expect(first.questions.map((q) => q.id)).toContain('selling');
+    expect(first.facts.job).toBeNull();
+    const left = say(t, { selling: 'leave' });
+    expect(left.selling).toBe(false);
+    expect(left.facts).toMatchObject({ job: 'buy', item: 'monitor', ceiling: usd(300) });
+    expect(left.questions.map((q) => q.id)).not.toContain('selling');
+  });
+  it('"one monitor" is a monitor, "one offer" is one offer', () => {
+    expect(say('Buy one monitor up to $300').facts.item).toBe('monitor');
+    expect(say('Haggle for a monitor up to $300, one offer').facts.offers).toBe(1);
+    expect(say('Haggle for a monitor up to $300, one deal a day').facts.dayDeals).toBe(1);
+    expect(say('Haggle for a monitor up to $300, twenty one offers').facts.offers).toBe(21);
+  });
+  it('an answered currency must be one that was used', () => {
+    expect(say('Haggle for a monitor up to $300', { currency: 'ZZZ' }).facts.currency).toBe('USD');
+    expect(say('Haggle for a monitor up to $300, ask me above €200', { currency: 'EUR' }).facts.currency).toBe('EUR');
+  });
+  it('the house can be switched back to the wallets the owner has connected', () => {
+    const t = 'Get a laptop stand for no more than $80 from the house seller';
+    expect(say(t).facts.who).toBe('house');
+    expect(say(t, { who: 'paired' }).facts.who).toBe('paired');
+  });
+});

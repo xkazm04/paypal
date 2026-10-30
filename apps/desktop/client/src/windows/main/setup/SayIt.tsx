@@ -10,16 +10,16 @@ import { CLAUSE_NUMBER } from '../../../lib/mandateRules';
 import { plainWords, reachOf, rulesOf, type Chip } from '../../../lib/say/draft';
 import { readEnds, type Question, type SayCtx } from '../../../lib/say/read';
 import { canReadAloud, listen, readAloud, speechSupport, type Listening } from '../../../lib/say/speech';
-import { sayAnswer, saySet, sayClear, sayUnanswer } from '../../../lib/say/store';
+import { sayAnswer, saySet, sayClear } from '../../../lib/say/store';
 import { NOTICE_WHAT, SAY, SAY_Q } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
 import { Btn, useToast } from '../../../shared/ui';
 import { useLocked } from '../world';
 import { SayTimeline } from './SayTimeline';
-import { useSayReading } from './useSay';
+import { useSayReading, type Said } from './useSay';
 import './say.css';
 
-export function SayIt({ className, compact = false, stepGold = true, timeline = false, onOpened }: {
+type SayProps = {
   className?: string;
   /** Draw the week and the next 72 hours under the chips (the Charter; the Rewind has its own timeline). */
   timeline?: boolean;
@@ -29,8 +29,15 @@ export function SayIt({ className, compact = false, stepGold = true, timeline = 
   compact?: boolean;
   /** This is the view's one gold action; false when the view has its own (the Charter's step). */
   stepGold?: boolean;
-}) {
-  const said = useSayReading();
+};
+
+/** The panel, reading the sentence itself. */
+export function SayIt(p: SayProps) {
+  return <SayPanel said={useSayReading()} {...p} />;
+}
+
+/** The panel over a reading its caller already has (the Rewind needs the same reading for its timeline: read once). */
+export function SayPanel({ said, className, compact = false, stepGold = true, timeline = false, onOpened }: SayProps & { said: Said }) {
   const { reading, chips, rules, ctx, text } = said;
   const id = useId();
   const [typed, setTyped] = useState(text);
@@ -252,7 +259,7 @@ function ChipEdit({ c, ctx, currency, onDone }: { c: Chip; ctx: SayCtx; currency
     return (
       <div className="say-edit" onKeyDown={onKey} role="radiogroup" aria-label={SAY.edit(c.label)}>
         {(['paired', 'house'] as const).map((v) => (
-          <label key={v} className="say-radio"><input type="radio" name={`who-${c.key}`} checked={c.editValue === v} onChange={() => { if (v === 'paired') sayUnanswer('who'); else sayAnswer('who', v); onDone(); }} />{v === 'house' ? SAY.whoHouse : SAY.whoPaired}</label>
+          <label key={v} className="say-radio"><input type="radio" name={`who-${c.key}`} checked={c.editValue === v} onChange={() => { sayAnswer('who', v); onDone(); }} />{v === 'house' ? SAY.whoHouse : SAY.whoPaired}</label>
         ))}
       </div>
     );

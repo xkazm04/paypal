@@ -454,7 +454,8 @@ export const plainMoney = (money: string): string => money.replace(/\.00(?!\d)/g
 /** The walk-away headline in sentences: the first is what leaves (always $0: the forecast has no step that sends money out),
  *  the rest what else the forecast states. The timeline over the week and the Tumbler's all-clear ticker both say exactly this. */
 export function walkHeadline(w: Extract<WalkAway, { known: true }>, scheduled: number): { lead: string; sentences: string[] } {
-  const sentences: string[] = [REWIND_AHEAD.leaves(plainMoney(w.out ?? '$0'))];
+  // No currency known and nothing scheduled: it says nothing leaves, and invents no currency (as the Tumbler's own summary).
+  const sentences: string[] = [w.out ? REWIND_AHEAD.leaves(plainMoney(w.out)) : REWIND_AHEAD.leavesNone];
   if (w.releases) sentences.push(REWIND_AHEAD.holds(w.releases));
   if (w.inSure) sentences.push(REWIND_AHEAD.comesIn(plainMoney(w.inSure)));
   if (w.inUpTo) sentences.push(REWIND_AHEAD.comesInIf(plainMoney(w.inUpTo)));

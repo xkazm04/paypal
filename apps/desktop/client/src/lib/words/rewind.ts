@@ -97,6 +97,7 @@ export const REWIND_AHEAD = {
   unknown: 'can’t be forecast right now',
   reading: 'is being read…',
   leaves: (out: string): string => `${out} leaves.`,
+  leavesNone: 'Nothing leaves.',
   holds: (n: number): string => (n === 1 ? '1 hold ends on its own.' : `${n} holds end on their own.`),
   comesIn: (sure: string): string => `${sure} comes in.`,
   comesInIf: (upTo: string): string => `Up to ${upTo} comes in only if a buyer approves.`,

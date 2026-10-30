@@ -39,11 +39,11 @@ export function useTimeline(reach: Reach | null, sentence: string | null = null)
   const until = reach?.until ?? 0;
   useEffect(() => {
     if (!sentence || !until || sentence === glided || !live.current.ahead) return;
-    glided = sentence;
     const goal = Math.min(until, live.current.limit);
     if (goal <= live.current.now) return;
     seek(live.current.now);
-    const id = requestAnimationFrame(() => glide(goal));
+    // Marked as played only when it starts: an effect that is cleaned up and run again (StrictMode) must still play it.
+    const id = requestAnimationFrame(() => { glided = sentence; glide(goal); });
     return () => cancelAnimationFrame(id);
   }, [sentence, until, glide, seek]);
   // The tables open now for the item the sentence was tied to, and where each one's latest price lands against it.
@@ -65,7 +65,8 @@ export function useTimeline(reach: Reach | null, sentence: string | null = null)
       return { deal: d, label: disp.label, title: shortTitle(disp.title) };
     };
   }, [deals, display]);
-  const headline = useMemo(() => (forecast === undefined ? { ...headlineOf(null), rest: REWIND_AHEAD.reading } : headlineOf(forecast)), [forecast]);
+  const currency = att.data?.wallet_spend_today_currency ?? null;
+  const headline = useMemo(() => (forecast === undefined ? { ...headlineOf(null), rest: REWIND_AHEAD.reading } : headlineOf(forecast, currency)), [forecast, currency]);
   const ahead = useMemo<Ahead>(() => ({
     ticks, headline, reach, peeks,
     titleOf: (id, fallback) => labelOf(id)?.title ?? fallback,

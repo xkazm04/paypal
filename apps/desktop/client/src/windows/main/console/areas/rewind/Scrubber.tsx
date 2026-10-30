@@ -169,7 +169,7 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
   const ruleBeyond = !!ahead?.reach && ahead.reach.until > r.limit;
   const nowWord = REWIND_AHEAD.nowAt(stepTime(r.now));
   // What happens first if she does nothing, and how long until it: the headline counts down.
-  const nextTick = r.ahead ? (ahead?.ticks ?? []).find((t) => !t.untimed && !t.conditional && t.at > r.now) : undefined;
+  const nextTick = r.ahead ? (ahead?.ticks ?? []).find((t) => !t.conditional && t.at >= r.now) : undefined;
 
   return (
     <div className={`rw-bar${r.ahead ? ' has-ahead' : ''}${isAhead ? ' is-ahead' : ''}${crossed ? ` crossed-${crossed}` : ''}`} role="group" aria-label={r.ahead ? REWIND_AHEAD.label : REWIND_BAR.label}>
@@ -203,7 +203,8 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
       {nextTick ? (
         <p className="rw-nextline">
           <b>{REWIND_AHEAD.next}</b> {futureSaid(nextTick.line, ahead?.titleOf(nextTick.line.deal_id, nextTick.line.label) ?? nextTick.line.label)} ·{' '}
-          <time className="num" aria-label={countdownWords(nextTick.at, r.now)}><span aria-hidden="true">{REWIND_AHEAD.nextIn(countdown(nextTick.at, r.now))}</span></time>
+          {nextTick.untimed ? <span>{REWIND_AHEAD.tickNow}</span>
+            : <time className="num" aria-label={countdownWords(nextTick.at, r.now)}><span aria-hidden="true">{REWIND_AHEAD.nextIn(countdown(nextTick.at, r.now))}</span></time>}
         </p>
       ) : null}
       {r.ahead && ahead?.reach && ahead.peeks.length ? <Peeks reach={ahead.reach} peeks={ahead.peeks} onOpenDeal={onOpenDeal} /> : null}
