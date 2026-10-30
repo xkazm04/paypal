@@ -126,7 +126,7 @@ export function SayPanel({ said, className, compact = false, stepGold = true, ti
       </p>
 
       {!reading ? (
-        <TryList onPick={tryLine} />
+        <TryList onPick={tryLine} few={compact} />
       ) : (
         <div className="say-read">
           <p className="say-readas" role="status" ref={readAs} tabIndex={-1}>
@@ -156,24 +156,26 @@ export function SayPanel({ said, className, compact = false, stepGold = true, ti
         </div>
       )}
 
+      {reading ? (
       <div className="say-act">
         <Btn kind={stepGold ? 'gold' : 'default'} locked={locked} disabled={!rules || open.pending} onClick={() => void review()} title={SAY.reviewTitle}>
           {open.pending ? SAY.opening : SAY.review} ↗
         </Btn>
         <span className="say-note">{opened ? SAY.opened : blocked === 'negation' ? SAY.blockedNegation : blocked === 'currency' ? SAY.blockedCurrency : rules && asking.length ? SAY.readyOpen : SAY.reviewNote}</span>
       </div>
+      ) : null}
       {open.error ? <WalletNotice error={open.error} what={NOTICE_WHAT.approval} /> : null}
       {timeline ? <SayTimeline reach={reach} sentence={reach ? text : null} /> : null}
     </section>
   );
 }
 
-function TryList({ onPick }: { onPick: (line: string) => void }) {
+function TryList({ onPick, few = false }: { onPick: (line: string) => void; /** Two lines, where room is short (the Rewind: the timeline is below). */ few?: boolean }) {
   return (
     <div className="say-try">
       <p className="say-tryh">{SAY.tryTitle}</p>
       <ul aria-label={SAY.tryLabel}>
-        {SAY.tryLines.map((l) => <li key={l}><button type="button" className="say-tryline" onClick={() => onPick(l)}>{l}</button></li>)}
+        {(few ? SAY.tryLines.slice(0, 2) : SAY.tryLines).map((l) => <li key={l}><button type="button" className="say-tryline" onClick={() => onPick(l)}>{l}</button></li>)}
       </ul>
     </div>
   );

@@ -169,10 +169,12 @@ describe('Say it on the Charter', () => {
     await waitFor(() => expect(pill('ceiling')?.textContent).toContain('$340'));
   });
 
-  it('the Review rules button is off until the sentence is a rule', async () => {
-    render(<ToastProvider><WorldProvider><Charter step="rules" onStep={vi.fn()} onDone={vi.fn()} /></WorldProvider></ToastProvider>);
+  it('Review rules is not offered before a sentence, and is off while the sentence is no rule', async () => {
+    await say('blah blah');
     const btn = await screen.findByRole('button', { name: new RegExp(SAY.review) });
     expect((btn as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: SAY.clear }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: new RegExp(SAY.review) })).toBeNull());
   });
 });
 
