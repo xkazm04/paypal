@@ -10,6 +10,8 @@ import { locate } from './locate';
 import { fingerprint, WORDS } from './fingerprint';
 import golden from './sample/golden.tableproof?raw';
 import { SAMPLE_PROOF } from './sample';
+import { invalidPayload } from './mandate';
+import { checkProofText } from './verify';
 import { SAMPLE_DEAL_ID } from './sampleId';
 
 const hex = (text: string): Uint8Array => Uint8Array.from(text.match(/../g) ?? [], (h) => parseInt(h, 16));
@@ -160,5 +162,38 @@ describe('where a change is in the editor’s text', () => {
     expect(locate(view, '/deal/nothing')).toBeNull();
     expect(locate(view, '/audit/9999')).toBeNull();
     expect(locate('{ not json', '/a')).toBeNull();
+  });
+});
+
+describe('the file as the wallet reads it', () => {
+  const doc = (): Record<string, any> => JSON.parse(golden);
+  it('is the same file when a null is left out, or one the wallet would not write is added', async () => {
+    const edited = doc();
+    delete edited.deal.paypal.subscription; // the wallet writes an empty reference as null
+    edited.group = null; // the wallet leaves an absent group out
+    const plain = await checkProofText(golden, null);
+    const same = await checkProofText(JSON.stringify(edited), null);
+    expect(same).toEqual(plain);
+    expect('report' in same && same.report.verified).toBe(true);
+  });
+  it('refuses a rule that does not read, however it is signed', async () => {
+    const odd = doc();
+    odd.mandate.payload.clauses[1].rule = -1;
+    expect(await checkProofText(JSON.stringify(odd), null)).toEqual({ refused: 'This file is not a proof file saved by this wallet, so there is nothing to check.' });
+    const roles = doc();
+    roles.mandate.payload.clauses[0].roles = 'sell';
+    expect('refused' in (await checkProofText(JSON.stringify(roles), null))).toBe(true);
+  });
+  it('reads a rescue rule’s fixes in the wallet’s own spelling', () => {
+    const lever = (levers: string[]) => ({ type: 'lever', levers, max_discount_bp: 2000, max_discount: { minor: 500, currency: 'USD' } });
+    const payload = (clauses: unknown[]) => ({ id: '01K8W2R6Q0F4H8J2KMNPQRSTVW', version: 1, agent_key: new Array(32).fill(1), clauses, not_before: 0, expires: 100, json: {} }) as never;
+    const base = [
+      { type: 'roles', roles: ['rescue'] }, { type: 'counterparties', rule: { type: 'subscribers' } },
+      { type: 'per_deal', kind: 'rescue', max_amount: { minor: 5000, currency: 'USD' }, categories: ['service'] },
+      { type: 'velocity', max_deals_day: 5, max_total_day: { minor: 9000, currency: 'USD' } },
+      { type: 'human_present_over', amount: { minor: 100, currency: 'USD' } }, { type: 'payees', payees: ['shop'] },
+    ];
+    expect(invalidPayload(payload([...base, lever(['DISCOUNT_THIS_CYCLE'])]))).toBeNull();
+    expect(invalidPayload(payload([...base, lever(['PAUSE'])]))).toBe('only the discount this cycle is available');
   });
 });

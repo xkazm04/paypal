@@ -3,6 +3,7 @@
 // proof file", never a green line. Hashes, keys and signatures are written by the wallet as JSON arrays
 // of byte values; they come out here as bytes.
 import { type Bytes } from './bytes';
+import { readClause, readDealExtras } from './clauses';
 import { type House, readHouse } from './house';
 import { type MarketRef, readMarketRef } from './market';
 import { CURRENCIES, type Money, readMoney } from './money';
@@ -109,7 +110,7 @@ const readDeal = (value: unknown): Deal => {
     ['id', 'kind', 'side', 'counterparty', 'terms', 'state', 'mandate_id', 'mandate_version', 'transcript_head', 'paypal', 'mode'],
     ['created_at', 'updated_at', 'market', 'shield', 'decided_by', 'shield_rule', 'shield_release'],
   );
-  rec(r.paypal, [], ['order', 'authorization', 'capture', 'subscription']);
+  readDealExtras(r);
   if (r.created_at !== undefined) whole(r.created_at);
   if (r.updated_at !== undefined) whole(r.updated_at);
   maybe(r.decided_by, readDecidedBy);
@@ -144,14 +145,9 @@ export interface Payload {
   /** The payload as the file writes it: what the owner signed and what the mandate hash is over. */
   json: unknown;
 }
-const CLAUSES = ['roles', 'counterparties', 'per_deal', 'band', 'velocity', 'human_present_over', 'payees', 'lever', 'market_watch'] as const;
 const readPayload = (value: unknown): Payload => {
   const r = rec(value, ['id', 'version', 'agent_key', 'clauses', 'not_before', 'expires']);
-  const clauses = list(r.clauses).map((c): Clause => {
-    const type = oneOf((c as Rec | null)?.type, CLAUSES);
-    if (typeof c !== 'object' || c === null) return refuse();
-    return { ...(c as Rec), type };
-  });
+  const clauses = list(r.clauses).map((c): Clause => readClause(c));
   return {
     id: ulid(r.id),
     version: whole(r.version, 0, 2 ** 32 - 1),

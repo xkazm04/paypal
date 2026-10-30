@@ -1030,8 +1030,14 @@ pub fn apply(document: &mut Value, edits: &[Edit]) -> Made<()> {
                 );
             }
             ("set", Value::Array(items)) => {
-                let slot = items.get_mut(key.parse::<usize>()?).ok_or("no such item")?;
-                *slot = edit.value.clone().ok_or("set needs a value")?;
+                let value = edit.value.clone().ok_or("set needs a value")?;
+                let at = key.parse::<usize>()?;
+                // one past the end adds an item
+                if at == items.len() {
+                    items.push(value);
+                } else {
+                    *items.get_mut(at).ok_or("no such item")? = value;
+                }
             }
             ("remove", Value::Object(object)) => {
                 object.remove(key).ok_or("no such key")?;
@@ -1586,6 +1592,56 @@ pub fn outcomes_in(dir: &std::path::Path) -> Made<Vec<u8>> {
     Ok(out)
 }
 
+/// One entry of the fuzz corpus: a proof file and the edits made to it.
+#[derive(serde::Deserialize)]
+struct FuzzIn {
+    source: String,
+    edits: Vec<FuzzEdit>,
+}
+#[derive(serde::Deserialize)]
+struct FuzzEdit {
+    op: String,
+    path: String,
+    /// What a `set` sets (JSON `null` is a value); a `remove` has none.
+    #[serde(default)]
+    value: Value,
+}
+
+/// Applies each entry's edits to its source file (under `proof_dir`, as `<source>.tableproof`) and keeps the
+/// verifier's word on the edited file as a digest: SHA-256 of the canonical bytes of what `check_proof_file`
+/// answers (its report, or why it refused). The client holds the browser checker to every digest.
+pub fn fuzz_digests(proof_dir: &std::path::Path, corpus: &[u8]) -> Made<Vec<u8>> {
+    let entries: Vec<FuzzIn> = serde_json::from_slice(corpus)?;
+    let mut out = Vec::new();
+    for entry in entries {
+        let mut document: Value = serde_json::from_slice(&std::fs::read(
+            proof_dir.join(format!("{}.tableproof", entry.source)),
+        )?)?;
+        let edits: Vec<Edit> = entry
+            .edits
+            .iter()
+            .map(|e| {
+                Ok(Edit {
+                    op: match e.op.as_str() {
+                        "set" => "set",
+                        "remove" => "remove",
+                        other => return Err(format!("unknown edit {other}")),
+                    },
+                    path: e.path.clone(),
+                    value: (e.op == "set").then(|| e.value.clone()),
+                })
+            })
+            .collect::<Result<_, String>>()?;
+        apply(&mut document, &edits)?;
+        let word = outcome(&serde_json::to_vec_pretty(&document)?);
+        let digest = H256::digest(&canonical_bytes(&word)?).hex();
+        out.push(json!({ "source": entry.source, "edits": entry.edits.iter().map(|e| if e.op == "set" { json!({ "op": e.op, "path": e.path, "value": e.value }) } else { json!({ "op": e.op, "path": e.path }) }).collect::<Vec<_>>(), "digest": digest }));
+    }
+    let mut bytes = serde_json::to_vec_pretty(&out)?;
+    bytes.push(b'\n');
+    Ok(bytes)
+}
+
 /// Writes every file into `dir`.
 pub fn write_to(dir: &std::path::Path) -> Made<()> {
     std::fs::create_dir_all(dir)?;
@@ -1667,6 +1723,20 @@ mod tests {
         assert!(
             kept == outcomes_in(&dir)?,
             "the verifier now says something else about a real file: run `cargo run -p table-client --bin real-proofs -- {REAL_DIR} {REAL_DIR}/real.json`"
+        );
+        Ok(())
+    }
+
+    /// Random edits to the real and practice files, each with a digest of what the verifier says about the edited
+    /// file; the browser checker is held to every one.
+    #[test]
+    fn the_fuzz_corpus_keeps_its_digests() -> Made<()> {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../apps/desktop/client/src/lib/proof");
+        let kept = std::fs::read(dir.join("fuzz.json"))?;
+        assert!(
+            kept == fuzz_digests(&dir, &kept)?,
+            "the verifier now says something else about an edited file: regenerate with `fuzz-proofs`"
         );
         Ok(())
     }

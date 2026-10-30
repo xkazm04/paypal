@@ -31,7 +31,8 @@ export function applyEdits(document: unknown, edits: readonly Edit[]): void {
     if (!holds(parent)) throw new Error(`nothing at ${edit.path}`);
     if (Array.isArray(parent)) {
       const index = Number(key);
-      if (!Number.isInteger(index) || index < 0 || index >= parent.length) throw new Error(`no item at ${edit.path}`);
+      // one past the end of a list adds an item
+      if (!Number.isInteger(index) || index < 0 || index > parent.length || (index === parent.length && edit.op !== 'set')) throw new Error(`no item at ${edit.path}`);
       if (edit.op === 'set') parent[index] = edit.value;
       else parent.splice(index, 1);
     } else if (edit.op === 'set') {

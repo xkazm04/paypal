@@ -76,7 +76,7 @@ export function invalidPayload(p: Payload): string | null {
         const levers = items(c.levers) ?? [];
         const discount = money(c.max_discount);
         if (levers.length === 0 || levers.some((l, i) => levers.indexOf(l) !== i)) return 'empty or repeated fix list';
-        if (levers.some((l) => l !== 'discount_this_cycle')) return 'only the discount this cycle is available';
+        if (levers.some((l) => l !== 'DISCOUNT_THIS_CYCLE')) return 'only the discount this cycle is available';
         if (typeof c.max_discount_bp !== 'number' || c.max_discount_bp === 0 || c.max_discount_bp >= 10000) return 'discount must be above 0% and below 100%';
         if (!discount || discount.minor === 0) return 'empty discount allowance';
         break;

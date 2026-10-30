@@ -5,6 +5,7 @@ import { sha256, toHex } from './bytes';
 import { type Bundle, NOT_A_PROOF, readBundle, Refused } from './bundle';
 import { type CheckLine, CHECK_IDS, makeRun, runCheck, type Run } from './checks';
 import { ed25519Works, isPublicKey } from './ed25519';
+import { normalize } from './normalize';
 
 export type { CheckLine };
 export interface ProofReport {
@@ -49,7 +50,10 @@ export async function prepareProof(text: string): Promise<Prepared | { refused: 
   if (text.length > PROOF_FILE_LIMIT) return { refused: TOO_LARGE };
   let bundle: Bundle;
   try {
-    bundle = readBundle(JSON.parse(text));
+    const document: unknown = JSON.parse(text);
+    // The wallet hashes its typed reading of the file, not the bytes: take the file through the same changes.
+    normalize(document);
+    bundle = readBundle(document);
   } catch (e) {
     if (e instanceof Refused || e instanceof SyntaxError) return { refused: NOT_A_PROOF };
     throw e;
