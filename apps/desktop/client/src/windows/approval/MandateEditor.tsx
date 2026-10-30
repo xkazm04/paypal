@@ -11,6 +11,7 @@
 // Commands kept as built: mandate_list (via OwnerConfig), mandate_sign (privileged, idle-locked,
 // Windows Hello through session.unlock), mandate_revoke (privileged, one click).
 import { useMemo, useState, type KeyboardEvent } from 'react';
+import type { ApprovalDraft } from '@bindings/ApprovalDraft';
 import type { Clause } from '@bindings/Clause';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { MandateSignArgs } from '@bindings/MandateSignArgs';
@@ -23,7 +24,7 @@ import { useNow, useQuery } from '../../lib/hooks';
 import { kindWord, rulesName, timeLeftWords } from '../../lib/words';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Hourglass, Kv, Popover, Seg, Spacer, type IconName } from '../../shared/ui';
-import { bpToPercent, buildMandate, CLAUSE_NUMBER, draftFrom, fromLocalInput, newDraft, percentDiffers, previewClauses, refusalWords, ruleProblems, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from './mandateDraft';
+import { bpToPercent, buildMandate, CLAUSE_NUMBER, draftFrom, draftFromRules, fromLocalInput, newDraft, percentDiffers, previewClauses, refusalWords, ruleProblems, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from './mandateDraft';
 import { minorToInput } from './model';
 import { useSimulation } from './owner/data';
 import { diffPolicy, type Change, type DiffSide } from './owner/diff';
@@ -51,12 +52,14 @@ type Props = {
   onRevoked: () => void;
   /** A floor drafted in The Table (approval_handoff): pre-fills that mandate's band floor. */
   seedFloor?: { mandate_id: string; item_ref: string; floor: Money } | null;
+  /** A whole set of rules said in one sentence in The Table (approval_open's rules draft): a new set starts from it. */
+  seedRules?: Extract<ApprovalDraft, { type: 'rules' }> | null;
 };
 
 const NEW = 'new';
 type Pane = 'levers' | 'replay';
 
-export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSigned, onRevoked, seedFloor }: Props) {
+export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSigned, onRevoked, seedFloor, seedRules }: Props) {
   const s = useSession();
   const now = useNow();
   const [t0] = useState(now);
@@ -64,7 +67,8 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
   const key = base ? `${base.payload.id}:${base.payload.version}` : NEW;
   const [drafts, setDrafts] = useState<Record<string, MandateDraft>>({});
   const seeded = !!base && !!seedFloor && seedFloor.mandate_id === base.payload.id;
-  const d = drafts[key] ?? (base ? withFloorSeed(draftFrom(base, t0), seeded ? seedFloor : null) : newDraft(t0));
+  const spoken = !base && !!seedRules;
+  const d = drafts[key] ?? (base ? withFloorSeed(draftFrom(base, t0), seeded ? seedFloor : null) : seedRules ? draftFromRules(seedRules, t0) : newDraft(t0));
   const setD = (x: MandateDraft) => setDrafts((all) => ({ ...all, [key]: x }));
   const [pane, setPane] = useState<Pane | null>(null);
   const [preview, setPreview] = useState(false);
@@ -248,7 +252,8 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
     : !base
       ? {
           tone: 'need', icon: 'rules', title: 'New rules: nothing is signed yet, so your agents can’t do anything.',
-          sub: seeded && !drafts[key] ? `The lowest price for ${seedFloor?.item_ref} is filled in from The Table; check it before you sign.`
+          sub: spoken && !drafts[key] ? 'Filled in from what you said. Check each limit, change anything, then review and sign.'
+            : seeded && !drafts[key] ? `The lowest price for ${seedFloor?.item_ref} is filled in from The Table; check it before you sign.`
             : firstRules && tpl ? `Starting from “${TEMPLATES.find((t) => t.key === tpl)?.name}”. Check each limit, then review and sign.`
               : firstRules ? 'Start from ready-made rules below, or fill in the limits yourself. Then review and sign.' : 'Fill in the limits, then review and sign.',
         }
@@ -319,7 +324,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
           />
         </div>
 
-        {firstRules ? <TemplatePicker picked={tpl} blanks={tpl ? templateBlanks(d) : []} fields={blankFields} onPick={pickTemplate} /> : null}
+        {firstRules && !spoken ? <TemplatePicker picked={tpl} blanks={tpl ? templateBlanks(d) : []} fields={blankFields} onPick={pickTemplate} /> : null}
 
         <div className="ow-scorebar">
           <Scoreboard lines={lines} signedName={signedName} draftName={draftName} />

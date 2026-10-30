@@ -139,6 +139,29 @@ impl Runtime {
                     return Err(invalid());
                 }
             }
+            ApprovalDraft::Rules {
+                not_before,
+                expires,
+                clauses,
+                ..
+            } => {
+                // Shape only: a mandate target and no deal, a bounded list with one clause of each
+                // kind, and a start before the end. validate() runs when the owner signs.
+                let repeated = clauses
+                    .iter()
+                    .enumerate()
+                    .any(|(i, c)| clauses[..i].iter().any(|d| d.number() == c.number()));
+                if target != Some(ApprovalTarget::Mandate)
+                    || deal_id.is_some()
+                    || clauses.is_empty()
+                    || clauses.len() > MAX_RULES_DRAFT_CLAUSES
+                    || repeated
+                    || *not_before < 0
+                    || expires <= not_before
+                {
+                    return Err(invalid());
+                }
+            }
             ApprovalDraft::Lever { .. } => {
                 let id = deal_id
                     .filter(|_| target == Some(ApprovalTarget::Deal))

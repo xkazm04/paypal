@@ -78,6 +78,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   // once, pre-filled with a floor draft when one came along.
   const handoff = useHandoff();
   const floorSeed = handoff?.draft?.type === 'floor' ? handoff.draft : null;
+  const rulesSeed = handoff?.draft?.type === 'rules' ? handoff.draft : null;
   const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
   // The wallet limits and today's meters (envelope_get): limits and numbers only.
   const limits = useQuery('envelope_get', null, { refreshOn: ['settings:changed'] });
@@ -151,6 +152,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
         mode={st?.mode}
         entries={list}
         seedFloor={floorSeed}
+        seedRules={rulesSeed}
         selected={editing.sel}
         onSelect={(sel) => setEditing({ sel })}
         onClose={() => setEditing(null)}
