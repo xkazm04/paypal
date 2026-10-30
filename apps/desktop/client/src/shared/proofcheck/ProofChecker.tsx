@@ -71,7 +71,7 @@ const brief = (v: unknown): string => {
   return text.length > 36 ? `${text.slice(0, 35)}…` : text;
 };
 
-export function ProofChecker({ source, samples = [], own, heading = true, lede = true, level = 3, autoRun = false, autoTamper = null, startEditing = false }: {
+export function ProofChecker({ source, samples = [], own, heading = true, lede = true, level = 3, autoRun = false, autoTamper = null, startEditing = false, demo = false }: {
   source: ProofSource;
   /** The practice deals, to pick between (and to go back to after a file of the person's own). */
   samples?: readonly ProofSource[];
@@ -89,6 +89,8 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
   autoTamper?: TamperId | null;
   /** Open on editing the file's text. */
   startEditing?: boolean;
+  /** Play it through by itself, for a recording: check it, break it a few ways, put it back each time. */
+  demo?: boolean;
 }) {
   const H = `h${level}` as 'h2' | 'h3';
   const id = useId();
@@ -217,6 +219,37 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
     const line = draft.slice(0, at[0]).split('\n').length;
     area.scrollTop = Math.max(0, (line - 4) * (parseFloat(getComputedStyle(area).lineHeight) || 18));
   }, [draft, mode]);
+  // A walk through it with no one at the keys (`?demo=1`): it uses the same controls a person does.
+  const walk = useRef({ state, apply: applyTamper, back: putBack, run: () => check(original, 'first') });
+  walk.current = { state, apply: applyTamper, back: putBack, run: () => check(original, 'first') };
+  useEffect(() => {
+    if (!demo) return undefined;
+    let live = true;
+    const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, isCalm() ? Math.min(ms, 120) : ms));
+    const settled = async (after: number): Promise<void> => {
+      while (live && !(walk.current.state.run > after && walk.current.state.phase === 'done')) await pause(80);
+    };
+    void (async () => {
+      await pause(1200);
+      let seen = walk.current.state.run;
+      void walk.current.run();
+      await settled(seen);
+      await pause(2200);
+      for (const way of ['price', 'signature', 'audit-gap', 'payee'] as const) {
+        if (!live) return;
+        seen = walk.current.state.run;
+        walk.current.apply(way);
+        await settled(seen);
+        await pause(3200);
+        seen = walk.current.state.run;
+        walk.current.back();
+        await settled(seen);
+        await pause(1400);
+      }
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Deep links made for showing it: check on arrival, then break it.
   useEffect(() => {
     // (development mounts twice; the second run replaces the first)

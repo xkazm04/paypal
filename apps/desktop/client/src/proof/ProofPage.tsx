@@ -5,12 +5,12 @@ import { PROOF_CHECKER } from '../lib/words';
 import { ProofChecker } from '../shared/proofcheck/ProofChecker';
 
 /** Links made for showing it: `?check=1` checks on arrival, `?break=price` then breaks it that way,
- *  `?edit=1` opens on the file's text. */
-function arrival(search: string): { autoRun: boolean; autoTamper: TamperId | null; startEditing: boolean } {
+ *  `?edit=1` opens on the file's text, `?demo=1` plays it through by itself (for a recording). */
+function arrival(search: string): { autoRun: boolean; autoTamper: TamperId | null; startEditing: boolean; demo: boolean } {
   const q = new URLSearchParams(search);
   const way = q.get('break');
   const autoTamper = TAMPERS.find((t) => t.id === way)?.id ?? null;
-  return { autoRun: q.get('check') === '1' || autoTamper !== null, autoTamper, startEditing: q.get('edit') === '1' };
+  return { autoRun: q.get('check') === '1' || autoTamper !== null, autoTamper, startEditing: q.get('edit') === '1', demo: q.get('demo') === '1' };
 }
 
 export function ProofPage() {
