@@ -3,29 +3,36 @@
 // and where the wallet refused her agent a gold gate drops: the agent's puck lunges at it and bounces
 // back, the caption says "the wallet refuses: not the agent", and the deal snaps shut only once the
 // side that may say yes has said it. Every figure is a transcript price (modules/tables/corridor.ts
-// builds the beats; its test proves the browser preview's recorded table equals the engine's run).
-// Frame-pure: the picture is a function of the clock, so pause, seek and reduced motion agree.
-// Reduced motion steps from beat to beat with no slide, lunge or burst; the steps list is always
-// there for a screen reader, and the one caption line is read out as each beat lands.
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+// builds the beats; its test proves the browser preview's recorded table equals the engine's run),
+// and the figures shown are only ever landed prices, never one caught mid-slide.
+// Frame-pure: the picture is a function of the clock, so play, pause, the timeline scrubber and
+// reduced motion all agree. Reduced motion steps from beat to beat with no slide, lunge or burst; the
+// timeline names the beat it is on, the steps list is always there, and the one caption line is read
+// out as each beat lands.
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { usePrefersReducedMotion } from '../../../../../lib/hooks';
 import { TABLES_WATCH as W } from '../../../../../lib/words';
 import { Btn } from '../../../../../shared/ui';
-import { captionOf, frameAt, lunge, playbook, trackOf, xOf, type Haggle } from '../../../modules/tables/corridor';
+import { captionOf, frameAt, lunge, playbook, stepTo, trackOf, xOf, type Beat, type Haggle, type Playbook } from '../../../modules/tables/corridor';
 import { short } from '../../../modules/tables/ladder';
 
 const pct = (f: number): string => `${(f * 100).toFixed(3)}%`;
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+/** A landing ring grows and fades over this long. */
+const PULSE_MS = 520;
 
-/** The clock: real time while playing, frozen while paused; `seek` jumps (the end, a replay). */
-function useClock(total: number, reduced: boolean, autoplay: boolean) {
+/** The clock: real time while playing, frozen while paused or scrubbed. */
+function useClock(total: number, autoplay: boolean) {
   const [t, setT] = useState(autoplay ? 0 : total);
   const [playing, setPlaying] = useState(autoplay);
   const base = useRef<{ wall: number; t: number } | null>(null);
   useEffect(() => {
     if (!playing) { base.current = null; return; }
     let raf = 0;
+    // `t` is read once, when a play starts; the frame loop owns it from there.
+    const from = t;
     const tick = (now: number) => {
-      if (!base.current) base.current = { wall: now, t };
+      if (!base.current) base.current = { wall: now, t: from };
       const next = Math.min(total, base.current.t + (now - base.current.wall));
       setT(next);
       if (next >= total) { setPlaying(false); return; }
@@ -33,20 +40,21 @@ function useClock(total: number, reduced: boolean, autoplay: boolean) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-    // `t` is read once when a play starts; the frame loop owns it from there.
   }, [playing, total]);
-  const play = () => { if (t >= total) setT(0); base.current = null; setPlaying(true); };
-  const pause = () => setPlaying(false);
-  const end = () => { setPlaying(false); setT(total); };
-  return { t, playing, play, pause, end, reduced };
+  return {
+    t, playing,
+    play: () => { if (t >= total) setT(0); setPlaying(true); },
+    pause: () => setPlaying(false),
+    seek: (to: number) => { setPlaying(false); setT(Math.max(0, Math.min(total, to))); },
+  };
 }
 
-export function Corridor({ haggle, who, autoplay = true }: { haggle: Haggle; who: string; autoplay?: boolean }) {
+export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle: Haggle; who: string; autoplay?: boolean; big?: boolean }) {
   const reduced = usePrefersReducedMotion();
   const pb = useMemo(() => playbook(haggle), [haggle]);
   const track = useMemo(() => trackOf(haggle), [haggle]);
   const lines = useMemo(() => haggle.beats.map((b) => captionOf(b, haggle, who)), [haggle, who]);
-  const clock = useClock(pb.total, reduced, autoplay);
+  const clock = useClock(pb.total, autoplay && !reduced);
   // Reduced motion: each beat is drawn as it rests (no slide, no lunge, no burst).
   const at = reduced ? restingTime(pb, clock.t) : clock.t;
   const f = frameAt(pb, at);
@@ -58,21 +66,32 @@ export function Corridor({ haggle, who, autoplay = true }: { haggle: Haggle; who
   const call = haggle.askAbove;
   const caption = f.current >= 0 ? lines[f.current] : null;
 
-  // the refusal: the gate drops at the price the agent tried (or at the wall), the agent lunges at it
-  const gateAt = f.refusal ? (f.refusal.price ?? wall) : null;
-  const gateHeld = f.refusal !== null || (f.owner > 0 && !f.snap);
-  const heldGate = gateAt ?? lastGate(haggle);
-  const lungeP = f.refusal && !reduced ? lunge(f.refusal.p) : 0;
-  const youX = f.you !== null ? (gateAt !== null && f.you !== null ? f.you + (gateAt - f.you) * lungeP * 0.92 : f.you) : null;
-  const flash = f.refusal ? Math.max(0, 1 - f.refusal.p * 2.2) : 0;
-  const burst = f.snap && !reduced ? f.snap.p : 0;
-
+  // the refusal: a refused yes is a gate in the gap between her agent and the price it tried; a
+  // refusal at her limit is the wall itself. The agent lunges at the gate and bounces off it.
   const youPrice = f.trail.you[f.trail.you.length - 1] ?? null;
   const themPrice = f.trail.them[f.trail.them.length - 1] ?? null;
+  const refused = f.refusal ?? (f.owner > 0 && !f.snap ? lastRefusal(haggle) : null);
+  const gateAt = refused ? (refused.price !== null && youPrice !== null ? (refused.price + youPrice) / 2 : wall) : null;
+  const lungeP = f.refusal && !reduced ? lunge(f.refusal.p) : 0;
+  const youX = f.you !== null && gateAt !== null ? f.you + (gateAt - f.you) * lungeP * 0.82 : f.you;
+  // the gate flares as the agent hits it, then settles to a steady gold
+  const flash = f.refusal && !reduced ? (f.refusal.p < 0.16 ? 0.35 * (f.refusal.p / 0.16) : Math.max(0, 1 - (f.refusal.p - 0.16) * 2.6)) : 0;
+  const burst = f.snap && !reduced ? f.snap.p : 0;
+  const pulse = (since: number | null) => (since === null || reduced ? 0 : clamp01(since / PULSE_MS));
+
   const met = f.snap?.p === 1;
 
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    const to = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? stepTo(pb, clock.t, 1)
+      : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? stepTo(pb, clock.t, -1)
+        : e.key === 'Home' ? 0 : e.key === 'End' ? pb.total : null;
+    if (to === null) return;
+    e.preventDefault();
+    clock.seek(to);
+  };
+
   return (
-    <section className={`hc${buyer ? '' : ' seller'}${met ? ' met' : ''}${f.refusal ? ' refusing' : ''}`} aria-label={W.stepsTitle}>
+    <section className={`hc${buyer ? '' : ' seller'}${met ? ' met' : ''}${big ? ' big' : ''}`} aria-label={W.watchAll}>
       <div className="hc-head" aria-hidden="true">
         <div className="hc-side you">
           <span className="hc-who">{W.you}</span>
@@ -109,18 +128,18 @@ export function Corridor({ haggle, who, autoplay = true }: { haggle: Haggle; who
 
         {/* the trail: every price each side signed, fading with age */}
         {(['them', 'you'] as const).map((side) => f.trail[side].map((p, i, all) => (
-          <span key={`${side}${i}`} className={`hc-dot ${side}`} style={{ left: pct(x(p)), opacity: 0.25 + 0.55 * ((i + 1) / all.length) } as CSSProperties} />
+          <span key={`${side}${i}`} className={`hc-dot ${side}`} style={{ left: pct(x(p)), opacity: 0.25 + 0.55 * ((i + 1) / all.length) }} />
         )))}
 
-        {gateHeld && heldGate !== null ? (
-          <div className={`hc-gate${flash > 0 ? ' flash' : ''}`} style={{ left: pct(x(heldGate)), '--flash': flash.toFixed(3) } as CSSProperties}>
+        {gateAt !== null ? (
+          <div className="hc-gate" style={{ left: pct(x(gateAt)), '--flash': flash.toFixed(3) } as CSSProperties}>
             <span className="hc-gate-tag">{f.owner > 0 ? W.yourCallTag : W.refusedTag}</span>
             {f.owner > 0 ? <span className="hc-hold" style={{ '--hold': f.owner.toFixed(3) } as CSSProperties} /> : null}
           </div>
         ) : null}
 
-        {f.them !== null && themPrice !== null ? <Puck side="them" x={x(f.them)} label={m(f.snap ? f.snap.price : themPrice)} hide={met} /> : null}
-        {youX !== null && youPrice !== null ? <Puck side="you" x={x(youX)} label={m(f.snap ? f.snap.price : youPrice)} hide={met} /> : null}
+        {f.them !== null && themPrice !== null ? <Puck side="them" x={x(f.them)} label={m(f.snap ? f.snap.price : themPrice)} hide={met} pulse={pulse(f.since.them)} /> : null}
+        {youX !== null && youPrice !== null ? <Puck side="you" x={x(youX)} label={m(f.snap ? f.snap.price : youPrice)} hide={met} pulse={pulse(f.since.you)} /> : null}
         {f.snap ? (
           <div className={`hc-deal${met ? ' on' : ''}`} style={{ left: pct(x(f.snap.price)), '--burst': burst.toFixed(3) } as CSSProperties}>
             <span className="hc-burst" />
@@ -129,11 +148,21 @@ export function Corridor({ haggle, who, autoplay = true }: { haggle: Haggle; who
         ) : null}
       </div>
 
-      <p className={`hc-caption${f.refusal ? ' gold' : ''}`} aria-live="polite" aria-atomic="true">{caption ?? ' '}</p>
+      <p className={`hc-caption${f.refusal || f.owner > 0 ? ' gold' : ''}`} aria-live="polite" aria-atomic="true">{caption ?? ' '}</p>
+
+      <div className="hc-time">
+        <div className="hc-marks" aria-hidden="true">
+          {pb.cues.map((c) => <span key={c.i} className={`hc-mark ${markOf(c.beat)}${c.i <= f.current ? ' on' : ''}`} style={{ left: pct(c.at / pb.total) }} />)}
+          <span className="hc-fill" style={{ width: pct(clock.t / pb.total) }} />
+        </div>
+        <input type="range" className="hc-scrub" min={0} max={pb.total} step={10} value={Math.round(clock.t)}
+          aria-label={W.timeline} aria-valuetext={caption ? W.beatOf(f.current + 1, lines.length, caption) : W.notStarted}
+          onChange={(e) => clock.seek(Number(e.target.value))} onKeyDown={onKey} />
+      </div>
 
       <div className="hc-foot">
-        {clock.playing ? <Btn sm onClick={clock.pause}>{W.pause}</Btn> : <Btn sm kind="primary" onClick={clock.play} title={W.playTitle}>{f.done ? W.replay : W.play}</Btn>}
-        {!f.done ? <Btn sm kind="plain" onClick={clock.end}>{W.skip}</Btn> : null}
+        {clock.playing ? <Btn sm onClick={clock.pause}>{W.pause}</Btn> : <Btn sm kind="primary" onClick={clock.play} title={W.playTitle}>{f.done ? W.replay : clock.t > 0 ? W.resume : W.play}</Btn>}
+        {!f.done ? <Btn sm kind="plain" onClick={() => clock.seek(pb.total)}>{W.skip}</Btn> : null}
         <span className="ui-spacer" />
         {haggle.maxOffers ? <span className="hc-offers num">{W.offersLeft(f.offers, haggle.maxOffers)}</span> : null}
       </div>
@@ -146,16 +175,23 @@ export function Corridor({ haggle, who, autoplay = true }: { haggle: Haggle; who
   );
 }
 
-function Puck({ side, x, label, hide }: { side: 'you' | 'them'; x: number; label: string; hide: boolean }) {
+function Puck({ side, x, label, hide, pulse }: { side: 'you' | 'them'; x: number; label: string; hide: boolean; pulse: number }) {
   return (
-    <div className={`hc-puck ${side}${hide ? ' gone' : ''}`} style={{ left: pct(x) }}>
+    <div className={`hc-puck ${side}${hide ? ' gone' : ''}`} style={{ left: pct(x), '--pulse': pulse.toFixed(3) } as CSSProperties}>
+      {pulse > 0 && pulse < 1 ? <span className="hc-ring" /> : null}
       <span className="hc-puck-tag num">{label}</span>
     </div>
   );
 }
 
+/** The timeline mark's colour: their side, ours, or the owner's walls (gold). */
+function markOf(b: Beat): string {
+  if (b.kind === 'price' || b.kind === 'accept' || b.kind === 'withdrawn') return b.by;
+  return 'gold';
+}
+
 /** Under reduced motion, the clock shows each beat at rest: the moment its slide and bounce end. */
-function restingTime(pb: ReturnType<typeof playbook>, t: number): number {
+function restingTime(pb: Playbook, t: number): number {
   let shown = 0;
   for (const c of pb.cues) {
     if (t < c.at) break;
@@ -165,10 +201,10 @@ function restingTime(pb: ReturnType<typeof playbook>, t: number): number {
 }
 
 /** The gate stays where the wallet last refused, while the owner decides. */
-function lastGate(h: Haggle): number | null {
+function lastRefusal(h: Haggle): { price: number | null; clause: number | null } | null {
   for (let i = h.beats.length - 1; i >= 0; i--) {
     const b = h.beats[i];
-    if (b?.kind === 'refused') return b.price;
+    if (b?.kind === 'refused') return { price: b.price, clause: b.clause };
   }
   return null;
 }

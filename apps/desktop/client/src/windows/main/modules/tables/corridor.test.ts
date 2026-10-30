@@ -122,10 +122,11 @@ describe('the clock and the frame', () => {
     expect(lunge(0.9)).toBe(0);
     for (let p = 0; p <= 1; p += 0.01) expect(lunge(p)).toBeGreaterThanOrEqual(0);
   });
-  it('the track holds every price, the walls and the lane; the ask-me line far below stays off it', () => {
+  it('the track holds every price and the walls; the market’s top end and an ask-me line far below stay off it', () => {
     const t = trackOf(h)!;
     expect(t.lo).toBeLessThanOrEqual(30000);
-    expect(t.hi).toBeGreaterThanOrEqual(36000);
+    expect(t.hi).toBeGreaterThanOrEqual(34000);
+    expect(t.hi).toBeLessThan(36000);
     expect(t.lo).toBeGreaterThan(25000);
     expect(xOf(t.lo, t)).toBe(0);
     expect(xOf(t.hi, t)).toBe(1);

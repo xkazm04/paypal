@@ -13,6 +13,7 @@ import { haggleOf, watchable } from '../../../modules/tables/corridor';
 import type { World } from '../../../world';
 import { ListEngine } from '../../ListEngine';
 import { StateChip, WhoChip } from '../../rows';
+import { Btn } from '../../../../../shared/ui';
 import { Corridor } from './Corridor';
 import { SplitView, useTranscript } from './parts';
 
@@ -42,6 +43,7 @@ type Props = {
 export function WatchView({ deals, display, needOf, who }: Props) {
   const rows = useMemo(() => watchOrder(deals, display), [deals, display]);
   const [k, setK] = useState<string | null>(() => { const w = wanted; wanted = null; return w; });
+  const [stage, setStage] = useState(false);
   const picked = (k !== null ? rows.find((d) => d.id === k) : undefined) ?? rows[0];
   const list = (
     <ListEngine<Deal> label={W.list} rows={rows} getKey={(d) => d.id} estimateSize={60} measure
@@ -55,10 +57,12 @@ export function WatchView({ deals, display, needOf, who }: Props) {
       )}
       rowLabel={(d) => `${display(d).title}, ${who(d).full}`} onPick={(d) => setK(d.id)} onOpen={(d) => setK(d.id)} empty={W.empty} />
   );
-  return <SplitView label={W.list} count={rows.length} list={list} pane={picked ? <WatchPane key={picked.id} deal={picked} display={display} need={needOf.get(picked.id)} who={who(picked).short} /> : null} />;
+  const pane = picked ? <WatchPane key={picked.id} deal={picked} display={display} need={needOf.get(picked.id)} who={who(picked).short} stage={stage} onStage={setStage} /> : null;
+  if (stage && pane) return <div className="hc-stage">{pane}</div>;
+  return <SplitView label={W.list} count={rows.length} list={list} pane={pane} />;
 }
 
-function WatchPane({ deal, display, need, who }: { deal: Deal; display: World['display']; need: AttentionItem | undefined; who: string }) {
+function WatchPane({ deal, display, need, who, stage, onStage }: { deal: Deal; display: World['display']; need: AttentionItem | undefined; who: string; stage: boolean; onStage: (on: boolean) => void }) {
   const tr = useTranscript(deal.id);
   const hist = useQuery('deal_history', { deal_id: deal.id }, { refreshOn: ['deal:changed'] });
   const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
@@ -81,9 +85,11 @@ function WatchPane({ deal, display, need, who }: { deal: Deal; display: World['d
       <header className="tr-phead">
         <h2 title={display(deal).title}>{display(deal).title}</h2>
         <span className="tr-with">{who}</span>
+        <span className="ui-spacer" />
+        <Btn sm kind="plain" onClick={() => onStage(!stage)} title={stage ? W.listTitle : W.stageTitle}>{stage ? W.list : W.stage}</Btn>
       </header>
       <p className="tb-left">{W.sub}</p>
-      <Corridor haggle={haggle} who={who} />
+      <Corridor haggle={haggle} who={who} big={stage} />
     </div>
   );
 }

@@ -219,3 +219,31 @@
 .hc-steps summary { cursor: pointer; color: var(--muted); font-size: var(--fs-small); }
 .hc-steps ol { margin: var(--sp-2) 0 0; padding-left: 1.3rem; display: grid; gap: var(--sp-1); color: var(--dim); }
 .hc-steps li.on { color: var(--text); }
+
+/* the landing ring: a puck that just landed rings once */
+.hc-ring { --pulse: 0; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; border-radius: 50%; border: 2px solid currentColor; pointer-events: none;
+  transform: translate(-50%, -50%) scale(calc(1 + 1.8 * var(--pulse))); opacity: calc(.75 * (1 - var(--pulse))); }
+.hc-puck { --pulse: 0; }
+.hc-puck.you { color: var(--teal); }
+.hc-puck.them { color: var(--coral); }
+
+/* the timeline: one mark per beat, scrub with the pointer or step with the arrow keys */
+.hc-time { position: relative; height: 22px; margin: 0 var(--sp-4); }
+.hc-marks { position: absolute; left: 0; right: 0; top: 50%; height: 3px; transform: translateY(-50%); border-radius: 2px; background: color-mix(in srgb, var(--steel) 14%, transparent); }
+.hc-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: color-mix(in srgb, var(--steel) 45%, transparent); }
+.hc-mark { position: absolute; top: 50%; width: 7px; height: 7px; border-radius: 50%; transform: translate(-50%, -50%); z-index: 1; box-shadow: 0 0 0 2px var(--bg); opacity: .45; }
+.hc-mark.on { opacity: 1; }
+.hc-mark.you { background: var(--teal); }
+.hc-mark.them { background: var(--coral); }
+.hc-mark.gold { background: var(--gold); width: 9px; height: 9px; }
+.hc-scrub { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.hc-time:has(.hc-scrub:focus-visible) { outline: 2px solid var(--signal); outline-offset: 4px; border-radius: var(--r-tight); }
+
+/* the big stage: the corridor alone, for showing it to someone */
+.hc.big { padding: var(--sp-6) var(--sp-8) var(--sp-4); }
+.hc.big .hc-side b { font-size: var(--fs-hero); }
+.hc.big .hc-track { height: 14rem; }
+.hc.big .hc-caption { font-size: var(--fs-title1); }
+.hc.big .hc-puck { width: 28px; height: 28px; }
+.hc.big .hc-puck-tag { font-size: var(--fs-title3); }
+.hc-stage { display: flex; flex-direction: column; min-height: 0; }

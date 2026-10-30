@@ -176,6 +176,8 @@ export type Frame = {
   gap: number | null;
   /** Our signed offers so far. */
   offers: number;
+  /** Milliseconds since each side's latest price landed (the landing pulse), null before its first. */
+  since: { you: number | null; them: number | null };
   done: boolean;
 };
 
@@ -221,9 +223,18 @@ export function frameAt(pb: Playbook, t: number): Frame {
   }
   return {
     you, them, trail, current, refusal, snap, owner, offers,
+    since: { you: Number.isFinite(landed.you) ? t - landed.you : null, them: Number.isFinite(landed.them) ? t - landed.them : null },
     gap: you !== null && them !== null ? Math.abs(them - you) : null,
     done: t >= pb.total,
   };
+}
+
+/** The beat to jump to from `t` (keyboard on the timeline): the next or previous landing, at rest. */
+export function stepTo(pb: Playbook, t: number, dir: 1 | -1): number {
+  const rest = pb.cues.map((c) => Math.min(pb.total, c.at + SLIDE_MS));
+  if (dir > 0) return rest.find((r) => r > t + 1) ?? pb.total;
+  const before = rest.filter((r) => r < t - 1);
+  return before[before.length - 1] ?? 0;
 }
 
 /** How far a refused yes lunges toward the price it tried, then bounces back (0 = at rest, 1 = at the gate). */
@@ -243,7 +254,8 @@ export type Track = { lo: number; hi: number; ticks: number[] };
  *  when it sits far below the haggle, so it cannot squeeze the track; it is drawn at the edge then. */
 export function trackOf(h: Haggle): Track | null {
   const prices = h.beats.flatMap((b) => ('price' in b && b.price !== null ? [b.price] : []));
-  const s = ladderScale([...prices, h.ceiling, h.floor, h.market?.p25, h.market?.p75]);
+  // The lane may run off the edge: the market's top end does not get to squeeze the haggle.
+  const s = ladderScale([...prices, h.ceiling, h.floor, h.market?.p25, h.market?.median]);
   return s ? { lo: s.lo, hi: s.hi, ticks: s.ticks } : null;
 }
 
