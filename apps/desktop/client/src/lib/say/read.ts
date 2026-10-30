@@ -163,13 +163,14 @@ const WD = String.raw`(sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu
 const wdIndex = (w: string): number => ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].indexOf(w.slice(0, 3));
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const MONTH = String.raw`(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)`;
-const TIME = String.raw`(?:(\d{1,2})(?::(\d{2}))?\s?(am|pm)|(\d{1,2}):(\d{2})|(noon)|(midnight)|(?:the\s+)?end of (?:the\s+)?(?:business\s+|work\s*)?day|close of business|cob|eod)`;
+const TIME = String.raw`(?:(\d{1,2})(?::(\d{2}))?\s?(am|pm)|(\d{1,2}):(\d{2})|(noon)|(midnight)|(morning|afternoon|evening|night)|(?:the\s+)?end of (?:the\s+)?(?:business\s+|work\s*)?day|close of business|cob|eod)`;
 /** The usual close of a working day: what "until Friday" means when no hour is said. */
 export const DEFAULT_END_HOUR = 18;
 
 /** Seconds into the day for a TIME match's groups, or null when the hour is not a time. */
 function timeOfDay(g: ReadonlyArray<string | undefined>): number | null {
-  const [h12, m12, ap, h24, m24, noon, midnight] = g;
+  const [h12, m12, ap, h24, m24, noon, midnight, part] = g;
+  if (part) return (({ morning: 9, afternoon: 15, evening: 18, night: 21 } as Record<string, number>)[part] ?? DEFAULT_END_HOUR) * 3600;
   if (noon) return 12 * 3600;
   if (midnight) return 24 * 3600 - 60;
   if (h12 && ap) {
@@ -211,15 +212,15 @@ const OVER = String.raw`(?:above|over|more than|beyond|past|exceeds?|exceeding|g
 const FILLER = new Set([
   'a', 'an', 'the', 'my', 'mine', 'some', 'any', 'for', 'to', 'of', 'on', 'in', 'at', 'by', 'and', 'then', 'but', 'so', 'also', 'just', 'please',
   'i', "i'd", "i'll", "i'm", "i've", 'we', 'you', 'your', 'it', 'its', "it's", 'me', 'us', 'our', 'agent', 'agents', 'assistant', 'wallet', 'table',
-  'want', 'wants', 'wanna', 'need', 'needs', 'like', 'would', 'could', 'can', 'should', 'will', 'shall', 'may', 'let', 'set', 'make', 'up', 'rule',
+  'like', 'would', 'could', 'can', 'should', 'will', 'shall', 'may', 'let', 'set', 'make', 'up', 'rule',
   'rules', 'new', 'there', 'that', 'this', 'these', 'those', 'is', 'are', 'be', 'been', 'am', 'do', 'does', 'did', 'have', 'has', 'if', 'when',
   'whenever', 'as', 'long', 'much', 'many', 'per', 'each', 'every', 'from', 'into', 'out', 'about', 'start', 'starting', 'now', 'ok', 'okay', 'hey',
   'hi', 'hello', 'alright', 'thanks', 'thank', 'first', 'item', 'price', 'try', 'go',
-  'cheapest', 'cheap', 'best', 'good', 'nice', 'decent', 'great',
+  'cheapest', 'cheap', 'best', 'good', 'nice', 'decent', 'great', 'pay', 'paying', 'spend', 'spending',
 ]);
 // Words that must never vanish as filler: they change what a rule means.
 const MEANING = new Set(['not', 'never', 'no', "don't", 'dont', 'except', 'unless', 'without', 'above', 'over', 'under', 'below', 'less', 'least', 'min', 'max', 'minimum', 'maximum']);
-const BUY = new Set(['haggle', 'haggling', 'bargain', 'bargaining', 'negotiate', 'negotiating', 'buy', 'buying', 'purchase', 'purchasing', 'order', 'ordering', 'grab', 'get', 'getting', 'find', 'finding', 'source', 'sourcing', 'shop', 'shopping', 'restock', 'restocking', 'pick', 'hunt', 'hunting', 'look', 'looking', 'score', 'pay', 'paying', 'spend', 'spending']);
+const BUY = new Set(['haggle', 'haggling', 'bargain', 'bargaining', 'negotiate', 'negotiating', 'buy', 'buying', 'purchase', 'purchasing', 'order', 'ordering', 'grab', 'get', 'getting', 'find', 'finding', 'source', 'sourcing', 'shop', 'shopping', 'restock', 'restocking', 'pick', 'hunt', 'hunting', 'look', 'looking', 'score', 'pay', 'paying', 'spend', 'spending', 'need', 'needs', 'want', 'wants', 'wanna']);
 const SELL = new Set(['sell', 'selling', 'list', 'listing', 'flip', 'unload']);
 const ARTICLES = new Set(['a', 'an', 'the', 'my', 'some', 'one']);
 const ANYTHING = new Set(['anything', 'something', 'stuff', 'things', 'supplies', 'items', 'goods', 'whatever', 'stock', 'office', 'equipment']);
@@ -275,10 +276,10 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
   const endAt = (daysAhead: number, secs: number): number => t0.midnight + daysAhead * DAY + secs;
   type EndsHit = { at: number | null; heard: string; ask?: { secs: number; label: string } };
   const endsHits: EndsHit[] = [];
-  const dayWords = take(work, new RegExp(String.raw`\b(?:until|till|til|through|thru|by|before|ending|ends?|expir(?:es|ing|e)|no later than)\s+(?:(?:the\s+)?end of (?:the\s+)?(?:day\s+)?)?(?:on\s+)?(?:(next|this|coming)\s+)?(?:${WD}|(today|tonight|tomorrow))(?:\s+(?:at\s+|by\s+)?${TIME})?`, 'g'));
+  const dayWords = take(work, new RegExp(String.raw`\b(?:until|till|til|through|thru|by|before|ending|ends?|expir(?:es|ing|e)|no later than)\s+(?:(?:the\s+)?end of (?:the\s+)?(?:day\s+)?)?(?:on\s+)?(?:(next|this|coming)\s+)?(?:${WD}|(today|tonight|tomorrow))\b(?:\s+(?:at\s+|by\s+)?${TIME})?`, 'g'));
   for (const { m, heard: h } of dayWords) {
-    const [, prefix, wdName, rel, h12, m12, ap, h24, m24, noon, midnight] = m;
-    const given = timeOfDay([h12, m12, ap, h24, m24, noon, midnight]);
+    const [, prefix, wdName, rel, h12, m12, ap, h24, m24, noon, midnight, part] = m;
+    const given = timeOfDay([h12, m12, ap, h24, m24, noon, midnight, part]);
     const secs = given ?? (rel === 'tonight' ? 24 * 3600 - 60 : DEFAULT_END_HOUR * 3600);
     if (rel) {
       const ahead = rel === 'tomorrow' ? 1 : 0;
@@ -308,7 +309,7 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
   for (const { m, heard: h } of dateWords) {
     const day = Number(m[1] ?? m[4]);
     const mon = MONTHS.indexOf((m[2] ?? m[3] ?? '').slice(0, 3));
-    const given = timeOfDay(m.slice(5, 12));
+    const given = timeOfDay(m.slice(5, 13));
     const secs = given ?? DEFAULT_END_HOUR * 3600;
     let y = t0.y;
     let at = Date.UTC(y, mon, day) / 1000 - ctx.offsetMin * 60 + secs;
@@ -316,9 +317,14 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
     if (at <= ctx.now) { y += 1; at = Date.UTC(y, mon, day) / 1000 - ctx.offsetMin * 60 + secs; }
     endsHits.push({ at, heard: h });
   }
+  // "until the end of the month": the last day of this month at the close of the day, or next month's once this one's has passed
+  for (const { heard: h } of take(work, /\b(?:until|till|by|before|through)\s+(?:the\s+)?end of (?:the\s+)?month\b/g)) {
+    const lastOf = (m: number): number => Date.UTC(t0.y, m + 1, 0) / 1000 - ctx.offsetMin * 60 + DEFAULT_END_HOUR * 3600;
+    endsHits.push({ at: lastOf(t0.m) > ctx.now ? lastOf(t0.m) : lastOf(t0.m + 1), heard: h });
+  }
   const timeOnly = take(work, new RegExp(String.raw`\b(?:until|till|by|before|through|ending|ends?)\s+${TIME}`, 'g'));
   for (const { m, heard: h } of timeOnly) {
-    const secs = timeOfDay(m.slice(1, 8));
+    const secs = timeOfDay(m.slice(1, 9));
     if (secs === null) { endsHits.push({ at: null, heard: h }); continue; }
     // Today if that hour is still ahead; otherwise tomorrow (the chip names the day, so it can be seen and edited).
     const todayAt = endAt(0, secs);
@@ -326,7 +332,7 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
   }
 
   // -- a day's limits
-  const dayTotalHits = take(work, new RegExp(String.raw`\b(?:(?:${IN}|limit(?: of)?|cap(?: of)?|spend|pay|spending|paying|budget(?: of)?|total of|a total of|in total)\s+)*(${AMT})\s*(?:a|per|each|every|/)\s*day\b|\b(?:daily|per day|a day|each day)\s+(?:limit|cap|budget|max|maximum|total|spend)(?:\s+(?:of|is))?\s+(${AMT})|\b(${AMT})\s+daily\b`, 'g'));
+  const dayTotalHits = take(work, new RegExp(String.raw`(?<![\w$€£])(?:(?:${IN}|never (?:more than|above|over)|(?:don't|do not|dont) (?:spend|pay) (?:more than|over)|limit(?: of)?|cap(?: of)?|spend|pay|spending|paying|budget(?: of)?|total of|a total of|in total)\s+)*(${AMT})\s*(?:a|per|each|every|/)\s*day\b|\b(?:daily|per day|a day|each day)\s+(?:limit|cap|budget|max|maximum|total|spend)(?:\s+(?:of|is))?\s+(${AMT})|(?<![\w$€£])(${AMT})\s+daily\b`, 'g'));
   const dayDealHits = take(work, new RegExp(String.raw`\b(?:(?:${IN})\s+)?(\d{1,3})\s+(?:deals?|purchases?|buys?|orders?|haggles?|payments?|tables?)\s*(?:a|per|each|every)\s*day\b`, 'g'));
 
   // -- how many offers
@@ -335,15 +341,15 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
   for (const { heard: h } of take(work, /\b(?:until|till|til)\b[^|]*/g)) endsHits.push({ at: null, heard: h });
 
   // -- when to ask the owner
-  const askOver = take(work, new RegExp(String.raw`\b${ASKV}\s+me\b(?:\s+(?:first|again|before\s+\w+))?[^|$€£\d]{0,30}?\b${OVER}\s+(${AMT})`, 'g'));
-  const askBefore = take(work, new RegExp(String.raw`\bask\s+(?:before|if|when)\b[^|$€£\d]{0,30}?\b${OVER}\s+(${AMT})`, 'g'));
+  const askOver = take(work, new RegExp(String.raw`\b(?:(?:only|just|don't|do not|dont|never)\s+)?${ASKV}\s+me\b(?:\s+(?:first|again|before\s+\w+))?[^|$€£\d]{0,30}?\b${OVER}\s+(${AMT})`, 'g'));
+  const askBefore = take(work, new RegExp(String.raw`\bask\s+(?:before|if|when)\b[^|$€£\d]{0,30}?\b${OVER}\s+(${AMT})|\bask\s+${OVER}\s+(${AMT})`, 'g'));
   const askAlways = take(work, new RegExp(String.raw`\b(?:always\s+${ASKV}\s+me|${ASKV}\s+me\s+(?:every time|each time|always|(?:about\s+)?every(?:thing| payment| purchase| deal)|before\s+(?:paying|you pay|any payment|anything|buying|you buy|spending|you spend|every payment|each payment)|first))\b`, 'g'));
 
   // -- selling is not read from a sentence
   const floorHits = take(work, new RegExp(String.raw`\b(?:at least|no less than|not less than|minimum(?: of)?|min(?: of)?|not (?:below|under)|no lower than|floor(?: of)?|for at least)\s+(${AMT})`, 'g'));
 
   // -- the most you'll pay
-  const ceilingHits = take(work, new RegExp(String.raw`\b(?:up to|at most|max(?:imum)?(?: of| price of)?|a maximum of|no more than|not more than|not (?:above|over|beyond)|under|below|less than|within|limit(?:ed)?(?: to| of)?|cap(?:ped)?(?: at| of)?|budget(?: of| is)?|ceiling(?: of| at)?|tops? out at|as much as|go as high as|not exceeding|never (?:more than|above|over|pay more than)|(?:don't|do not|dont)\s+(?:pay|spend|go|agree(?: to)?)(?:\s+(?:more than|above|over|beyond|past)))\s+(${AMT})|\b(${AMT})\s+(?:max(?:imum)?|tops|at most|or less|or under|or below|and under|and below|limit)\b`, 'g'));
+  const ceilingHits = take(work, new RegExp(String.raw`\b(?:up to|at most|max(?:imum)?(?: of| price of)?|a maximum of|no more than|not more than|not (?:above|over|beyond)|under|below|less than|within|limit(?:ed)?(?: to| of)?|cap(?:ped)?(?: at| of)?|budget(?: of| is)?|ceiling(?: of| at)?|tops? out at|as much as|go as high as|not exceeding|never (?:more than|above|over|pay more than)|(?:don't|do not|dont)\s+(?:pay|spend|go|agree(?: to)?)(?:\s+(?:more than|above|over|beyond|past)))\s+(${AMT})|(?<![\w$€£])(${AMT})\s+(?:max(?:imum)?|tops|at most|or less|or under|or below|and under|and below|limit)\b`, 'g'));
 
   // lone amounts with a currency mark are asked about, never assumed
   const lone = take(work, new RegExp(String.raw`[$€£]\d[\d,]*(?:\.\d{1,2})?`, 'g'));
@@ -381,7 +387,8 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
     for (const [at, tok] of toks.entries()) {
       const w = tok.replace(/^["']+|["']+$/g, '');
       if (!w) continue;
-      if (!verbSeen && BUY.has(w)) { verbSeen = true; jobWord = true; inItem = true; flush(); continue; }
+      // a second verb before the item ("want to buy", "need to get") is only a verb
+      if (BUY.has(w) && (!verbSeen || (inItem && !itemWords.length))) { verbSeen = true; jobWord = true; inItem = true; flush(); continue; }
       if (SELL.has(w)) { selling = true; flush(); continue; }
       if (inItem && !itemDone) {
         if (FILLER.has(w) && !MEANING.has(w)) { if (ARTICLES.has(w) && !itemWords.length) sawArticle = true; if (itemWords.length) itemDone = true; continue; }
@@ -417,7 +424,7 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
 
   pick('ceiling', asHits(ceilingHits, 1, 2), (v) => { facts.ceiling = v; }, { id: 'ceiling-which', text: SAY_Q.ceilingWhich });
   if (facts.ceiling !== null && facts.ceiling <= 0) { facts.ceiling = null; unsure.add('ceiling'); heard.ceiling = heard.ceiling ?? ''; questions.push({ id: 'ceiling', slot: 'ceiling', text: SAY_Q.zero, answer: { kind: 'amount', label: SAY_Q.ceilingLabel } }); delete from.ceiling; }
-  const askHits = asHits([...askOver, ...askBefore], 1);
+  const askHits = asHits([...askOver, ...askBefore], 1, 2);
   if (askAlways.length) askHits.push({ value: '0', heard: askAlways[0]?.heard ?? '' });
   pick('ask', askHits, (v) => { facts.ask = v; }, { id: 'ask-which', text: SAY_Q.askWhich });
 

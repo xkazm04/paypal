@@ -468,3 +468,42 @@ describe('tying "a monitor" to the items the owner already deals in', () => {
     expect(say('Haggle for a monitor up to $340').questions).toEqual([]);
   });
 });
+
+describe('phrasings a judge might try', () => {
+  const facts = (t: string) => say(t);
+  it('only ask me if / don’t ask me unless', () => {
+    expect(facts('Haggle for a monitor under $340 and only ask me if it is over $320').facts).toMatchObject({ ceiling: usd(340), ask: usd(320) });
+    expect(facts('Haggle for a monitor under $340 and only ask me if it is over $320').leftover).toEqual([]);
+    expect(facts("Don't ask me unless it's more than $320").facts.ask).toBe(usd(320));
+  });
+  it('ask above (without "me")', () => {
+    expect(facts('haggle for monitor, 340 max, ask above 320').facts).toMatchObject({ ceiling: usd(340), ask: usd(320) });
+  });
+  it('"I need / I want ... " and a pay sentence of its own', () => {
+    const r = facts('I need a webcam. Pay at most $70. Check with me over $50.');
+    expect(r.facts).toMatchObject({ job: 'buy', item: 'webcam', ceiling: usd(70), ask: usd(50) });
+    expect(r.leftover).toEqual([]);
+    expect(facts('I want to buy a monitor up to $300').facts.item).toBe('monitor');
+    expect(facts('I want my agent to haggle for a monitor up to $300').facts.item).toBe('monitor');
+  });
+  it('"spend no more than" after the verb', () => {
+    const r = facts('Find a standing desk, spend no more than $450, ask me if it goes above $400, three offers, for two days');
+    expect(r.facts).toMatchObject({ item: 'standing desk', ceiling: usd(45000 / 100), ask: usd(400), offers: 3 });
+    expect(r.leftover).toEqual([]);
+  });
+  it('a limit written "$340 limit", and a part of the day', () => {
+    const r = facts('negotiate a 27 inch monitor for me, $340 limit, 5 rounds, by tomorrow evening');
+    expect(r.facts).toMatchObject({ item: '27 inch monitor', ceiling: usd(340), offers: 5, ends: at(2026, 10, 29, 18) });
+    expect(r.leftover).toEqual([]);
+    expect(facts('Haggle for a mouse up to $40 until friday morning').facts.ends).toBe(at(2026, 10, 30, 9));
+  });
+  it('"never more than $500 a day" and the end of the month', () => {
+    const r = facts('Buy supplies up to $100 each, never more than $500 a day, ask me above $50, until the end of the month');
+    expect(r.facts).toMatchObject({ anything: 'supplies', ceiling: usd(100), dayTotal: usd(500), ask: usd(50), ends: at(2026, 10, 31, 18) });
+    expect(r.leftover).toEqual([]);
+  });
+  it('a month name does not eat a weekday', () => {
+    expect(facts('Haggle for a monitor up to $340, until monday').facts.ends).toBe(at(2026, 11, 2, 18));
+    expect(facts('Haggle for a monitor up to $340, until the end of the month').facts.ends).toBe(at(2026, 10, 31, 18));
+  });
+});
