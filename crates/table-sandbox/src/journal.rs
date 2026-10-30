@@ -196,6 +196,11 @@ pub fn read(request: Option<&Value>, status: u16, answer: Option<&Value>) -> Ent
     }
     let result = answer.and_then(|a| a.get("result"));
     if let Some(error) = answer.and_then(|a| a.get("error")) {
+        // A client probing for a method the wallet's server does not offer: harmless.
+        if error.get("code").and_then(Value::as_i64) == Some(-32601) {
+            entry.rule = format!("not offered by the wallet's MCP server ({method}): tools only");
+            return entry;
+        }
         entry.outcome = Outcome::Error;
         entry.rule = error
             .get("message")

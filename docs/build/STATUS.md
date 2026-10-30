@@ -2747,3 +2747,44 @@ Client gates in the worktree: tsc clean; vitest 211 files / 2022 tests passed (a
 ## value-2 resolved by the owner's choice (2026-10-29)
 
 agent-negotiation-run value-2 (ask a07e05ac): the owner chose "Keep as is, explain in UI". The seller's practice agent still accepts the first offer at or above its floor (`Policy::decide`, unchanged). The seller's own deal page now says so when its agent accepted exactly at the signed floor (`acceptedAtFloorLine` in `windows/main/deal/story.ts`, words `DEAL_AT_FLOOR`). Seller side only; the floor never reaches a buyer or counterparty view. Commit: 45dc3dc (words only; no money logic, Rust, bindings or mock changed). tsc and vitest were not run (no client node_modules in the worktree).
+
+## table-sandbox: hand your own agent a wallet it can't misuse (2026-10-30, hackathon/killer-1030/e3)
+
+A new crate and bin, `crates/table-sandbox` (`cargo run -p table-sandbox`), serving
+`http://127.0.0.1:1443/` (live page) and `/mcp` (streamable HTTP). It boots the wallet actor the
+way `native.rs` does and calls `spawn_networked`, with in-memory edges: SQLite ledger and vault in
+memory, both PayPal clients on a recording transport that counts and refuses (nothing leaves the
+process; throwaway credentials minted per boot), the house seller (`services/house-seller`:
+`Seller::new`, `start`, its deployed `router`) in process as the counterparty, reached through the
+wallet's own relay pump over an in-process `RelayApi`. An owner rule is signed at boot by a
+throwaway owner key; `OsReauth` always refuses (no owner is present).
+
+- **No new grant path.** The wallet's MCP server executes intents only for a run the runtime
+  started (`ActorBridge` needs a `RunId`; `agent_gate` checks the run). The outside agent takes the
+  policy negotiator's engine slot (`engine::OutsideAgent`): the wallet starts it with `agent_start`,
+  hands it the run's grant, and it launches nothing. The front forwards each JSON-RPC body unchanged
+  to the wallet's loopback MCP server under that grant and journals what answered. The front's door:
+  loopback Host for its port, no `Origin` (browsers refused). claude-code and codex-cli stay gated.
+- **One turn per run.** A run ends itself at 100 s (inside `SESSION_SECS`), and the front starts a
+  new one when the deal's transcript head moves, as the desktop arms its negotiator once per peer
+  message. The 64-call budget therefore cuts off only an agent looping within one turn.
+- **table-runtime** gains a `sandbox` feature (`src/sandbox.rs`): pin an in-process house's release,
+  build the house request, pair + confirm + sign + join through the dispatcher's own functions, seat
+  an engine. Rust-only; no IPC command, no authority-table row, no money path.
+- **Deviation from the brief:** the system clock, not a fixed clock (the relay's settled-route
+  cadence, deadlines and the house's 300 s table need time to move).
+- **Honest gap:** the outside agent's runs are recorded under engine `scripted` (the policy slot's
+  id) in `run.start` rows; adding an `EngineId` variant would ripple to the TS bindings.
+- **Rule numbers** (`lib.rs`): band ceiling $340 (rule 4 must hold the house's $329 listing for the
+  table to be joined), in-person line $200 (rule 6, under the house's $239 floor, so any agreement
+  waits for the owner), per deal $400 (rule 3). A buyer's band floor is where the agent starts, not
+  a fence.
+- **Dependencies:** none new to the workspace. `table-sandbox` uses existing packages (axum, reqwest,
+  tokio, tower as a normal dependency for in-process requests, ed25519-dalek, getrandom, ulid).
+- **Validated:** `cargo test -p table-sandbox` (smoke over loopback HTTP: refused at rule 4 naming
+  the bound, refused at rule 6, `pay_now` absent, PayPal asked 0 by both wallets, a fresh table, a
+  clean whole-ledger safety record); the official MCP TypeScript SDK client (1.20.2,
+  StreamableHTTPClientTransport) connects and calls tools; one live claude-code session (`claude -p`,
+  smallest model, strict MCP config) haggled $100 -> $249.99 in six offers, the house seller accepted,
+  and the agent's accept was refused at rule 6. UNVERIFIED: a live codex-cli session (its config keys
+  are from `.research/landscape-and-stack.md` [S]).

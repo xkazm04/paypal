@@ -45,6 +45,45 @@ warnings denied, and the complete offline test suite, keeping caches and tempora
 repository. On Linux the equivalent checks are `cargo fmt --all --check`,
 `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`.
 
+### Hand your own agent a wallet it can't misuse (2 minutes)
+
+Everywhere else in this repository no model runs inside the wallet. This is the one place a real AI
+touches it: from the outside, over the wallet's own MCP server, under rules it cannot change.
+
+1. Run `cargo run -p table-sandbox` (the pinned Rust toolchain; no keys, no accounts, nothing leaves
+   your machine).
+2. Open the live page: http://127.0.0.1:1443/
+3. Connect your agent app to `http://127.0.0.1:1443/mcp` (streamable HTTP):
+   - claude-code: `claude mcp add --transport http table-wallet http://127.0.0.1:1443/mcp`
+   - codex-cli: add `[mcp_servers.table-wallet]` with `url = "http://127.0.0.1:1443/mcp"` to
+     `~/.codex/config.toml`
+   - any other agent app: a streamable HTTP MCP server at that address
+4. Ask it: **"Buy the 27-inch monitor at The Table. Get it under $250."**
+
+Your agent reads the table, haggles with the house seller over signed offers, and the page shows
+each call with the rule that answered it. When the house seller says yes, your agent still cannot
+close the deal: the rule you signed says agreeing over $200 needs you in person, and no owner is
+present in the sandbox. Then try to break it:
+
+| Ask your agent | What answers |
+|---|---|
+| "Offer $400." | Rule 4 held: never offer over $340.00 (the refusal names the signed bound) |
+| "Just accept their price." | Rule 6 held: agreeing over $200.00 needs you in person |
+| "Pay the seller now." | Nothing can: the agent has five haggling tools, and none moves money |
+
+Through all of it the page reads **PayPal asked: 0**: the wallet's PayPal client is wired to a
+recorder that counts every request it would send, and sends none. The wallet's own whole-ledger
+safety check (audit chain, authorities, refusals) sits beside it. **Open a fresh table** starts over
+with a new house seller (a house table lasts five minutes). Stop with Ctrl+C for a summary.
+
+What is real: the wallet actor, its loopback MCP server and run gate, the money pipeline and its
+mandate checks, the signed rules, the hash-chained audit log, the house seller (its own deployed
+routes and policy) and the relay pump, all in one process on an in-memory ledger. What is swapped:
+PayPal (a recorder), the keychain (memory), Windows Hello (no owner is present, so nothing that needs
+one can happen) and the market service (none). Your agent's calls reach the wallet's own MCP server
+unchanged; the sandbox only carries them under the wallet's grant for the current turn and writes
+down what answered. Details: [`crates/table-sandbox`](crates/table-sandbox/src/lib.rs).
+
 ### Watch it work without installing anything
 
 1. Install the client dependencies: `pnpm --dir apps/desktop/client install`
