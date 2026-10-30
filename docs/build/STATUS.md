@@ -2747,3 +2747,20 @@ Client gates in the worktree: tsc clean; vitest 211 files / 2022 tests passed (a
 ## value-2 resolved by the owner's choice (2026-10-29)
 
 agent-negotiation-run value-2 (ask a07e05ac): the owner chose "Keep as is, explain in UI". The seller's practice agent still accepts the first offer at or above its floor (`Policy::decide`, unchanged). The seller's own deal page now says so when its agent accepted exactly at the signed floor (`acceptedAtFloorLine` in `windows/main/deal/story.ts`, words `DEAL_AT_FLOOR`). Seller side only; the floor never reaches a buyer or counterparty view. Commit: 45dc3dc (words only; no money logic, Rust, bindings or mock changed). tsc and vitest were not run (no client node_modules in the worktree).
+
+## Proof checker in the browser (2026-10-30, hackathon branch)
+
+`table-verify`'s sixteen checks, run in a browser with nothing installed (`apps/desktop/client/src/lib/proof/`,
+`shared/proofcheck/`, `proof.html`), with a tamper control and a two-sided comparison; see
+[proof-and-verification.md](../features/proof-and-verification.md) step 10.
+- **No new IPC command** (`deal_export_proof` and `proof_check` already had rows); the mock answers them: the first downloads the
+  one signed practice deal (`D-0195`, added to Maya's mock world) and refuses every other deal in plain words, the second picks a
+  file in the browser and checks it in the page. The permissions fingerprint did not change.
+- **Practice deals**: `table_client::sample_proof` (three deals), bin `sample-proof`. The files and `parity.json` are committed
+  under `apps/desktop/client/src/lib/proof/sample/`; `cargo test -p table-client` fails when they are stale.
+- **Dependencies**: no new npm package. `table-client` now depends on `ed25519-dalek` and `base64`, both already in the workspace
+  (they sign the practice deals and read their messages).
+- **Not worked out in the browser yet**: the house seller's signed record (`house_record`); a file that carries one reads
+  "not checked: this page can't make this check yet", never passed. Group and market-price checks are worked out.
+- **Existing tests moved with the added mock deal** (each commented): module count (Tables 6 to 7), the ledger's money in (27.50 to
+  239.50), the Rewind's history, the film record's paid steps.

@@ -18,7 +18,7 @@ const BrowserChecker = lazy(() => import('../../../../../shared/proofcheck/Sampl
 export function Proof() {
   if (backend().kind === 'mock') {
     return (
-      <div className="bk-proof">
+      <div className="bk-proof bk-proof-browser">
         <Suspense fallback={<Loading what={BOOK.proof.what} />}><BrowserChecker /></Suspense>
       </div>
     );

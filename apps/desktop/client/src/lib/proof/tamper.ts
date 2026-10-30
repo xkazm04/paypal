@@ -109,6 +109,8 @@ export const TAMPERS: ReadonlyArray<{ id: TamperId; edits: (doc: Doc) => Edit[] 
   {
     id: 'request-id',
     edits: (d) => {
+      // only a payment that was checked again with PayPal has a request to send twice
+      if (!rows(d).some((r) => ['money.resolved', 'money.resent', 'money.parked'].includes(r.action))) throw new Error('no second look at PayPal');
       const ops = readAt(d, '/operations');
       const at = Array.isArray(ops) ? ops.findIndex((o) => (o as { operation?: unknown }).operation === 'capture') : -1;
       if (at < 0) throw new Error('no capture step');
