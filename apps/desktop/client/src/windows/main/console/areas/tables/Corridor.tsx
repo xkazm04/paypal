@@ -22,18 +22,20 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const PULSE_MS = 520;
 
 /** The clock: real time while playing, frozen while paused or scrubbed. */
-function useClock(total: number, autoplay: boolean) {
+function useClock(total: number, autoplay: boolean, rate = 1) {
   const [t, setT] = useState(autoplay ? 0 : total);
   const [playing, setPlaying] = useState(autoplay);
   const base = useRef<{ wall: number; t: number } | null>(null);
   useEffect(() => {
     if (!playing) { base.current = null; return; }
+    // No frame clock (a test DOM, a hidden document): show the end at once.
+    if (typeof requestAnimationFrame !== 'function') { setT(total); setPlaying(false); return; }
     let raf = 0;
     // `t` is read once, when a play starts; the frame loop owns it from there.
     const from = t;
     const tick = (now: number) => {
       if (!base.current) base.current = { wall: now, t: from };
-      const next = Math.min(total, base.current.t + (now - base.current.wall));
+      const next = Math.min(total, base.current.t + (now - base.current.wall) * rate);
       setT(next);
       if (next >= total) { setPlaying(false); return; }
       raf = requestAnimationFrame(tick);
@@ -49,12 +51,14 @@ function useClock(total: number, autoplay: boolean) {
   };
 }
 
-export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle: Haggle; who: string; autoplay?: boolean; big?: boolean }) {
+/** `compact`: the track and its caption only, decorative (the full replay is one click away), played
+ *  once a little faster; the decision centre shows it above the owner's decision. */
+export function Corridor({ haggle, who, autoplay = true, big = false, compact = false }: { haggle: Haggle; who: string; autoplay?: boolean; big?: boolean; compact?: boolean }) {
   const reduced = usePrefersReducedMotion();
   const pb = useMemo(() => playbook(haggle), [haggle]);
   const track = useMemo(() => trackOf(haggle), [haggle]);
   const lines = useMemo(() => haggle.beats.map((b) => captionOf(b, haggle, who)), [haggle, who]);
-  const clock = useClock(pb.total, autoplay && !reduced);
+  const clock = useClock(pb.total, autoplay && !reduced, compact ? 1.5 : 1);
   const [trackRef, widthPx] = useWidth();
   // Reduced motion: each beat is drawn as it rests (no slide, no lunge, no burst).
   const at = reduced ? restingTime(pb, clock.t) : clock.t;
@@ -102,8 +106,9 @@ export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle
   };
 
   return (
-    <section className={`hc${buyer ? '' : ' seller'}${met ? ' met' : ''}${big ? ' big' : ''}`} aria-label={W.watchAll}>
-      <div className="hc-head" aria-hidden="true">
+    <section className={`hc${buyer ? '' : ' seller'}${met ? ' met' : ''}${big ? ' big' : ''}${compact ? ' compact' : ''}`}
+      aria-label={compact ? undefined : W.watchAll} aria-hidden={compact ? true : undefined}>
+      {compact ? null : <div className="hc-head" aria-hidden="true">
         <div className="hc-side you">
           <span className="hc-who">{W.you}</span>
           <b className="num">{met && f.snap ? m(f.snap.price) : youPrice !== null ? m(youPrice) : '—'}</b>
@@ -115,7 +120,7 @@ export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle
           <span className="hc-who">{W.them(who)}</span>
           <b className="num">{met && f.snap ? m(f.snap.price) : themPrice !== null ? m(themPrice) : '—'}</b>
         </div>
-      </div>
+      </div>}
 
       <div className="hc-track" aria-hidden="true" ref={trackRef} style={shake ? { transform: `translateX(${shake.toFixed(2)}px)` } : undefined}>
         {haggle.market ? (
@@ -160,8 +165,9 @@ export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle
         ) : null}
       </div>
 
-      <p className={`hc-caption${f.refusal || f.owner > 0 ? ' gold' : ''}`} aria-live="polite" aria-atomic="true">{caption ?? ' '}</p>
+      <p className={`hc-caption${f.refusal || f.owner > 0 ? ' gold' : ''}`} aria-live={compact ? undefined : 'polite'} aria-atomic={compact ? undefined : true}>{caption ?? ' '}</p>
 
+      {compact ? null : <>
       <div className="hc-time">
         <div className="hc-marks" aria-hidden="true">
           {pb.cues.map((c) => <span key={c.i} className={`hc-mark ${markOf(c.beat)}${c.i <= f.current ? ' on' : ''}`} style={{ left: pct(c.at / pb.total) }} />)}
@@ -183,6 +189,7 @@ export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle
         <summary>{W.stepsTitle}</summary>
         <ol>{lines.map((l, i) => <li key={i} className={i <= f.current ? 'on' : undefined}>{l}</li>)}</ol>
       </details>
+      </>}
     </section>
   );
 }

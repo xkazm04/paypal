@@ -6,11 +6,12 @@
 import { useMemo, useState } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
+import type { DisplayBand } from '@bindings/DisplayBand';
 import { AGREED_OR_LATER } from '@bindings/dealStates';
 import { useQuery } from '../../../../../lib/hooks';
 import { TABLES_WATCH as W } from '../../../../../lib/words';
 import { isLive } from '../../../logic';
-import { haggleOf, watchable } from '../../../modules/tables/corridor';
+import { haggleOf, watchable, type Haggle } from '../../../modules/tables/corridor';
 import { takeWatched } from '../../../modules/tables/watchPick';
 import type { World } from '../../../world';
 import { ListEngine } from '../../ListEngine';
@@ -58,11 +59,11 @@ export function WatchView({ deals, display, needOf, who }: Props) {
   return <SplitView label={W.list} count={rows.length} list={list} pane={pane} />;
 }
 
-function WatchPane({ deal, display, need, who, stage, onStage }: { deal: Deal; display: World['display']; need: AttentionItem | undefined; who: string; stage: boolean; onStage: (on: boolean) => void }) {
+/** A deal's haggle as the corridor plays it, read from the wallet: null while it is being read. */
+function useHaggleFor(deal: Deal, band: DisplayBand | null, need: AttentionItem | undefined): { haggle: Haggle | null; reading: boolean } {
   const tr = useTranscript(deal.id);
   const hist = useQuery('deal_history', { deal_id: deal.id }, { refreshOn: ['deal:changed'] });
   const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
-  const band = display(deal).band;
   const askAbove = useMemo(() => {
     const entry = mandates.data?.find((m) => m.payload.id === deal.mandate_id && m.payload.version === deal.mandate_version);
     const c = entry?.payload.clauses.find((x) => x.type === 'human_present_over');
@@ -74,7 +75,12 @@ function WatchPane({ deal, display, need, who, stage, onStage }: { deal: Deal; d
     market: deal.market ? { p25: deal.market.p25.minor, median: deal.market.median.minor, p75: deal.market.p75.minor } : null,
     gate: isLive(deal) && need?.kind === 'gate' ? { clause: need.clause?.number ?? null, price: deal.terms.unit_price.minor } : null,
   }) : null, [tr.data, hist.data, deal, band, askAbove, need]);
-  if (!haggle || (hist.loading && !hist.data)) return <p className="le-empty">{W.reading}</p>;
+  return { haggle, reading: !haggle || (hist.loading && !hist.data) };
+}
+
+function WatchPane({ deal, display, need, who, stage, onStage }: { deal: Deal; display: World['display']; need: AttentionItem | undefined; who: string; stage: boolean; onStage: (on: boolean) => void }) {
+  const { haggle, reading } = useHaggleFor(deal, display(deal).band, need);
+  if (!haggle || reading) return <p className="le-empty">{W.reading}</p>;
   if (!watchable(haggle)) return <p className="le-empty">{W.empty}</p>;
   return (
     <div className="tb-pane">
@@ -86,6 +92,20 @@ function WatchPane({ deal, display, need, who, stage, onStage }: { deal: Deal; d
       </header>
       <p className="tb-left">{W.sub}</p>
       <Corridor haggle={haggle} who={who} big={stage} />
+    </div>
+  );
+}
+
+/** The decision centre's glance at a haggle the wallet stopped for the owner: the corridor, compact
+ *  and decorative, played once and resting at the gate; "Watch it" opens the full replay. Nothing
+ *  shows until the haggle has been read, and nothing at all for a table with no offers yet. */
+export function CentreHaggle({ deal, band, need, who, onWatch }: { deal: Deal; band: DisplayBand | null; need: AttentionItem; who: string; onWatch?: (dealId: string) => void }) {
+  const { haggle, reading } = useHaggleFor(deal, band, need);
+  if (!haggle || reading || !watchable(haggle)) return null;
+  return (
+    <div className="cs-haggle">
+      <Corridor haggle={haggle} who={who} compact />
+      {onWatch ? <Btn sm kind="plain" className="cs-haggle-watch" onClick={() => onWatch(deal.id)} title={W.watchItTitle}>{W.watchIt} <span aria-hidden="true">›</span></Btn> : null}
     </div>
   );
 }

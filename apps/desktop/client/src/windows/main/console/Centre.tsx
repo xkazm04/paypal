@@ -7,7 +7,8 @@
 // next decisions, and in any free slot what happened while the owner was away and what the wallet
 // is watching, so the row never stands empty.
 import { NOTICE_UNREAD, NOTICE_WHAT } from '../../../lib/words';
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ComponentProps, type ReactNode } from 'react';
+import { lazyPart } from '../../../lib/lazy';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import { formatMinor } from '../../../lib/format';
@@ -45,9 +46,13 @@ export type CentreProps = {
   onWaiting: () => void;
   onRewind: () => void;
   onBook: () => void;
+  /** Replay a haggle the wallet stopped for the owner (Tables, Watch the haggle). */
+  onWatch?: (dealId: string) => void;
 };
 
 const NO_DEALS: readonly Deal[] = [];
+/** A glance at the haggle behind a Tables decision (loaded with the Tables area, not before). */
+const CentreHaggle = lazyPart<ComponentProps<typeof import('./areas/tables/Watch').CentreHaggle>>(() => import('./areas/tables/Watch').then((m) => m.CentreHaggle));
 const selModuleOf = (w: World) => w.moduleOfDeal;
 
 export function Centre(p: CentreProps) {
@@ -114,7 +119,7 @@ export function Centre(p: CentreProps) {
   return (
     <div className="cs-centre" style={mc(top.module)}>
       <div className="cs-cgrid">
-        <Decision key={top.deal_id} item={top} index={p.cur} count={p.queue.length} onLater={p.onLater} onDeal={p.onDeal} />
+        <Decision key={top.deal_id} item={top} index={p.cur} count={p.queue.length} onLater={p.onLater} onDeal={p.onDeal} onWatch={p.onWatch} />
         <DecisionSeal item={top} presence={p.presence} onDeal={p.onDeal} />
       </div>
       {fill}
@@ -145,7 +150,7 @@ function SealSide({ presence, progress, onDeal }: { presence: Presence; progress
 }
 
 /** The decision in front: the sentence, the default on silence, one gold action, the facts. */
-function Decision({ item, index, count, onLater, onDeal }: { item: AttentionItem; index: number; count: number; onLater: () => void; onDeal: (id: string) => void }) {
+function Decision({ item, index, count, onLater, onDeal, onWatch }: { item: AttentionItem; index: number; count: number; onLater: () => void; onDeal: (id: string) => void; onWatch?: (id: string) => void }) {
   const locked = useLocked();
   const open = useMutation('approval_open');
   const deal = useDeals().data?.find((d) => d.id === item.deal_id);
@@ -174,6 +179,9 @@ function Decision({ item, index, count, onLater, onDeal }: { item: AttentionItem
         <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{verb}{gold ? <> <em className="amt">{gold}</em></> : null}</h1>
         <p className="cs-who">{who || title ? <>{who ? <span>{who}</span> : null}{who && title ? ' · ' : null}{title}</> : <span className="dim">{NO_COUNTERPARTY}</span>}</p>
       </div>
+      {item.module === 'tables' && deal?.kind === 'haggle' ? (
+        <Suspense fallback={null}><CentreHaggle deal={deal} band={disp?.band ?? null} need={item} who={(who ?? '').split(' · ')[0] ?? ''} onWatch={onWatch} /></Suspense>
+      ) : null}
       <div className="cs-dmid">
         <SilenceLine item={item} />
         <div className="cs-acts">

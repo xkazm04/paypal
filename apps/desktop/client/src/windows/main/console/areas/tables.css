@@ -251,3 +251,12 @@
 /* the impact: a ring runs off the gate as the agent hits it */
 .hc-shock { --impact: 0; position: absolute; top: 55%; left: 50%; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--gold); pointer-events: none;
   transform: translate(-50%, -50%) scale(calc(1 + 4.2 * var(--impact))); opacity: calc(.9 * (1 - var(--impact))); }
+
+/* the decision centre's glance at the haggle behind a Tables decision (Centre.tsx, compact) */
+.cs-haggle { position: relative; display: flex; flex-direction: column; min-width: 0; max-width: 46rem; }
+.hc.compact { padding: var(--sp-2) var(--sp-4) var(--sp-1); background: none; box-shadow: none; gap: var(--sp-1); }
+.hc.compact .hc-track { height: 6.5rem; margin: var(--sp-4) var(--sp-2) var(--sp-8); }
+.hc.compact .hc-caption { min-height: 0; font-size: var(--fs-body); color: var(--muted); }
+.hc.compact .hc-caption.gold { color: var(--gold-l); }
+.cs-haggle-watch { position: absolute; top: 0; right: 0; }
+@media (max-height: 820px) { .cs-haggle { display: none; } }
