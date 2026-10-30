@@ -7,6 +7,7 @@ export const PROOF_CHECKER = {
   title: 'Check this proof',
   intro: 'A deal’s signed proof file, checked right here in your browser. Nothing is installed and the file is not sent anywhere.',
   sampleKicker: 'Practice deal',
+  practiceHead: 'Practice deals',
   sample: 'A real signed file, made with the wallet’s own signing code and checked by the same rules the wallet uses.',
   checksHead: 'The checks',
   run: 'Check this proof',
@@ -127,6 +128,14 @@ export const TAMPER_WORDS: Readonly<Record<TamperId, { label: string; what: stri
   rules: { label: 'Loosen the rules after the fact', what: 'the price limit in the owner’s signed rules' },
   relabel: { label: 'Call it an older file', what: 'the kind of file it says it is' },
   'owner-key': { label: 'Swap the owner key', what: 'the owner key the checks are anchored to' },
+  'shield-release': { label: 'Delete the hold release', what: 'the record that Maya released the safety hold' },
+  'market-price': { label: 'Rewrite a market price', what: 'one of the market prices the deal was agreed on' },
+  'group-winner': { label: 'Crown the other seller', what: 'which table won the shop-around' },
+  'group-agreed': { label: 'Agree both deals', what: 'the other seller’s table, marked as agreed' },
+  'request-id': { label: 'Send the payment twice', what: 'the request the capture was sent under' },
 };
 /** The tampers offered on screen, in order. */
-export const TAMPERS_SHOWN: readonly TamperId[] = ['price', 'paypal-amount', 'payee', 'receipt', 'audit-line', 'audit-gap', 'signature', 'refund', 'rules', 'owner-key'];
+export const TAMPERS_SHOWN: readonly TamperId[] = [
+  'price', 'paypal-amount', 'payee', 'receipt', 'audit-line', 'audit-gap', 'signature', 'refund', 'rules', 'owner-key',
+  'shield-release', 'market-price', 'group-winner', 'group-agreed', 'request-id',
+];

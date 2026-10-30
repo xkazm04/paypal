@@ -1,60 +1,14 @@
-// A proof file as the checker reads it. `readBundle` is as strict about shape as the wallet's own
-// reader (every field named, no field the wallet does not write), because a file that does not read
-// is "not a proof file", never a green line. Hashes, keys and signatures are written by the wallet
-// as JSON arrays of byte values; they come out here as bytes.
-import { type Bytes, byteArray } from './bytes';
+// A proof file as the checker reads it. `readBundle` is as strict about shape as the wallet's own reader
+// (every field named, no field the wallet does not write), because a file that does not read is "not a
+// proof file", never a green line. Hashes, keys and signatures are written by the wallet as JSON arrays
+// of byte values; they come out here as bytes.
+import { type Bytes } from './bytes';
+import { type MarketRef, readMarketRef } from './market';
+import { CURRENCIES, type Money, readMoney } from './money';
+import { bytes, flag, label, list, maybe, oneOf, rec, type Rec, refuse, text, ulid, whole } from './read';
 
-export class Refused extends Error {}
-/** The words for a file that is not a proof file (the wallet's own, verbatim). */
-export const NOT_A_PROOF = 'This file is not a proof file saved by this wallet, so there is nothing to check.';
-const refuse = (): never => {
-  throw new Refused(NOT_A_PROOF);
-};
-
-type Rec = Record<string, unknown>;
-export const MAX_SAFE = Number.MAX_SAFE_INTEGER;
-
-function rec(value: unknown, keys: readonly string[], optional: readonly string[] = []): Rec {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return refuse();
-  const object = value as Rec;
-  for (const key of keys) if (!(key in object)) return refuse();
-  for (const key of Object.keys(object)) if (!keys.includes(key) && !optional.includes(key)) return refuse();
-  return object;
-}
-const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : refuse());
-const text = (value: unknown): string => (typeof value === 'string' ? value : refuse());
-const flag = (value: unknown): boolean => (typeof value === 'boolean' ? value : refuse());
-const whole = (value: unknown, min = -MAX_SAFE, max = MAX_SAFE): number =>
-  typeof value === 'number' && Number.isSafeInteger(value) && value >= min && value <= max ? value : refuse();
-const bytes = (value: unknown, length?: number): Bytes => byteArray(value, length) ?? refuse();
-const maybe = <T>(value: unknown, read: (v: unknown) => T): T | null => (value === undefined || value === null ? null : read(value));
-const oneOf = <T extends string>(value: unknown, allowed: readonly T[]): T => (allowed.includes(value as T) ? (value as T) : refuse());
-const ulid = (value: unknown): string => (typeof value === 'string' && /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(value) ? value : refuse());
-const label = (value: unknown): string => (typeof value === 'string' && /^[A-Za-z0-9\-_.:@+]{1,128}$/.test(value) ? value : refuse());
-
-// ---- money ---------------------------------------------------------------------------------------
-
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CHF', 'NZD', 'CZK', 'SEK', 'NOK', 'DKK', 'PLN', 'JPY', 'HUF', 'KWD', 'BHD'] as const;
-const EXPONENT: Record<string, number> = { JPY: 0, KWD: 3, BHD: 3 };
-export const exponentOf = (currency: string): number => EXPONENT[currency] ?? 2;
-export interface Money {
-  minor: number;
-  currency: string;
-}
-export function readMoney(value: unknown): Money {
-  const r = rec(value, ['minor', 'currency']);
-  return { minor: whole(r.minor, 0), currency: oneOf(r.currency, CURRENCIES) };
-}
-/** "212.00": the amount the way PayPal writes it, from integer minor units (no floats). */
-export function decimal(m: Money): string {
-  const exp = exponentOf(m.currency);
-  if (exp === 0) return String(m.minor);
-  const scale = 10 ** exp;
-  return `${Math.floor(m.minor / scale)}.${String(m.minor % scale).padStart(exp, '0')}`;
-}
-/** "212.00 USD", as the verifier's own lines write an amount. */
-export const showMoney = (m: Money): string => `${decimal(m)} ${m.currency}`;
-export const sameMoney = (a: Money, b: Money): boolean => a.minor === b.minor && a.currency === b.currency;
+export { NOT_A_PROOF, Refused, MAX_SAFE } from './read';
+export { decimal, exponentOf, type Money, readMoney, sameMoney, showMoney } from './money';
 
 // ---- the deal ------------------------------------------------------------------------------------
 
@@ -145,8 +99,8 @@ export interface Deal {
   mandate_version: number;
   transcript_head: Bytes;
   mode: Mode;
-  /** The deal's latest market record as the file writes it; null when it has none. */
-  market: unknown;
+  /** The deal's latest market record; null when it has none. */
+  market: MarketRef | null;
 }
 const readDeal = (value: unknown): Deal => {
   const r = rec(
@@ -170,7 +124,7 @@ const readDeal = (value: unknown): Deal => {
     mandate_version: whole(r.mandate_version, 0, 2 ** 32 - 1),
     transcript_head: bytes(r.transcript_head, 32),
     mode: oneOf(r.mode, MODES),
-    market: r.market ?? null,
+    market: r.market === undefined || r.market === null ? null : (readMarketRef(r.market) ?? refuse()),
   };
 };
 
@@ -267,6 +221,43 @@ export interface AuditRow {
   prev_hash: Bytes;
   hash: Bytes;
 }
+export interface GroupTable {
+  deal_id: string;
+  state: DealState;
+  rows: AuditRow[];
+}
+/** The shop-around group this deal was one table of. */
+export interface Group {
+  id: string;
+  opened_at: number;
+  winner: string | null;
+  tables: GroupTable[];
+}
+const readRow = (a: unknown): AuditRow => {
+  const x = rec(a, ['seq', 'at', 'actor', 'action', 'detail_json', 'prev_hash', 'hash']);
+  return {
+    seq: whole(x.seq),
+    at: whole(x.at),
+    actor: text(x.actor),
+    action: text(x.action),
+    detail_json: text(x.detail_json),
+    prev_hash: bytes(x.prev_hash, 32),
+    hash: bytes(x.hash, 32),
+  };
+};
+const readGroup = (value: unknown): Group => {
+  const r = rec(value, ['id', 'opened_at', 'tables'], ['winner']);
+  return {
+    id: ulid(r.id),
+    opened_at: whole(r.opened_at),
+    winner: maybe(r.winner, ulid),
+    tables: list(r.tables).map((t) => {
+      const x = rec(t, ['deal_id', 'state', 'rows']);
+      return { deal_id: ulid(x.deal_id), state: oneOf(x.state, STATES), rows: list(x.rows).map(readRow) };
+    }),
+  };
+};
+
 export interface Bundle {
   /** The file as parsed: the evidence head is taken over it. */
   json: Rec;
@@ -284,7 +275,7 @@ export interface Bundle {
   audit: AuditRow[];
   audit_head: { seq: number; hash: Bytes };
   authority_manifest: Bytes | null;
-  group: unknown;
+  group: Group | null;
   house: unknown;
   evidence_head: Bytes;
   evidence_sig: Bytes;
@@ -346,21 +337,10 @@ export function readBundle(value: unknown): Bundle {
         transcript_head: bytes(x.transcript_head, 32),
       };
     }),
-    audit: list(r.audit).map((a) => {
-      const x = rec(a, ['seq', 'at', 'actor', 'action', 'detail_json', 'prev_hash', 'hash']);
-      return {
-        seq: whole(x.seq),
-        at: whole(x.at),
-        actor: text(x.actor),
-        action: text(x.action),
-        detail_json: text(x.detail_json),
-        prev_hash: bytes(x.prev_hash, 32),
-        hash: bytes(x.hash, 32),
-      };
-    }),
+    audit: list(r.audit).map(readRow),
     audit_head: { seq: whole(head.seq), hash: bytes(head.hash, 32) },
     authority_manifest: maybe(r.authority_manifest, (m) => bytes(m, 32)),
-    group: r.group ?? null,
+    group: maybe(r.group, readGroup),
     house: r.house ?? null,
     evidence_head: bytes(r.evidence_head, 32),
     evidence_sig: bytes(r.evidence_sig),

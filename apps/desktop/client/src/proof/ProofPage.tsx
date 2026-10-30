@@ -1,5 +1,5 @@
 import { AUTHORITY_MANIFEST } from '@bindings/authority';
-import { SAMPLE_PROOF } from '../lib/proof/sample';
+import { SAMPLES } from '../lib/proof/sample';
 import { TAMPERS, type TamperId } from '../lib/proof/tamper';
 import { PROOF_CHECKER } from '../lib/words';
 import { ProofChecker } from '../shared/proofcheck/ProofChecker';
@@ -21,7 +21,7 @@ export function ProofPage() {
         <h1 className="display">{PROOF_CHECKER.page.title}</h1>
         <p className="pf-lede">{PROOF_CHECKER.page.lede}</p>
       </header>
-      <ProofChecker source={{ ...SAMPLE_PROOF }} sample={{ ...SAMPLE_PROOF }} own={AUTHORITY_MANIFEST} heading={false} lede={false} level={2} {...arrival(location.search)} />
+      <ProofChecker source={{ ...SAMPLES[0]! }} samples={SAMPLES} own={AUTHORITY_MANIFEST} heading={false} lede={false} level={2} {...arrival(location.search)} />
     </main>
   );
 }

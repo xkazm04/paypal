@@ -9,7 +9,7 @@ import { SAMPLE_PROOF } from '../../lib/proof/sample';
 import { ProofChecker } from './ProofChecker';
 
 const TIMEOUT = { timeout: 20_000 };
-const mount = () => render(<ProofChecker source={{ ...SAMPLE_PROOF }} sample={{ ...SAMPLE_PROOF }} own={AUTHORITY_MANIFEST} />);
+const mount = () => render(<ProofChecker source={{ ...SAMPLE_PROOF }} samples={[SAMPLE_PROOF]} own={AUTHORITY_MANIFEST} />);
 const rows = (container: HTMLElement): Record<string, HTMLElement> => Object.fromEntries([...container.querySelectorAll<HTMLElement>('.pk-row')].map((r) => [r.dataset.check ?? '', r]));
 const kind = (row: HTMLElement | undefined): string => (['ok', 'bad', 'dashed', 'wait', 'now'].find((k) => row?.classList.contains(k)) ?? '');
 const checked = async () => { fireEvent.click(screen.getByRole('button', { name: 'Check this proof' })); await screen.findByText('Every check that applies passed', {}, TIMEOUT); };

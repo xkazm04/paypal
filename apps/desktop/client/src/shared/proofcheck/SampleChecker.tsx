@@ -8,12 +8,13 @@ import { Loading } from '../ui';
 import { ProofChecker, type ProofSource } from './ProofChecker';
 
 export function SampleChecker({ heading = false }: { heading?: boolean }) {
-  const [source, setSource] = useState<ProofSource | null>(null);
+  const [samples, setSamples] = useState<readonly ProofSource[] | null>(null);
   useEffect(() => {
     let live = true;
-    void import('../../lib/proof/sample').then((m) => { if (live) setSource({ ...m.SAMPLE_PROOF }); });
+    void import('../../lib/proof/sample').then((m) => { if (live) setSamples(m.SAMPLES); });
     return () => { live = false; };
   }, []);
-  if (!source) return <Loading what={PROOF_CHECKER.title} />;
-  return <ProofChecker source={source} sample={source} own={AUTHORITY_MANIFEST} heading={heading} />;
+  const first = samples?.[0];
+  if (!samples || !first) return <Loading what={PROOF_CHECKER.title} />;
+  return <ProofChecker source={first} samples={samples} own={AUTHORITY_MANIFEST} heading={heading} />;
 }

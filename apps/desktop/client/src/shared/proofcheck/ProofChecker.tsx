@@ -24,6 +24,10 @@ export interface ProofSource {
   text: string;
   /** The practice deal the preview ships. */
   sample?: boolean;
+  /** A few words naming a practice deal in the picker. */
+  label?: string;
+  /** What happened in it. */
+  story?: string;
 }
 
 const parse = (text: string): unknown => {
@@ -62,10 +66,10 @@ const brief = (v: unknown): string => {
   return text.length > 36 ? `${text.slice(0, 35)}…` : text;
 };
 
-export function ProofChecker({ source, sample, own, heading = true, lede = true, level = 3, autoRun = false, autoTamper = null, startEditing = false }: {
+export function ProofChecker({ source, samples = [], own, heading = true, lede = true, level = 3, autoRun = false, autoTamper = null, startEditing = false }: {
   source: ProofSource;
-  /** The practice deal, to go back to (the page of its own offers it). */
-  sample?: ProofSource;
+  /** The practice deals, to pick between (and to go back to after a file of the person's own). */
+  samples?: readonly ProofSource[];
   /** The permissions fingerprint of the app doing the checking. */
   own: string | null;
   /** False when the surrounding sheet already names it. */
@@ -241,6 +245,8 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true,
   };
 
   const edits = tamper ? editsFor(tamper, original) : null;
+  // Only the ways of breaking this file that it has something to break in.
+  const shown = useMemo(() => TAMPERS_SHOWN.filter((tid) => editsFor(tid, original) !== null), [original]);
   const made = state.made;
   const bad = state.lines.flatMap((l, i) => (l && kindOf(l) === 'bad' ? [i] : []));
   const firstBad = bad[0] ?? -1;
@@ -303,7 +309,7 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true,
             <>
               <p className="ui-hint">{everChecked ? W.tamperIntro : W.tamperFirst}</p>
               <div className="pk-tampers" role="group" aria-label={W.modeBreak}>
-                {TAMPERS_SHOWN.map((tid) => {
+                {shown.map((tid) => {
                   const e = editsFor(tid, original);
                   const w = TAMPER_WORDS[tid];
                   return (
@@ -338,15 +344,23 @@ export function ProofChecker({ source, sample, own, heading = true, lede = true,
               <span className="dim">{W.sizeOf(new Blob([current === null ? draft : toFile(current)]).size)}</span>
               {file.sample ? <Chip tone="dashed">{W.sampleKicker}</Chip> : null}
             </div>
+            {file.sample ? <p className="ui-hint">{file.story ?? W.sample}</p> : null}
             {file.sample ? <p className="ui-hint">{W.sample}</p> : null}
             <div className="pk-acts">
               <Btn sm onClick={save}>{W.save}</Btn>
               <Btn sm onClick={() => input.current?.click()}>{W.open}</Btn>
-              {sample && !file.sample ? <Btn sm onClick={() => { setFile(sample); reset(); }}>{W.page.use}</Btn> : null}
               <input ref={input} type="file" accept=".tableproof,.json,application/json" className="sr-only" tabIndex={-1} aria-hidden="true"
                 onChange={(e) => { const picked = e.target.files?.[0]; if (picked) void load(picked); e.target.value = ''; }} />
             </div>
             <p className="ui-hint">{W.dropHint}</p>
+            {samples.length > 1 || (samples.length === 1 && !file.sample) ? (
+              <div className="pk-practice" role="group" aria-label={W.practiceHead}>
+                <span className="dim">{W.practiceHead}</span>
+                {samples.map((x) => (
+                  <Btn key={x.name} sm kind="plain" aria-pressed={file.name === x.name && by === 'none'} onClick={() => { setFile(x); reset(); setHasChecked(false); }}>{x.label ?? x.name}</Btn>
+                ))}
+              </div>
+            ) : null}
             {state.facts ? <FactsBlock facts={state.facts} own={own} /> : null}
           </div>
         </aside>
@@ -382,6 +396,16 @@ function caption(tid: TamperId, doc: unknown, edits: ReturnType<typeof editsFor>
       return 'a call to refund the capture';
     case 'owner-key':
       return 'the buyer’s owner key in its place';
+    case 'shield-release':
+      return 'the owner’s release of the safety hold, removed';
+    case 'market-price':
+      return `${money(before)} → ${money(first.value)}, the lowest comparable`;
+    case 'group-winner':
+      return 'the other table named the winner';
+    case 'group-agreed':
+      return 'the other table: withdrawn → receipted';
+    case 'request-id':
+      return `${String(before).slice(0, 14)}… → a-second-request-id`;
     default:
       return '';
   }

@@ -11,6 +11,7 @@ import { canonical, canonicalBytes } from './jcs';
 import { isPublicKey, verifyStrict } from './ed25519';
 import { verifyEnvelope, signedBody, ProtocolError } from './envelope';
 import { clauseOf, invalidPayload } from './mandate';
+import { marketDigest, marketValid, type MarketRef, ordinal, percentile, productValid, readMarketRef } from './market';
 import {
   callHasOperation, decisionFits, detailOf, field, judge, moneyKind, rule, rulesFor, sameDecided, termsAmount, textField, Why,
   type Rules,
@@ -396,15 +397,61 @@ async function oneRequest({ b }: Run): Promise<string> {
   return `${kinds.length} step(s) checked again with PayPal, each under the one request id it was first sent with (${resent} re-send(s), ${calls} PayPal call(s))`;
 }
 
+/** A state a table reaches only by agreeing. */
+const AGREED_STATES: readonly string[] = [
+  'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED', 'MISMATCH', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED',
+];
+const ULID = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
+
+/** The shop-around group this deal belonged to left at most one table agreed, the winner, and the group
+ *  rule withdrew the others only after the win. */
 async function group({ b }: Run): Promise<string> {
   const o = older(b);
   if (o) throw o;
   const own = rowsOf(b, 'group.opened', 'group.won', 'group.withdrawn');
-  if (b.group === null) {
+  const deal = b.deal;
+  const g = b.group;
+  if (g === null) {
     if (own.length === 0) throw absent('not checked: this deal was not one table of a shop-around group');
     throw new Why('the deal\'s rows name a shop-around group the file leaves out');
   }
-  throw unmade('not checked: this page does not check shop-around groups yet');
+  const winner = g.winner;
+  const here = g.tables.find((t) => t.deal_id === deal.id);
+  if (!here) throw new Why('the group does not list this deal');
+  if (here.state !== deal.state || here.rows.length !== own.length || here.rows.some((r, i) => !same(r.hash, (own[i] as AuditRow).hash))) {
+    throw new Why('the group\'s record of this deal differs from the deal\'s own');
+  }
+  let won: { index: number; seq: number } | null = null;
+  for (const [index, table] of g.tables.entries()) {
+    if (g.tables.slice(0, index).some((t) => t.deal_id === table.deal_id)) throw new Why('the group lists one table twice');
+    for (const row of table.rows) {
+      const d = await rowDetail(row, table.deal_id);
+      if (field(d, 'group_id') !== g.id) throw new Why(`record #${row.seq}: another group's row`);
+      if (row.action === 'group.won') {
+        if (won) throw new Why('two tables of the group claim the win');
+        won = { index, seq: row.seq };
+      }
+    }
+  }
+  const wonBy = won ? (g.tables[won.index] as { deal_id: string }).deal_id : null;
+  if (wonBy !== winner) throw new Why('the group\'s winner is not the table that won it');
+  const agreedTables = g.tables.filter((t) => AGREED_STATES.includes(t.state));
+  if (agreedTables.length > 1) throw new Why(`${agreedTables.length} tables of the group agreed`);
+  if (agreedTables[0] && agreedTables[0].deal_id !== winner) throw new Why('a table agreed that is not the group\'s winner');
+  let withdrawn = 0;
+  for (const table of g.tables) {
+    for (const row of table.rows.filter((r) => r.action === 'group.withdrawn')) {
+      const named = textField(detailOf(row), 'winner');
+      if (named === null || !ULID.test(named) || named !== winner || table.deal_id === winner || table.state !== 'WITHDRAWN' || won === null || row.seq < won.seq) {
+        throw new Why(`record #${row.seq}: a withdrawal that does not follow the group's win`);
+      }
+      withdrawn += 1;
+    }
+  }
+  const oursAgreed = b.closed_mandates.length > 0 || b.operations.length > 0 || AGREED_STATES.includes(deal.state);
+  if (oursAgreed && winner !== deal.id) throw new Why('this deal agreed, but another table won the group');
+  const who = winner !== null && agreedTables.length > 0 ? (winner === deal.id ? 'this one agreed' : 'another table agreed') : winner !== null ? 'the winner has since ended' : 'none agreed yet';
+  return `${g.tables.length} tables, ${who}; ${withdrawn} withdrawn by the group rule after the win`;
 }
 
 const HOLD = ['HOLD', 'BLOCK'];
@@ -474,19 +521,89 @@ async function houseRecord({ b }: Run): Promise<string> {
   throw unmade('not checked: this page does not check the house seller\'s signed record yet');
 }
 
+/** The market product the owner bound to the item in the rules' market-watch clause; for an item with no
+ *  such binding, the item itself when it is a well formed product id; otherwise none. */
+function productFor(payload: Bundle['mandate']['payload'], item: string): string | null {
+  const watch = clauseOf(payload, 'market_watch') as Rec | undefined;
+  const items = Array.isArray(watch?.items) ? (watch.items as Rec[]) : [];
+  const watched = items.find((w) => w?.item_ref === item);
+  if (watched) return typeof watched.product_id === 'string' ? watched.product_id : null;
+  return productValid(item) ? item : null;
+}
+type Commitment = { format: 'table.market.v1' } | { format: 'table.market.v2'; digest: Bytes };
+/** What an agreement row says about the market price the deal was bargained on, or null. */
+function commitmentOf(value: unknown): Commitment | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const r = value as Rec;
+  const keys = Object.keys(r);
+  if (r.format === 'table.market.v1' && keys.length === 2 && byteArray(r.response_hash, 32)) return { format: 'table.market.v1' };
+  const digest = byteArray(r.digest, 32);
+  if (r.format === 'table.market.v2' && keys.length === 2 && digest) return { format: 'table.market.v2', digest };
+  return null;
+}
+
+/** The market price the deal was agreed on can be computed again. The agreement row names the digest of
+ *  the market record the deal held; that record is in the deal's rows with its comparables. The check
+ *  recomputes the quartiles from the comparables, matches the digest, checks the record prices the product
+ *  the owner's rules bind to the item, and reports where the deal price sits. */
 async function market({ b }: Run): Promise<string> {
   const o = older(b);
   if (o) throw o;
-  const unsupported = unmade('not checked: this page does not work market prices out again yet');
-  if (b.deal.market !== null) throw unsupported;
-  // The deal's agreement row names the market record the deal was agreed on, if there was one.
-  const agreement = b.audit.map((r) => ({ action: r.action, d: detailOf(r) })).find(({ action, d }) => action === 'deal.transition' && field(d, 'to') === 'AGREED');
-  if (!agreement) throw absent('not checked: the deal is not agreed yet');
-  const commitment = field(agreement.d, 'market');
-  const kind = field(commitment, 'format');
-  if (kind === 'table.market.v1') throw absent('not checked: the deal was agreed on an older market record, which kept no prices to compute again');
-  if (kind === 'table.market.v2') throw unsupported;
-  throw absent('not checked: the deal had no market price when it was agreed');
+  const deal = b.deal;
+  if (deal.market && !marketValid(deal.market)) throw new Why('the deal\'s latest market record does not compute again to its own quartiles');
+  const details = b.audit.map((row) => ({ action: row.action, d: detailOf(row) }));
+  // The deal's latest re-checkable record is one its rows recorded, comparables and all.
+  const latest = deal.market ? await marketDigest(deal.market) : null;
+  if (latest) {
+    let recorded = false;
+    for (const { action, d } of details) {
+      if (action !== 'market.observed') continue;
+      const digest = byteArray(field(d, 'digest'), 32);
+      const reference = readMarketRef(field(d, 'reference'));
+      const own = reference && marketValid(reference) ? await marketDigest(reference) : null;
+      if (digest && same(digest, latest) && own && same(own, latest)) {
+        recorded = true;
+        break;
+      }
+    }
+    if (!recorded) throw new Why('the deal\'s latest market record is not the one its rows recorded');
+  }
+  let agreed = false;
+  let commitment: Commitment | null = null;
+  const observed: MarketRef[] = [];
+  for (const { action, d } of details) {
+    if (action === 'deal.transition' && field(d, 'to') === 'AGREED') {
+      agreed = true;
+      commitment = commitmentOf(field(d, 'market'));
+      break;
+    }
+    if (action === 'market.observed') {
+      const reference = readMarketRef(field(d, 'reference'));
+      if (reference && marketValid(reference)) observed.push(reference);
+    }
+  }
+  if (!agreed) throw absent('not checked: the deal is not agreed yet');
+  if (!commitment) throw absent('not checked: the deal had no market price when it was agreed');
+  if (commitment.format === 'table.market.v1') throw absent('not checked: the deal was agreed on an older market record, which kept no prices to compute again');
+  const digest = commitment.digest;
+  let reference: MarketRef | null = null;
+  for (const candidate of [...observed].reverse()) {
+    const d = await marketDigest(candidate);
+    if (d && same(d, digest)) {
+      reference = candidate;
+      break;
+    }
+  }
+  if (!reference) throw new Why('the market record the deal was agreed on is missing, or its prices no longer compute to what it said');
+  const certificate = reference.certificate;
+  if (!certificate) throw new Why('the committed market record has no prices');
+  if (productFor(b.mandate.payload, deal.terms.item_ref) !== certificate.product_id) {
+    throw new Why('the market record prices another product than the owner\'s rules bind to the item');
+  }
+  const price = deal.terms.unit_price;
+  const place = percentile(certificate, price);
+  if (place === null) throw new Why('the market record is in another currency than the deal');
+  return `${decimal(price)} ${price.currency} is the ${ordinal(place)} percentile of ${certificate.comparables.length} market prices for product ${certificate.product_id}; quartiles ${decimal(reference.p25)} / ${decimal(reference.median)} / ${decimal(reference.p75)} computed again from them; agreed on record ${short(digest)} (response ${short(reference.response_hash)})`;
 }
 
 async function permissions({ b }: Run): Promise<string> {

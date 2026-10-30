@@ -115,3 +115,6 @@
 .pk-row.still, .pk-row.still .pk-mark { animation: none; }
 .pk-row.stale { opacity: .72; }
 .pk-row.scan { opacity: 1; background: color-mix(in srgb, var(--teal) 10%, transparent); box-shadow: inset 3px 0 0 var(--teal); }
+
+.pk-practice { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); font-size: var(--fs-small); }
+.pk-practice .ui-btn[aria-pressed='true'] { color: var(--teal-l); box-shadow: inset 0 -2px 0 var(--teal); }

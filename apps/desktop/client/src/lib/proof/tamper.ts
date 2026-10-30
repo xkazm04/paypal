@@ -6,7 +6,8 @@ import { decimal, type Money } from './bundle';
 import { applyEdits, type Edit, readAt } from './edits';
 
 export type TamperId =
-  | 'price' | 'paypal-amount' | 'payee' | 'receipt' | 'audit-line' | 'audit-gap' | 'signature' | 'refund' | 'rules' | 'relabel' | 'owner-key';
+  | 'price' | 'paypal-amount' | 'payee' | 'receipt' | 'audit-line' | 'audit-gap' | 'signature' | 'refund' | 'rules' | 'relabel' | 'owner-key'
+  | 'shield-release' | 'market-price' | 'group-winner' | 'group-agreed' | 'request-id';
 
 type Doc = unknown;
 const rows = (doc: Doc): Array<{ action: string; at: number }> => {
@@ -87,6 +88,32 @@ export const TAMPERS: ReadonlyArray<{ id: TamperId; edits: (doc: Doc) => Edit[] 
     },
   },
   { id: 'relabel', edits: () => [{ op: 'set', path: '/format', value: 'table.proof.v1' }] },
+  // the records only a busier deal has
+  { id: 'shield-release', edits: (d) => [{ op: 'remove', path: `/audit/${nth(d, 'shield.released', 0)}` }] },
+  {
+    id: 'market-price',
+    edits: (d) => {
+      num(d, '/deal/market/certificate/comparables/0/minor');
+      return [{ op: 'set', path: '/deal/market/certificate/comparables/0/minor', value: 5_000 }];
+    },
+  },
+  { id: 'group-winner', edits: (d) => [{ op: 'set', path: '/group/winner', value: text(d, '/group/tables/1/deal_id') }] },
+  {
+    id: 'group-agreed',
+    edits: (d) => {
+      text(d, '/group/tables/1/state');
+      return [{ op: 'set', path: '/group/tables/1/state', value: 'RECEIPTED' }];
+    },
+  },
+  {
+    id: 'request-id',
+    edits: (d) => {
+      const ops = readAt(d, '/operations');
+      const at = Array.isArray(ops) ? ops.findIndex((o) => (o as { operation?: unknown }).operation === 'capture') : -1;
+      if (at < 0) throw new Error('no capture step');
+      return [{ op: 'set', path: `/operations/${at}/request_id`, value: 'a-second-request-id' }];
+    },
+  },
   { id: 'owner-key', edits: (d) => [{ op: 'set', path: '/owner_key', value: readAt(d, '/counterparty/owner_key') }] },
 ];
 
