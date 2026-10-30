@@ -90,7 +90,6 @@ function WatchPane({ deal, display, need, who, stage, onStage }: { deal: Deal; d
         <span className="ui-spacer" />
         <Btn sm kind="plain" onClick={() => onStage(!stage)} title={stage ? W.listTitle : W.stageTitle}>{stage ? W.list : W.stage}</Btn>
       </header>
-      <p className="tb-left">{W.sub}</p>
       <Corridor haggle={haggle} who={who} big={stage} />
     </div>
   );
