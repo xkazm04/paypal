@@ -283,6 +283,23 @@ export const ARENA_WIRE = {
   counted: 'Already had it',
 } as const;
 
+/** Beyond the named attacks: the gauntlet's own random sessions, as the recorder summed them. */
+export const ARENA_GAUNTLET = {
+  heading: (n: number): string => `Not just these ${n}`,
+  sub: (sessions: number): string => `The same two wallets, attacked by the test suite’s own random generator: ${sessions} seeded sessions, every agent call checked as it returned.`,
+  calls: 'agent calls',
+  refused: 'refused',
+  reached: 'reached PayPal',
+  moved: (n: number): string => `Money did move ${n} times in those sessions, each time on an authority the owner allows:`,
+  owner: 'by the owner, in the approval window',
+  rule: 'by a rule its owner signed',
+  safeDefault: 'by a safe default that only cancels',
+  agent: 'by an agent',
+  other: 'by another authority',
+  never: 'The wallet has no way to record an agent as the one who decided: no such authority exists.',
+  seed: (seed: string): string => `First seed ${seed}.`,
+} as const;
+
 export const ARENA_RESET = 'Start over';
 /** The director's banner link to the arena. */
 export const ARENA_LINK = 'Try to break it ›';

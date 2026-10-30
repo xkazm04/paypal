@@ -125,3 +125,20 @@ export function minorOf(decimal: string): number {
   const [units = '0', cents = '0'] = decimal.split('.');
   return Number(units) * 100 + Number(cents.padEnd(2, '0').slice(0, 2));
 }
+
+export type Authorities = { owner: number; rule: number; safeDefault: number; other: number; total: number };
+
+/** Who allowed each money operation in the gauntlet's sessions ("create by human" -> the owner). An
+ *  authority this page does not know is counted as `other` and shown, never dropped. */
+export function authorities(operations: Readonly<Record<string, number>>): Authorities {
+  const out: Authorities = { owner: 0, rule: 0, safeDefault: 0, other: 0, total: 0 };
+  for (const [key, n] of Object.entries(operations)) {
+    const by = key.split(' by ')[1] ?? '';
+    if (by === 'human') out.owner += n;
+    else if (by === 'policy' || by === 'seller_mandate' || by === 'house_mandate') out.rule += n;
+    else if (by === 'safe_default') out.safeDefault += n;
+    else out.other += n;
+    out.total += n;
+  }
+  return out;
+}

@@ -44,6 +44,21 @@ export type RecordedAttack = {
   violations: number;
 };
 
+/** The gauntlet's own seeded hostile sessions, summed by the recorder (beside the named attacks). */
+export type GauntletSummary = {
+  sessions: number;
+  first_seed: string;
+  agent_calls: number;
+  refused: number;
+  refusals: Record<string, number>;
+  agent_calls_reaching_paypal: number;
+  rejected_envelopes: number;
+  notes: number;
+  /** Money operations, "<operation> by <authority>" -> count. */
+  operations: Record<string, number>;
+  violations: number;
+};
+
 export type ArenaRecord = {
   format: string;
   check: string;
@@ -51,6 +66,7 @@ export type ArenaRecord = {
   rules: { item: string; least: string; most: string; per_deal: string; in_person_over: string; offers: number; payee: string; shop_payee: string };
   table: AgentTable;
   attacks: RecordedAttack[];
+  gauntlet: GauntletSummary;
   totals: { attacks: number; paypal_requests: number; paypal_calls: number; money_operations: number };
 };
 

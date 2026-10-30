@@ -86,3 +86,17 @@ describe('the rule that held', () => {
     expect(ruleName('mandate_clause', null)).toBe('A rule Maya signed');
   });
 });
+
+describe('who moved money in the gauntlet’s sessions', () => {
+  it('sums the record’s operations by authority, and keeps an unknown one visible', async () => {
+    const { authorities } = await import('./model');
+    expect(authorities({ 'create by human': 2, 'capture by seller_mandate': 3, 'create by policy': 1, 'void by safe_default': 4 }))
+      .toEqual({ owner: 2, rule: 4, safeDefault: 4, other: 0, total: 10 });
+    expect(authorities({ 'capture by agent': 1 }).other).toBe(1);
+    const a = authorities(RECORD.gauntlet.operations);
+    expect(a.other).toBe(0);
+    expect(a.total).toBeGreaterThan(0);
+    expect(RECORD.gauntlet.agent_calls_reaching_paypal).toBe(0);
+    expect(RECORD.gauntlet.violations).toBe(0);
+  });
+});

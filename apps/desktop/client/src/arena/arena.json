@@ -1008,6 +1008,37 @@
   ],
   "check": "cargo test -p table-app --test gauntlet arena",
   "format": "table-arena/1",
+  "gauntlet": {
+    "agent_calls": 173,
+    "agent_calls_reaching_paypal": 0,
+    "first_seed": "0x7ab1e00000000001",
+    "notes": 15,
+    "operations": {
+      "authorize by human": 13,
+      "authorize by seller_mandate": 4,
+      "capture by human": 7,
+      "capture by seller_mandate": 4,
+      "create by human": 16,
+      "create by policy": 7,
+      "void by human": 1,
+      "void by safe_default": 3
+    },
+    "refusals": {
+      "malformed_call": 8,
+      "not_your_turn": 5,
+      "out_of_scope": 7,
+      "owner_approval": 8,
+      "rounds_exhausted": 1,
+      "session_not_enabled": 5,
+      "shield_hold": 4,
+      "table_closed": 21,
+      "tool_absent": 43
+    },
+    "refused": 102,
+    "rejected_envelopes": 11,
+    "sessions": 16,
+    "violations": 0
+  },
   "rules": {
     "in_person_over": "330.00",
     "item": "monitor",

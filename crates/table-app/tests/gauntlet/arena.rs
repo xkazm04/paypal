@@ -617,6 +617,39 @@ async fn play(attack: &Attack) -> Value {
     out
 }
 
+/// Seeded sessions of the gauntlet itself the record sums up, beside the named attacks: the first
+/// seeds of the CI list.
+const GAUNTLET_SESSIONS: u64 = 16;
+
+/// Beyond the named attacks: the gauntlet's own seeded hostile sessions (its generator, its two
+/// wallets, its per-call checks and its whole-ledger predicate, unchanged), summed. Every money
+/// operation they record stands on an authority AGENTS.md allows, or the session fails; no agent
+/// call reached PayPal, or the session fails.
+async fn gauntlet_summary() -> Value {
+    let runs: Vec<_> = (0..GAUNTLET_SESSIONS)
+        .map(|i| tokio::spawn(session(BASE_SEED.wrapping_add(i.wrapping_mul(SEED_STEP)))))
+        .collect();
+    let mut total = Stats::default();
+    for run in runs {
+        match run.await.unwrap() {
+            Ok(stats) => total.merge(stats),
+            Err(report) => panic!("{report}"),
+        }
+    }
+    json!({
+        "sessions": total.sessions,
+        "first_seed": format!("{BASE_SEED:#x}"),
+        "agent_calls": total.agent_calls,
+        "refused": total.refusals.values().sum::<u64>(),
+        "refusals": total.refusals,
+        "agent_calls_reaching_paypal": 0,
+        "rejected_envelopes": total.rejected_envelopes,
+        "notes": total.notes,
+        "operations": total.operations,
+        "violations": 0,
+    })
+}
+
 /// Every attack, played and written down, with the owner's rules and the haggle they landed on.
 async fn record() -> Value {
     let mut w = arena_world();
@@ -669,6 +702,7 @@ async fn record() -> Value {
         },
         "table": table,
         "attacks": played,
+        "gauntlet": gauntlet_summary().await,
         "totals": {
             "attacks": held,
             "paypal_requests": 0,

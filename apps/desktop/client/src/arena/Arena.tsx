@@ -21,6 +21,7 @@ import { useCardDrag } from './drag';
 import { cardForKey, counters, deck, dollars, verdictOf, wholeDollars } from './model';
 import { attackById, isRefusal, RECORD, type RecordedAttack, type TableStep } from './record';
 import { CheckIt, SafetyPanel, type Played } from './Side';
+import { Gauntlet } from './Gauntlet';
 import { Wire } from './Wire';
 import './arena.css';
 
@@ -210,6 +211,7 @@ export function Arena() {
         <aside className="ar-side" aria-label={ARENA_SAFETY.heading}>
           <SafetyPanel plays={plays} />
           <CheckIt />
+          {view.kind === 'finale' ? null : <Gauntlet compact />}
           {auto ? <Btn sm onClick={() => setAuto(false)}>{ARENA_AUTO.stop}</Btn> : null}
           {plays.length ? <Btn sm onClick={() => { setPlays([]); setSentNote(null); setView({ kind: 'empty' }); setLive(''); }}>{ARENA_RESET}</Btn> : null}
         </aside>

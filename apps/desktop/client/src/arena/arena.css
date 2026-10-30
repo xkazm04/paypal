@@ -247,3 +247,17 @@ body.w-arena { margin: 0; background: var(--bg-deep); color: var(--text); }
 @media (prefers-reduced-motion: reduce) {
   .ar-wire.p-travel .ar-pulse, .ar-wire.p-hit .ar-wall, .ar-wire.p-hit .ar-wall-v { animation: none; }
 }
+
+/* ---- not just these 14: the gauntlet's own sessions ------------------------------------------- */
+.ar-gauntlet { padding: 14px 16px; border-radius: var(--r-card); background: var(--panel); border: 1px solid var(--line); }
+.ar-finale .ar-gauntlet { padding: 12px 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; }
+.ar-gauntlet h2 { font: var(--fw-semibold) var(--fs-title3)/1.2 var(--font); }
+.ar-g-calls, .ar-g-who { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.ar-g-calls li, .ar-g-who li { padding: 6px 10px; border-radius: var(--r); background: var(--well); color: var(--muted); font-size: var(--fs-small); }
+.ar-g-calls b, .ar-g-who b { display: block; color: var(--text); font: var(--fw-semibold) var(--fs-title2)/1.1 var(--font); }
+.ar-g-who li { display: grid; gap: 2px; flex: 1 1 120px; }
+.ar-g-calls li.zero b, .ar-g-who li.zero b { color: var(--teal-l); }
+.ar-g-who li.zero { border: 1px dashed color-mix(in srgb, var(--teal) 45%, transparent); background: transparent; }
+.ar-g-moved { margin: 12px 0 0; font-size: var(--fs-small); color: var(--text); }
+.ar-gauntlet.compact .ar-g-who li { flex-basis: 100%; grid-template-columns: 44px 1fr; align-items: baseline; }
+.ar-gauntlet.compact .ar-g-who b { display: inline; font-size: var(--fs-title3); }

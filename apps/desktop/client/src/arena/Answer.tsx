@@ -7,6 +7,7 @@ import { ARENA_ANSWER, ARENA_CHECK, ARENA_FINALE, ARENA_NOTE, ARENA_VERDICT, ATT
 import { Quarantine } from '../shared/honesty';
 import { Btn } from '../shared/ui';
 import { NoteChip } from '../windows/main/console/areas/shared/NoteChip';
+import { Gauntlet } from './Gauntlet';
 import { auditLine, dollars, minorOf, noteAsks, ruleName, stateWords, verdictOf, type Verdict } from './model';
 import { PROOF_FILE_NAME, proofFile } from './proof';
 import { attackById, isRefusal, RECORD, type RecordedAttack } from './record';
@@ -139,6 +140,7 @@ export function Finale({ played }: { played: readonly RecordedAttack[] }) {
         <div className="ar-cmd big"><code className="mono">{RECORD.check}</code><Btn sm onClick={copy}>{copied ? ARENA_CHECK.copied : ARENA_CHECK.copy}</Btn></div>
         <p className="ar-hint">{ARENA_FINALE.runSub} {ARENA_CHECK.seed(RECORD.seed)}</p>
       </section>
+      <Gauntlet />
       {s.played > 0 ? (
         <section className="ar-finale-file">
           <h4>{ARENA_FINALE.file}</h4>
