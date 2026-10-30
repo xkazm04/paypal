@@ -225,7 +225,7 @@ IPC commands (from `crates/table-client/src/authority_table.rs`):
 ## Tests that pin it
 
 - `crates/table-client/src/sample_proof.rs`: each practice deal verifies and its dashed lines are exactly the ones it has nothing for; each tamper turns exactly the named checks red; the committed files are current.
-- `apps/desktop/client/src/lib/proof/parity.test.ts`: the browser checker's report equals the wallet verifier's for every practice deal and tampered copy; `real.test.ts`: and for eight files the runtime wrote (the house seller's record kept, and found shortened); `primitives.test.ts`: canonical JSON, base64url, Ed25519 strictness, the editor's text; `sides.test.ts`: the two files of one sale agree and a change shows on its line; `shared/proofcheck/ProofChecker.test.tsx`: the checker as a person meets it.
+- `apps/desktop/client/src/lib/proof/parity.test.ts`: the browser checker's report equals the wallet verifier's for every practice deal and tampered copy; `real.test.ts`: and for eight files the runtime wrote (the house seller's record kept, and found shortened); `primitives.test.ts`: canonical JSON, base64url, Ed25519 strictness, the editor's text; `text.test.ts`: what the wallet's reader refuses in a file's text (a key written twice, `2.0` for a whole number, a byte-order mark, nesting 128 deep) and a plain `JSON.parse` would take, each pinned to what `table-verify` says of the same edit; `sides.test.ts`: the two files of one sale agree and a change shows on its line; `shared/proofcheck/ProofChecker.test.tsx`: the checker as a person meets it.
 
 - `crates/table-runtime/src/proof_tests.rs`:
   `a_v2_proof_shows_the_checklist_behind_each_owner_decision_and_one_request_per_step`.

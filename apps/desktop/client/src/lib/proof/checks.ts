@@ -10,6 +10,7 @@ import { type AuditRow, type Bundle, type DecidedBy, readDecidedBy, sameMoney, s
 import { canonical, canonicalBytes } from './jcs';
 import { isPublicKey, verifyStrict } from './ed25519';
 import { verifyEnvelope, signedBody, ProtocolError } from './envelope';
+import { SHIELD_RULES } from './clauses';
 import { clauseOf, invalidPayload } from './mandate';
 import { compareHeads, headSigned, headsConsistent, prefixContradicts, prefixSigned, releaseHolds } from './house';
 import { marketDigest, marketValid, type MarketRef, ordinal, percentile, productValid, readMarketRef } from './market';
@@ -457,6 +458,8 @@ async function group({ b }: Run): Promise<string> {
 
 const HOLD = ['HOLD', 'BLOCK'];
 const ORDER = ['CLEAR', 'ASK', 'HOLD', 'BLOCK'];
+/** The shield's closed set of rules (`ShieldRule`): any other word reads as no rule, and a hold with no rule is never covered. */
+const shieldRule = (v: unknown): string | null => (typeof v === 'string' && (SHIELD_RULES as readonly string[]).includes(v) ? v : null);
 async function shield(run: Run): Promise<string> {
   const { b } = run;
   const o = older(b);
@@ -480,13 +483,13 @@ async function shield(run: Run): Promise<string> {
         const v = textField(d, 'verdict');
         if (v === null || !ORDER.includes(v)) throw new Why(`record #${row.seq}: no verdict`);
         if (HOLD.includes(v)) holds += 1;
-        verdict = { v, rule: textField(d, 'rule'), held: hashHex(field(d, 'terms_hash')) };
+        verdict = { v, rule: shieldRule(field(d, 'rule')), held: hashHex(field(d, 'terms_hash')) };
         break;
       }
       case 'shield.released': {
         const at = hashHex(field(d, 'terms_hash'));
         const rules = field(d, 'rules');
-        if (at === null || !Array.isArray(rules)) throw new Why(`record #${row.seq}: a release without its terms`);
+        if (at === null || !Array.isArray(rules) || !rules.every((r) => shieldRule(r) !== null)) throw new Why(`record #${row.seq}: a release without its terms`);
         release = { at, rules: rules as string[] };
         break;
       }

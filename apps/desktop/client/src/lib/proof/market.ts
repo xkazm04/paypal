@@ -94,7 +94,8 @@ export function quartiles(prices: number[]): [number, number, number] | null {
     const index = (sorted.length - 1) * quarter;
     const lo = sorted[Math.floor(index / 4)] as number;
     const hi = sorted[Math.floor(index / 4) + 1] ?? lo;
-    return lo + Math.floor(((hi - lo) * (index % 4)) / 4);
+    // Whole-number arithmetic (the wallet uses 128 bits): a price near 2^53 times three is not exact in a double.
+    return Number(BigInt(lo) + (BigInt(hi - lo) * BigInt(index % 4)) / 4n);
   };
   return [at(1), at(2), at(3)];
 }

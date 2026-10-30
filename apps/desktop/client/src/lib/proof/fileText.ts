@@ -4,6 +4,7 @@
 // read again. Nothing else is changed, so the file the checker reads is the file the wallet wrote.
 import { toHex } from './bytes';
 import type { Json } from './jcs';
+import { writtenWrong } from './text';
 
 const HEX = /^hex:((?:[0-9a-f]{2})+)$/;
 const isBytes = (v: unknown): v is number[] => Array.isArray(v) && v.length >= 8 && v.every((n) => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 255);
@@ -12,12 +13,15 @@ const isBytes = (v: unknown): v is number[] => Array.isArray(v) && v.length >= 8
 export function toView(document: unknown): string {
   return JSON.stringify(document, (_key, value: unknown) => (isBytes(value) ? `hex:${toHex(Uint8Array.from(value))}` : value), 2);
 }
-/** Text from the editor back to the file's JSON; throws a SyntaxError when it is not JSON. */
+/** Text from the editor back to the file's JSON; throws a SyntaxError when it is not JSON, or is JSON the
+ *  wallet's reader would not take (a key written twice, a number with a point; see ./text). */
 export function fromView(text: string): Json {
-  return JSON.parse(text, (_key, value: unknown) => {
+  const document = JSON.parse(text, (_key, value: unknown) => {
     const hex = typeof value === 'string' ? HEX.exec(value)?.[1] : undefined;
     return hex ? (hex.match(/../g) ?? []).map((h) => parseInt(h, 16)) : value;
   }) as Json;
+  if (writtenWrong(text)) throw new SyntaxError('written in a way the wallet does not read');
+  return document;
 }
 /** The file as the wallet writes it (what "Save this file" saves). */
 export const toFile = (document: unknown): string => JSON.stringify(document, null, 2);

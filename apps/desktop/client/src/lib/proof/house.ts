@@ -5,7 +5,7 @@
 import { type Bytes, byteArray, same } from './bytes';
 import { canonicalBytes } from './jcs';
 import { isPublicKey, verifyStrict } from './ed25519';
-import { bytes as byteField, flag, list, maybe, rec, text, whole } from './read';
+import { bytes as byteField, flag, label, list, maybe, rec, whole } from './read';
 import { Why } from './why';
 
 export const HEAD_DOMAIN = 'table.house.head.v1';
@@ -65,7 +65,7 @@ const readPrefix = (value: unknown): Prefix => {
 export function readHouse(value: unknown): House {
   const r = rec(value, ['release', 'heads']);
   const rel = rec(r.release, ['owner_key', 'agent_key', 'payee', 'mandate_commitment', 'owner_signature']);
-  text(rel.payee);
+  label(rel.payee);
   return {
     release: {
       owner_key: byteField(rel.owner_key, 32),

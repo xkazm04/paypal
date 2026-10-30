@@ -70,6 +70,14 @@ function keys(value: unknown, required: string[], optional: string[] = []): Rec 
 const str = (v: unknown): string => (typeof v === 'string' ? v : fail('schema'));
 const int = (v: unknown, min = -MAX_SAFE, max = MAX_SAFE): number => (typeof v === 'number' && Number.isSafeInteger(v) && v >= min && v <= max ? v : fail('schema'));
 const raw = (v: unknown, length?: number): Bytes => byteArray(v, length) ?? fail('schema');
+/** Text a person might read in a message (`ShortText<N>`): at most N characters, none of them control or
+ *  invisible characters that reorder or hide text; never empty. */
+const SPOOFING = /[؜​‎‏‪-‮⁠⁦-⁩﻿]/u;
+const shortText = (v: unknown, max: number): string =>
+  typeof v === 'string' && v !== '' && [...v].length <= max && !/\p{Cc}/u.test(v) && !SPOOFING.test(v) ? v : fail('schema');
+const oneOf = (v: unknown, allowed: readonly string[]): string => (typeof v === 'string' && allowed.includes(v) ? v : fail('schema'));
+/** An id the wallet writes as plain text (`ItemRef`): letters, digits and - _ . : @ +, up to 128. */
+const idText = (v: unknown): string => (typeof v === 'string' && /^[A-Za-z0-9\-_.:@+]{1,128}$/.test(v) ? v : fail('schema'));
 const wrap = <T>(read: () => T): T => {
   try {
     return read();
@@ -83,10 +91,14 @@ function readBody(value: unknown): Body {
   switch (type) {
     case 'HELLO': {
       const r = keys(value, ['type', 'owner_key', 'agent_key', 'mandate_commitment', 'owner_sig_over_commitment', 'display_name']);
+      shortText(r.display_name, 32);
       return { type, owner_key: raw(r.owner_key, 32), agent_key: raw(r.agent_key, 32), mandate_commitment: raw(r.mandate_commitment, 32), owner_sig_over_commitment: raw(r.owner_sig_over_commitment) };
     }
     case 'LISTING': {
       const r = keys(value, ['type', 'item_ref', 'ask', 'delivery'], ['qty']);
+      idText(r.item_ref);
+      // an absent quantity is written by leaving it out: the wallet re-writes a null as nothing, which is not what was signed
+      if ('qty' in r) int(r.qty, 0, 2 ** 32 - 1);
       wrap(() => readMoney(r.ask));
       return { type, delivery: wrap(() => readDelivery(r.delivery)) };
     }
@@ -98,7 +110,7 @@ function readBody(value: unknown): Body {
     case 'ACCEPT': {
       const r = keys(value, ['type', 'offer_seq', 'terms_hash'], ['owner_accept']);
       let owner: OwnerAccept | null = null;
-      if (r.owner_accept !== undefined && r.owner_accept !== null) {
+      if ('owner_accept' in r) {
         const o = keys(r.owner_accept, ['deal_id', 'offer_seq', 'terms_hash', 'counter_hash', 'owner_key', 'signature']);
         owner = { deal_id: str(o.deal_id), offer_seq: int(o.offer_seq, 0, 2 ** 32 - 1), terms_hash: raw(o.terms_hash, 32), counter_hash: raw(o.counter_hash, 32), owner_key: raw(o.owner_key, 32), signature: raw(o.signature) };
       }
@@ -106,20 +118,25 @@ function readBody(value: unknown): Body {
     }
     case 'SETTLE': {
       const r = keys(value, ['type', 'order_id', 'approve_url', 'amount', 'invoice_id', 'intent', 'attempt']);
+      shortText(r.order_id, 128);
+      shortText(r.approve_url, 2048);
+      shortText(r.invoice_id, 128);
+      oneOf(r.intent, ['AUTHORIZE', 'CAPTURE']);
       return { type, amount: wrap(() => readMoney(r.amount)), attempt: int(r.attempt, 0, 255) };
     }
     case 'APPROVED':
-      keys(value, ['type', 'order_id']);
+      shortText(keys(value, ['type', 'order_id']).order_id, 128);
       return { type };
     case 'RECEIPT': {
       const r = keys(value, ['type', 'capture_id', 'amount', 'status', 'transcript_head']);
-      return { type, capture_id: str(r.capture_id), amount: wrap(() => readMoney(r.amount)), transcript_head: raw(r.transcript_head, 32) };
+      oneOf(r.status, ['COMPLETED', 'FAILED']);
+      return { type, capture_id: shortText(r.capture_id, 128), amount: wrap(() => readMoney(r.amount)), transcript_head: raw(r.transcript_head, 32) };
     }
     case 'WITHDRAW':
-      keys(value, ['type', 'reason']);
+      oneOf(keys(value, ['type', 'reason']).reason, ['PRICE', 'TIMING', 'OTHER', 'DEADLINE', 'ROUNDS', 'PROTOCOL']);
       return { type };
     case 'NOTE':
-      keys(value, ['type', 'text']);
+      shortText(keys(value, ['type', 'text']).text, 280);
       return { type };
     default:
       return fail('schema');

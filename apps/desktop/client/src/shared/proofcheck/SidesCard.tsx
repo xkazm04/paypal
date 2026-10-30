@@ -4,7 +4,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { PROOF_CHECKER as W } from '../../lib/words';
 import { compareSides, type Agreement, type Side, sideOf } from '../../lib/proof/sides';
-import { checkProofText, PROOF_FILE_LIMIT, prepareProof, TOO_LARGE } from '../../lib/proof/verify';
+import { NOT_A_PROOF } from '../../lib/proof/read';
+import { checkProofText, PROOF_FILE_LIMIT, prepareProof, readProofFile, TOO_LARGE } from '../../lib/proof/verify';
 import { Btn, Chip } from '../ui';
 import type { ProofSource } from './ProofChecker';
 
@@ -45,7 +46,9 @@ export function SidesCard({ mine, candidates, own, headingLevel }: { mine: Side 
       setOther({ name: file.name, refused: TOO_LARGE });
       return;
     }
-    setSource({ name: file.name, text: await file.text() });
+    const text = await readProofFile(file);
+    if (text === null) setOther({ name: file.name, refused: NOT_A_PROOF });
+    else setSource({ name: file.name, text });
   };
   const lines: Agreement[] = mine && other && 'side' in other ? compareSides(mine, other.side) : [];
   const differ = lines.some((l) => l.agree === false);

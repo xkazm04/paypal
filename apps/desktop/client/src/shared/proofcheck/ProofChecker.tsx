@@ -11,7 +11,9 @@ import { locate } from '../../lib/proof/locate';
 import { fingerprint } from '../../lib/proof/fingerprint';
 import { CHECK_IDS, type CheckLine } from '../../lib/proof/checks';
 import { editsFor, type TamperId } from '../../lib/proof/tamper';
-import { PROOF_FILE_LIMIT, TOO_LARGE } from '../../lib/proof/verify';
+import { NOT_A_PROOF } from '../../lib/proof/read';
+import { writtenWrong } from '../../lib/proof/text';
+import { PROOF_FILE_LIMIT, readProofFile, TOO_LARGE } from '../../lib/proof/verify';
 import { isCalm } from '../../design/motion';
 import { modeWord, PROOF_ALL_THAT_APPLY, PROOF_CAUGHT, PROOF_CHECKER as W, PROOF_SHORT, PROOF_CHECKS, PROOF_SOME_UNCHECKED, PROOF_VERSION_MATCH, PERMISSIONS_FINGERPRINT, TAMPER_WORDS, TAMPERS_SHOWN } from '../../lib/words';
 import { KeyId } from '../ownerKey';
@@ -34,7 +36,9 @@ export interface ProofSource {
 
 const parse = (text: string): unknown => {
   try {
-    return JSON.parse(text);
+    const document: unknown = JSON.parse(text);
+    // A file the wallet would not read is shown (and refused) as the text it is, not tidied into one it would.
+    return writtenWrong(text) ? null : document;
   } catch {
     return null;
   }
@@ -110,7 +114,12 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
       return;
     }
     try {
-      const text = await picked.text();
+      const text = await readProofFile(picked);
+      if (text === null) {
+        reset();
+        setReadError(NOT_A_PROOF);
+        return;
+      }
       setFile({ name: picked.name, text });
       const doc = parse(text);
       await start(doc === null ? text : JSON.stringify(doc, null, 2), 'first');

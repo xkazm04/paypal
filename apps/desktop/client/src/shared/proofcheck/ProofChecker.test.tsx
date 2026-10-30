@@ -123,7 +123,7 @@ describe('the person’s own edits and files', () => {
     fireEvent.change(container.querySelector('.pk-text') as HTMLTextAreaElement, { target: { value: '{ not json' } });
     fireEvent.click(screen.getByRole('button', { name: 'Check the edited file' }));
     await waitFor(() => expect(container.querySelector('.pk-refused')?.textContent).toMatch(/not a proof file/), TIMEOUT);
-    expect(screen.getByText(/isn’t valid JSON/)).toBeTruthy();
+    expect(screen.getByText(/isn’t JSON the wallet can read/)).toBeTruthy();
   });
 
   it('checks a file picked or dropped, and a copy the person saved comes back as the same file', async () => {
@@ -138,6 +138,20 @@ describe('the person’s own edits and files', () => {
     // not a proof file at all
     fireEvent.change(picker, { target: { files: [new File(['[]'], 'other.json')] } });
     await waitFor(() => expect(container.querySelector('.pk-refused')?.textContent).toMatch(/not a proof file/), TIMEOUT);
+  });
+
+  it('refuses a file the wallet would refuse for how it is written, which tidying it through JSON would hide', async () => {
+    const { container } = mount();
+    const picker = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const twice = SAMPLE_PROOF.text.replace('"format"', '"format": "table.proof.v2",\n  "format"');
+    fireEvent.change(picker, { target: { files: [new File([twice], 'twice.tableproof')] } });
+    await waitFor(() => expect(container.querySelector('.pk-refused')?.textContent).toMatch(/not a proof file/), TIMEOUT);
+    expect(screen.queryByText('Every check that applies passed')).toBeNull();
+    // a byte-order mark: the wallet reads bytes, and a mark is not JSON
+    const marked = new File([Uint8Array.from([0xef, 0xbb, 0xbf]), SAMPLE_PROOF.text], 'marked.tableproof');
+    fireEvent.change(picker, { target: { files: [marked] } });
+    await waitFor(() => expect(container.querySelector('.pk-refused')?.textContent).toMatch(/not a proof file/), TIMEOUT);
+    expect(screen.queryByText('Every check that applies passed')).toBeNull();
   });
 });
 

@@ -656,9 +656,12 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     proof_check: async () => {
       const picked = await (opts.pick ?? pickFile)();
       if (!picked) return null;
-      const { checkProofText, PROOF_FILE_LIMIT, TOO_LARGE } = await import('../lib/proof/verify');
+      const { checkProofText, PROOF_FILE_LIMIT, readProofFile, TOO_LARGE } = await import('../lib/proof/verify');
+      const { NOT_A_PROOF } = await import('../lib/proof/read');
       if (picked.size > PROOF_FILE_LIMIT) return fail('UNSUPPORTED', TOO_LARGE);
-      const outcome = await checkProofText(await picked.text(), AUTHORITY_MANIFEST);
+      const text = await readProofFile(picked);
+      if (text === null) return fail('UNSUPPORTED', NOT_A_PROOF);
+      const outcome = await checkProofText(text, AUTHORITY_MANIFEST);
       if ('refused' in outcome) return fail('UNSUPPORTED', outcome.refused);
       return outcome.report as ResultOf<'proof_check'>;
     },

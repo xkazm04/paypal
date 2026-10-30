@@ -55,7 +55,7 @@ export const PROOF_CHECKER = {
   jump: 'Go to',
   jumpTo: { price: 'the price', payee: 'the payee', paypal: 'PayPal’s amount', line: 'a line of the record', signature: 'a signature' },
   checkEdited: 'Check the edited file',
-  notJson: 'That isn’t valid JSON, so it isn’t a proof file. It is checked again once it is.',
+  notJson: 'That isn’t JSON the wallet can read (it is broken, or a name is written twice, or a whole number has a decimal point), so it isn’t a proof file. It is checked again once it is.',
 
   keyHead: 'Owner key',
   keyByEye: 'To compare by eye',

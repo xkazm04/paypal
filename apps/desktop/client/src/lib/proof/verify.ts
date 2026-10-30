@@ -3,6 +3,7 @@
 // browser from the file alone.
 import { sha256, toHex } from './bytes';
 import { type Bundle, NOT_A_PROOF, readBundle, Refused } from './bundle';
+import { proofText, writtenWrong } from './text';
 import { type CheckLine, CHECK_IDS, makeRun, runCheck, type Run } from './checks';
 import { ed25519Works, isPublicKey } from './ed25519';
 import { normalize } from './normalize';
@@ -45,17 +46,23 @@ export interface Prepared {
  *  that applies but could not be made holds the file back. */
 export const verified = (checks: readonly CheckLine[]): boolean => checks.every((c) => c.ok || !c.applies);
 
+/** A picked file's text, read the way the wallet reads it (UTF-8 only; no byte-order mark). Null when it is not text. */
+export async function readProofFile(file: Blob): Promise<string | null> {
+  return proofText(await file.arrayBuffer());
+}
+
 /** Read a proof file's text. Refuses (with the wallet's own words) what is not a proof file. */
 export async function prepareProof(text: string): Promise<Prepared | { refused: string }> {
   if (text.length > PROOF_FILE_LIMIT) return { refused: TOO_LARGE };
   let bundle: Bundle;
   try {
     const document: unknown = JSON.parse(text);
+    if (writtenWrong(text)) return { refused: NOT_A_PROOF };
     // The wallet hashes its typed reading of the file, not the bytes: take the file through the same changes.
     normalize(document);
     bundle = readBundle(document);
   } catch (e) {
-    if (e instanceof Refused || e instanceof SyntaxError) return { refused: NOT_A_PROOF };
+    if (e instanceof Refused || e instanceof SyntaxError || e instanceof RangeError) return { refused: NOT_A_PROOF };
     throw e;
   }
   const signatures = await ed25519Works();
