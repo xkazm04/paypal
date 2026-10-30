@@ -21,7 +21,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "agent signed 5 outbound, peer signed 3 inbound; head 30f96c11020f",
+            "detail": "agent signed 6 outbound, peer signed 3 inbound; head 0ff78e270802",
             "id": "transcript",
             "ok": true
           },
@@ -49,7 +49,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "38 deal rows hash-consistent; chain head #349 a8264eaf3e1e",
+            "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
             "id": "audit",
             "ok": true
           },
@@ -112,7 +112,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "evidence head fac18eb2e39e signed by the deal's agent",
+            "detail": "evidence head 8de004343957 signed by the deal's agent",
             "id": "evidence",
             "ok": true
           }
@@ -128,7 +128,7 @@
           "edits": [
             {
               "op": "remove",
-              "path": "/audit/15"
+              "path": "/audit/16"
             }
           ],
           "name": "shield-release",
@@ -153,7 +153,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 30f96c11020f",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 0ff78e270802",
                   "id": "transcript",
                   "ok": true
                 },
@@ -181,7 +181,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "37 deal rows hash-consistent; chain head #349 a8264eaf3e1e",
+                  "detail": "38 deal rows hash-consistent; chain head #350 b7c5636f68a8",
                   "id": "audit",
                   "ok": true
                 },
@@ -216,7 +216,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "the create step (record #104) went ahead while the safety check held the deal, with no release by the owner for these terms",
+                  "detail": "the create step (record #105) went ahead while the safety check held the deal, with no release by the owner for these terms",
                   "id": "shield",
                   "ok": false
                 },
@@ -291,7 +291,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 30f96c11020f",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 0ff78e270802",
                   "id": "transcript",
                   "ok": true
                 },
@@ -319,7 +319,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "38 deal rows hash-consistent; chain head #349 a8264eaf3e1e",
+                  "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
                   "id": "audit",
                   "ok": true
                 },
@@ -429,7 +429,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 30f96c11020f",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 0ff78e270802",
                   "id": "transcript",
                   "ok": true
                 },
@@ -457,7 +457,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "38 deal rows hash-consistent; chain head #349 a8264eaf3e1e",
+                  "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
                   "id": "audit",
                   "ok": true
                 },
@@ -567,7 +567,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 30f96c11020f",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 0ff78e270802",
                   "id": "transcript",
                   "ok": true
                 },
@@ -595,7 +595,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "38 deal rows hash-consistent; chain head #349 a8264eaf3e1e",
+                  "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
                   "id": "audit",
                   "ok": true
                 },
@@ -705,7 +705,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 30f96c11020f",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 0ff78e270802",
                   "id": "transcript",
                   "ok": true
                 },
@@ -733,7 +733,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "38 deal rows hash-consistent; chain head #349 a8264eaf3e1e",
+                  "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
                   "id": "audit",
                   "ok": true
                 },
@@ -837,7 +837,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
+            "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
             "id": "transcript",
             "ok": true
           },
@@ -865,7 +865,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
+            "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
             "id": "audit",
             "ok": true
           },
@@ -928,7 +928,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "evidence head f84150b471f4 signed by the deal's agent",
+            "detail": "evidence head f7471be7c02d signed by the deal's agent",
             "id": "evidence",
             "ok": true
           }
@@ -970,7 +970,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
                   "id": "transcript",
                   "ok": true
                 },
@@ -998,7 +998,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
                   "id": "audit",
                   "ok": true
                 },
@@ -1110,7 +1110,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
                   "id": "transcript",
                   "ok": true
                 },
@@ -1222,7 +1222,7 @@
           "edits": [
             {
               "op": "remove",
-              "path": "/audit/26"
+              "path": "/audit/27"
             }
           ],
           "name": "audit-gap",
@@ -1247,7 +1247,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
                   "id": "transcript",
                   "ok": true
                 },
@@ -1275,7 +1275,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "32 deal rows hash-consistent; chain head #342 6eb853988f7c",
+                  "detail": "33 deal rows hash-consistent; chain head #343 cc416254bb71",
                   "id": "audit",
                   "ok": true
                 },
@@ -1289,7 +1289,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "the owner's capture step (record #328) has no earlier record of the checklist the owner saw",
+                  "detail": "the owner's capture step (record #329) has no earlier record of the checklist the owner saw",
                   "id": "owner_saw",
                   "ok": false
                 },
@@ -1414,7 +1414,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
                   "id": "audit",
                   "ok": true
                 },
@@ -1524,7 +1524,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
                   "id": "transcript",
                   "ok": true
                 },
@@ -1552,7 +1552,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
                   "id": "audit",
                   "ok": true
                 },
@@ -1663,7 +1663,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
                   "id": "transcript",
                   "ok": true
                 },
@@ -1691,7 +1691,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
                   "id": "audit",
                   "ok": true
                 },
@@ -1801,7 +1801,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
                   "id": "transcript",
                   "ok": true
                 },
@@ -1829,7 +1829,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
                   "id": "audit",
                   "ok": true
                 },
@@ -1939,7 +1939,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
                   "id": "transcript",
                   "ok": true
                 },
@@ -1967,7 +1967,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
                   "id": "audit",
                   "ok": true
                 },
@@ -2077,7 +2077,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
                   "id": "transcript",
                   "ok": true
                 },
@@ -2105,7 +2105,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
                   "id": "audit",
                   "ok": true
                 },
@@ -2217,7 +2217,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
                   "id": "transcript",
                   "ok": true
                 },
@@ -2245,7 +2245,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
                   "id": "audit",
                   "ok": true
                 },
@@ -2388,7 +2388,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "agent signed 5 outbound, peer signed 3 inbound; head 22e697b47fba",
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
                   "id": "transcript",
                   "ok": true
                 },
@@ -2416,7 +2416,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "33 deal rows hash-consistent; chain head #342 6eb853988f7c",
+                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
                   "id": "audit",
                   "ok": true
                 },

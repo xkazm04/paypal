@@ -22,9 +22,9 @@ use table_core::{
     invoice_id,
 };
 use table_proto::{
-    AgentSigner, Body, Envelope, Intent, MsgType, PROOF_FORMAT, ProofAuditHead, ProofAuditRow,
-    ProofBundle, ProofCall, ProofClosed, ProofCounterparty, ProofEnvelope, ProofGroup,
-    ProofGroupTable, ProofOperation, ProofReceipt, ReceiptStatus, ShortText,
+    AgentSigner, Body, Envelope, Intent, MsgType, OwnerAccept, PROOF_FORMAT, ProofAuditHead,
+    ProofAuditRow, ProofBundle, ProofCall, ProofClosed, ProofCounterparty, ProofEnvelope,
+    ProofGroup, ProofGroupTable, ProofOperation, ProofReceipt, ReceiptStatus, ShortText,
 };
 
 type Made<T> = Result<T, Box<dyn std::error::Error>>;
@@ -48,9 +48,12 @@ fn money(minor: i64) -> Made<Money> {
 }
 /// A signer from a name: the seed is the hash of a fixed label, so the same file comes out
 /// every run. These keys exist only in this sample and guard nothing.
-fn signer(name: &str) -> AgentSigner {
+fn key(name: &str) -> SigningKey {
     let seed = H256::digest(format!("the-table/sample-proof/{name}").as_bytes());
-    AgentSigner::from_key(SigningKey::from_bytes(&seed.0))
+    SigningKey::from_bytes(&seed.0)
+}
+fn signer(name: &str) -> AgentSigner {
+    AgentSigner::from_key(key(name))
 }
 fn nonce(i: usize) -> [u8; 16] {
     let digest = H256::digest(format!("the-table/sample-proof/nonce/{i}").as_bytes());
@@ -316,8 +319,9 @@ fn build(busy: bool) -> Made<ProofBundle> {
         transcript: Vec::new(),
     };
     let item = ItemRef::new(ITEM)?;
-    let (t_list, t_offer, t_counter, t_last, t_accept) =
-        (t0, t0 + 95, t0 + 240, t0 + 410, t0 + 415);
+    let (t_list, t_offer, t_counter, t_buyer, t_last, t_accept) =
+        (t0, t0 + 95, t0 + 240, t0 + 330, t0 + 410, t0 + 415);
+    let middle = if busy { 23_500 } else { 20_500 };
     wire.send(
         true,
         t_list,
@@ -349,6 +353,15 @@ fn build(busy: bool) -> Made<ProofBundle> {
     )?;
     wire.send(
         false,
+        t_buyer,
+        600,
+        Body::Counter {
+            price: money(middle)?,
+            delivery: delivery.clone(),
+        },
+    )?;
+    wire.send(
+        true,
         t_last,
         600,
         Body::Counter {
@@ -356,14 +369,30 @@ fn build(busy: bool) -> Made<ProofBundle> {
             delivery: delivery.clone(),
         },
     )?;
-    // Both agents accept the buyer's last counter, the second one the buyer's own sequence 2.
-    let accept = || Body::Accept {
-        offer_seq: 2,
-        terms_hash,
-        owner_accept: None,
-    };
-    wire.send(false, t_accept, 86_400, accept())?;
-    wire.send(true, t_accept + 20, 86_400, accept())?;
+    // The buyer's owner accepts the shop's last counter (the shop's third message), in the owner's own
+    // signature over that exact counter; then the shop's agent accepts it too.
+    let counter_hash = wire.head();
+    let proof = OwnerAccept::sign(deal_id, 3, terms_hash, counter_hash, &key("buyer-owner"))?;
+    wire.send(
+        false,
+        t_accept,
+        86_400,
+        Body::Accept {
+            offer_seq: 3,
+            terms_hash,
+            owner_accept: Some(proof),
+        },
+    )?;
+    wire.send(
+        true,
+        t_accept + 20,
+        86_400,
+        Body::Accept {
+            offer_seq: 3,
+            terms_hash,
+            owner_accept: None,
+        },
+    )?;
 
     let t_owner = t0 + 1_800;
     let invoice = invoice_id(deal_id, 1)?;
@@ -619,17 +648,23 @@ fn build(busy: bool) -> Made<ProofBundle> {
         &accepted(true, 2, MsgType::Counter, 2)?,
     )?;
     log.row(
-        t_last,
+        t_buyer,
         &peer_actor,
         "envelope.accepted",
         &accepted(false, 3, MsgType::Counter, 2)?,
+    )?;
+    log.row(
+        t_last,
+        &agent_actor,
+        "envelope.accepted",
+        &accepted(true, 4, MsgType::Counter, 3)?,
     )?;
     log.other_deals(2);
     log.row(
         t_accept,
         &peer_actor,
         "envelope.accepted",
-        &accepted(false, 4, MsgType::Accept, 3)?,
+        &accepted(false, 5, MsgType::Accept, 3)?,
     )?;
     let mut agreement = json!({ "decided_by": { "clause": 6, "type": "policy" }, "from": "NEGOTIATING", "to": "AGREED" });
     if let (Some(digest), Some(object)) = (market_digest, agreement.as_object_mut()) {
@@ -651,7 +686,7 @@ fn build(busy: bool) -> Made<ProofBundle> {
         t_accept + 20,
         &agent_actor,
         "envelope.accepted",
-        &accepted(true, 5, MsgType::Accept, 3)?,
+        &accepted(true, 6, MsgType::Accept, 4)?,
     )?;
     if busy {
         // The group rule calls the other table off after the win.
@@ -744,7 +779,7 @@ fn build(busy: bool) -> Made<ProofBundle> {
         t_owner + 6,
         &agent_actor,
         "envelope.accepted",
-        &accepted(true, 6, MsgType::Settle, 4)?,
+        &accepted(true, 7, MsgType::Settle, 5)?,
     )?;
     log.other_deals(5);
     log.row(
@@ -828,7 +863,7 @@ fn build(busy: bool) -> Made<ProofBundle> {
         t_receipt,
         &agent_actor,
         "envelope.accepted",
-        &accepted(true, 7, MsgType::Receipt, 5)?,
+        &accepted(true, 8, MsgType::Receipt, 6)?,
     )?;
     log.row(
         t_receipt,

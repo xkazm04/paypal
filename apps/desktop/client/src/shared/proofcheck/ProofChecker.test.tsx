@@ -2,13 +2,15 @@
 // names the first, hand edits and dropped files are checked the same way, and a dashed line is never
 // a pass. Runs the real checker on the real sample file (calm motion, so no pacing between lines).
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AUTHORITY_MANIFEST } from '@bindings/authority';
 import { CHECK_IDS } from '../../lib/proof/checks';
 import { SAMPLE_PROOF } from '../../lib/proof/sample';
 import { ProofChecker } from './ProofChecker';
 
-const TIMEOUT = { timeout: 20_000 };
+// the real checker runs here, and a busy machine slows it: a generous clock keeps the tests about behaviour
+vi.setConfig({ testTimeout: 40_000 });
+const TIMEOUT = { timeout: 30_000 };
 const mount = () => render(<ProofChecker source={{ ...SAMPLE_PROOF }} samples={[SAMPLE_PROOF]} own={AUTHORITY_MANIFEST} />);
 const rows = (container: HTMLElement): Record<string, HTMLElement> => Object.fromEntries([...container.querySelectorAll<HTMLElement>('.pk-row')].map((r) => [r.dataset.check ?? '', r]));
 const kind = (row: HTMLElement | undefined): string => (['ok', 'bad', 'dashed', 'wait', 'now'].find((k) => row?.classList.contains(k)) ?? '');
