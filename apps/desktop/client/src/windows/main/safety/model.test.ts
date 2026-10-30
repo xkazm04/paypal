@@ -122,9 +122,10 @@ describe('the mock’s safety record', () => {
     expect(m.safe_default).toBe(money.filter((s) => s.authority.type === 'safe_default').length);
     expect(m.safe_default_voids).toBe(m.safe_default);
     expect(m.shop_rules).toBe(money.filter((s) => s.authority.type === 'seller_mandate').length);
-    // The GPU request, two pushes past the most you'll pay, two reaches for a tool agents never have.
-    expect(r.refusals).toBe(5);
-    expect(r.refusal_families).toEqual([{ family: 'your_rules', count: 3 }, { family: 'not_allowed', count: 2 }]);
+    // The GPU request, two pushes past the most you'll pay, two reaches for a tool agents never have,
+    // and the recorded house haggle's yes over the ask-me line (mock/haggle.json).
+    expect(r.refusals).toBe(6);
+    expect(r.refusal_families).toEqual([{ family: 'your_rules', count: 4 }, { family: 'not_allowed', count: 2 }]);
     expect(r.refused_deals).toBe(deals.filter((d) => d.state === 'REFUSED').length);
     expect(r.refused_deal_calls).toBe(0);
     // Every refused step has no PayPal call.
