@@ -2792,3 +2792,7 @@ Each table's proof file (`deal_export_proof`) is verified on the page and at exi
   smallest model, strict MCP config) haggled $100 -> $249.99 in six offers, the house seller accepted,
   and the agent's accept was refused at rule 6. UNVERIFIED: a live codex-cli session (its config keys
   are from `.research/landscape-and-stack.md` [S]).
+- **Gates (2026-10-30 12:35):** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --
+  -D warnings`, `cargo test --workspace --no-fail-fast` (exit 0), `cargo deny check` (advisories,
+  bans, licenses, sources ok); client `pnpm typecheck`, `pnpm test` (211 files / 2029 tests),
+  `pnpm build`. The one client change: `OwnerConfig.tsx` names the new engine id.
