@@ -1,6 +1,6 @@
 # Critic brief - scan-sweep --challenge, run challenge-2026-10-15
 
-You are an INDEPENDENT critic. Repo: C:\Users\mkdol\dolla\paypal, branch main, base b563874. READ-ONLY: write nothing except your own verdict file (named in your prompt). No builds (cargo/pnpm). Read, grep, git log/show/blame only.
+You are an INDEPENDENT critic. Repo: C:\Users\mkdol\dolla\paypal, branch main, base e19a83d. READ-ONLY: write nothing except your own verdict file (named in your prompt). No builds (cargo/pnpm). Read, grep, git log/show/blame only.
 
 You get challenge cards written by scouts. You never see the scouts' reasoning - judge the card against the tree as it is.
 

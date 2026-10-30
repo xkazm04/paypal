@@ -90,7 +90,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Consequences:** budget order follows agreement order, not creation order; the check depends on
   the audit log's transition rows, which are append-only. Unreadable history makes the budget
   stricter, never looser.
-- **Evidence:** commit 8a7e101 (`crates/table-ledger/src/repositories.rs`, `usage_for`; tests
+- **Evidence:** commit 059c821 (`crates/table-ledger/src/repositories.rs`, `usage_for`; tests
   `c4_*` in `crates/table-ledger/src/tests.rs`).
 
 ## 5. A mandate band fails closed at signing
@@ -110,7 +110,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   "could be signed yet never allow an intent"; other alternatives not confirmed.)
 - **Consequences:** previously signable mandates of these shapes no longer validate; a mandate
   with no band clause is unaffected by the band rule.
-- **Evidence:** commit 22c35af (`crates/table-core/src/mandate.rs`; client mirror in
+- **Evidence:** commit c819b4b (`crates/table-core/src/mandate.rs`; client mirror in
   `apps/desktop/client/src/windows/approval/mandateDraft.ts`).
 
 ## 6. Relay capacity: only pre-capture routes hold it
@@ -130,7 +130,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Consequences:** a failed HOUSE request leaves a Pairing deal that lapses on its deadline and
   holds no request slot; the retry makes a fresh deal. Receipted routes cost polling but no
   capacity.
-- **Evidence:** commit 5d93b43 (`crates/table-ledger/src/relay.rs`,
+- **Evidence:** commit 3aeaafa (`crates/table-ledger/src/relay.rs`,
   `services/house-seller/src/hosted.rs`, tests in `crates/table-ledger/src/tests.rs` and
   `crates/table-runtime/src/house_tests.rs`).
 
@@ -162,7 +162,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Consequences:** an attention outage is shown to the owner once, not repeated each second; a
   toast that fails can be retried inside the same rung; a lapse can only be chosen where the owner
   was shown it.
-- **Evidence:** commits a83458f (MA-1), 3ac0b38 (MA-2), c734558 (MA-3).
+- **Evidence:** commits efbfa2d (MA-1), e3bab1d (MA-2), 7d6ef8f (MA-3).
 
 ## 8. A purchase without a band gets a 24-hour decision window
 
@@ -185,7 +185,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Consequences:** an unattended proposal lapses within a day, and the agent must propose again.
   Deals created before this commit keep no deadline; there is no backfill, because this is
   prototype data.
-- **Evidence:** commits 4810a30 (deadline), cf3f14c (one audit row), f3b86b6 (copy), faf57e9
+- **Evidence:** commits 48d3672 (deadline), 8ee630e (one audit row), 98599df (copy), 068e8fb
   (forecast test); tests
   `table-runtime::tests::a_purchase_without_a_band_lapses_after_a_day_and_a_band_deadline_still_wins`
   and `table-attention::forecast::tests::buyer_purchase_agreed_with_a_deadline_lapses_there_and_moves_no_money`.
@@ -211,21 +211,21 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   fresh market price clear a hold (not confirmed beyond the commit messages).
 - **Consequences:** receiving money needs no click, and no new path lets an agent send money
   without the owner or a signed rule.
-- **Evidence:** commits 92988cd, 495eac2, 4a95c05, 238d1ef, 675da5a, eaaeca1; test
+- **Evidence:** commits 4833d60, 74eab1f, eadf117, d71f387, 758e3da, d7798ae; test
   `a_stale_market_can_hold_a_deal_but_never_clear_it`; the H5 section of `docs/build/STATUS.md`.
 
 ## 10. BandAdjust warns but does not disable Sign
 
 - **Date:** 2026-10-07
 - **Decided by:** the App Master.
-- **Constraint:** the mandate-authoring rework (c664f70) needed a rule for the BandAdjust warning.
+- **Constraint:** the mandate-authoring rework (64f66c0) needed a rule for the BandAdjust warning.
   Section 5 already makes a bad band fail closed at signing.
 - **Decision:** BandAdjust shows a warning and leaves Sign enabled.
 - **Lost:** disabling Sign on the warning (not confirmed; the reasons are not written down beyond
   the choice).
 - **Consequences:** the owner can sign past the warning; the signing check in section 5 still
   refuses a band that is invalid.
-- **Evidence:** commit c664f70 (STATUS entry for the rework). Not confirmed beyond that commit.
+- **Evidence:** commit 64f66c0 (STATUS entry for the rework). Not confirmed beyond that commit.
 
 ## 11. Proof files are checked in the app and saved with a warning
 
@@ -242,14 +242,14 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Lost:** withholding parts of the mandate now (T13, post-submission); keeping the command-line
   tool as the only check (not confirmed).
 - **Consequences:** the owner is told what a shared file reveals; the file itself is unchanged.
-- **Evidence:** commits 22fdf4a (Check a proof file, in the Book) and 5608341 (the warning before
-  save), on main at a95b80a.
+- **Evidence:** commits e5948e3 (Check a proof file, in the Book) and 5608341 (the warning before
+  save), on main at 2528044.
 
 ## 12. The HOUSE health check follows each deal step
 
 - **Date:** 2026-10-07
 - **Decided by:** the App Master.
-- **Constraint:** scan C-8 (2ab2b4d) writes the heartbeat only at the start of a timer tick, so a
+- **Constraint:** scan C-8 (a23cab6) writes the heartbeat only at the start of a timer tick, so a
   tick that awaits PayPal can hold `/healthz` at 503 for more than 30 s. `render.yaml`'s health
   check could then restart the HOUSE in the middle of a money step. Found in the house-seller-demo
   council-lite r1 review.
@@ -261,7 +261,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Consequences:** a slow PayPal call no longer reads as a dead actor. Until it is built, the
   window above stays open.
 - **Evidence:** built in 5915462, with the tests `house_health_stays_up_through_a_slow_tick_of_several_deals`
-  and `healthz_follows_the_heartbeat`. Commits 2ab2b4d (C-8) and 5f1e5e0 (C-5); the STATUS
+  and `healthz_follows_the_heartbeat`. Commits a23cab6 (C-8) and 60444b0 (C-5); the STATUS
   "Security fixes" section. The full council found two things: the const assert at
   `services/house-seller/src/hosted.rs:110` compares the constant with itself, so it cannot catch a
   change in table-paypal; and Render's health-check interval, failure threshold and restart rule are
@@ -300,7 +300,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   A HOUSE secret in a file, a log, a response or a fixture still fails. The desktop wallet's rule is
   unchanged.
 - **Evidence:** `services/house-seller/src/environment.rs`, the envVars in `render.yaml`, and this
-  run's AGENTS.md and council config commits (e340c78, 855e8c6).
+  run's AGENTS.md and council config commits (e1a7019, 1145b8d).
 
 ## 15. A card's 'if you do nothing' line comes from that deal's forecast
 
@@ -318,7 +318,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Lost:** one fixed, reworded line for every seller card. It would be wrong for seller deals whose
   forecast shows no money step, and it would be a second source that drifts from the forecast.
 - **Consequences:** the forecast is the one source for what silence does.
-- **Evidence:** commits d7d74cf, a3d4908 and 83f70dc. Tests:
+- **Evidence:** commits 4ab3d22, 74411c8 and 8bb267d. Tests:
   - table-attention `silence::tests`, a card per forecast ending;
   - `card_and_forecast_agree_over_every_input`: no 'no money moves' where the forecast has a money-in
     step, no money-in claim without one, executor on and off;
@@ -406,9 +406,9 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   where Playwright is installed (`docs/features/onboarding.md`, `src/director/README.md`). No IPC
   command, Rust, binding, capability or dependency changed, so the permissions fingerprint is
   unchanged.
-- **Evidence:** commits be501cc (the fourth step), 94cf308 (tour model), 2e0df6e (coach mark),
-  2ef9204 (the director's tour action), a2bc9a6 (rehearsal), 2c9dc41 (Tumbler frame in the light
-  theme) and 6c15500 (played in the rig, both stories pass); tests `lib/tour.test.ts`,
+- **Evidence:** commits b1bc8aa (the fourth step), 87d95ab (tour model), 38f871f (coach mark),
+  c65480a (the director's tour action), 6219d1c (rehearsal), bef21fd (Tumbler frame in the light
+  theme) and 8c0370e (played in the rig, both stories pass); tests `lib/tour.test.ts`,
   `shared/tour.test.tsx`, `director/firstRunStory.test.ts` (writes only to `table-tour:first-run`,
   no world, money or lock action).
 
@@ -425,8 +425,8 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   operator's ask, and a network dependency in first run.
 - **Consequences:** step 1 can be done with keys PayPal would refuse. The owner finds that out on the
   first real call, not at step 1. Not confirmed: whether any later surface reports a bad key early.
-- **Evidence:** c40a9a1 (relabels the step to 'Add your PayPal sandbox keys' / 'PayPal sandbox keys
-  saved') and 8b1aed7 (words, `docs/features/onboarding.md`, STATUS entry). The test c40a9a1 adds is
+- **Evidence:** acb904c (relabels the step to 'Add your PayPal sandbox keys' / 'PayPal sandbox keys
+  saved') and 1a88e15 (words, `docs/features/onboarding.md`, STATUS entry). The test acb904c adds is
   'step 1 says the fact: the keys are saved, never connected, checked or verified' in
   `apps/desktop/client/src/lib/firstRun.test.ts`.
 
@@ -434,7 +434,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 
 - **Date:** 2026-10-09
 - **Decided by:** the App Master, on deal-to-settlement lite r1 robustness-1 and robustness-2 (the
-  review report is not in the repository; taken from the commit message of 5bea1b1)
+  review report is not in the repository; taken from the commit message of 47d2d42)
 - **Constraint:** silence never moves money (AGENTS.md). `resolve_deal` skipped parked steps, so a
   parked capture or void left `auto_void` refusing forever (the deal sat On hold with PayPal's hold in
   place), and `deadline_default` dropped `resolve_deal`'s answer and expired a deal whose authorize
@@ -456,7 +456,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - (b) Capturing at the deadline: it would let silence move money, which is forbidden.
 - **Consequences:** a deal whose PayPal read keeps failing stays open past its deadline until a read
   succeeds. What the lite r1 left open is listed in STATUS.md.
-- **Evidence:** 5bea1b1 (the fix) and 9c3ed7e (docs and STATUS). Tests 5bea1b1 adds, in
+- **Evidence:** 47d2d42 (the fix) and 3330b7f (docs and STATUS). Tests 47d2d42 adds, in
   `crates/table-app/tests/pipeline.rs`: `parked_capture_at_the_deadline_settles_to_what_paypal_shows`,
   `parked_authorize_at_the_deadline_lapses_or_is_voided_by_what_paypal_shows`,
   `parked_void_at_the_deadline_goes_once_more_under_its_own_request_id`,
@@ -482,10 +482,10 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - (a) Counting the default engine as chosen.
   - (b) Making step 4 optional.
   - (c) Each window building its own facts, which is what let the Tumbler and OwnerConfig drop
-    `engine_chosen` at 9d2bae2.
+    `engine_chosen` at d8d9be0.
 - **Consequences:** `SettingsSnapshot` gained a field (binding, mock, fixtures). Whether the
   permissions fingerprint changed is not confirmed here.
-- **Evidence:** 9d2bae2 (the field, the choice, the words) and 398f683 (`settingsFacts`). Tests: the
+- **Evidence:** d8d9be0 (the field, the choice, the words) and e40ab04 (`settingsFacts`). Tests: the
   Rust `keeping_the_practice_agent_is_a_recorded_choice_not_the_default` in
   `crates/table-runtime/src/tests.rs`, and in `apps/desktop/client/src/lib/firstRun.test.ts` the
   group 'settingsFacts: one mapping for Home, the Tumbler and the approval window' plus 'an owner
@@ -531,14 +531,14 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 
 - **Date:** 2026-10-10
 - **Decided by:** the App Master, on deal-to-settlement lite r1 value-1 (the review report is not in
-  the repository: what it said is taken from the commit message of 8288cba and the task brief)
+  the repository: what it said is taken from the commit message of 9b00cc4 and the task brief)
 - **Constraint:** a buyer haggle or shop order reaches RECEIPTED only through `accept_seller_receipt`,
   which records `receipt_evidence='seller_attested'`. It becomes `paypal_verified` (and RECONCILED)
   only when the reporting reconcile matches. So a buyer's RECEIPTED deal is the seller's word, not
   PayPal's.
 - **Decision:** that round changed the words, not the ledger. `stateWord` gained a buyer exception
   (`SELLER_SAYS_PAID`, gold tone, `apps/desktop/client/src/lib/words.ts`), and every surface that
-  shows a deal state passes side and kind. 8288cba's message lists them: `beadKind`, `chipClass`,
+  shows a deal state passes side and kind. 9b00cc4's message lists them: `beadKind`, `chipClass`,
   `isSettled`, the amount tone and note, the Book bucket and group, the ledger sums and the deal
   answer no longer treat such a deal as settled; the approval window's `outcomeText` moved into
   `windows/approval/model.ts` unchanged so it can be tested. Rust is unchanged.
@@ -558,41 +558,41 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - `accept_seller_receipt` (`crates/table-ledger/src/receipt.rs:115`) moves a buyer deal to RECEIPTED
     even when the owner never opened the PayPal link. `browser_handoff` is recorded
     (`crates/table-ledger/src/repositories.rs:654`, read at :666) but receipt.rs does not mention it.
-  - **Amended 2026-10-10.** The rework merged (deal-to-settlement run 1edb842c, at 2ff7ea1).
-    - The decision is carried by 186578d: `crates/table-ledger/src/book.rs:31` keys a RECEIPTED deal
+  - **Amended 2026-10-10.** The rework merged (deal-to-settlement run 1edb842c, at 38150a7).
+    - The decision is carried by e360785: `crates/table-ledger/src/book.rs:31` keys a RECEIPTED deal
       with `receipt_evidence` `seller_attested` as `RECEIPTED:buyer`. Test:
       `seller_receipt_before_buyer_approval_never_reads_as_paid`
       (`crates/table-ledger/src/tests.rs:1448`).
-    - And by d9621b4, with the client tests it adds: the Book's `stateKey` and `serverStateLabel`
+    - And by a243d7f, with the client tests it adds: the Book's `stateKey` and `serverStateLabel`
       (`modules/book/model.ts`), the Paid and Stopped chips (`modules/book/understand.ts`), the
       Tumbler's `receiptTicker` (`windows/tumbler/logic.ts`), and the main window's `receiptToast`
       (`apps/desktop/client/src/windows/main/App.tsx`, function in `windows/main/logic.ts`). The
       council had not listed the toast; it read a seller-attested receipt as 'Paid, receipt saved' in
       the ok tone.
-    - The Decision bullet's 'Rust is unchanged' no longer holds: 186578d changes `book.rs`, and
-      e2290a0 and ccc548e change the ledger further (sections 27 and 28).
-    - The UNVERIFIED notes, from d9621b4's diff: the Tumbler site (`windows/tumbler/logic.ts` around
+    - The Decision bullet's 'Rust is unchanged' no longer holds: e360785 changes `book.rs`, and
+      965f2a1 and a7d38eb change the ledger further (sections 27 and 28).
+    - The UNVERIFIED notes, from a243d7f's diff: the Tumbler site (`windows/tumbler/logic.ts` around
       :373-400) was `receiptTicker`, which gave every RECEIPTED state the `receipt` kind (green) and
       the verb from `RECEIPT_VERB`; confirmed faulty and fixed. For `book.tsx` around :688 the diff
       only swaps `stateGroupLabel(v.replace(':buyer',''), side)` for `serverStateLabel(v)`, so it
       moved the label into the Book model; whether the old line misread the seller's word is
       UNVERIFIED (not run against the old code).
-- **Evidence:** 8288cba, with the tests it adds in `apps/desktop/client/src/lib/words.test.ts`:
+- **Evidence:** 9b00cc4, with the tests it adds in `apps/desktop/client/src/lib/words.test.ts`:
   'a buyer RECEIPTED deal reads "Seller says paid" with a waiting tone and the one shared sentence',
   'a buyer RECONCILED deal is paid, on PayPal's statement', 'a seller RECEIPTED deal still reads paid
   to you', 'only a buyer haggle or shop order depends on the seller's receipt'; and in
   `windows/main/deal/story.test.ts`: 'is not closed as paid: D-0187 reads the seller's word and stays
-  calm, not done', 'a buyer deal PayPal's statement matched is closed as paid'. Then 3b3a712 (docs)
-  and acb0dab (fmt). The Rust test
+  calm, not done', 'a buyer deal PayPal's statement matched is closed as paid'. Then d3711fd (docs)
+  and 87dc1db (fmt). The Rust test
   `seller_receipt_is_atomic_bound_attestation_and_never_a_paypal_call`
   (`crates/table-ledger/src/tests.rs:1303`) pins `seller_attested` on a buyer deal after a seller
-  receipt. The client tests were not run for this entry. Amendment evidence: 186578d and d9621b4;
-  client tsc exit 0 and vitest 895 of 895 passed (82 files) on main at 2ff7ea1, run by the App
+  receipt. The client tests were not run for this entry. Amendment evidence: e360785 and a243d7f;
+  client tsc exit 0 and vitest 895 of 895 passed (82 files) on main at 38150a7, run by the App
   Master on 2026-10-10 (reported to the builder; not re-run here).
 
 ## 24. The SETTLE approve link must open its own order (C-10)
 
-- **Date:** 2026-10-10 (95d7b37 is dated 2026-10-10 in git)
+- **Date:** 2026-10-10 (0b244e6 is dated 2026-10-10 in git)
 - **Decided by:** the App Master, on security scan finding C-10 (scan of 2026-10-07, per STATUS.md)
 - **Constraint:** the buyer opened whatever approve link the seller's SETTLE carried, and checked only
   its host.
@@ -608,15 +608,15 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - Lite r2 found two follow-ups (report not in the repository; from the task brief). The seller
     wallet signs a SETTLE whose link it checked for the host only (craft-2). No `checks.rs` line
     states the order binding (craft-6). Neither was checked here.
-- **Amended 2026-10-10 (deal-to-settlement lite r3 craft-2, 56cfc60):** `table_proto::order_approval_url`
+- **Amended 2026-10-10 (deal-to-settlement lite r3 craft-2, 0c5ca2b):** `table_proto::order_approval_url`
   (`crates/table-proto/src/settlement.rs:42`) is now the one binding rule. It is called by `validate_settle`
   and by the seller's `created_link` (create and its resolver), so the seller no longer signs a SETTLE its
   buyer would refuse: a PayPal-host link to another order, or with an extra query pair, signs no SETTLE and
   records no outbound envelope. This closes the first follow-up above (craft-2). The link shape stays
   UNVERIFIED.
-- **Evidence:** 95d7b37 (`crates/table-proto/src/settlement.rs` and `crates/table-proto/tests/protocol.rs`;
+- **Evidence:** 0b244e6 (`crates/table-proto/src/settlement.rs` and `crates/table-proto/tests/protocol.rs`;
   the cases are added to `h4_settle_rejects_amount_intent_invoice_attempt_and_host_mismatch`) and
-  5635a68 (binds the approve link in the cases of
+  435eb0d (binds the approve link in the cases of
   `signed_buyer_settlement_truth_mismatch_holds_and_has_no_browser_link_or_money_calls`,
   `crates/table-ledger/src/tests.rs`).
 
@@ -647,13 +647,13 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - the Tumbler's step 3 can read not done while Home reads done;
   - the `credential_prompt.rs` error branches and a live `KeyringVault` test (r1 robustness-2 parts c
     and d) remain open.
-- **Evidence:** 8bd8444 (`crates/table-runtime/src/configuration.rs`), 92115ee (same file, plus tests
+- **Evidence:** 7a1dbc9 (`crates/table-runtime/src/configuration.rs`), f5827e3 (same file, plus tests
   in `crates/table-runtime/src/tests.rs`: `credential_values_that_fail_validation_write_nothing`,
   `credential_values_are_stored_trimmed`, `a_failed_vault_write_reports_the_error_and_writes_no_date`,
-  `a_failed_date_write_after_a_vault_success_still_saves_the_keys`) and 29e583b (tests in
+  `a_failed_date_write_after_a_vault_success_still_saves_the_keys`) and 26970c9 (tests in
   `apps/desktop/client/src/shared/start.test.tsx`: 'a done practice step keeps one quiet click to
   start a practice deal; a done keys step keeps none', 'where the click cannot happen, a done practice
-  step says where the practice deal starts'); and 22de10e (docs and STATUS). The client tests were not
+  step says where the practice deal starts'); and b302f63 (docs and STATUS). The client tests were not
   run for this entry.
 
 ## 26. The hosted relay's mailbox exhaustion is fixed before submission, not accepted
@@ -667,9 +667,9 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Decision:** a per-caller create allowance. It is proved by a test in which one caller exhausts its
   allowance, and a fresh pair mailbox and a create on the HOUSE path still succeed.
 - **Lost:** accepting the risk for the judging window.
-- **Consequences:** fixed in ad2ef32 (2026-10-10). N = `CALLER_ALLOWANCE` = 128 live mailboxes per caller: a wallet holds at most 64 live relay routes (`bind_relay` in table-ledger), one mailbox each, and two wallets behind one home NAT address (the two-desktop demo) share a key, so 2 x 64. R = `HOUSE_RESERVE` = 64: HTTP creates are refused at 192 live HTTP-created mailboxes (amended below); the HOUSE ledger holds at most 64 live routes, so its in-process create (`RelayApi::create`, which bypasses the allowance) always has room, and a wallet's later create of a HOUSE deal's mailbox finds it already made and costs nothing. Caller key: the TCP peer; with `RELAY_TRUSTED_PROXY_HOPS=n` set, the nth `X-Forwarded-For` entry from the right (the proxy-appended one, never a client-written one); IPv6 keyed on its /64; with n >= 1 a missing or unparsable entry is refused (400), never answered with the TCP peer (amended below); an unparsable setting (or above 8) fails startup, because falling back to 0 would key everyone on the proxy and quietly lock all callers out after one fills 128, and falling back to the header would let clients choose their key. UNVERIFIED: the root render.yaml sets the hop count to 1, assuming Render runs exactly one proxy that appends the client address as the rightmost entry; .research does not document it. Residual: two IPv4 addresses (or two /64s) can still fill the 192-slot HTTP share for 24 h; HOUSE deals survive through the reserve, wallet-to-wallet pairing does not. Authenticated PUT stays with relay-and-rendezvous-1. Whether the submitted build carries a relay address is still open with the operator.
-- **Amended 2026-10-10 (1cfa5c0, fix(relay-exhaustion-2)):** The caller key is the nth X-Forwarded-For entry from the right, n being RELAY_TRUSTED_PROXY_HOPS. It is taken from the raw bytes of all X-Forwarded-For lines in order, and only that entry is decoded, so a byte outside visible ASCII elsewhere in the list no longer voids it. With n >= 1, a create whose nth entry is missing or unparsable is refused with 400 (Error::Invalid): the request is malformed for this deployment, and falling back to the peer would give the client a second allowance on the shared proxy address. With n = 0 the key is the TCP peer. The HTTP share, MAX_MAILBOXES - HOUSE_RESERVE, counts only HTTP-created mailboxes (creator is some). HOUSE mailboxes count only against the 256 store cap, so 192 HTTP and 64 HOUSE mailboxes fit exactly, and a busy HOUSE no longer denies wallet pairings. CALLER_ALLOWANCE and HOUSE_RESERVE are unchanged. A wallet sees the 400 as Error::Refused(Refusal::Other) (crates/table-relay/src/lib.rs, answer_error), not as Full and not as Unavailable; how the client words it is UNVERIFIED. This closes both robustness lines of hosted-relay-service lite r2. Still open: the allowance sizes (CALLER_ALLOWANCE, HOUSE_RESERVE) and the create handler's branch with no Connection.
-- **Evidence:** ad2ef32: services/rendezvous/tests/relay.rs (`one_caller_uses_up_its_allowance_and_a_second_caller_and_the_house_still_create`, `many_callers_filling_the_http_share_leave_the_house_reserve`, `re_creating_a_mailbox_costs_nothing_and_expiry_releases_the_allowance`, `an_ipv6_caller_is_its_slash_64_and_an_ipv4_mapped_one_is_its_ipv4`, `the_proxy_hop_setting_is_a_small_whole_number_or_startup_fails`) and services/rendezvous/tests/serve.rs, over a real socket through serve_with (`with_no_trusted_proxy_a_forged_forwarded_for_does_not_change_the_caller`, `behind_one_proxy_the_rightmost_forwarded_for_entry_is_the_caller`, `two_ipv6_addresses_in_one_slash_64_share_a_caller`, `over_a_socket_one_caller_is_refused_past_its_allowance_and_forging_does_not_help`). 4909d48 deletes services/rendezvous/Dockerfile and services/rendezvous/render.yaml (security scan P-4). 1cfa5c0 adds `a_full_house_does_not_take_the_http_share_from_wallets` (services/rendezvous/tests/relay.rs), `a_byte_outside_ascii_to_the_left_does_not_void_the_proxy_entry` and `behind_one_proxy_a_forged_byte_cannot_move_the_key_to_the_proxy_or_pass_a_bad_entry` (services/rendezvous/tests/serve.rs), and changes `behind_one_proxy_the_rightmost_forwarded_for_entry_is_the_caller` from the peer fallback to a 400.
+- **Consequences:** fixed in 0315f21 (2026-10-10). N = `CALLER_ALLOWANCE` = 128 live mailboxes per caller: a wallet holds at most 64 live relay routes (`bind_relay` in table-ledger), one mailbox each, and two wallets behind one home NAT address (the two-desktop demo) share a key, so 2 x 64. R = `HOUSE_RESERVE` = 64: HTTP creates are refused at 192 live HTTP-created mailboxes (amended below); the HOUSE ledger holds at most 64 live routes, so its in-process create (`RelayApi::create`, which bypasses the allowance) always has room, and a wallet's later create of a HOUSE deal's mailbox finds it already made and costs nothing. Caller key: the TCP peer; with `RELAY_TRUSTED_PROXY_HOPS=n` set, the nth `X-Forwarded-For` entry from the right (the proxy-appended one, never a client-written one); IPv6 keyed on its /64; with n >= 1 a missing or unparsable entry is refused (400), never answered with the TCP peer (amended below); an unparsable setting (or above 8) fails startup, because falling back to 0 would key everyone on the proxy and quietly lock all callers out after one fills 128, and falling back to the header would let clients choose their key. UNVERIFIED: the root render.yaml sets the hop count to 1, assuming Render runs exactly one proxy that appends the client address as the rightmost entry; .research does not document it. Residual: two IPv4 addresses (or two /64s) can still fill the 192-slot HTTP share for 24 h; HOUSE deals survive through the reserve, wallet-to-wallet pairing does not. Authenticated PUT stays with relay-and-rendezvous-1. Whether the submitted build carries a relay address is still open with the operator.
+- **Amended 2026-10-10 (26051dc, fix(relay-exhaustion-2)):** The caller key is the nth X-Forwarded-For entry from the right, n being RELAY_TRUSTED_PROXY_HOPS. It is taken from the raw bytes of all X-Forwarded-For lines in order, and only that entry is decoded, so a byte outside visible ASCII elsewhere in the list no longer voids it. With n >= 1, a create whose nth entry is missing or unparsable is refused with 400 (Error::Invalid): the request is malformed for this deployment, and falling back to the peer would give the client a second allowance on the shared proxy address. With n = 0 the key is the TCP peer. The HTTP share, MAX_MAILBOXES - HOUSE_RESERVE, counts only HTTP-created mailboxes (creator is some). HOUSE mailboxes count only against the 256 store cap, so 192 HTTP and 64 HOUSE mailboxes fit exactly, and a busy HOUSE no longer denies wallet pairings. CALLER_ALLOWANCE and HOUSE_RESERVE are unchanged. A wallet sees the 400 as Error::Refused(Refusal::Other) (crates/table-relay/src/lib.rs, answer_error), not as Full and not as Unavailable; how the client words it is UNVERIFIED. This closes both robustness lines of hosted-relay-service lite r2. Still open: the allowance sizes (CALLER_ALLOWANCE, HOUSE_RESERVE) and the create handler's branch with no Connection.
+- **Evidence:** 0315f21: services/rendezvous/tests/relay.rs (`one_caller_uses_up_its_allowance_and_a_second_caller_and_the_house_still_create`, `many_callers_filling_the_http_share_leave_the_house_reserve`, `re_creating_a_mailbox_costs_nothing_and_expiry_releases_the_allowance`, `an_ipv6_caller_is_its_slash_64_and_an_ipv4_mapped_one_is_its_ipv4`, `the_proxy_hop_setting_is_a_small_whole_number_or_startup_fails`) and services/rendezvous/tests/serve.rs, over a real socket through serve_with (`with_no_trusted_proxy_a_forged_forwarded_for_does_not_change_the_caller`, `behind_one_proxy_the_rightmost_forwarded_for_entry_is_the_caller`, `two_ipv6_addresses_in_one_slash_64_share_a_caller`, `over_a_socket_one_caller_is_refused_past_its_allowance_and_forging_does_not_help`). 681de8b deletes services/rendezvous/Dockerfile and services/rendezvous/render.yaml (security scan P-4). 26051dc adds `a_full_house_does_not_take_the_http_share_from_wallets` (services/rendezvous/tests/relay.rs), `a_byte_outside_ascii_to_the_left_does_not_void_the_proxy_entry` and `behind_one_proxy_a_forged_byte_cannot_move_the_key_to_the_proxy_or_pass_a_bad_entry` (services/rendezvous/tests/serve.rs), and changes `behind_one_proxy_the_rightmost_forwarded_for_entry_is_the_caller` from the peer fallback to a 400.
 
 ## 27. A seller's receipt on a buyer deal counts only after the owner opened the PayPal link
 
@@ -693,7 +693,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Consequences:** the runtime test PayPal double gains `awaiting_payer`: order reads say
   PAYER_ACTION_REQUIRED until the owner's OpenBrowser decision, which is the real order of events.
   Production code has no bypass.
-- **Evidence:** ccc548e; `seller_receipt_without_handoff_is_refused_once_and_changes_nothing`
+- **Evidence:** a7d38eb; `seller_receipt_without_handoff_is_refused_once_and_changes_nothing`
   (`crates/table-ledger/src/tests.rs:1388`); `buyer_browser_availability_needs_unlock_but_no_local_paypal_credentials`
   (`crates/table-runtime/src/tests.rs:897`).
 
@@ -731,20 +731,20 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 
   The HOUSE witness stays as it is.
 - **Amended 2026-10-10 (deal-to-settlement lite r3 robustness-1; decided, waits for one delivery):** The council found, verbatim: 'UNCONFIRMED lapses on time alone: a buyer deal PayPal shows as paid ends Not confirmed by PayPal, and the in-app statement check that could still save it is gone' (the report is not in the repository; taken from the task brief). Decision: option (c), with split words. The 72 h time-only lapse stays. The lapse records whether a statement read for the deal came back unmatched (receipt.reporting_unmatched). With an unmatched read, the words may say that PayPal's statement did not show the payment. With no read, they say the wallet did not check with PayPal, never that PayPal's statement did not show it. The statement check is offered on an UNCONFIRMED deal, and a wallet without PayPal keys says what the check needs. A Rust test will prove that a lapse with no read never claims a read. Lost: (a) lapsing only after an unmatched read, because a buyer wallet without PayPal keys would never lapse, which reopens this section; (b) a statement read made by the scheduler before the lapse, because it is a new outbound PayPal call made without the owner, and the line closes without it. No money moves on this path. The council's anchors: receipt.rs:212, Evidence.tsx:102, words.ts:52, :66 and :364, logic.ts:192, actor.rs:492.
-- **Delivered 2026-10-10 (rework A: e876b3a, 5e2290d, f120bc9, a290602, 56e0bb9, 83ca634):**
+- **Delivered 2026-10-10 (rework A: baef161, 41dae4c, 652dd7c, 2bb46bb, f8895f2, 463f547):**
   - The 72 h lapse stays time-only: `Ledger::lapse_corroboration` (`crates/table-ledger/src/receipt.rs`) adds
     no PayPal call and no wait. It records `statement_unmatched` in the `receipt.unconfirmed` row: true when
     the deal has a `receipt.reporting_unmatched` row, else false; no migration, no column.
     `Ledger::statement_unmatched` reads it back (None for other deals and for rows written before the
     fact, which then get the unknown wording); `DealEvidence.statement_unmatched` carries it
-    (`bindings/DealEvidence.ts`). The statement check is offered on an UNCONFIRMED deal (5e2290d). The
-    runtime reconcile already admitted UNCONFIRMED; nothing was rebuilt there (e876b3a only drops an unused
+    (`bindings/DealEvidence.ts`). The statement check is offered on an UNCONFIRMED deal (41dae4c). The
+    runtime reconcile already admitted UNCONFIRMED; nothing was rebuilt there (baef161 only drops an unused
     import).
-  - (a) `counterparty_list` counts UNCONFIRMED in `deals_closed` (f120bc9). (b) `ForecastSource.receipt_at`
+  - (a) `counterparty_list` counts UNCONFIRMED in `deals_closed` (652dd7c). (b) `ForecastSource.receipt_at`
     and `ForecastAction::Unconfirm`: a seller-attested buyer deal in RECEIPTED forecasts ending UNCONFIRMED at
-    receipt + `CORROBORATION_SECS`, NextTick when overdue (a290602); the no-money-out property test is
-    unchanged. (c) the Book gets an 'unconfirmed' bucket, 'Not confirmed', as an end (56e0bb9). (d) 'While you
-    were away' lists an UNCONFIRMED end, worded by read status (83ca634).
+    receipt + `CORROBORATION_SECS`, NextTick when overdue (2bb46bb); the no-money-out property test is
+    unchanged. (c) the Book gets an 'unconfirmed' bucket, 'Not confirmed', as an end (f8895f2). (d) 'While you
+    were away' lists an UNCONFIRMED end, worded by read status (463f547).
   - Tests: `a_lapse_with_no_statement_read_never_claims_one`, `a_lapse_after_an_unmatched_statement_read_says_so`
     (`crates/table-ledger/src/tests.rs`); `the_unconfirmed_reason_claims_a_statement_read_only_when_one_was_made`,
     `an_owner_reconcile_through_the_runtime_on_an_unconfirmed_deal_ends_reconciled`
@@ -760,7 +760,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     4. Home's bead words were left to the council as asked; `Home.tsx` was not touched.
     5. The mock backend approximates the receipt time for the forecast with the deal's `updated_at`, so a
        browser preview is not exact.
-- **Evidence:** e2290a0 and d9621b4;
+- **Evidence:** 965f2a1 and a243d7f;
   `a_seller_attested_deal_ends_unconfirmed_after_72_hours_and_a_late_match_still_counts`
   (`crates/table-ledger/src/tests.rs:1570`);
   `a_reconciled_deal_a_seller_deal_and_an_unreceipted_deal_never_lapse_unconfirmed` (:1627);
@@ -781,7 +781,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - the dialog's native UAT is a milestone-4 item that has not run, so a rewrite of the unsafe FFI
     could not be checked on a real desktop before the submission.
 
-  The call arrived with the initial import c855696, so its original reason is not in this repository.
+  The call arrived with the initial import 1fb97f6, so its original reason is not in this repository.
 - **Decision:** keep the call for the submission. The message text maps Username to the client id and
   Password to the secret (:28). The caption reads 'API credentials' (:41).
 - **Lost:**
@@ -791,7 +791,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - an in-webview form, which the invariant forbids.
 - **Consequences:** the dialog's fields read Username and Password. Revisit after the submission.
 - **Evidence:** `crates/table-os/src/credential_prompt.rs:28`, :41 and :52-68 as above; no commit
-  changes it (c855696 is the import).
+  changes it (1fb97f6 is the import).
 
 ## 30. The Tumbler learns that the house seller is connected from a boolean in the settings snapshot
 
@@ -812,8 +812,8 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Consequences:** re-running `pairing_join` HOUSE for an already pinned house still asks for the same four
   words, so the desk now says 'You check its four words once more'. Whether that re-check is redundant on a
   pinned house is the operator's call (the builder gathered no evidence and kept it as it was).
-- **Evidence:** 0561c75 (`SettingsSnapshot.house_connected`, `crates/table-client/src/lib.rs`, `bindings/SettingsSnapshot.ts`,
-  the mock and the Tumbler); 7e0aca1 (names the mock check for what it asserts);
+- **Evidence:** b3603e6 (`SettingsSnapshot.house_connected`, `crates/table-client/src/lib.rs`, `bindings/SettingsSnapshot.ts`,
+  the mock and the Tumbler); 9f6e983 (names the mock check for what it asserts);
   `settings_tell_whether_the_house_is_connected_without_the_counterparty_list`
   (`crates/table-runtime/src/tests.rs`). The client tests were written without `node_modules`; see STATUS.md.
 
@@ -831,7 +831,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   PayPal, and the deadline read-back only learns that it went through. Any other delivery is never captured
   by the scheduler, and the re-armed deadline auto-voids it on the safe default. No new void, no new capture
   path, `scheduler.rs` unchanged. The code already did this; the commit only adds the test.
-  - **Evidence:** 0739a29, `a_sellers_hold_found_at_the_deadline_is_collected_only_when_delivered_at_once`
+  - **Evidence:** 4a81385, `a_sellers_hold_found_at_the_deadline_is_collected_only_when_delivered_at_once`
     (`crates/table-runtime/src/resolve_tests.rs`).
 - **3. Decision, the end the builder chose (robustness-4).** A parked authorize whose deadline read still
   shows a record no check accepts (an order or authorization that is not the untouched APPROVED order and not
@@ -854,12 +854,12 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - an EXPIRED deal can carry a parked authorize forever, and its Tumbler card cannot be dismissed;
   - EXPIRED's state words say 'No money moved', which this deal cannot promise; the deal page answer
     overrides them there.
-- **Evidence:** d100027, `a_parked_authorize_paypal_never_shows_readably_ends_at_its_bound_and_sends_nothing`
+- **Evidence:** 973aec3, `a_parked_authorize_paypal_never_shows_readably_ends_at_its_bound_and_sends_nothing`
   (`crates/table-app/tests/pipeline.rs`) and `a_deal_that_ended_with_its_money_step_unsettled_says_to_look_in_paypal_with_no_clock`
   (`crates/table-attention/src/lib.rs`).
-- **Also in this delivery (words and binding, no decision):** f03bf6e rewrote the parked money-check words
-  (value-2: what PayPal shows decides; a payment PayPal already took stays paid). 56cfc60 made the approve-link
-  binding one rule (see the amendment to section 24). 6a0c44d made the Book's statement chip, grid, row detail
+- **Also in this delivery (words and binding, no decision):** 1f7365f rewrote the parked money-check words
+  (value-2: what PayPal shows decides; a payment PayPal already took stays paid). 0c5ca2b made the approve-link
+  binding one rule (see the amendment to section 24). 53b09f8 made the Book's statement chip, grid, row detail
   and 'PayPal agrees' card state-aware, so an UNCONFIRMED deal reads 'no match' with `unconfirmedMeans(read)`,
   never 'Paid' and never a delay. It stays in `agreementGaps` as its own kind `unconfirmed`, sorted after
   mismatch and before unknown and pending_reporting, because money may have left (exposure counts it as spent,
@@ -868,17 +868,17 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 ## 32. An ended money-check card shows Rust's line, without the If you do nothing frame
 
 - **Date:** 2026-10-10
-- **Decided by:** the App Master, wake 55 (2026-10-10), after the Tumbler rework (95b0362) left main red.
+- **Decided by:** the App Master, wake 55 (2026-10-10), after the Tumbler rework (734186c) left main red.
 - **Constraint.** A deal can end with a parked money step (section 31, item 3). Its Tumbler card then has no
   clock and nothing waits on the owner: the deal has already ended, so there is no silence to describe.
 - **Decision.** On the Tumbler card of an ended deal, the second 'Why?' sentence is `MONEY_CHECK_ENDED_SILENCE`,
   the line Rust sends, capitalised and ending with a full stop: 'The deal has ended and the wallet sends nothing
   more: look at this payment in PayPal.' The first sentence stays `MONEY_CHECK_ENDED`.
 - **Lost:**
-  - the hand-written 'The deal has ended and the wallet sends nothing more.' of 95b0362. It dropped the line
+  - the hand-written 'The deal has ended and the wallet sends nothing more.' of 734186c. It dropped the line
     Rust sends ('look at this payment in PayPal') and drifted from it;
   - the 'If you do nothing,' frame. The deal has already ended, and nothing waits on the owner's silence.
-- **Evidence:** 673d7f8, `cardWhy` in `apps/desktop/client/src/windows/tumbler/logic.ts`, and the test 'the card
+- **Evidence:** a59f881, `cardWhy` in `apps/desktop/client/src/windows/tumbler/logic.ts`, and the test 'the card
   says the wallet stopped and what to do, with the line Rust sends' in
   `apps/desktop/client/src/lib/moneyCheck.test.ts`.
 
@@ -906,16 +906,16 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - Migration 0015 runs only when `relay_routes` has no `generation_at` column (`crates/table-ledger/src/lib.rs`),
     because the older-schema tests step `user_version` back without dropping the column.
 - **Lost:**
-  - the window starting at the first adoption (a3d9a92 as first built). A fresh deal could not take its first
+  - the window starting at the first adoption (0aa46df as first built). A fresh deal could not take its first
     real reset for 600 s, so a HOUSE pair table caught by a restart in its first minutes lapsed instead of
-    replaying. 0092ad2 kept two tests green only by moving their clocks 600 s on, and 58e3517 restored both;
+    replaying. 582c384 kept two tests green only by moving their clocks 600 s on, and c3c4be4 restored both;
   - having no window and no cap, as before C-9a.
 - **Cost kept:** a deal that was reset waits 600 s before its next reset, so a second mailbox loss inside that
   window only delays that deal. Silence deadlines are unaffected.
-- **Migration note:** `0015_relay_reset.sql` says `generation_at` is '0 until the first adoption'. Since 2044b21 it
+- **Migration note:** `0015_relay_reset.sql` says `generation_at` is '0 until the first adoption'. Since 698e037 it
   is 0 until the first reset. A shipped migration is not edited, so this section is the correction.
 - **Amendment, 2026-10-10 (C-9b):** the wallet now writes one `envelope.rejected` audit row per batch of one deal
-  and one generation (f870297, 6f7beb3).
+  and one generation (3c6e4bc, c93ac9d).
   - `Ledger::reject_inbox` (`crates/table-ledger/src/relay.rs`) takes at most 256 messages, all of the first
     message's deal and generation, and otherwise returns `Conflict` and writes nothing. In one Immediate
     transaction it turns each message's pending row into `rejected` (any UPDATE that does not change exactly one row
@@ -939,7 +939,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     `c9b_finish_inbox_rejection_is_a_batch_of_one`; in `crates/table-runtime/src/groups_tests.rs`
     `a_hostile_relay_batch_is_rejected_with_one_audit_row` and
     `a_hostile_relay_batch_for_two_deals_is_two_audit_rows`.
-- **Evidence:** commits a3d9a92, 0092ad2, 2044b21 and 58e3517; in `crates/table-ledger/src/tests.rs`:
+- **Evidence:** commits 0aa46df, 582c384, 698e037 and c3c4be4; in `crates/table-ledger/src/tests.rs`:
   `c9a_first_adoption_starts_no_window_and_a_reset_inside_it_is_refused`,
   `c9a_an_accepted_reset_prunes_settled_rows_of_this_deal_only`,
   `c9a_a_deal_past_the_inbox_cap_is_refused_and_writes_nothing` and
@@ -988,7 +988,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - An ended deal with an open check also leaves the Not confirmed and Stopped totals.
   - The tone of the Book's week answer still counts every AUTHORIZED deal (`holds` in `WeekAnswer`).
 - **Open:**
-  - The Rewind's bead tip (dashboard lite r2 robustness-1) was fixed at 0705f3f and 448fda5 (2026-10-10; STATUS
+  - The Rewind's bead tip (dashboard lite r2 robustness-1) was fixed at 220da92 and 6d06cfe (2026-10-10; STATUS
     'Rewind bead tip rework'). It was not part of this section.
   - Part 2's builder named other surfaces that may still word a checked payment as on hold. Checked against main on
     2026-10-10:
@@ -1003,8 +1003,8 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     that says the money is on hold. In the Rust `book_query` answer (`crates/table-ledger/src/book.rs`) no
     hold wording was found; it was not read in full.
 - **Evidence:**
-  - the commits: 8e56ef1, d8582bb, b7d2e84 and 3698520 (the rework); b5ccad5, 0670480, 43de15e and 1881489 (the
-    unshown read); 767043a, 85faf93, 33f2c56 and c5e1694 (the Book, rework C part 2);
+  - the commits: 5f67c8f, 8a2f53f, 621ed9e and 3698520 (the rework); 444cde1, 0670480, 1b7d36c and 1881489 (the
+    unshown read); 2004f19, 90ddad1, 3d8754b and 885962f (the Book, rework C part 2);
   - the tests, by file: in `windows/main/deal/Decision.test.tsx` the describe 'Summary while a money check is
     open'; in `windows/main/home/model.test.ts` 'does not count a payment being checked with PayPal as on hold';
     in `windows/main/home/away.test.ts` 'does not open with No money moved while a payment is still being checked
@@ -1048,7 +1048,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     - `services/house-seller/src/hosted.rs` was read only at :835-935.
   - The Tumbler's ended card cannot be dismissed. That is rework C part 3, which needs a design in
     `crates/table-attention`.
-- **Evidence:** 975e168 and 9fe08fb; in `crates/table-app/tests/pipeline.rs`:
+- **Evidence:** 0436a4f and 6896f78; in `crates/table-app/tests/pipeline.rs`:
   `a_parked_capture_paypal_shows_unreadably_waits_at_its_deadline_and_sends_nothing`,
   `a_parked_capture_whose_read_fails_at_its_deadline_waits_then_settles`,
   `a_parked_void_paypal_shows_unreadably_waits_at_its_deadline` and `a_restart_reads_a_parked_capture_at_once`.
@@ -1068,30 +1068,30 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - Its economics line: `world.tsx` read `deal_display` for every lifetime deal, and the away card read
     `deal_evidence` for every UNCONFIRMED deal.
 - **Decision.** What each commit does (client only; every read is read-only):
-  - 35af182: `readEach` (`apps/desktop/client/src/lib/readEach.ts`) reads the ids at most `READ_CONCURRENCY` = 8 at
+  - 637aae1: `readEach` (`apps/desktop/client/src/lib/readEach.ts`) reads the ids at most `READ_CONCURRENCY` = 8 at
     once, rejects a read still out after `READ_TIMEOUT_MS` = 10 000 ms, and settles each read in the order of the
     ids. The per-deal fan-outs go through it. An invoke cannot be cancelled, so a read that timed out is only no
     longer waited on.
-  - deb1002: the third outcome, unread. `useEndedUnshown` returns `unshown`, `unread` and `pending`. A read that was
+  - a65c36d: the third outcome, unread. `useEndedUnshown` returns `unshown`, `unread` and `pending`. A read that was
     rejected or timed out, and any ending past `ENDING_READS_MAX` (500, mirroring `HISTORY_STEPS`), is unread. The
     words are `ENDING_UNREAD_PILL` = 'Not available yet' and `ENDING_UNREAD_NOW` = 'not available yet · this deal’s
     record could not be read' (`lib/words.ts`); the Rewind narrates `endingUnreadSentence`, the away card words it
     with `endingUnreadLine`. A read that never answers no longer holds the Rewind on 'reading the week' or hides the
     away card.
-  - 88a7109: the away card reads statements (`deal_evidence`) only for the unconfirmed endings it words
+  - 22b4886: the away card reads statements (`deal_evidence`) only for the unconfirmed endings it words
     (`statementReadIds`), capped at `ENDING_READS_MAX`, through `readEach`, and only once the history read is in
     without an error.
-  - 4eff7a9: `deal_display` is read again only for live deals and for deals whose row changed
+  - 66391b6: `deal_display` is read again only for live deals and for deals whose row changed
     (`windows/main/displays.ts`, `useDisplays`; the token is the state and `updated_at`). CAPTURED and RECEIPTED
     count as live (`CHECKED_AFTER_END`), because a capture read-back on a paid deal closes its money check without
     moving `updated_at`. `useAllEvidence` is unchanged.
-  - 662286b: a payment whose outcome is not known is a dashed bead (`BeadKind` 'unknown', which `beadKind` never
+  - 2aad736: a payment whose outcome is not known is a dashed bead (`BeadKind` 'unknown', which `beadKind` never
     returns), never on hold (the Dial legend that said "not known yet" went with the Dial). `beadLook.ts`
     (`liveLook`, `pastLook`) holds the mapping.
-  - b8625d3: the Rewind says when a busy week shows only its latest steps: `REWIND_TRUNCATED`, shown when
+  - 842c6f7: the Rewind says when a busy week shows only its latest steps: `REWIND_TRUNCATED`, shown when
     `deal_history` sets `truncated`.
-  - 7322f9f: the test fix, real timers back before `waitFor` in the never-answering read test (`unshown.test.ts`).
-  - The Rewind bead tip itself was fixed before, at 0705f3f (`checkOpenThrough`) and 448fda5 (`rewindCheckTip`).
+  - 810eeef: the test fix, real timers back before `waitFor` in the never-answering read test (`unshown.test.ts`).
+  - The Rewind bead tip itself was fixed before, at 220da92 (`checkOpenThrough`) and 6d06cfe (`rewindCheckTip`).
 - **Lost:** a failed read keeping today's words.
 - **Open.** Checked against main on 2026-10-10. From wallet-deal-dashboard full r2 (ready, overall 0.55, coverage
   0.80, robustness 0.68, economics 0.10; the judges are uncalibrated):
@@ -1121,7 +1121,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - `lib/readEach.test.ts`: the describe 'readEach' ('never has more than `concurrency` reads out at once',
     'rejects a read that never settles once its time limit has passed');
   - `windows/main/unshown.test.ts`: 'counts a read that never answers as unread once its time limit has passed'
-    in the describe 'useEndedUnshown', and the real-timers fix of 7322f9f;
+    in the describe 'useEndedUnshown', and the real-timers fix of 810eeef;
   - `windows/main/rewind.test.ts`: the describes 'checkOpenThrough: a money step open by the steps up to one',
     'rewindCheckTip: the Rewind’s bead tip while a money step is open' and 'an ending whose own record could not be
     read';
@@ -1131,7 +1131,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     money check can close without its row changing');
   - `windows/main/beadLook.test.ts`: the describes 'liveLook: a bead as the deal stands now' and 'pastLook: a bead
     on the Rewind';
-  - b8625d3 has no test of its own.
+  - 842c6f7 has no test of its own.
 
 ## 37. A rescue deal's deadline: a draft ends, a sent invoice is read first, a parked send is read hourly (deadline-safe-default rework after lite r1)
 
@@ -1152,7 +1152,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   > only after a read shows it unpaid, and without the invoicing client or the deal's agent
   > key it waits until they come back.
 
-  - 30de99a (R1): `rescue_resolve` reads a parked send (`needs_owner`, no owner ticket) once either the deal's
+  - c047749 (R1): `rescue_resolve` reads a parked send (`needs_owner`, no owner ticket) once either the deal's
     deadline or `REQUEST_ID_KEPT_SECS` (6 h from the step's start) has passed. It reads at most once per
     `PARKED_READ_SECS`, keyed by request id, and records the time before the read, so a failing read is throttled
     too. `resolve_invoice_send` then closes a DRAFT as not done, and at the deadline the deal takes
@@ -1160,7 +1160,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - 6904055 (R2 and R3): with no invoicing client, a create still closes at its deadline (that needs no read) and a
     sent invoice waits. A failed deadline read waits and retries at `RESCUE_POLL_SECS` (60 s). `Error::Unavailable`
     answers `Ok(false)`, and every other error propagates.
-  - e7222e1 (R4): the forecast test, a deal with an open operation is left out of the forecast.
+  - de1e878 (R4): the forecast test, a deal with an open operation is left out of the forecast.
 - **Lost:**
   - expiring a sent invoice unread;
   - counting a failed read as unpaid;
@@ -1192,12 +1192,12 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 ## 38. The Book leaves a mixed Amount out in the client, keeps its evidence reads in the feature, and caches them past the Book (ops-ledger-query full r1 to r3)
 
 - **Date:** 2026-10-11
-- **Decided by:** the App Master, through two reworks. After full r1: 23ed4af (the wallet's table shows an Amount only
-  when each line holds one money state), 3d34c8c (read deal evidence only for deals whose evidence can have changed) and
-  a22d58d (the playbook names direction and state). After full r2: d4b28c1 (`readEach` takes an AbortSignal) and 3656abf
-  (an evidence cache that outlives the Book, one abortable pass at a time, narrower re-read rules), with 43942f4 and
-  55723c4 for the docs. The council reports are not in the repository; they are cited as ops-ledger-query full r1
-  (2026-10-10), full r2 (2026-10-11) and full r3 (2026-10-11). `readEach` itself came in section 36 (35af182).
+- **Decided by:** the App Master, through two reworks. After full r1: 02474e2 (the wallet's table shows an Amount only
+  when each line holds one money state), 65f748b (read deal evidence only for deals whose evidence can have changed) and
+  5009e77 (the playbook names direction and state). After full r2: 4fee9d2 (`readEach` takes an AbortSignal) and 7294b91
+  (an evidence cache that outlives the Book, one abortable pass at a time, narrower re-read rules), with f5c6a98 and
+  6d8f676 for the docs. The council reports are not in the repository; they are cited as ops-ledger-query full r1
+  (2026-10-10), full r2 (2026-10-11) and full r3 (2026-10-11). `readEach` itself came in section 36 (637aae1).
 - **Constraint.**
   - From full r1's must-address: value-1 (with no state filter, the wallet's table added paid, held, in-progress and
     stopped money into one Amount) and economics-1 (opening the Book sent one `deal_evidence` read per deal, and sent
@@ -1206,16 +1206,16 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     deals) and economics-6 (a superseded pass kept reading, because `dead` only dropped its results).
 - **Decision.** Three choices, all in the client. No Rust changed, so there is no new command, no authority-table row
   and no `PINNED_MANIFEST` change (theme T11).
-  1. **The Amount is suppressed in the client, not split by a Rust state bucket (23ed4af,
+  1. **The Amount is suppressed in the client, not split by a Rust state bucket (02474e2,
      `modules/book/model.ts` and `modules/book.tsx`).** `WalletAnswer` shows the Amount column only when
      `walletSumsApart(answer.query)` is true: the query groups by state, or filters state (`eq` or `in`) to values that
      share one `bucketOf` bucket, judged on a plain deal. Otherwise one hint says amounts are left out. The reason given
      at the time (STATUS): the bucket rule lives in the client, and a Rust copy would be another hand-kept copy of it.
-  2. **The evidence fan-out is fixed inside this feature (3d34c8c, d4b28c1; `lib/readEach.ts`,
+  2. **The evidence fan-out is fixed inside this feature (65f748b, 4fee9d2; `lib/readEach.ts`,
      `windows/main/evidence.ts`).** `lib/readEach.ts` is the shared helper for width (`READ_CONCURRENCY`, 8), timeout
      (`READ_TIMEOUT_MS`, 10 s) and abort. `evidence.ts` keeps its own re-read rule (`evidenceToRead`), its own pass and its
      own cache. The reason given at the time (STATUS): the Book is the only caller of `useAllEvidence`.
-  3. **A module-level client cache outlives the Book, instead of a batched IPC command (3656abf, `evidence.ts`).**
+  3. **A module-level client cache outlives the Book, instead of a batched IPC command (7294b91, `evidence.ts`).**
      Answers are kept at module scope and written as they land; one pass runs at a time and a newer list or the Book
      closing aborts it. No new command, no Rust, no authority-table row and no `PINNED_MANIFEST` change. STATUS: the
      council named a cache that outlives the Book as one way to close economics-1.
@@ -1272,14 +1272,14 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 ## 39. A step that may have reached PayPal is told apart in Rust and worded in the client, an open earlier step has its own refusal, and every notice shows plain words (owner-approval-decision full r1 to r3)
 
 - **Date:** 2026-10-11
-- **Decided by:** the App Master, through reworks after each full round. After full r1 (head 404c9c3): deb06ca and 1272dd3
-  (the runtime tells a reserved or sent step from a refusal; a void whose answer is lost has its own sentence), 969e98f (a
-  step that reached PayPal never reads as Not paid or nothing was done), 8c20abd (the first-read, token and unlock notices
-  say plain words) and 02870aa (docs). Then 9a92a52 (the void sentence in the window) and 4f9141a (docs, STATUS second pass),
-  which is the head of full r2. After full r2: ee5f4dc (a second step on a deal with an open PayPal step says it is not
-  confirmed yet), 6ca87aa (its own heading and sentence, mirrored in `words.ts`) and 90887b5 (docs, third pass, the head of
-  full r3). After full r3, outside the council: ce1a441 (the token and pairing-read notices show plain words, with a wiring
-  test; craft-24) and 24a17ca (docs), with cb965ed (the test's `found[0]` narrowed for client tsc). The council reports are
+- **Decided by:** the App Master, through reworks after each full round. After full r1 (head 0ec4d5a): c4485bd and 901bfd3
+  (the runtime tells a reserved or sent step from a refusal; a void whose answer is lost has its own sentence), dc6a616 (a
+  step that reached PayPal never reads as Not paid or nothing was done), 0a33512 (the first-read, token and unlock notices
+  say plain words) and 6c3d0d0 (docs). Then 0f6d02e (the void sentence in the window) and f147620 (docs, STATUS second pass),
+  which is the head of full r2. After full r2: 375d8fa (a second step on a deal with an open PayPal step says it is not
+  confirmed yet), ad97fb1 (its own heading and sentence, mirrored in `words.ts`) and 90e633e (docs, third pass, the head of
+  full r3). After full r3, outside the council: 8548ee1 (the token and pairing-read notices show plain words, with a wiring
+  test; craft-24) and c837bad (docs), with 1bfafdc (the test's `found[0]` narrowed for client tsc). The council reports are
   not in the repository; they are cited as owner-approval-decision full r1, full r2 and full r3 (all 2026-10-11), with the
   lite r1 (2026-10-09) as background.
 - **Constraint.**
@@ -1317,9 +1317,9 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
      the result falls back to PERMISSION's "nothing was done" (the `Ok(_) => refusal` arm). That is the one non-conservative
      arm.
   3. Meets the test condition only at the helper and source level: `model.test.ts` checks `footerNoticeText`, and nothing
-     renders `DealReview`, `LockCard` or `PairingConfirm` (robustness-3, med). craft-24 was closed after r3 by ce1a441, which
+     renders `DealReview`, `LockCard` or `PairingConfirm` (robustness-3, med). craft-24 was closed after r3 by 8548ee1, which
      the council did not re-judge.
-- **Checked on main (cb965ed).** `resolve_create` is in `crates/table-app/src/pipeline/resolve.rs` (:307; the lost-create park
+- **Checked on main (1bfafdc).** `resolve_create` is in `crates/table-app/src/pipeline/resolve.rs` (:307; the lost-create park
   at :331-336), not in table-engine. r3 cites `after_paypal_with` at `service.rs:722-735`; main has the function at :715-735,
   with the open-operation arm at :725-731. `can_release` is at `service.rs:436-441`; the gates read it at `gating.ts:139` (the
   money gate) and :173 (void); the capture gate is :171, as r3 says. The rest of what this section cites matches r3.
@@ -1363,7 +1363,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     carries footerNoticeText(token)', 'every unlock notice carries footerNoticeText(unlock)', 'the pairing read notice carries
     a message').
   - Not run for this entry (docs only). The gate results are the reports': r3 records fmt, clippy and `cargo test --workspace`
-    at 90887b5 and client tsc plus vitest 1065 of 1065 from the dispatcher's run.
+    at 90e633e and client tsc plus vitest 1065 of 1065 from the dispatcher's run.
 
 ## 40. The console rebuild: one window, one theme, the approval window stays separate
 
@@ -1371,7 +1371,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Decided by:** the owner, through two spark rounds (`.spark/Spark/ideas/calm-nested-ui.md`,
   `.spark/Spark/ideas/table-console-rebuild.md`, waves 1 and 2, eight questions), and the Director on
   convention points the owner was not asked (marked below). Built in packages WP0 to WP4c on branch
-  `worktree-spark-table-console-rebuild` (commits b30ed72 to 0fe967c and the WP4c working tree; notes
+  `worktree-spark-table-console-rebuild` (commits 9037a89 to 3857b00 and the WP4c working tree; notes
   in `docs/build/rebuild/`).
 - **Constraint.** The owner picked contest variant B/2 "Calibre" (the "Seal" console refined with a
   cool instrument theme) as the next main window: "not a simple port, rather rebuilding the app into
@@ -1390,7 +1390,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   2. **Modules are a summary plus nested detail views** (calm-nested-ui, owner): the first view is the
      answer line, the decision and three or four cards; the rest is one level down. Rejected: more
      sheets, tabs.
-  3. **Baseline branch.** The uncommitted tree was committed as `baseline/pre-rebuild` (859fa04)
+  3. **Baseline branch.** The uncommitted tree was committed as `baseline/pre-rebuild` (c4bbe5b)
      after its gates passed; the rebuild forks from it and nothing lands on `main` until the merge.
      The owner's answer authorised that one commit only. Rejected: build in the main checkout; the
      owner commits first.
@@ -1456,10 +1456,10 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `PINNED_MANIFEST` changes are allowed again where a change needs them, through the usual gates
   (the authority matrices, the capabilities pin test, the bindings freshness test). AGENTS.md is
   unchanged: the LLM never moves money, only the `approval` window approves, silence never moves money.
-- **What used it (on `main`, 9205cec..97fa04c):** event audiences are rows of the authority table and
-  every window event goes through one table-driven emit (9ec70de, 29f0428, d68c536); the tray menu
-  (41d4a61); generated `bindings/dealStates.ts` (e94bafd); the `envelope_simulate` command
-  (e439605); `resume_all_agents` reports the tables waiting on the agent (fe3f67b).
+- **What used it (on `main`, 872605e..b7756a5):** event audiences are rows of the authority table and
+  every window event goes through one table-driven emit (3710b96, e05aded, 8599423); the tray menu
+  (e587136); generated `bindings/dealStates.ts` (5fed587); the `envelope_simulate` command
+  (a9dab70); `resume_all_agents` reports the tables waiting on the agent (9e3b14f).
   `PINNED_MANIFEST` moved twice, ed57f9ce to 83ffaf42 (event audiences) and 83ffaf42 to b2f04fe9
   (`envelope_simulate`).
 - **Consequences.** §40's "Rejected: batched read commands" stands as a rebuild-time choice, not a
@@ -1482,8 +1482,8 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   anything"). That is the narrower measure: no install of the wallet, not no install at all.
 - **Lost:** hosting the static build on GitHub Pages; deciding T7 together with the relay ask (ask
   1e8569bf, item 2), which would have tied a hosted preview to the relay deploy.
-- **Evidence:** deceb2b (one shared clock and a `MockWorld` on the mock) and e28211d (repeatable
-  takes, stills and a rehearsal check of Maya's week); the director itself is aaec457. The
+- **Evidence:** 3671609 (one shared clock and a `MockWorld` on the mock) and 979de41 (repeatable
+  takes, stills and a rehearsal check of Maya's week); the director itself is 47732f4. The
   README section is in `README.md`. STATUS's T7 "Left" line (host the static build at a public
   link) is therefore not a T7 requirement.
 
@@ -1498,9 +1498,9 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   Until then the words must say that this copy is not set up to meet other wallets and that the House
   is not available in this copy.
 - **Lost:** "Setup only" and "craft-5 first".
-- **Done:** the mailbox exhaustion fix, a per-caller create allowance and a HOUSE reserve (ad2ef32),
-  and removal of the relay-named deploy files that would have deployed a second HOUSE (4909d48).
-- **Done (words):** dd6f363 (a copy with no relay says it is not set up, not Offline).
+- **Done:** the mailbox exhaustion fix, a per-caller create allowance and a HOUSE reserve (0315f21),
+  and removal of the relay-named deploy files that would have deployed a second HOUSE (681de8b).
+- **Done (words):** 13fe2c0 (a copy with no relay says it is not set up, not Offline).
   `apps/desktop/client/src/lib/words/connections.ts` now says "This copy is not set up to meet other
   wallets, and the House is not available in it", and the retry hint is replaced when the client
   already knows the relay is absent.
@@ -1512,29 +1512,33 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Constraint:** scan-2026-10-07 finding P-1: a research document (owner-assets) carried Personas
   internals that do not belong in a public repository.
 - **Decision:** cut the document to generic patterns.
-- **Done at the tip:** 38d4b8d (cut owner-assets to generic patterns, no Personas internals) and
-  15f5d08 (the scan finding marked fixed).
-- **Not done, on purpose:** git history still holds the original. A history rewrite stays with the
-  operator; no builder does it.
+- **Done at the tip:** 26e6d11 (cut owner-assets to generic patterns, no Personas internals) and
+  c73f61b (the scan finding marked fixed).
+- **History, 2026-10-30 (D1 = a, owner's decision):** history was rewritten in a mirror clone so
+  every past version of `.research/owner-assets.md` carries the generic text; the owner's first name
+  was also replaced in docs/concepts/sequencing-2026-10-29.md and one commit message. Every commit
+  hash changed; the citations in the Markdown docs were re-pointed in the same pass. The owner ran
+  the force-push. GitHub's read-only pull-request refs still reach the old commits until GitHub
+  removes them.
 
 ### 4. ops-ledger-query economics-9 and value-6: "Fix both now" (ask d8ee6135)
 
 - **Constraint:** the two open highs of §38: an unbounded read slot after a timeout (economics-9) and
   an Ask answer that reaches past the week without saying so (value-6).
 - **Decision:** fix both now, not after the submission.
-- **Done:** 2ed6900 (a timed-out read keeps its slot until its invoke settles), 9dad4cf (an answer
-  that reaches past the week says so on its slip), 1dcb586 (the test picks the Ask question by its
-  on-screen words) and fbf37e2 (STATUS). STATUS's entry names fe9df3f, 2513e5d and 1198990; those
+- **Done:** 774d810 (a timed-out read keeps its slot until its invoke settles), d268943 (an answer
+  that reaches past the week says so on its slip), dea0554 (the test picks the Ask question by its
+  on-screen words) and 6db4ca3 (STATUS). STATUS's entry names fe9df3f, 2513e5d and 1198990; those
   are earlier copies of the same three changes and are not ancestors of this branch.
-- **Known problems:** one test from 2ed6900, the `readEach.test.ts` slot test, was found not to
-  terminate; da4a03f fixed it (the held reads now sit on deferred promises that are settled after the
+- **Known problems:** one test from 774d810, the `readEach.test.ts` slot test, was found not to
+  terminate; 510ad61 fixed it (the held reads now sit on deferred promises that are settled after the
   bound is asserted). Client `vitest` and `tsc` on `main` still wait on
   the owner installing client dependencies (`@tanstack/react-query` and `@tanstack/react-virtual`
   are missing from `node_modules`), so neither has run against these changes.
 
 ## 43. The displays runner keeps one read-slot pool, so a stuck read counts across batches and passes
 
-- **Constraint:** §42 item 4 and 2ed6900 keep a timed-out read's slot until its invoke settles. The
+- **Constraint:** §42 item 4 and 774d810 keep a timed-out read's slot until its invoke settles. The
   slots belonged to one `readEach` call, so a `deal_display` read stuck past its batch, or in an
   aborted pass, was not counted by the next call, and in-flight invokes could pass `READ_CONCURRENCY`.
 - **Decision:** `readEach` takes an optional shared `ReadPool`. The displays runner makes one pool and
@@ -1542,7 +1546,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   batches and passes, and a stuck read counts across them. A pass whose slots are all held ends once
   they settle; a wait for a slot stops when the signal is aborted.
 - **Lost:** the per-batch limit, where each call counted only its own reads.
-- **Evidence:** eeca1b9 (`readEach.ts`, `displays.ts`, `readEach.test.ts`), an ancestor of `main`
+- **Evidence:** 43eb9d1 (`readEach.ts`, `displays.ts`, `readEach.test.ts`), an ancestor of `main`
   (checked with `git merge-base --is-ancestor`). Its tests: a read stuck in one batch stays counted in
   the next; a read stuck in an aborted pass stays counted in the next pass and the pass ends once it
   settles; a pass whose every slot is held ends once they settle; a slot wait stops on abort. Client
@@ -1581,7 +1585,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   (`PARKED_READ_SECS`, 3600 s) after its window ends, that is, once the fix's deadline has passed or
   `REQUEST_ID_KEPT_SECS` (6 h) has passed since the step started, so a draft closes not done. The throttle
   (`parked_read`) is also in memory, so a restart reads once at once. This is not changed here.
-- **Why the rework:** the full council run 135d9078 gave economics 0.10. Commit 0b704bf answered it: a
+- **Why the rework:** the full council run 135d9078 gave economics 0.10. Commit 5f95b64 answered it: a
   failed read-back waits a capped exponential backoff (`RESCUE_READ_BACKOFF_SECS` 5 s doubling to
   `RESCUE_READ_BACKOFF_CAP_SECS` 15 min, with jitter), and a sent invoice is polled on the decaying
   `RESCUE_POLL_STEPS` cadence instead of every `RESCUE_POLL_SECS` (60 s) for 30 days.
@@ -1694,7 +1698,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 ## 48. Main hands a confirmed pairing to the approval window as a typed `ApprovalDraft::Table`; no new command
 
 - **Date:** 2026-10-16 (signed-haggle full council value line "no screen opens or joins a table after
-  pairing"; merged at 46fb45b, commits bdea82f and 6fa9ae7)
+  pairing"; merged at 5c1143e, commits 6cd6966 and 36ac11f)
 - **Decided by:** Athena as operator delegate 2026-10-16
 - **Constraint:** after `pairing_confirm`, nothing carried the paired counterparty (and, for the house,
   its practice table) from Main to the approval window's table sheet, so no screen called `deal_create`
@@ -1747,7 +1751,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 
 ## 49. Owner-to-owner join goes through a pasted listing code; no new path
 
-- **Date:** 2026-10-17 (merged at f9f55e4; commits bda8749 Rust, c5b99d5 client, f9f55e4 docs)
+- **Date:** 2026-10-17 (merged at 513229b; commits af7a028 Rust, acd0c63 client, 513229b docs)
 - **Decided by:** Athena as operator delegate 2026-10-17
 - **Constraint:** a buyer who is another owner has to join the seller's table before the Devpost
   submission, with no new transport path. §48 left this open: a buyer cannot learn a paired seller's
@@ -1801,7 +1805,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `cargo test`, table-desktop excluded). The client tests, `listingCode.test.ts` and
   `mock/tables.test.ts`, have **not** been run: the worktree had no `node_modules`, so neither `tsc`
   nor `vitest` ran. Treat them as **unverified** until the operator's `npm install` and a run. The
-  commit message of c5b99d5 and STATUS.md say the same; STATUS.md notes the encode/decode logic was
+  commit message of acd0c63 and STATUS.md say the same; STATUS.md notes the encode/decode logic was
   only exercised under node.
 - **Evidence:** `crates/table-runtime/src/service.rs` (`join_deal`), `dispatcher.rs` (`deal_join`
   arm), `listing_code_tests.rs`; `apps/desktop/client/src/windows/approval/listingCode.ts`,
@@ -1810,7 +1814,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 
 ## 50. Join scan 2026-10-17: what was fixed and what stays known
 
-- **Date:** 2026-10-17 (scan report `docs/security/scan-2026-10-17-join.md`; fixes 9ddb6ec and 1fd19f4)
+- **Date:** 2026-10-17 (scan report `docs/security/scan-2026-10-17-join.md`; fixes 57c224b and 3887e78)
 - **Decided by:** Athena as operator delegate 2026-10-17
 - **Constraint:** the scan of the §49 join path found two things worth fixing now and five to leave.
   The two that touch the signed LISTING wire format, J-3 and J-4, cannot be fixed without changing a
@@ -1818,9 +1822,9 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   The LLM never moves money and silence never moves money; none of the open items loosens that.
 - **Decision:**
   1. **Fixed.** J-1: `join_deal` now applies the live-pin and new-deal-id checks to the house too
-     (9ddb6ec), so a revoked or expired house pin and a second join of a house deal id are ordinary
+     (57c224b), so a revoked or expired house pin and a second join of a house deal id are ordinary
      `Invalid` refusals. J-2: a `deal_join` refused past the authority gate leaves the same bounded
-     `command.refused` audit row a gate refusal leaves (1fd19f4). Each has a Rust test that fails on
+     `command.refused` audit row a gate refusal leaves (3887e78). Each has a Rust test that fails on
      the base.
   2. **J-3, the `qty` missing from `Body::Listing`: open, known, accepted for the submission.** The
      code's quantity is protected only by its CRC. Revisit after submission.
@@ -1852,7 +1856,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 
 ## 51. A sent invoice past its deadline is never expired unread; a failing read backs off and is then read hourly
 
-- **Date:** 2026-10-17 (fd47716, `crates/table-app/src/rescue.rs`, `rescue_deadline`, the `AwaitingApproval` branch)
+- **Date:** 2026-10-17 (57d1a1a, `crates/table-app/src/rescue.rs`, `rescue_deadline`, the `AwaitingApproval` branch)
 - **Decided by:** Athena as operator delegate 2026-10-17
 - **Constraint:** once an invoice is sent, its real state at PayPal is unknown until it is read: it may
   already be paid. AGENTS.md forbids silence moving money, so a deadline passing with no answer cannot
@@ -2264,7 +2268,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   3. **J-3.** `Body::Listing` gains `qty: Option<u32>`, omitted from the wire when `None`. `list()` signs `Some(qty)`; `receive_haggle` refuses a listing whose `qty` differs from the buyer's deal. The wire change is one-way compatible: a new buyer accepts an old LISTING (no `qty` key, nothing bound, as before); an old buyer rejects a new one (`deny_unknown_fields`). Deploy the hosted house and the wallets from the same build: a new wallet joins an old house, an old wallet cannot join a new house.
 - **Still open:** J-4 (category not in the LISTING, accepted) and J-7 (a distinct `join.refused` audit action; a product call, and the only caller of the shared 60-a-minute cap is the owner's own window).
 - **Evidence:** `crates/table-runtime/src/listing_code_tests.rs` (`a_listing_code_with_altered_terms_is_refused_and_never_reaches_authorize` now has a quantity case; red with the compare removed), `crates/table-proto/tests/protocol.rs` (`a_signed_listing_carries_its_quantity_and_one_from_before_the_field_still_verifies`), `crates/table-ledger/src/tests.rs` (`reads_of_an_absent_counterparty_deal_or_offer_say_not_found`), `apps/desktop/client/src/windows/approval/listingCode.test.ts`.
-- **2026-10-21 (delta scan D-3):** a new buyer now refuses a LISTING without `qty` (`636449e`, follows J-3; confirmed by the operator 2026-10-21). Item 3's "a new buyer accepts an old LISTING" describes the build before it; the wire format is unchanged, so an old LISTING still parses and verifies, and only `receive_haggle` refuses it. Evidence: `crates/table-app/tests/listing_qty.rs`. Reverting that commit alone would restore item 3.
+- **2026-10-21 (delta scan D-3):** a new buyer now refuses a LISTING without `qty` (`6ac02ad`, follows J-3; confirmed by the operator 2026-10-21). Item 3's "a new buyer accepts an old LISTING" describes the build before it; the wire format is unchanged, so an old LISTING still parses and verifies, and only `receive_haggle` refuses it. Evidence: `crates/table-app/tests/listing_qty.rs`. Reverting that commit alone would restore item 3.
 
 ## 54. The system clock stays a local seven-line impl in each service
 

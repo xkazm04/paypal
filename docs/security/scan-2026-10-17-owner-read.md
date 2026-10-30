@@ -4,8 +4,8 @@ A focused scan of the read paths of a lost money step after DECISIONS §52, §52
 owner's one read of a lost authorize (`owner_read_authorize`), the wallet's own read-back of a lost
 authorize, capture or void (`resolve_deal`, `money_read_due`, `resolve_authorize`,
 `resolve_payment`, `confirm_capture`), the backoff, the hourly park and the bounded read maps from
-`bf890bd`, the desktop `deal_countersign` command that carries the owner's click there, and the
-runtime gate in front of it. Base: `de63885`, branch `autopilot/codebase-security-scan-d21ed505`.
+`466d6db`, the desktop `deal_countersign` command that carries the owner's click there, and the
+runtime gate in front of it. Base: `4be16b2`, branch `autopilot/codebase-security-scan-d21ed505`.
 **Nothing at medium or higher was found, so nothing was fixed. Every item is report only.** No live
 PayPal call was made and no money was used.
 
@@ -18,7 +18,7 @@ Scope (read in full):
   `confirm_capture` :819-884).
 - `crates/table-app/src/pipeline/read_state.rs` (all; `insert_capped` :22-44, the floor :61-68,
   `prune_read_state` :104-150).
-- `crates/table-app/src/rescue.rs` (`deadline_read_failed` :865-875, and the `bf890bd` changes to
+- `crates/table-app/src/rescue.rs` (`deadline_read_failed` :865-875, and the `466d6db` changes to
   `rescue_tick`, `rescue_deadline`, `rescue_resolve` and `read_failed`).
 - `crates/table-app/src/pipeline.rs` (map fields :120-159, `owner_void` :253-, `authorize`
   :1084-1123, `auto_void` :1285-, `deadline_default` :1394-1456).
@@ -42,7 +42,7 @@ Severity is judged for this app: a hackathon desktop wallet against the PayPal *
 | O-2 | Info | fairness under cap churn | `crates/table-app/src/pipeline/read_state.rs:61-68`; `resolve.rs:178-181` | open | While the cap keeps dropping, the global floor also delays the first read of a brand-new lost step, not only of a dropped one |
 | O-3 | Info | schedule reset by owner | `crates/table-app/src/pipeline/resolve.rs:506-516` | open | An owner read that succeeds clears the wallet's backoff; a failed one does not count. By design (§52a); bounded by clicks |
 | O-4 | Info | error masking | `crates/table-app/src/pipeline/resolve.rs:168`; `crates/table-app/src/pipeline.rs:1396` | open | A ledger error in `prune_read_state` replaces the step's own result; fails safe |
-| O-5 | Info | CPU per tick | `crates/table-app/src/pipeline/read_state.rs:105-109`, `:165-176` | **fixed** `2d51e00` | A key is matched on the deal's canonical id text once per call (`key_names_deal`), with no `DealId` parse per key; still bounded by the cap |
+| O-5 | Info | CPU per tick | `crates/table-app/src/pipeline/read_state.rs:105-109`, `:165-176` | **fixed** `6cb2899` | A key is matched on the deal's canonical id text once per call (`key_names_deal`), with no `DealId` parse per key; still bounded by the cap |
 
 ## Answers to the questions
 
@@ -284,7 +284,7 @@ zero while the maps are empty, which is the normal case. *Action:* report only.
 
 ## Dependencies, secrets and risky patterns
 
-- **Dependencies.** `9f14cdc..de63885` change no manifest and no `Cargo.lock`.
+- **Dependencies.** `e7b95a3..4be16b2` change no manifest and no `Cargo.lock`.
 - **Secrets.** Nothing on these paths reads or writes a secret. The IPC token is compared in constant
   time and is not printed (`ApprovalSession`'s `Debug` shows only `locked`).
 - **Risky patterns.** The scoped files have no `unwrap`/`expect` outside tests and no `unsafe`. Time
@@ -307,6 +307,6 @@ sooner than the dropped entry's own schedule, never on a 1 s tick, and never pas
 
 ## Closed 2026-10-21 (belay wave 5)
 
-O-5 was fixed in `2d51e00`: the scan compares each key against the deal's id text, which every key is
+O-5 was fixed in `6cb2899`: the scan compares each key against the deal's id text, which every key is
 built from, so the same keys match. No timing was measured; the maps stay capped at 4096 entries.
 O-4 stays open: its report-only verdict holds.

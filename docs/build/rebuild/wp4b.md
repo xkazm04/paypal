@@ -2,7 +2,7 @@
 
 Scope: `windows/approval/**`, `windows/tumbler/**`, `design/**`, `shared/ui/**`, one new words file
 (`lib/words/approval.ts`, re-exported by one line in `lib/words.ts`). No Rust, bindings, authority,
-capability, gating or mock change: `git diff --stat 859fa04 -- crates bindings apps/desktop/src-tauri`
+capability, gating or mock change: `git diff --stat c4bbe5b -- crates bindings apps/desktop/src-tauri`
 is empty. No change to what any approval control does, which command it calls, or when it is enabled.
 
 ## What changed
@@ -89,7 +89,7 @@ geometry and HoldGesture now in its entry chunk; main's change is mostly WP4a's.
 - `pnpm exec vitest run`: 139 files, 1431 tests, all passed (includes the new
   `windows/approval/frame.test.tsx`, 7 tests, and the new tokens test).
 - `pnpm build`: passes.
-- Rust diff vs 859fa04: empty.
+- Rust diff vs c4bbe5b: empty.
 
 ## Screenshots reviewed (scratchpad `wp4b-shots/`, preview port 5297)
 Approval at 744 x 660, dark and light, top and scrolled end: accept (D-0193), band / price range

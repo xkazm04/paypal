@@ -1,12 +1,12 @@
 # Security scan - The Table - publication delta since 2026-10-23 - 2026-10-24
 
-A publication-blocker pass over `24f7284..3f14c9e` (local `main`, equal to the local
-`origin/main` ref): 38 commits (one merge, `1e0f2f5`), 75 files, +8811/-405. The range holds eight
+A publication-blocker pass over `bf87d2b..ddb8bbc` (local `main`, equal to the local
+`origin/main` ref): 38 commits (one merge, `94788f2`), 75 files, +8811/-405. The range holds eight
 product commits (client deal model and story, approval and Tumbler CSS, new client render tests,
 ledger and runtime tests) and about 30 bookkeeping commits (`.claude/scan-sweep` challenge state,
 `.ai/conform-runs`, `.ai/registry-map.json`, `.ai/conform-detail.json`), plus STATUS and tiger
-docs and the 10-23 report itself (`f26653c`). Branch `autopilot/codebase-security-scan-4fdf5521`,
-cut from `3f14c9e`. **No open publication blocker was found.** Two new Low findings and one Info
+docs and the 10-23 report itself (`edb6578`). Branch `autopilot/codebase-security-scan-4fdf5521`,
+cut from `ddb8bbc`. **No open publication blocker was found.** Two new Low findings and one Info
 are reported below. The eleven 10-23 findings (E-1 to E-11) are carried forward unchanged, each
 with a status line. Nothing was fixed: this run is report-only. No network call was made, no live
 PayPal call was made and no money was used.
@@ -14,23 +14,23 @@ PayPal call was made and no money was used.
 This report does not restate the owner's e-mail addresses, OS user names or absolute paths. It
 cites the file and line where each one sits (see G-2 for why).
 
-Range scanned: `git log 24f7284..main`, from `9d716ee` to `3f14c9e`. The merge `1e0f2f5` joins
-`757f034` with `0c4894d`. Its diff against its first parent is exactly `0c4894d`'s 30 files.
+Range scanned: `git log bf87d2b..main`, from `74c26ec` to `ddb8bbc`. The merge `94788f2` joins
+`2e2d105` with `714a9a6`. Its diff against its first parent is exactly `714a9a6`'s 30 files.
 
 Scope:
 - **(a) Code commits, read in full by diff, with the current code around each hunk:**
-  - `9d716ee`: `windows/approval/withdraw.render.test.tsx`.
-  - `618159a`: `windows/main/console/routeRestore.test.tsx`.
-  - `c9ba4dc`: `styles/fontFloor.test.ts`, `windows/approval/modeBadge.render.test.tsx`,
+  - `74c26ec`: `windows/approval/withdraw.render.test.tsx`.
+  - `8ef458b`: `windows/main/console/routeRestore.test.tsx`.
+  - `402becf`: `styles/fontFloor.test.ts`, `windows/approval/modeBadge.render.test.tsx`,
     `windows/main/console/modeBadge.test.tsx`, `windows/tumbler/modeBadge.test.tsx`.
-  - `0f9777d`: `approval.css`, `tumbler.css`, `fontFloor.test.ts`.
-  - `fa793bc`: `crates/table-ledger/src/tests.rs`.
-  - `7c6ae49`: `windows/main/deal/model.ts`, `model.test.ts`, `console/areas/deal/DealPage.tsx`.
-  - `872b6a6`: `windows/main/deal/story.ts`, `story.test.ts`, `DealPage.tsx`.
-  - `614ed59`: `crates/table-runtime/src/policy_tests.rs`, `crates/table-runtime/src/tests.rs`.
+  - `f5451e2`: `approval.css`, `tumbler.css`, `fontFloor.test.ts`.
+  - `d5b874e`: `crates/table-ledger/src/tests.rs`.
+  - `f267e00`: `windows/main/deal/model.ts`, `model.test.ts`, `console/areas/deal/DealPage.tsx`.
+  - `4a126f0`: `windows/main/deal/story.ts`, `story.test.ts`, `DealPage.tsx`.
+  - `4bb129a`: `crates/table-runtime/src/policy_tests.rs`, `crates/table-runtime/src/tests.rs`.
 
-  Client paths are under `apps/desktop/client/src/`. The STATUS-only commits `be209ce`, `190ee89`
-  and `3f14c9e` were read with (c).
+  Client paths are under `apps/desktop/client/src/`. The STATUS-only commits `f4d5de5`, `36a654b`
+  and `ddb8bbc` were read with (c).
 - **(b) Bookkeeping, grepped file by file:** every file added or modified in the range under
   `.claude/scan-sweep/` (24 files in `challenge-2026-10-15/`, `findings/relay-sweep-2026-10-23.patch`,
   `findings/stabilize-2026-10-23-rendezvous-relay.jsonl`, the two `handoff-*.results.jsonl`),
@@ -42,7 +42,7 @@ Scope:
 - **(c) Docs:** `docs/build/tiger/2026-10-24-agent-negotiation-run.md` (read in full) and the range
   diff of `docs/build/STATUS.md` (read in full).
 - **Patterns:**
-  - The range patch (`git log -p 24f7284..main`, 11432 lines, 8950 added) was grepped on added
+  - The range patch (`git log -p bf87d2b..main`, 11432 lines, 8950 added) was grepped on added
     lines for key and token shapes: `sk-`, `sk-ant`, `ghp_`/`gho_`/`github_pat`, `xox*-`, `AKIA`,
     JWT `eyJ`, PayPal `A21AA`, `BEGIN ... PRIVATE`, and quoted
     `secret|password|api_key|bearer|client_id|private_key|access_token` values.
@@ -68,9 +68,9 @@ AGENTS.md would also be reported as blocking. None was found.
 
 | ID | Severity | Category | File:line (or commit) | Blocks publication | Recommended fix |
 |---|---|---|---|---|---|
-| G-1 | Low | personal data (local paths) | `.claude/scan-sweep/challenge-2026-10-15/builder-brief.md:3`, `critic-brief.md:3`, `scout-brief.md:3`, `:27` (`0c4894d`) | no (operator) | Replace the four absolute repo and registry paths with repo-relative wording, or stop tracking `.claude/scan-sweep/challenge-*/*-brief.md`; any history rewrite for E-2 should cover `0c4894d` too |
+| G-1 | Low | personal data (local paths) | `.claude/scan-sweep/challenge-2026-10-15/builder-brief.md:3`, `critic-brief.md:3`, `scout-brief.md:3`, `:27` (`714a9a6`) | no (operator) | Replace the four absolute repo and registry paths with repo-relative wording, or stop tracking `.claude/scan-sweep/challenge-*/*-brief.md`; any history rewrite for E-2 should cover `714a9a6` too |
 | G-2 | Low | personal data republished by the scan reports | `docs/security/scan-2026-10-23-delta.md:73-74`, `:86`, `:128`, `:132-134`, `:323-324`, `:425`; `scan-2026-10-19-delta.md:54`, `:61`, `:108`, `:191`, `:259`; `scan-2026-10-18-film-pilot.md:43`, `:72` | no (operator) | When the operator settles E-2/E-3, redact the addresses, OS user names and paths in `docs/security/*.md` in the same pass. Otherwise a history rewrite leaves them in the tree |
-| G-3 | Info | counterparty-chosen anchor in a display fact | `apps/desktop/client/src/windows/main/deal/story.ts:194-201`, `:223-231` (`872b6a6`) | no | Keep the fact out of the approval window, or show it next to the market reference if S4 moves it there |
+| G-3 | Info | counterparty-chosen anchor in a display fact | `apps/desktop/client/src/windows/main/deal/story.ts:194-201`, `:223-231` (`4a126f0`) | no | Keep the fact out of the approval window, or show it next to the market reference if S4 moves it there |
 
 **Open publication blockers: 0.** G-1 and G-2 add to E-2/E-3. They concern the owner's own
 identity (OS user names, local paths and commit e-mails, already in the history) and are not
@@ -94,13 +94,13 @@ the main window already read.**
     `crates/table-ledger/migrations` have no diff in the range (`git diff --quiet` over all of
     them).
   - So there is no new IPC command, no changed authority row and no changed `PINNED_MANIFEST`.
-- **`actingRun` (`model.ts:354-361`, `7c6ae49`).**
+- **`actingRun` (`model.ts:354-361`, `f267e00`).**
   - It is a pure filter over `useRuns().data`, the `agent_runs` read
     (`authority_table.rs:245`, MAIN, Read, OPEN).
   - It picks the live run (`running`/`starting`), else the last one listed, instead of the first.
   - It selects which already-read run's playbook and badge the page shows
     (`DealPage.tsx:205`, `:228`). It sends nothing.
-- **`askingDrop` and the two new buyer facts (`story.ts:194-201`, `:223-231`, `872b6a6`).**
+- **`askingDrop` and the two new buyer facts (`story.ts:194-201`, `:223-231`, `4a126f0`).**
   - Inputs are the deal (already held), the display band (`useWorldSelector`), and `steps`.
     `steps` is the `deal_transcript` read the page already made: `DealPage.tsx:69` and `:147` for
     the sheet, `:197` for the story view (`authority_table.rs:202`, Read, OPEN).
@@ -115,20 +115,20 @@ the main window already read.**
   - `standingFacts` is called only from the main window's `DealPage.tsx` (grep over
     non-test files). The approval window does not show these facts, so they cannot sway a money
     decision there. The anchor is chosen by the counterparty (G-3, Info).
-- **CSS (`0f9777d`).** `approval.css` and `tumbler.css` change sizes and font tokens only:
+- **CSS (`f5451e2`).** `approval.css` and `tumbler.css` change sizes and font tokens only:
   `.dr-mark`, `.nx-n`, `.mini`, `.fr-n`. No selector that hides, reorders or disables a control
   changed. The approval window's buttons and their states are untouched.
-- **Client tests (`9d716ee`, `618159a`, `c9ba4dc`).**
+- **Client tests (`74c26ec`, `8ef458b`, `402becf`).**
   - All run over `mockBackend` through `vi.mock('.../lib/runtime')`. `withdraw.render.test.tsx`
     wraps the mock's `invoke` only to record calls, and asserts that "Keep the deal" sends no
     `deal_withdraw`.
   - `fontFloor.test.ts:9-19` reads stylesheets with `node:fs` under `process.cwd()/src`. It keys
     them by a repo-relative slice and stores no absolute path.
   - No test makes a network call.
-- **Rust tests (`fa793bc`, `614ed59`).**
-  - `fa793bc` exports a proof bundle from an in-memory ledger and checks `deal.mode` in three
+- **Rust tests (`d5b874e`, `4bb129a`).**
+  - `d5b874e` exports a proof bundle from an in-memory ledger and checks `deal.mode` in three
     places.
-  - `614ed59` runs the real `PolicyEngine` through an in-process MCP router (`Loopback`,
+  - `4bb129a` runs the real `PolicyEngine` through an in-process MCP router (`Loopback`,
     `policy_tests.rs:63-70`). The URL `http://127.0.0.1:8765/mcp` is a label: no socket is bound.
   - It also uses `OfflineHttp` and `MemoryVault` (`tests.rs:377-395`). It asserts zero PayPal
     paths, an unagreed deal, and one wallet refusal of the agent's `accept_offer` on the ask-me
@@ -143,7 +143,7 @@ the main window already read.**
 **Verdict: no secret, token, PayPal credential, private key or third-party personal data. Three
 of the 54 files carry absolute paths that name a second OS user of the owner (G-1).**
 
-- **Absolute paths (G-1).** `0c4894d` ("snapshot scan-sweep state before retiring local
+- **Absolute paths (G-1).** `714a9a6` ("snapshot scan-sweep state before retiring local
   checkout") adds three briefs written on the other machine:
   - `builder-brief.md:3`, `critic-brief.md:3` and `scout-brief.md:3` name that checkout's repo
     root.
@@ -182,8 +182,8 @@ of the 54 files carry absolute paths that name a second OS user of the owner (G-
 ### G-1 (Low, operator): a second OS user's paths are tracked in three challenge briefs
 
 - **Where:** `.claude/scan-sweep/challenge-2026-10-15/builder-brief.md:3`, `critic-brief.md:3`,
-  `scout-brief.md:3` and `:27`, all added by `0c4894d`. The local `origin/main` ref contains
-  `0c4894d`, so this was pushed before the scan. That was not checked over the network.
+  `scout-brief.md:3` and `:27`, all added by `714a9a6`. The local `origin/main` ref contains
+  `714a9a6`, so this was pushed before the scan. That was not checked over the network.
 - **Why it matters:** each path shows an OS user name and a directory layout of the owner's other
   machine. Under P-3 this is the owner's own identity, so it is not a blocker. It does widen D-1,
   and these paths are not regenerated by any tool, unlike `context-map.json`.
@@ -215,14 +215,14 @@ them.
 
 ## Carried forward from 2026-10-23
 
-None of the files named by E-1 to E-11 changed in the range (`git diff --quiet 24f7284..HEAD`
+None of the files named by E-1 to E-11 changed in the range (`git diff --quiet bf87d2b..HEAD`
 over `crates/table-runtime/src/scheduler.rs`, `crates/table-mcp/src/lib.rs`,
 `crates/table-paypal/src/client.rs`, `crates/table-app`, `apps/desktop/src-tauri`,
 `apps/desktop/client/vite.config.ts`, `src/lib/mount.tsx`, `scripts/dev/tauri-dev-test.mjs`,
 `deny.toml`, `context-map.json`, `.personas`, `.claude/lens-scan`, `.claude/contest`,
 `docs/build/rebuild`). Line numbers are as in the 10-23 report.
 
-| ID | Severity | Status at `3f14c9e` |
+| ID | Severity | Status at `ddb8bbc` |
 |---|---|---|
 | E-1 | Medium | **Open.** `scheduler.rs:28` still reads `app(self.pipeline.wallet.ledger.list_deals())?` ahead of the deadline loop. Not a blocker. |
 | E-2 | Low (operator) | **Open, widened.** The 38 range commits all use the owner's first address, and the local `origin/main` ref says the whole range is pushed. G-2 adds the reports that restate the addresses. |
@@ -240,13 +240,13 @@ The 10-23 "Known, not re-reported" list stands as written:
 - D-5, D-6 and D-7 are unchanged, and D-7's credential-custody backlog is still open.
 - F-2 to F-5 are unchanged.
 - The test-only `A21AAF...` constant at `crates/table-runtime/src/house_tests.rs:964` (added in
-  `d7ec3d1`, before the range) is a redaction-test dummy and is not a credential.
+  `065ca59`, before the range) is a redaction-test dummy and is not a credential.
 
 ## Verification
 
-- **Range:** `git rev-parse HEAD main origin/main` all give `3f14c9e`, and `git log 24f7284..main`
+- **Range:** `git rev-parse HEAD main origin/main` all give `ddb8bbc`, and `git log bf87d2b..main`
   lists 38 commits.
-- **Binaries and identities:** `git log --numstat 24f7284..main` has no binary (`-`) row. The
+- **Binaries and identities:** `git log --numstat bf87d2b..main` has no binary (`-`) row. The
   identity check gives one author and committer for all 38 commits.
 - **Code:** the eight code commits were read with `git show <sha>`. `standingFacts`, `askingDrop`
   and `actingRun` were traced to their callers, and `deal_transcript` and `agent_runs` to their

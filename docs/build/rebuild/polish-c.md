@@ -76,7 +76,7 @@ B ships in two weights: the full mark with the bezel (64 px up) and a small mast
   errors; `vitest run src/shared src/design src/lib/contrast.test.ts src/windows/tumbler
   src/windows/approval` 31 files / 383 tests passed; full `vitest run` 144 files / 1496 tests
   passed; `pnpm build` ok (favicons emitted as `dist/assets/favicon-*.{svg,ico}`).
-- `git diff --stat 859fa04 -- crates bindings` empty; `apps/desktop/src-tauri` changes are only
+- `git diff --stat c4bbe5b -- crates bindings` empty; `apps/desktop/src-tauri` changes are only
   `icons/*` (one modified, 15 added).
 
 ## Open questions / unfinished

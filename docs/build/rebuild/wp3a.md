@@ -160,7 +160,7 @@ guard per area (no other vendor or engine, no raw enum, no deal label, no "manda
 Helper: `console/areas/tables/wordsOf.ts` (test-only). The old pages had no markup-coupled tests.
 
 Gates (final run, whole worktree with the other builders' work in it): `pnpm typecheck` clean;
-`pnpm exec vitest run`: 133 files, 1396 tests, all passed. `git diff --stat 859fa04 -- crates
+`pnpm exec vitest run`: 133 files, 1396 tests, all passed. `git diff --stat c4bbe5b -- crates
 bindings apps/desktop/src-tauri` empty. (A mid-run of the shared console tests once failed on another
 area's `TodayMeters` while it was being edited; the final run is green.)
 

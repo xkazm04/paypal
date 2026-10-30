@@ -1,7 +1,7 @@
 # WP3b - Book, Shield, Rescue as console layers (notes for the Director)
 
 Scope: `apps/desktop/client/src/**` only. No Rust, `bindings/`, `crates/`, `src-tauri/`, authority,
-capability or mock change (`git diff --stat 859fa04 -- crates bindings apps/desktop/src-tauri` is
+capability or mock change (`git diff --stat c4bbe5b -- crates bindings apps/desktop/src-tauri` is
 empty). No dependency added. Main still reaches money only through `approval_open` (guard test green).
 
 ## 1. What was built
@@ -148,7 +148,7 @@ recovered = wallet total). Kept unchanged: every `modules/{book,shield,rescue}/*
 ## 7. Gates
 `pnpm typecheck` clean. `pnpm exec vitest run` (full, once): **136 files, 1421 tests, all passed**.
 Area re-run after the last change: 7 files / 66 tests passed (my areas + scale smoke + guard + words).
-Rust/bindings diff vs 859fa04 empty.
+Rust/bindings diff vs c4bbe5b empty.
 
 ## 8. Screenshots (scratchpad `wp3b-shots/`, all read)
 Each summary small/large, dark/light, 1280x800 and 1920x1080; Book ledger (large, small, picked row,

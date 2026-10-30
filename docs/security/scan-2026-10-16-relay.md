@@ -1,8 +1,8 @@
 # Security scan - The Table - relay path - 2026-10-16
 
-A focused scan of the relay path that `096a689` changed: the 72 h recovery window and the decaying
-poll cadence for settled deals (DECISIONS section 46). Base: `096a689`, branch
-`autopilot/codebase-security-scan-bd960234`. **One finding was fixed (R-1, commit `fb954eb`, with its
+A focused scan of the relay path that `0e63653` changed: the 72 h recovery window and the decaying
+poll cadence for settled deals (DECISIONS section 46). Base: `0e63653`, branch
+`autopilot/codebase-security-scan-bd960234`. **One finding was fixed (R-1, commit `c79d41b`, with its
 test). Every other item is report only.** No live PayPal call was made and no money was used. The only
 network use was the RustSec advisory fetch (`cargo deny`).
 
@@ -36,10 +36,10 @@ public HOUSE + relay service on Render.
 
 | ID | Severity | Category | File:line | Status | Action |
 |---|---|---|---|---|---|
-| R-1 | Medium | liveness of recovery / unfair scheduling | `crates/table-ledger/src/relay.rs:44-64` (was `:43-60`); `crates/table-runtime/src/relay.rs:51-59` | **fixed** `fb954eb` | `due()` only filters; the runtime marks the routes it actually sent with `polled()` after the cut to four |
+| R-1 | Medium | liveness of recovery / unfair scheduling | `crates/table-ledger/src/relay.rs:44-64` (was `:43-60`); `crates/table-runtime/src/relay.rs:51-59` | **fixed** `c79d41b` | `due()` only filters; the runtime marks the routes it actually sent with `polled()` after the cut to four |
 | R-2 | Low | clock goes backwards / future-skewed settlement | `crates/table-ledger/src/relay.rs:53`, `:219-220` | **fixed** (wave-6 lane `relay-clock-skew-safe`) | A `last` later than `now` counts as due; a settlement time later than `now` is clamped to `now` |
 | R-3 | Low | clock goes backwards (reset rate limit) | `crates/table-ledger/src/relay.rs:280` | open | Treat `now < changed_at` as "window elapsed", or keep the refusal and document it |
-| R-4 | Low | local work grows with lifetime deals | `crates/table-ledger/src/relay.rs:185-236`, `:137-156` | **fixed** `b100e33`, `d2bbcfb` | `bind_relay` counts live routes in one query joined on `deals.state`; `relay_work_at` reads routes with their state and every owed envelope in two queries, not a deal read per route |
+| R-4 | Low | local work grows with lifetime deals | `crates/table-ledger/src/relay.rs:185-236`, `:137-156` | **fixed** `04c4bda`, `93dbc40` | `bind_relay` counts live routes in one query joined on `deals.state`; `relay_work_at` reads routes with their state and every owed envelope in two queries, not a deal read per route |
 | R-5 | Low | HOUSE does not use the cadence (outside scope) | `services/house-seller/src/hosted.rs:639-650` | open | Hold a `SettledPollClock` in the HOUSE `Seller`; call `relay_work_at(now)`, `due`, `polled` |
 | R-6 | Info | data persisted (relay address) | `crates/table-ledger/src/relay.rs:161-170` | open | None needed; note that the mailbox is a read/post capability on the relay, not a money credential |
 | R-7 | Info | arithmetic hygiene | `crates/table-runtime/src/service.rs:885` | **fixed** (wave 10, `default_purchase_deadline`) | `saturating_add` for the purchase deadline |
@@ -47,7 +47,7 @@ public HOUSE + relay service on Render.
 
 ## 1. Risky code patterns on the relay
 
-**Method.** I read the three files in full, plus the `096a689` diff and the code they call on the relay
+**Method.** I read the three files in full, plus the `0e63653` diff and the code they call on the relay
 path:
 - `table_relay::Batch::validate` (`crates/table-relay/src/lib.rs:61-75`);
 - `table_app::drain_inbox` (`crates/table-app/src/relay.rs:70-108`);
@@ -106,7 +106,7 @@ what happens when the clock jumps.
   A refused batch skips the acknowledgements entirely (`crates/table-runtime/src/relay.rs:103-105`).
   A duplicate costs nothing (see above).
 
-### R-1 (Medium, fixed in `fb954eb`) - a settled route cut from a pass waited as if it had been polled
+### R-1 (Medium, fixed in `c79d41b`) - a settled route cut from a pass waited as if it had been polled
 
 - **Where:** `SettledPollClock::due` (`crates/table-ledger/src/relay.rs`, previously `:43-60`), called
   from `start_relay` (`crates/table-runtime/src/relay.rs:51-57`).
@@ -306,7 +306,7 @@ which is the scan's second option (keep the refusal).
 
 ## Closed 2026-10-21 (belay waves 8 to 10)
 
-R-4 was fixed in two steps: `b100e33` (the 64-route cap in `bind_relay`) and `d2bbcfb` (`relay_work_at`).
+R-4 was fixed in two steps: `04c4bda` (the 64-route cap in `bind_relay`) and `93dbc40` (`relay_work_at`).
 Both join `relay_routes` to `deals`, whose foreign key (`migrations/0005_relay.sql:3`, enforced by
 `PRAGMA foreign_keys=ON`) means no route lacks a deal row. The existing cap, slot-release and relay
 tests pass unchanged. No timing was measured.

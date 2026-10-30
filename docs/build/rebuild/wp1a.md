@@ -2,7 +2,7 @@
 
 Scope: `apps/desktop/client/src/design/**`, `src/shared/ui/**`, new `src/shared/brand/**`, fonts under
 `src/assets/fonts/**`. No Rust, bindings, authority, capability, `lib/*` or `windows/*` change
-(`git diff --stat 859fa04 -- crates bindings apps/desktop/src-tauri` is empty). `lib/mount.tsx` was
+(`git diff --stat c4bbe5b -- crates bindings apps/desktop/src-tauri` is empty). `lib/mount.tsx` was
 not touched by WP1a: fonts load through `design/base.css` (`@import './fonts.css'`), which every
 entry already imports (main, approval, tumbler and the director preview).
 

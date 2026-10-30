@@ -44,9 +44,9 @@ independently.
 
 | Item | What changes for Maya and the judge | Sources | Status |
 |---|---|---|---|
-| C1 Name the run that acted | The deal's Details and Instructions name the live run, else the newest. Today they name the deal's oldest: `agent_runs` lists finished runs oldest first, and the practice agent starts a run per peer message. This was the open condition of DECISIONS.md section 21 for ungating the native engines. | P02, P12, P20 (3 seats) | **Built** 7c6ae49 |
-| C2 Show how far their price came down | Two new facts on a buyer haggle: "Dan's price is down: $60.00 from $389.00 (15.42%)" and "Room under your most: $11.00". Both come from signed, checked messages only. It compares their listing with their latest price (never your own bid) and makes no "saved" claim. | P11, P01, P16, P17 (3 seats) | **Built** 872b6a6 |
-| C3 Pin the demo haggle to the engine | A golden runtime test plays the demo's limits through the real practice agent and the wallet's MCP door, one run per counter from Dan. The limits: most $340 over six offers, ask-me above $250, market p25 $300 and median $330. It asserts the signed $300 / $306 / $312 / $318 / $324, one wallet refusal of the agent's ACCEPT of $329 on the ask-me rule, a gate on that rule, an unagreed deal and zero PayPal calls. | P08, P16, P17, P19 (3 seats) | **Built** 614ed59 |
+| C1 Name the run that acted | The deal's Details and Instructions name the live run, else the newest. Today they name the deal's oldest: `agent_runs` lists finished runs oldest first, and the practice agent starts a run per peer message. This was the open condition of DECISIONS.md section 21 for ungating the native engines. | P02, P12, P20 (3 seats) | **Built** f267e00 |
+| C2 Show how far their price came down | Two new facts on a buyer haggle: "Dan's price is down: $60.00 from $389.00 (15.42%)" and "Room under your most: $11.00". Both come from signed, checked messages only. It compares their listing with their latest price (never your own bid) and makes no "saved" claim. | P11, P01, P16, P17 (3 seats) | **Built** 4a126f0 |
+| C3 Pin the demo haggle to the engine | A golden runtime test plays the demo's limits through the real practice agent and the wallet's MCP door, one run per counter from Dan. The limits: most $340 over six offers, ask-me above $250, market p25 $300 and median $330. It asserts the signed $300 / $306 / $312 / $318 / $324, one wallet refusal of the agent's ACCEPT of $329 on the ask-me rule, a gate on that rule, an unagreed deal and zero PayPal calls. | P08, P16, P17, P19 (3 seats) | **Built** 4bb129a |
 | C4 Re-cut the film and fixture from C3 | Maya's prices, Dan's counters and the captions in D-0193, `director/beats.ts` and `film/` all come from C3. A test fails on any caption amount the engine doesn't sign. | P08, P16, P17 | Waits on the operator |
 | C5 Hear a seller above the limit | Today a buyer table can't open on a listing above its ceiling, and a seller's counter above it is dropped at intake, so the haggle dies. C5 keeps such messages signed and greyed: they can't be accepted, but the agent answers them. | P06, P15, P19 (3 seats) | Waits on the operator |
 | C6 Ask Maya when the seller accepts above her line | A seller's ACCEPT of her agent's offer above the ask-me line raises the same gold decision as a counter does. Today nobody can countersign it, and it lapses. | P07, P15, P18 (2 seats) | Waits on the operator |
@@ -81,16 +81,16 @@ independently.
 All three are display or test changes. None adds or changes an IPC command, touches the money path
 or calls PayPal.
 
-- **7c6ae49** `fix(deal)`: `actingRun` in `apps/desktop/client/src/windows/main/deal/model.ts`, used
+- **f267e00** `fix(deal)`: `actingRun` in `apps/desktop/client/src/windows/main/deal/model.ts`, used
   by the deal page's Details and Instructions.
   - Test: `model.test.ts` "actingRun: the deal page names the run that acted". It fails under the old
     first-match rule.
-- **872b6a6** `feat(deal)`: `askingDrop` and two buyer-side facts in `standingFacts`
+- **4a126f0** `feat(deal)`: `askingDrop` and two buyer-side facts in `standingFacts`
   (`windows/main/deal/story.ts`), fed the conversation the page already reads.
   - Test: `story.test.ts` "how far their price came down". It covers D-0193, comparing their price
     and never your bid, unchecked signatures, no move, a missing listing, another currency, and the
     seller side.
-- **614ed59** `test(runtime)`:
+- **4bb129a** `test(runtime)`:
   `the_demo_haggle_is_what_the_practice_agent_signs_and_it_stops_at_the_ask_me_line` in
   `crates/table-runtime/src/policy_tests.rs`. It adds `setup_priced` in `tests.rs`.
   - Replacing the asserted prices with the film's current $290 / $305 / $314 / $321 / $327 fails

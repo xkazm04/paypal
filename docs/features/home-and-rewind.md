@@ -194,13 +194,13 @@ IPC commands (from `authority_table.rs`):
   carried `detail.clause`.
 - One tick per money operation, not one per `paypal_calls` row: order and reporting reads are not
   ticks. There is no link from a tick to a Proof drawer.
-- The Book's On hold now leaves out a payment being checked with PayPal, as Home does (85faf93; `lib/polish3.test.ts`).
+- The Book's On hold now leaves out a payment being checked with PayPal, as Home does (90ddad1; `lib/polish3.test.ts`).
   The Book's week answer tone still counts every AUTHORIZED deal (DECISIONS section 34).
 - The Rewind's bead tip reads a payment being checked with PayPal (a dashed bead and the check's pill and Money line),
-  not on hold or nothing moved (0705f3f, 448fda5; `rewindCheckTip`).
+  not on hold or nothing moved (220da92, 6d06cfe; `rewindCheckTip`).
 - An ending whose own record could not be read (the read failed or timed out, or the week held more than 500
   endings) reads 'Not available yet' on the away card, the Rewind narration and the bead tip, never 'No money
-  moved' (deb1002; DECISIONS.md section 36).
+  moved' (a65c36d; DECISIONS.md section 36).
 - Open, from wallet-deal-dashboard full r2 (waiting on the operator's Approval; DECISIONS.md section 36):
   economics-1, `deal_display` is read again on each refetch for every CAPTURED and RECEIPTED deal, because
   `record_resolution` does not move `deals.updated_at`; economics-2, a dropped `deal_display` batch keeps reading

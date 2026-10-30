@@ -1,16 +1,16 @@
 # Security scan - The Table - film pilot and director capture mode - 2026-10-18
 
 A publication-blocker pass for milestone 5 ("public repository with no publication blockers") over
-the commits `f73ffba..1769b70` (10 commits, 29 files, +2707/-231): the demo-film pilot in `film/`,
+the commits `3dd1174..31ed7b4` (10 commits, 29 files, +2707/-231): the demo-film pilot in `film/`,
 the director's film capture mode (`?take=film`, `scripts/film-capture.mjs`, `scripts/lib/rig.mjs`),
 the registry and skill bookkeeping in `.ai/` and `.claude/spark/`, and the README section on engines
-and relays. Base: `1769b70`, branch `autopilot/codebase-security-scan-aa8f8053`. **No open
+and relays. Base: `31ed7b4`, branch `autopilot/codebase-security-scan-aa8f8053`. **No open
 publication blocker was found. One Low finding was fixed inside `film/` (F-1). Every other item is
 report only.** No network call was made, no live PayPal call was made and no money was used.
 
-Range scanned: `git log f73ffba..1769b70` = `e42e6c9`, `4feec57`, `c05d677`, `2286833`, `25030ff`,
-`f4c8e5b`, `0906def` (director film capture mode), `07eaaa0` (the haggle film), `04cf770` (spark and
-demo-film skills), `4f0d12c` (registry lead), `1769b70` (README).
+Range scanned: `git log 3dd1174..31ed7b4` = `0444ee4`, `1f73fe4`, `d8242f7`, `2286833`, `c8f37e1`,
+`6fb0492`, `6e34b9a` (director film capture mode), `1ef2c0f` (the haggle film), `f7ea792` (spark and
+demo-film skills), `fbcb50b` (registry lead), `31ed7b4` (README).
 
 Scope (read in full):
 - `film/README.md`, `film/film.json`, `film/.gitignore`, `film/local/fonts.ts`, `film/local/index.tsx`,
@@ -23,7 +23,7 @@ Scope (read in full):
 - `.gitignore` and `film/.gitignore` (what generated media can reach git), `.claude/spark/config.md`,
   `.ai/manifest.yaml`, `.ai/registry-leads.jsonl`, the `.ai/` conform JSON (grepped), `README.md`
   diff.
-- The full patch of every commit in the range (`git log -p f73ffba..1769b70`), grepped for keys,
+- The full patch of every commit in the range (`git log -p 3dd1174..31ed7b4`), grepped for keys,
   tokens, emails, absolute paths and URLs, and `git log --numstat` for binary files.
 
 Severity is judged for publishing this repository: a hackathon desktop wallet against the PayPal
@@ -34,7 +34,7 @@ history (a live secret, someone's personal data, an asset without a redistributi
 
 | ID | Severity | Category | File:line | Status | Action |
 |---|---|---|---|---|---|
-| F-1 | Low | asset licence, attribution | `film/README.md:13`; `film/local/fonts.ts:6-10`; `film/film.json:10`, `:31`, `:47`, `:49` | closed (`15ca84d`) | The film named no licence for the fonts, logo, system font and generated audio a render draws on; the README now has a third-party assets table |
+| F-1 | Low | asset licence, attribution | `film/README.md:13`; `film/local/fonts.ts:6-10`; `film/film.json:10`, `:31`, `:47`, `:49` | closed (`345690d`) | The film named no licence for the fonts, logo, system font and generated audio a render draws on; the README now has a third-party assets table |
 | F-2 | Low | asset licence, generated media | `film/film.json:8-15`, `:21-34`; `film/README.md:28` | open (operator) | Narration and music are ElevenLabs output (gitignored, never tracked). Publishing a **render** needs the ElevenLabs account's commercial terms; not a repository blocker |
 | F-3 | Low | file writes outside the repo | `apps/desktop/client/scripts/film-capture.mjs:135`, `:146-148`, `:154-155`, `:211`, `:216`, `:234` | open | The capture writes and deletes under `<film-dir>/take/`, and `<film-dir>` is any path given on the command line |
 | F-4 | Info | network port | `film-capture.mjs:89-117`; `apps/desktop/client/vite.config.ts:20` | open | Starts vite on `localhost:1531` (`--strictPort`, loopback, stopped at exit unless `--keep-server`) |
@@ -70,7 +70,7 @@ and whether the commit email is meant to be public). Neither is a secret or a th
   is the director on the browser mock under a permanent "Browser preview with sample data" banner
   (`film-capture.mjs:202`), and the narration is a synthetic voice. Neither shows a real identity.
 - **Commit metadata (F-7).** Author and committer of all 10 commits are `xkazm04 <kazdan@seznam.cz>`,
-  the same identity as the rest of the repo's history since `c855696`. That is the operator's own
+  the same identity as the rest of the repo's history since `1fb97f6`. That is the operator's own
   git identity, not a third party's, so it is not counted as a blocker. Making it non-public needs a
   history rewrite or a noreply identity going forward, which only the operator can choose.
 
@@ -80,7 +80,7 @@ and whether the commit email is meant to be public). Neither is a secret or a th
 
 | Asset | Tracked? | Licence | Evidence |
 |---|---|---|---|
-| Archivo, latin and latin-ext woff2 | yes, `apps/desktop/client/src/assets/fonts/archivo/` (since `3382e59`, before this range) | SIL OFL 1.1, redistribution allowed with the licence | `archivo/OFL.txt` beside the files |
+| Archivo, latin and latin-ext woff2 | yes, `apps/desktop/client/src/assets/fonts/archivo/` (since `1a2ffeb`, before this range) | SIL OFL 1.1, redistribution allowed with the licence | `archivo/OFL.txt` beside the files |
 | Sofia Sans, latin and latin-ext woff2 | yes, `apps/desktop/client/src/assets/fonts/sofia-sans/` | SIL OFL 1.1 | `sofia-sans/OFL.txt` beside the files |
 | Cascadia Mono | no: a font family name in `film/film.json:47`, used only if installed where the film renders | not redistributed | nothing to license here |
 | Logo | yes, `branding/logo.svg` | the repo's own artwork, Apache-2.0 (`LICENSE`) | `branding/README.md:6` (hand-built paths, no fonts) |
@@ -130,7 +130,7 @@ and cannot run in a release build.**
 `film/` had no attribution for the OFL fonts that `local/fonts.ts` bundles into every render, the
 system font `film.json` names, the logo, or the generated narration and music. The fonts' licences
 were tracked beside the woff2 files, so redistribution was allowed. What was missing was the
-statement from `film/` itself. *Fix:* `15ca84d` adds a "Third-party assets" table to
+statement from `film/` itself. *Fix:* `345690d` adds a "Third-party assets" table to
 `film/README.md`, with each asset's path and licence, and a rule that a committed render or clip
 needs its own line there first.
 
@@ -186,7 +186,7 @@ See question 1. *Action:* operator decides. A commit cannot change it.
 
 ## Verification
 
-- `git log -p f73ffba..1769b70` grepped for secrets, emails, absolute paths and URLs.
+- `git log -p 3dd1174..31ed7b4` grepped for secrets, emails, absolute paths and URLs.
   `git log --numstat` found no binary files. `git log --all -- film/out film/take film/audio` is
   empty. `git check-ignore` confirms `film/{audio,take,out}/` and `film/.env` are ignored.
 - Gates at the end of this branch: `cargo check --workspace --exclude table-desktop` and

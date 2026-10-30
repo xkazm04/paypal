@@ -1,6 +1,6 @@
 # Scout brief - scan-sweep --challenge, run challenge-2026-10-15
 
-You are a READ-ONLY scout. Repo: C:\Users\mkdol\dolla\paypal (git, branch main, base sha b563874).
+You are a READ-ONLY scout. Repo: C:\Users\mkdol\dolla\paypal (git, branch main, base sha e19a83d).
 Do NOT modify, create or delete any file except your own card file (named below). No git commands that write. No cargo/pnpm builds (a baseline gate is running; a build would fight it for the target lock). Reading, grep and `git log`/`git show`/`git blame` are fine.
 
 ## Your job
@@ -21,7 +21,7 @@ Consider many ideas; return the best two, and name the runner-up of each slot in
 ## Never re-propose
 Read FIRST: `docs/concepts/moonshot-backlog.md` (§1 themes, §1a owner decisions, §4 all cards) and the headings of `docs/build/STATUS.md` (much of the moonshot deck is ALREADY BUILT - see the T1..T15 sections; read the section for anything near your context). A card that restates a built item or a moonshot card title is void. You MAY adopt a moonshot item that is NOT built (e.g. the post-submission wave-4 themes T13/T16/T17/T18/T19, or a "Not chosen now" approach) - say so explicitly and cite it, and note the owner scheduled it post-submission (submission deadline 2026-11-12). Also read `docs/` DECISIONS (find it with glob `**/DECISIONS*.md`) for owner rules that bind your area.
 
-Note: a large client "console rebuild" landed 2026-10-14/15 (commits 2bad28a, 0fe967c, 017b13f, 6e40818). Judge the tree AS IT IS NOW; old docs may describe removed UI.
+Note: a large client "console rebuild" landed 2026-10-14/15 (commits 8f03961, 3857b00, 84cfa96, 662824f). Judge the tree AS IT IS NOW; old docs may describe removed UI.
 
 ## Registry (optional, brief)
 `.ai/registry-map.json` maps contexts to governing registry subjects (registry checkout at C:\Users\mkdol\dolla\ai-registry). If your context has a subject, skim its golden path; name a technique in the card when one applies. Do not spend more than a few reads here.

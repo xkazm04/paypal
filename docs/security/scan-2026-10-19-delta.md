@@ -1,18 +1,18 @@
 # Security scan - The Table - publication delta since the film pilot - 2026-10-19
 
-A publication-blocker pass over the commits `e0105056..85db8d5` (34 commits, 67 files,
+A publication-blocker pass over the commits `cfb4ecf8..c7f6477` (34 commits, 67 files,
 +1718/-121). The range holds: the J-3, J-5 and J-6 fixes from the join scan (signed LISTING
 quantity, `NotFound` for absent ledger rows, a length cap on pasted listing codes), the Book's
 "who decided" key, the Scripted-engine refusal wording, the "Check the price now" screen, mock
 fixture and hero-film corrections, client render tests, the `rust-toolchain.toml` components line,
 the README CI section, and registry and scan-sweep bookkeeping in `.ai/` and `.claude/`. Base
-`85db8d5`, branch `autopilot/codebase-security-scan-7d269ff2`. **No open publication blocker was
+`c7f6477`, branch `autopilot/codebase-security-scan-7d269ff2`. **No open publication blocker was
 found.** Four Low and three Info findings are reported below. Nothing was fixed: this run is
 report-only. No network call was made, no live PayPal call was made and no money was used.
 
-Range scanned: `git log e0105056..85db8d5`. That is `2275be8` to `85db8d5`, including the merge
-`9cc2e37` (parents `fef1459`, `b679a12`). Its second-parent commits `e59c4cb`, `54e24cf`, `6fc8a87`
-and `a8246f0` are in the list and were read like the others.
+Range scanned: `git log cfb4ecf8..c7f6477`. That is `4c0daf0` to `c7f6477`, including the merge
+`2367926` (parents `ec0d4c7`, `8c1405a`). Its second-parent commits `cdbae1b`, `28f7f09`, `32de6fb`
+and `8a39492` are in the list and were read like the others.
 
 Scope (read in full):
 - Rust: the whole range diff of `crates/table-ledger/src/{book.rs,repositories.rs,tests.rs}`,
@@ -31,7 +31,7 @@ Scope (read in full):
   `.github/workflows/ci.yml:53-58` for comparison.
 - Client: `windows/approval/{PriceCheck.tsx,listingCode.ts}`, `lib/words.ts`, and the
   `film-capture.mjs` diff (child processes only).
-- The full patch (`git log -p e0105056..HEAD`, 3577 lines) and the cumulative diff, grepped for
+- The full patch (`git log -p cfb4ecf8..HEAD`, 3577 lines) and the cumulative diff, grepped for
   keys, tokens, JWT/AWS/GitHub/Slack/Anthropic key shapes, private-key blocks, `client_secret`,
   e-mail addresses, URLs, drive-letter and `/Users/` or `/home/` paths, and the owner's user and
   mail names. `git log --numstat` was checked for binary files. The **whole tracked tree**
@@ -48,13 +48,13 @@ precedent set by P-3 in `scan-2026-10-07.md` and kept here.
 
 | ID | Severity | Category | File:line (or commit) | Blocks publication | Recommended fix |
 |---|---|---|---|---|---|
-| D-1 | Low | personal data (local paths) | `.personas/skill-registry.json:5`, `:11`, `:22`, `:28`, `:34`, `:40`, `:46`, `:52`, `:58`, `:64`, `:70`, `:76` (`08818ba`); `.claude/lens-scan/config.md:3` (`ed800c5`); `docs/build/rebuild/wp4c.md:66` (`017b13f`); P-3 still open at `.claude/contest/config.md:2`, `:15` | no (operator) | Replace with `<repo>`/`<home>` placeholders or untrack and ignore `.personas/`, `.claude/lens-scan/`, `.claude/contest/`; reword `wp4c.md:66` to `PLAYWRIGHT=<python site-packages>/playwright/driver/package/index.mjs` |
-| D-2 | Low | product rule, user-facing string | `crates/table-runtime/src/engines.rs:193` (`0f1455c`); shown by `apps/desktop/client/src/shared/honesty.tsx:84`; copied to `docs/features/agents-and-engines.md:190` | no | Name the engines as `claude-code` or `codex-cli` (AGENTS.md), or say "need an engine you have installed" |
-| D-3 | Low | fail-open compatibility path | `crates/table-proto/src/envelope.rs:155-160`; `crates/table-app/src/agent.rs:294` (`54e24cf`) | no | Before the first public release, make `Listing.qty` required (drop `Option` and `serde(default)`), or refuse a `None` quantity at `agent.rs:294`; no released build ever signed a qty-less LISTING. **Fixed** 2026-10-21 (`636449e`, confirmed by the operator): `agent.rs:294` refuses a `None` quantity |
+| D-1 | Low | personal data (local paths) | `.personas/skill-registry.json:5`, `:11`, `:22`, `:28`, `:34`, `:40`, `:46`, `:52`, `:58`, `:64`, `:70`, `:76` (`5dbb837`); `.claude/lens-scan/config.md:3` (`5c3a109`); `docs/build/rebuild/wp4c.md:66` (`84cfa96`); P-3 still open at `.claude/contest/config.md:2`, `:15` | no (operator) | Replace with `<repo>`/`<home>` placeholders or untrack and ignore `.personas/`, `.claude/lens-scan/`, `.claude/contest/`; reword `wp4c.md:66` to `PLAYWRIGHT=<python site-packages>/playwright/driver/package/index.mjs` |
+| D-2 | Low | product rule, user-facing string | `crates/table-runtime/src/engines.rs:193` (`382a83c`); shown by `apps/desktop/client/src/shared/honesty.tsx:84`; copied to `docs/features/agents-and-engines.md:190` | no | Name the engines as `claude-code` or `codex-cli` (AGENTS.md), or say "need an engine you have installed" |
+| D-3 | Low | fail-open compatibility path | `crates/table-proto/src/envelope.rs:155-160`; `crates/table-app/src/agent.rs:294` (`28f7f09`) | no | Before the first public release, make `Listing.qty` required (drop `Option` and `serde(default)`), or refuse a `None` quantity at `agent.rs:294`; no released build ever signed a qty-less LISTING. **Fixed** 2026-10-21 (`6ac02ad`, confirmed by the operator): `agent.rs:294` refuses a `None` quantity |
 | D-4 | Low | personal data (commit metadata) | all 34 commits in the range, author and committer `xkazm04 <kazdan@seznam.cz>` | no (operator) | Same as P-2/F-7: a GitHub `noreply` identity going forward; history needs a rewrite before the first push |
-| D-5 | Info | error classification | `crates/table-ledger/src/repositories.rs:896-916`, `:1090-1091`, `:1098-1107` (`a8246f0`) | no | None: every caller still refuses (see question 2) |
-| D-6 | Info | toolchain | `rust-toolchain.toml:4` (`485cc65`) | no | Accept. It adds the official `rustfmt` and `clippy` components and keeps channel `1.97` |
-| D-7 | Info | registry evidence names credential gaps | `.ai/conform-runs/91b3bc0b-b8c1-47d0-8b57-cc41ea428da6.json`, `.ai/conform-detail.json` (`5f5996b`) | no | None for publication: they cite `crates/table-runtime/src/configuration.rs:238-245`, `:516`, `crates/table-market/src/lib.rs:71`, `:101` as descriptions, with no value |
+| D-5 | Info | error classification | `crates/table-ledger/src/repositories.rs:896-916`, `:1090-1091`, `:1098-1107` (`8a39492`) | no | None: every caller still refuses (see question 2) |
+| D-6 | Info | toolchain | `rust-toolchain.toml:4` (`21f7367`) | no | Accept. It adds the official `rustfmt` and `clippy` components and keeps channel `1.97` |
+| D-7 | Info | registry evidence names credential gaps | `.ai/conform-runs/91b3bc0b-b8c1-47d0-8b57-cc41ea428da6.json`, `.ai/conform-detail.json` (`71ec96d`) | no | None for publication: they cite `crates/table-runtime/src/configuration.rs:238-245`, `:516`, `crates/table-market/src/lib.rs:71`, `:101` as descriptions, with no value |
 
 **Open publication blockers: 0.** D-1 and D-4 need an operator decision. Both concern the owner's
 own identity (OS user name, commit e-mail), not a secret. D-1 has one line that names a second OS
@@ -101,7 +101,7 @@ local paths (D-1, Low, not blocking).**
   `docs/security/scan-2026-10-07.md`, whose hit is a list of search patterns. The P-3 file
   (`.claude/contest/config.md`) was reported on 2026-10-07. `.personas/skill-registry.json`,
   `.claude/lens-scan/config.md` and `docs/build/rebuild/wp4c.md` came in between the 2026-10-07
-  full scan and this range (`08818ba`, `ed800c5`, `017b13f`, all ancestors of `e0105056`). The
+  full scan and this range (`5dbb837`, `5c3a109`, `84cfa96`, all ancestors of `cfb4ecf8`). The
   delta scans did not cover them. `skill-registry.json` also lists the owner's other local
   project names (`systedo-case`, `kp`, `firetv`, `ascent`, ...).
 - **Commit metadata (D-4).** All 34 commits have author and committer
@@ -152,13 +152,13 @@ user-facing string names vendor products (D-2, Low).**
     not public and no build was released, so no legitimate pre-field LISTING exists to stay
     compatible with. *Fix:* make `qty` required now, or refuse `None` at `agent.rs:294`. Both are
     changes in `table-proto` or `table-app`, outside this task's paths.
-  - **Book `decided_by` key (`6fc8a87`).** `DECIDED_BY` (`book.rs:38`) is a constant SQL fragment
+  - **Book `decided_by` key (`32de6fb`).** `DECIDED_BY` (`book.rs:38`) is a constant SQL fragment
     with no interpolation. Filter values stay bound parameters (`book.rs:147`, `:156`,
     `params_from_iter` at `:224`). The Book is read-only and drops `at`, `deadline` and
     `mandate_hash` from the grouped key. That shows less, not more. The audit log is untouched:
     nothing in the range writes to `audit_log` or adds an UPDATE/DELETE path.
 - **Vendor names on screen (D-2).** `engines.rs:193` returns "...need Claude Code or Codex CLI." as
-  an `Unavailable` message. The commit message (`0f1455c`) says this text "can reach the UI".
+  an `Unavailable` message. The commit message (`382a83c`) says this text "can reach the UI".
   `WalletNotice` shows `error.message` when the caller passes no plain words (`honesty.tsx:84`).
   AGENTS.md: "Engines are referred to as `claude-code` and `codex-cli`; never put a vendor product
   name in user-facing strings". This is not a security or money issue, but it breaks a stated
@@ -172,11 +172,11 @@ user-facing string names vendor products (D-2, Low).**
 
 **Verdict: one toolchain line, no dependency change (D-6).**
 
-- `rust-toolchain.toml:4` adds `components = ["rustfmt", "clippy"]` (`485cc65`). The channel stays
+- `rust-toolchain.toml:4` adds `components = ["rustfmt", "clippy"]` (`21f7367`). The channel stays
   `1.97` and the profile stays `minimal`. Both components come from the same rustup distribution
   as the compiler, and CI already installs exactly these (`.github/workflows/ci.yml:55-56`). The
   change adds no third-party code to the build.
-- `git diff --stat e0105056..HEAD` lists no `Cargo.toml`, `Cargo.lock`, `package.json`, lockfile,
+- `git diff --stat cfb4ecf8..HEAD` lists no `Cargo.toml`, `Cargo.lock`, `package.json`, lockfile,
   `deny.toml` or workflow file. `film-capture.mjs` adds three `execFileSync(ff, [...])` ffmpeg
   calls with argument arrays (no shell). That is the same ffmpeg found from `$FFMPEG` or `PATH`
   (F-5).
@@ -225,7 +225,7 @@ See question 3. *Action:* accept.
 
 ### D-7 (Info): conform evidence describes credential-custody gaps
 
-The `credential-vault` conform run (`5f5996b`) records registry proposals for the market API key:
+The `credential-vault` conform run (`71ec96d`) records registry proposals for the market API key:
 stored after a syntax check only, no authenticate-before-store, overwritten without validation, and
 no token lifecycle. They are descriptions of existing code with relative `file:line` references and
 no value. That the gaps are public is not a blocker. They are backlog items for `table-market` and
@@ -233,20 +233,20 @@ no value. That the gaps are public is not a blocker. They are backlog items for 
 
 ## Known, not re-reported
 
-- The previous scan's F-6 (director in the release bundle) is closed by `a65be99`, before this
+- The previous scan's F-6 (director in the release bundle) is closed by `7ddf099`, before this
   range: `vite.config.ts:32-35` builds `director.html` only under `THE_TABLE_DIRECTOR_BUILD=1`
-  (`package.json` `build:director`), and `README.md:57-58` (this range, `2275be8`) now says so.
+  (`package.json` `build:director`), and `README.md:57-58` (this range, `4c0daf0`) now says so.
 - F-2 (ElevenLabs terms for a published render), F-3 (capture writes under any film dir), F-4 and
   F-5 are unchanged by this range.
 - The scan-sweep carry for `paypal-gateway` ("token-failure drops observations",
   `.claude/scan-history/scan-sweep.jsonl`) is an open backlog item handed to Approvals, not a
   secret.
-- J-6 (`listingCode.ts`, `6f7f3d5`) caps a pasted code at 512 characters on the client. The fix is
+- J-6 (`listingCode.ts`, `1246440`) caps a pasted code at 512 characters on the client. The fix is
   closed in `scan-2026-10-17-join.md`.
 
 ## Verification
 
-- `git log -p e0105056..HEAD` and `git diff e0105056..HEAD` grepped as listed under Scope.
+- `git log -p cfb4ecf8..HEAD` and `git diff cfb4ecf8..HEAD` grepped as listed under Scope.
   `git log --format='%ae %ce'` gives one identity for all 34 commits. `git log --numstat` lists no
   binary file. `git ls-files | xargs grep` was run for absolute user paths. I read every caller of
   the four `NotFound` reads.

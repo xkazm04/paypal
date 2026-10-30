@@ -45,15 +45,15 @@ This file is the record.
 
 ## Scope
 
-Ordered by dependency. Each premise was verified in code at `ec84451`.
+Ordered by dependency. Each premise was verified in code at `66b442b`.
 
 ### Core
 
 | Item | What changes for Maya and the judge | Premise (verified) | Status |
 |---|---|---|---|
-| C1 Like with like at the accept | On a table of more than one item, the accept twin and sentence set the price per item beside the price range. Before, 2 × $300 read "Dan asks $600.00" beside "Most you'll pay $340.00", marked as covered, and "Dan offers $600.00, inside your $340.00 limit". Now it reads "Dan asks per item $300.00", "$300.00 each", "2 × $300.00 = $600.00 · their latest", and "inside your limit of $340.00 per item". One item reads as before. | `crates/table-core/src/mandate.rs:503`: "Band refers to the signed unit price, per-deal/velocity to the full total". The table sheet lets the owner list up to 1000 items (`tableDraft.ts:80`). | **Built** 677e73e |
-| C2 The ask-me rule as the wallet applies it | "Why am I being asked?" and the accept note's "What this does" said "Your rules leave this price to you, not to the agent", even at or under the ask-me limit, where the rules let the agent accept too. They now give one reason (`acceptReason`): above the limit (unchanged), "isn't above your $250.00 ask-me limit, so your rules don't require you to decide it; you can still accept it here", or "can't see your ask-me limit". The Who decides row no longer calls an offer equal to the limit, or one it can't compare, "below that". | `mandate.rs:561`: `Ask` only when `amount > threshold`. Clause 6 is required at signing (`mandate.rs:300`), so the limit is unseen only when this window can't read the rules. | **Built** dfa9acb |
-| C3 Name the checklist a decision was bound to | After a successful hold the window says: "Before it went ahead, the wallet checked again that these are the checks you saw (4 of 6 passed · 2 checked later), and recorded them with your decision". A release and the read of a lost hold get no line. Before, once the deal moved on, the fold read "Your checks before you decided · …" over the wallet's current list, even on a deal that expired with no decision. It now reads "The wallet's checks now · …", and Details titles that section "What your wallet checks now". | `crates/table-runtime/src/service.rs` `decide`: recomputes the checklist and refuses a different hash before the ticket, then `record_decision` appends `owner.decision` with that hash. Void skips both. | **Built** 1dee2c5 |
+| C1 Like with like at the accept | On a table of more than one item, the accept twin and sentence set the price per item beside the price range. Before, 2 × $300 read "Dan asks $600.00" beside "Most you'll pay $340.00", marked as covered, and "Dan offers $600.00, inside your $340.00 limit". Now it reads "Dan asks per item $300.00", "$300.00 each", "2 × $300.00 = $600.00 · their latest", and "inside your limit of $340.00 per item". One item reads as before. | `crates/table-core/src/mandate.rs:503`: "Band refers to the signed unit price, per-deal/velocity to the full total". The table sheet lets the owner list up to 1000 items (`tableDraft.ts:80`). | **Built** a6ffbfd |
+| C2 The ask-me rule as the wallet applies it | "Why am I being asked?" and the accept note's "What this does" said "Your rules leave this price to you, not to the agent", even at or under the ask-me limit, where the rules let the agent accept too. They now give one reason (`acceptReason`): above the limit (unchanged), "isn't above your $250.00 ask-me limit, so your rules don't require you to decide it; you can still accept it here", or "can't see your ask-me limit". The Who decides row no longer calls an offer equal to the limit, or one it can't compare, "below that". | `mandate.rs:561`: `Ask` only when `amount > threshold`. Clause 6 is required at signing (`mandate.rs:300`), so the limit is unseen only when this window can't read the rules. | **Built** fbff7f4 |
+| C3 Name the checklist a decision was bound to | After a successful hold the window says: "Before it went ahead, the wallet checked again that these are the checks you saw (4 of 6 passed · 2 checked later), and recorded them with your decision". A release and the read of a lost hold get no line. Before, once the deal moved on, the fold read "Your checks before you decided · …" over the wallet's current list, even on a deal that expired with no decision. It now reads "The wallet's checks now · …", and Details titles that section "What your wallet checks now". | `crates/table-runtime/src/service.rs` `decide`: recomputes the checklist and refuses a different hash before the ticket, then `record_decision` appends `owner.decision` with that hash. Void skips both. | **Built** 5f94e71 |
 
 ### Supporting
 
@@ -84,17 +84,17 @@ All three are display or test changes inside `apps/desktop/client/src/windows/ap
 or changes an IPC command, changes what Rust signs, authorizes, captures or voids, or calls PayPal.
 Gating (`gating.ts`) is untouched, so no button became more permissive.
 
-- **677e73e** `fix(approval)`: `buildDiff` accept case (`review/diff.ts`) and the accept sentence
+- **a6ffbfd** `fix(approval)`: `buildDiff` accept case (`review/diff.ts`) and the accept sentence
   (`review/says.ts`).
   - Test: `review/perItem.test.ts`. On the old code, 2 of its 4 tests fail: the twin and the
     sentence. The other two (the total stays on the ask-me line, one item unchanged) are
     regression guards and pass either way.
-- **dfa9acb** `fix(approval)`: `acceptReason` in `review/why.ts`, used by `answerWhy` and the accept
+- **fbff7f4** `fix(approval)`: `acceptReason` in `review/why.ts`, used by `answerWhy` and the accept
   note in `DealReview.tsx`, and the Who decides row in `review/diff.ts`.
   - Tests: `review/askMe.test.ts` and `review/why.test.ts` "at or under the ask-me limit". On the
     old code, 3 tests fail across those two files.
   - The old `why.test.ts` pin asserted the untrue sentence and is replaced.
-- **1dee2c5** `feat(approval)`: `boundLine` and `checksNowLabel` in `review/Checks.tsx`; the bound
+- **5f94e71** `feat(approval)`: `boundLine` and `checksNowLabel` in `review/Checks.tsx`; the bound
   line, the fold label and the Details heading in `DealReview.tsx` and `review/Details.tsx`; one
   CSS rule.
   - Test: `bound.render.test.tsx`. It renders `DealReview` and holds "Approve $329.00" on a

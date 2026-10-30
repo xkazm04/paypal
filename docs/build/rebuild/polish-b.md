@@ -100,10 +100,10 @@ the live wallet. Reset sample data (under More) starts the current sample over.
    nothing. Not run in the native shell by me (no native run in this package) [R].
 5. Bundle: the mock and `mock/scale.ts` stay in the lazily loaded `backend-*.js` chunk (105.6 kB),
    not in the main entry's initial files (checked by a string from scale.ts). Main entry initial
-   files: HEAD 017b13f 875,952 B (252,546 B gzip) -> worktree (first round) 908,023 B (266,275 B
+   files: HEAD 84cfa96 875,952 B (252,546 B gzip) -> worktree (first round) 908,023 B (266,275 B
    gzip), which includes builders A and C's work in progress; mine about 8 kB switcher, 3.5 kB words
    and preview code, 3 kB CSS (the removed sheet makes it slightly smaller now).
-6. `git diff --stat 859fa04 -- crates bindings apps/desktop/src-tauri` is NOT empty:
+6. `git diff --stat c4bbe5b -- crates bindings apps/desktop/src-tauri` is NOT empty:
    `apps/desktop/src-tauri/icons/icon.ico` changed (the logo work, not this package).
 
 ## Tests (all behavioural)

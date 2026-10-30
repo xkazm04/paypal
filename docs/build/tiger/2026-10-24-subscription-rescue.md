@@ -47,16 +47,16 @@ consult and run-log lines. This file is the record.
 
 ## Scope
 
-Ordered by value for the video. Each premise was verified in code at `3018a6d`. Rust was read only.
+Ordered by value for the video. Each premise was verified in code at `0102401`. Rust was read only.
 
 ### Core
 
 | Item | What changes for Maya and the judge | Premise (verified) | Status |
 |---|---|---|---|
-| C1 "PayPal retries" only on PayPal's time; say when the fix closes | Every failed renewal's "Do nothing" card read "PayPal retries in 4 days". The same claim appeared in its detail ("PayPal retries the payment by itself in 4 days (Tue 14:00)"), its subscriber preview ("PayPal retries Tue 10 Nov"), its Why? and the comparison row ("retry in 4 days"). Each time came from the fix's deadline. Without a time, the page said "No retry is set" / "This month stays unpaid", which claims PayPal won't retry. Now only PayPal's own retry time (`RescueView.next_retry_at`) is shown as PayPal's. Without it the page says "PayPal retries on its own; your wallet hasn't been told when". A new line names the deadline: "This fix is open until Tue 14:00 (4 days left). If you haven't approved it by then, it closes and nothing is sent." The "retry within a day" switch-off reads PayPal's time, and an unknown time is drawn as unknown, not passed. | `crates/table-app/src/rescue.rs:224-227`: the deadline is `next_retry_at` when known, else `now + RESCUE_RETRY_DEFAULT_SECS` (5 days, `:39`). Every Rust path opens with `next_retry_at: None` (`rescue.rs:410` detection, `table-runtime/src/rescue.rs:64` replay; STATUS "Left: read PayPal's next retry time into the fix's deadline"). At the deadline an AGREED fix lapses to WITHDRAWN (`table-core/src/deal.rs:393`, `rescue/deadline.rs:96-99`). `check_lever` keys "retry within a day" on `context.next_retry`, and an unknown time passes (`table-core/src/rescue.rs:42-49`). `RescueView.next_retry_at` is "PayPal's own next retry, when known" (`bindings/RescueView.ts`), and the client never read it. | **Built** 1d96af9 |
-| C2 A replay promises no PayPal retry | The sample world's showcase renewal (D-0188) is a replay. Its summary read "If you do nothing, PayPal retries the payment by itself.", its card "PayPal retries in 4 days", and its "If you do nothing" line "nothing is sent · PayPal retries the payment by itself". For a replay these now read: "It's a replay: if you do nothing, nothing is sent and PayPal has nothing to retry." and "A replay: PayPal has nothing to retry". The preview, Why? lines, comparison row and not-offered Why? say the same. | A replay is recorded because PayPal can't fail a test renewal (`RESCUE_REPLAY_ABOUT`; STATUS "Subscription rescue" item 1). Rust records no retry for it (`table-runtime/src/rescue.rs:64`). The mock gives D-0188 a retry date (`mock/fixtures.ts:515`), which Rust never would; `paypalRetry` ignores it for a replay. | **Built** 7cb0036 |
-| C3 The Watching view says when nothing is being checked | The Rescue page's Watching view said "Checked with PayPal every few hours for a failed renewal", and its card "3 of 100 checks today", even while the wallet had stopped. Now a hold shows its own sentence, e.g. "Not checking while your agents are paused.". When the day's checks are used up, it reads "Today's checks are used up, so nothing is being checked. Your wallet checks again from Sun 01:00" (the next UTC midnight in local time). | `table-runtime/src/rescue.rs:129-144`: `rescue_watch_hold` (paused, not connected, no rules, no key) is the one reason the pass stops, and it is put on every `RescueWatchView` (`:149`, `:170`). `:253`: past `RESCUE_WATCH_READS_DAY` in the UTC day nothing is read. Only the approval window's sheet showed `held` (`RescueWatch.tsx:82`). | **Built** 46293b7 |
-| C4 Stopping a watch keeps its fix | "Stop watching" said nothing about a fix the watch had already suggested. The button's title now says so, and so does a note in the sheet when a watched subscription has one: "Stopping only ends the checks. A fix this subscription already has stays open for you to approve, or it closes on its own with nothing sent." | `table-ledger/src/rescue_watch.rs:145-147`: "A rescue it already opened is not touched"; `bindings/RescueWatchStopArgs.ts`: "A fix it already opened is unchanged". | **Built** 3d5d12c |
+| C1 "PayPal retries" only on PayPal's time; say when the fix closes | Every failed renewal's "Do nothing" card read "PayPal retries in 4 days". The same claim appeared in its detail ("PayPal retries the payment by itself in 4 days (Tue 14:00)"), its subscriber preview ("PayPal retries Tue 10 Nov"), its Why? and the comparison row ("retry in 4 days"). Each time came from the fix's deadline. Without a time, the page said "No retry is set" / "This month stays unpaid", which claims PayPal won't retry. Now only PayPal's own retry time (`RescueView.next_retry_at`) is shown as PayPal's. Without it the page says "PayPal retries on its own; your wallet hasn't been told when". A new line names the deadline: "This fix is open until Tue 14:00 (4 days left). If you haven't approved it by then, it closes and nothing is sent." The "retry within a day" switch-off reads PayPal's time, and an unknown time is drawn as unknown, not passed. | `crates/table-app/src/rescue.rs:224-227`: the deadline is `next_retry_at` when known, else `now + RESCUE_RETRY_DEFAULT_SECS` (5 days, `:39`). Every Rust path opens with `next_retry_at: None` (`rescue.rs:410` detection, `table-runtime/src/rescue.rs:64` replay; STATUS "Left: read PayPal's next retry time into the fix's deadline"). At the deadline an AGREED fix lapses to WITHDRAWN (`table-core/src/deal.rs:393`, `rescue/deadline.rs:96-99`). `check_lever` keys "retry within a day" on `context.next_retry`, and an unknown time passes (`table-core/src/rescue.rs:42-49`). `RescueView.next_retry_at` is "PayPal's own next retry, when known" (`bindings/RescueView.ts`), and the client never read it. | **Built** b7fb420 |
+| C2 A replay promises no PayPal retry | The sample world's showcase renewal (D-0188) is a replay. Its summary read "If you do nothing, PayPal retries the payment by itself.", its card "PayPal retries in 4 days", and its "If you do nothing" line "nothing is sent · PayPal retries the payment by itself". For a replay these now read: "It's a replay: if you do nothing, nothing is sent and PayPal has nothing to retry." and "A replay: PayPal has nothing to retry". The preview, Why? lines, comparison row and not-offered Why? say the same. | A replay is recorded because PayPal can't fail a test renewal (`RESCUE_REPLAY_ABOUT`; STATUS "Subscription rescue" item 1). Rust records no retry for it (`table-runtime/src/rescue.rs:64`). The mock gives D-0188 a retry date (`mock/fixtures.ts:515`), which Rust never would; `paypalRetry` ignores it for a replay. | **Built** bede514 |
+| C3 The Watching view says when nothing is being checked | The Rescue page's Watching view said "Checked with PayPal every few hours for a failed renewal", and its card "3 of 100 checks today", even while the wallet had stopped. Now a hold shows its own sentence, e.g. "Not checking while your agents are paused.". When the day's checks are used up, it reads "Today's checks are used up, so nothing is being checked. Your wallet checks again from Sun 01:00" (the next UTC midnight in local time). | `table-runtime/src/rescue.rs:129-144`: `rescue_watch_hold` (paused, not connected, no rules, no key) is the one reason the pass stops, and it is put on every `RescueWatchView` (`:149`, `:170`). `:253`: past `RESCUE_WATCH_READS_DAY` in the UTC day nothing is read. Only the approval window's sheet showed `held` (`RescueWatch.tsx:82`). | **Built** fd12048 |
+| C4 Stopping a watch keeps its fix | "Stop watching" said nothing about a fix the watch had already suggested. The button's title now says so, and so does a note in the sheet when a watched subscription has one: "Stopping only ends the checks. A fix this subscription already has stays open for you to approve, or it closes on its own with nothing sent." | `table-ledger/src/rescue_watch.rs:145-147`: "A rescue it already opened is not touched"; `bindings/RescueWatchStopArgs.ts`: "A fix it already opened is unchanged". | **Built** 16f2abe |
 
 ### Waits on the operator
 
@@ -89,7 +89,7 @@ command, touches `crates/` or `bindings/`, or calls PayPal. The hand-off (`appro
 without the lever draft), the replay and the watch add/stop commands are unchanged, so no button
 became more permissive.
 
-- **1d96af9** `fix(rescue)`: `paypalRetry` in `modules/rescue/model.ts`. `cellState`, `splitFixes`
+- **b7fb420** `fix(rescue)`: `paypalRetry` in `modules/rescue/model.ts`. `cellState`, `splitFixes`
   and `rulesFor` take PayPal's retry, not the deadline. `parts.tsx` reads it for every retry claim
   and adds the `.rs-close` line. In `preview.ts` and `lib/words/rescue.ts`, the "no retry set"
   wording becomes "hasn't been told when". A new word: `RESCUE.closes`.
@@ -101,19 +101,19 @@ became more permissive.
     `preview.test.ts` asserted the untrue "No retry is set" / "PayPal has no retry set, so this month
     stays unpaid" and are replaced, as is the `cellState` pin "cycle unpaid". All five fail on the old
     code.
-- **7cb0036** `fix(rescue)`: `isReplay` in `model.ts`, and `paypalRetry` returns none for a replay.
+- **bede514** `fix(rescue)`: `isReplay` in `model.ts`, and `paypalRetry` returns none for a replay.
   The replay words are `RESCUE.answer.replay`, `replayNoRetry`, `replaySilence`, `nothingSafeReplay`
   and `nothingDoes.replay`. `answerOf` (`RescueLayer.tsx`) is now exported for its test.
   - Tests: `deadline.test.tsx`, block "a replayed failure": "promises no PayPal retry on its panel",
     "says on the summary that doing nothing sends nothing, not that PayPal retries" and "its preview
     and Why? name no PayPal retry". All three fail on the C1 code with only the `export` added.
-- **46293b7** `fix(rescue)`: `watchStatus` in `model.ts` (hold, then the day's budget, then
+- **fd12048** `fix(rescue)`: `watchStatus` in `model.ts` (hold, then the day's budget, then
   checking). `watchLines` in `RescueLayer.tsx` words it for the Watching view and its card. New words:
   `RESCUE.watch.spent` and `.spentNote`.
   - Test: `areas/rescue/watching.test.ts`. "a hold says why nothing is checked" and "with today's
     checks used up …" fail on the old logic (extracted unchanged as `watchLines`). "while checking,
     says so with today's count (unchanged)" is a regression guard and passes either way.
-- **3d5d12c** `fix(rescue)`: `STOP_KEEPS_FIX` in `owner/RescueWatch.tsx`, as the Stop button's title
+- **16f2abe** `fix(rescue)`: `STOP_KEEPS_FIX` in `owner/RescueWatch.tsx`, as the Stop button's title
   and as a note when a watched subscription has a fix suggested.
   - Test: `rescueWatch.test.tsx` "says stopping keeps a fix the watch already suggested open" fails
     on the old sheet, with only the constant added. "shows no such note when no watched subscription
@@ -124,7 +124,7 @@ became more permissive.
 At the end of the run, in this worktree, the client ran after `pnpm install --frozen-lockfile` in
 `apps/desktop/client`, which made a real `node_modules` there, not a link:
 - `npx tsc --noEmit -p tsconfig.json`: clean.
-- `npx vitest run`: 211 files / 2022 tests passed, at 3d5d12c. The agent-gated-spend pass recorded 209 / 2010; this pass adds 2 files (`deadline.test.tsx`, `watching.test.ts`) and 12 tests.
+- `npx vitest run`: 211 files / 2022 tests passed, at 16f2abe. The agent-gated-spend pass recorded 209 / 2010; this pass adds 2 files (`deadline.test.tsx`, `watching.test.ts`) and 12 tests.
 - `gitleaks git --log-opts="main..HEAD"`: 4 commits scanned, no leaks found.
 
 No crate and no Rust test was touched, so cargo fmt, clippy and test were not run for this pass. The

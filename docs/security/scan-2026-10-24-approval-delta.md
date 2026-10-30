@@ -1,12 +1,12 @@
 # Security scan - The Table - publication delta since the morning scan - 2026-10-24 (approval pass)
 
-A publication-blocker pass over `7be5f85..3229271` (local `main`): 10 commits (one merge,
-`d46d72b`), 28 files, +726/-59. The range holds:
-- the dependency bump `7554fe3` (lockfiles only);
-- the deal page's "last run" chip `9b213e7`;
-- the shield release wording per deal `8b4170d`;
-- the runtime finish-path fix `bdceccc` (robustness-4) and its STATUS entry `ec84451`;
-- the owner-approval-decision tiger pass `677e73e`, `dfa9acb` and `1dee2c5`, with its record
+A publication-blocker pass over `2b35de2..3229271` (local `main`): 10 commits (one merge,
+`51b1cb7`), 28 files, +726/-59. The range holds:
+- the dependency bump `eed68e8` (lockfiles only);
+- the deal page's "last run" chip `968ffde`;
+- the shield release wording per deal `920c08e`;
+- the runtime finish-path fix `2daeb35` (robustness-4) and its STATUS entry `66b442b`;
+- the owner-approval-decision tiger pass `a6ffbfd`, `fbff7f4` and `5f94e71`, with its record
   `3229271`.
 
 Branch `autopilot/codebase-security-scan-a00e8fd9`, cut from `3229271`.
@@ -21,7 +21,7 @@ This report does not restate the owner's e-mail addresses, OS user names or abso
 The three questions are kept apart:
 1. dependency advisories;
 2. secrets and personal data in what the range added;
-3. risky code patterns, weighted to the approval window and the decision path (`677e73e..3229271`).
+3. risky code patterns, weighted to the approval window and the decision path (`a6ffbfd..3229271`).
 
 G-1, G-2 and E-1 are parked with the operator and are not re-filed. Their status is in
 "Carried forward".
@@ -34,9 +34,9 @@ found.
 
 | ID | Severity | Category | File:line (or commit) | Blocks publication | Consequence | Recommended fix |
 |---|---|---|---|---|---|---|
-| H-1 | Low | misleading owner copy on the release decision | `apps/desktop/client/src/windows/main/modules/shield/matrix.ts:196-199`; `src/lib/words/shield.ts:107`, `:113`; `src/lib/words/deal.ts:91` (`8b4170d`) | no | A seller who releases a hold before the buyer approved is told no other click is needed. In fact the deal stalls at AGREED until the owner countersigns, and a held rescue deal still needs the owner to approve the fix. No money moves; the owner's picture of what their decision does is wrong. | Split `seller-waiting` by state and kind: AGREED or earlier says the owner still approves the order in the approval window, and a rescue deal says the fix still needs their approval |
-| H-2 | Info | lockfile drift beyond the stated bump | `Cargo.lock` (11 `windows-sys` edges), `apps/desktop/client/pnpm-lock.yaml:121-123`, `:1218` (`7554fe3`) | no | None found: `cargo deny` advisories, bans, licenses and sources all pass. A reader who trusts the commit message does not know that 12 other lock edges moved. | Say so in STATUS or the next lock commit. Optionally re-run `cargo update -p tokio --precise 1.54.1` from the base to see whether the `windows-sys` moves are needed |
-| H-3 | Info | comment that reads against the Rust binding | `apps/desktop/client/src/windows/approval/review/Checks.tsx:22-26` (`1dee2c5`) | no | "A release of a hold needs no checklist" reads as the shield release, which Rust *does* bind (`service.rs:623-640`). The code is right (only `deal_void` is skipped). A maintainer who follows the comment could drop the bound line from `shield_release`, or mistake ReleaseHold for unbound. | Say "Void (which releases the PayPal authorization) needs no checklist" |
+| H-1 | Low | misleading owner copy on the release decision | `apps/desktop/client/src/windows/main/modules/shield/matrix.ts:196-199`; `src/lib/words/shield.ts:107`, `:113`; `src/lib/words/deal.ts:91` (`920c08e`) | no | A seller who releases a hold before the buyer approved is told no other click is needed. In fact the deal stalls at AGREED until the owner countersigns, and a held rescue deal still needs the owner to approve the fix. No money moves; the owner's picture of what their decision does is wrong. | Split `seller-waiting` by state and kind: AGREED or earlier says the owner still approves the order in the approval window, and a rescue deal says the fix still needs their approval |
+| H-2 | Info | lockfile drift beyond the stated bump | `Cargo.lock` (11 `windows-sys` edges), `apps/desktop/client/pnpm-lock.yaml:121-123`, `:1218` (`eed68e8`) | no | None found: `cargo deny` advisories, bans, licenses and sources all pass. A reader who trusts the commit message does not know that 12 other lock edges moved. | Say so in STATUS or the next lock commit. Optionally re-run `cargo update -p tokio --precise 1.54.1` from the base to see whether the `windows-sys` moves are needed |
+| H-3 | Info | comment that reads against the Rust binding | `apps/desktop/client/src/windows/approval/review/Checks.tsx:22-26` (`5f94e71`) | no | "A release of a hold needs no checklist" reads as the shield release, which Rust *does* bind (`service.rs:623-640`). The code is right (only `deal_void` is skipped). A maintainer who follows the comment could drop the bound line from `shield_release`, or mistake ReleaseHold for unbound. | Say "Void (which releases the PayPal authorization) needs no checklist" |
 
 **Open publication blockers: 0.**
 
@@ -61,13 +61,13 @@ committed.**
   `apps/desktop/client/package.json` and `pnpm-lock.yaml` in a temp directory outside the worktree,
   so no `node_modules` was created or touched.
   - At `3229271` it printed `No known vulnerabilities found`.
-  - The same check on the base lockfile (`git show 7be5f85:...`) found 3: GHSA-xjj6-f33q-929c
+  - The same check on the base lockfile (`git show 2b35de2:...`) found 3: GHSA-xjj6-f33q-929c
     (high), GHSA-4qv8-2p9j-2685 (moderate) and GHSA-f72v-6w45-q472 (moderate). All three were
     undici `>=8.0.0 <8.12.2`, reached through `jsdom` and `vitest>jsdom`.
   - `pnpm-lock.yaml` now locks `undici@8.12.3`. **GHSA-xjj6 is closed, and the two moderates the
     commit did not name are closed with it.**
   - undici reaches the tree only through the test DOM, so it was never in the shipped client.
-- **What else moved (H-2).** `7554fe3` calls itself "Lockfile-only", and that is true. But beyond
+- **What else moved (H-2).** `eed68e8` calls itself "Lockfile-only", and that is true. But beyond
   tokio and undici:
   - It re-pointed 11 crates' `windows-sys` dependency from `0.61.2` back to `0.52.0`, `0.59.0` or
     `0.60.2`. The crates are `dirs-sys`, `errno`, `muda`, `quinn-udp`, `rustix`, `socket2`,
@@ -75,15 +75,15 @@ committed.**
     were already in the lock, and `0.61.2` is still there for others.
   - It added `@babel/runtime@7.29.10` for `@testing-library/dom`, and kept `7.29.7`.
   - None of these carries an advisory. `windows-sys` is FFI bindings with no logic of its own.
-  - The merge `d46d72b` differs from its first parent (`9b213e7`) by exactly `7554fe3`'s two files.
+  - The merge `51b1cb7` differs from its first parent (`968ffde`) by exactly `eed68e8`'s two files.
 
 ## (2) Secrets and personal data the range added
 
 **Verdict: clean. No secret, token, PayPal credential, key or third-party personal data.**
 
-- **gitleaks 8.30.1:** `gitleaks git --log-opts="7be5f85..3229271" --redact` scanned 9 commits
+- **gitleaks 8.30.1:** `gitleaks git --log-opts="2b35de2..3229271" --redact` scanned 9 commits
   (the merge adds no content of its own) and reported `no leaks found`, with an empty report.
-- **Grep on the 726 added lines of `git log -p 7be5f85..HEAD`.** The patterns were the same as on
+- **Grep on the 726 added lines of `git log -p 2b35de2..HEAD`.** The patterns were the same as on
   10-24: key and token shapes, quoted credentials, e-mail, URL, IPv4, phone and IBAN shapes,
   long hex or base64 runs, and absolute paths with the owner's names. Commit messages were included.
   - Every `sk-` hit is inside "ask-me".
@@ -111,9 +111,9 @@ release decision.**
 
 ### What changed where
 
-- **Rust.** Production Rust changed in one line, `crates/table-runtime/src/actor.rs:610` (`bdceccc`).
+- **Rust.** Production Rust changed in one line, `crates/table-runtime/src/actor.rs:610` (`2daeb35`).
   The rest is a test (`actor_runtime_tests.rs:631-695`).
-- **No diff in the range** (`git diff --quiet 7be5f85..HEAD`) for: `crates/table-client`
+- **No diff in the range** (`git diff --quiet 2b35de2..HEAD`) for: `crates/table-client`
   (including `authority_table.rs` and `PINNED_MANIFEST`), `bindings/`, `apps/desktop/src-tauri/`
   (capabilities, `build.rs`, `tauri.conf.json`), `crates/table-app`, `crates/table-core`,
   `crates/table-paypal`, `crates/table-mcp`, `crates/table-ledger/migrations`, `services/`, every
@@ -175,7 +175,7 @@ What the tiger pass added on top is display only:
 
 No new path. The two runtime and main-window changes:
 
-- **`actor.rs:610` (`bdceccc`).** On an engine event the run cannot take, the actor now:
+- **`actor.rs:610` (`2daeb35`).** On an engine event the run cannot take, the actor now:
   - emits the fault first;
   - then ends the run Failed through `finish_run` (`engines.rs:455-490`);
   - then reports either the Failed snapshot or `finish_run`'s own audit-write fault, which before
@@ -184,7 +184,7 @@ No new path. The two runtime and main-window changes:
   `finish_run` removes the run, lists it in `run_history` and appends `run.finish`. It calls no
   pipeline money step. The new test's `fail_run_audit` switch is `#[cfg(test)]`
   (`service.rs:177-179`, `engines.rs:470-473`). It makes a fault visible that was silent before.
-- **`releaseCase` (`8b4170d`).** It changes the words of a hand-off button only. `open.run` and
+- **`releaseCase` (`920c08e`).** It changes the words of a hand-off button only. `open.run` and
   every `useMutation` are unchanged, and the release still happens in the approval window as
   ReleaseHold. The `seller-approved` claim (money comes in on the next check with no other click)
   matches Rust:
@@ -252,7 +252,7 @@ None added.
 - **Consequence:** the owner releases the hold believing they are done. The deal then waits at
   AGREED until its deadline, and the safe default lets it lapse. No money moves without the owner,
   and silence still moves none, so no invariant breaks. But the copy the decision path shows misstates
-  what the owner's release achieves. This is the very defect `8b4170d` set out to remove, now in
+  what the owner's release achieves. This is the very defect `920c08e` set out to remove, now in
   the other direction, and it can cost a sale. It is not a publication blocker.
 - **Fix:** split `seller-waiting` by state and kind:
   - APPROVED / AUTHORIZED: `seller-approved`, unchanged.
@@ -264,7 +264,7 @@ None added.
 
 ### H-2 (Info): the advisory bump moved more lock edges than its message says
 
-- **Where:** `7554fe3`.
+- **Where:** `eed68e8`.
   - `Cargo.lock`: 11 `windows-sys` edges, from `0.61.2` to `0.52.0`, `0.59.0` or `0.60.2`, for the
     crates listed in (1).
   - `apps/desktop/client/pnpm-lock.yaml:121-123`, `:1080`, `:1218`: `@babel/runtime@7.29.10` added
@@ -294,7 +294,7 @@ None added.
 None of the files these items name changed in the range: `scheduler.rs`, `table-mcp`,
 `table-paypal`, `table-app`, `src-tauri`, `vite.config.ts`, `mount.tsx`, `scripts/`, `deny.toml`,
 `context-map.json`, `.personas`, `.claude`, `docs/build/rebuild` and `docs/security` were all
-checked with `git diff --quiet 7be5f85..HEAD`.
+checked with `git diff --quiet 2b35de2..HEAD`.
 
 | ID | Status at `3229271` |
 |---|---|
@@ -307,7 +307,7 @@ checked with `git diff --quiet 7be5f85..HEAD`.
 
 ## Verification
 
-- **Range:** `git rev-parse HEAD main` both give `3229271`, and `git log 7be5f85..HEAD` lists 10
+- **Range:** `git rev-parse HEAD main` both give `3229271`, and `git log 2b35de2..HEAD` lists 10
   commits.
 - **Commits read in full:** `git show` for every commit. The approval and shield production
   hunks were traced into Rust:
@@ -331,7 +331,7 @@ checked with `git diff --quiet 7be5f85..HEAD`.
 
 1. H-1: fix the `seller-waiting` wording now, before the demo? It is a words-only client change
    in `matrix.ts` and `lib/words/`, outside this task's `docs/security/` scope.
-2. H-2: is the `windows-sys` re-pointing in `7554fe3` intended, or should the bump be redone as a
+2. H-2: is the `windows-sys` re-pointing in `eed68e8` intended, or should the bump be redone as a
    two-line diff?
 
 Open publication blockers: 0

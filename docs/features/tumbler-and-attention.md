@@ -25,7 +25,7 @@ or pay anything.
 
 **Cards.** A decision (GATE) reads as a question; a pause (HOLD) as a statement with a coral
 "Paused" chip and the rule that paused it ("Paused by …", from the wallet's closed rule names). A
-payment step whose PayPal answer was lost reads "Checking" with "If you do nothing, at the deadline the wallet asks PayPal what happened, and what PayPal shows decides: a payment PayPal already took stays paid." When that deal has ended, the chip reads "Ended" and the Why? ends "The deal has ended and the wallet sends nothing more: look at this payment in PayPal." (673d7f8, DECISIONS 32). A seller's held payment asks "Collect or release" (5c4f642).
+payment step whose PayPal answer was lost reads "Checking" with "If you do nothing, at the deadline the wallet asks PayPal what happened, and what PayPal shows decides: a payment PayPal already took stays paid." When that deal has ended, the chip reads "Ended" and the Why? ends "The deal has ended and the wallet sends nothing more: look at this payment in PayPal." (a59f881, DECISIONS 32). A seller's held payment asks "Collect or release" (32a1a75).
 Every card carries the mode badge and the lock indicator. Actions, in order: "Review ↗"
 (gold, decisions only), Withdraw (asks once), "Open in The Table ↗", "Let it lapse", "Remind me in
 30 min". A pause offers only Withdraw and "See why in The Table ↗". There is no approve button and no

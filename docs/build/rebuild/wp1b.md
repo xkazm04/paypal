@@ -1,7 +1,7 @@
 # WP1b - data layer and resilience (notes for the Director)
 
 Scope: `apps/desktop/client` only. No Rust, `bindings/`, `crates/`, `src-tauri/`, authority table or
-capability change (`git diff --stat 859fa04 -- crates bindings apps/desktop/src-tauri` is empty).
+capability change (`git diff --stat c4bbe5b -- crates bindings apps/desktop/src-tauri` is empty).
 Dependencies: none added; `@tanstack/react-query` 5.104.2 and `@tanstack/react-virtual` 3.14.18
 (already in `package.json` from WP0) are now used.
 
@@ -82,7 +82,7 @@ Words appended to `lib/words.ts`: `BOUNDARY_*`, `LAYER_LOADING`, `STALE_*`, `UNR
 ## Measurements (jsdom, mock backend, `?scale=large`, 500 deals; throwaway profiler test, deleted)
 Home = React Profiler commits of the Home subtree. "Burst" = 10 `deal:changed` events delivered together.
 
-| | before (859fa04) | after |
+| | before (c4bbe5b) | after |
 |---|---|---|
 | IPC on load | 512 (engine_status x2, counterparty_list x2) | 510 |
 | Home commits on load | 24 | 23 |

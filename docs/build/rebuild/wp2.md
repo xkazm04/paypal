@@ -2,7 +2,7 @@
 
 Scope: `apps/desktop/client/src/windows/main/**` (new `console/`, `setup/Charter.tsx`), `lib/words.ts`
 (append only). No Rust, `bindings/`, `crates/`, `src-tauri/`, authority, capability or mock change:
-`git diff --stat 859fa04 -- crates bindings apps/desktop/src-tauri` is empty. No dependency added.
+`git diff --stat c4bbe5b -- crates bindings apps/desktop/src-tauri` is empty. No dependency added.
 The six module pages, `DealView`, the Sheet (Settings / Connections / Agent rules), the Safety sheet
 and the Quit sheet are the old code, mounted inside the new frame and restyled by tokens only.
 

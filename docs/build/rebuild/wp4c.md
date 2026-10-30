@@ -2,7 +2,7 @@
 
 Scope: docs, `apps/desktop/client/src/director/**`, `scripts/takes.mjs`, one comment block in
 `src/lib/theme.ts`. No Rust, `bindings/`, `crates/`, `src-tauri/`, authority, capability, mock or
-`windows/*` change (`git diff --stat 859fa04 -- crates bindings apps/desktop/src-tauri` is empty).
+`windows/*` change (`git diff --stat c4bbe5b -- crates bindings apps/desktop/src-tauri` is empty).
 No dependency added. Nothing committed. `windows/main/console/perf.test.tsx` shows as modified in
 the tree: not mine (it changed while I worked).
 

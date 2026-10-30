@@ -1,7 +1,7 @@
 # WP4a - Console polish: no dead bands, nested views in the URL, two-step lists, dead code, perf, a11y, resilience
 
 Scope: `apps/desktop/client/src/windows/main/**`, `src/lib/words/**`. No Rust, `bindings/`, `crates/`,
-`src-tauri/`, authority, capability or mock change: `git diff --stat 859fa04 -- crates bindings
+`src-tauri/`, authority, capability or mock change: `git diff --stat c4bbe5b -- crates bindings
 apps/desktop/src-tauri` is empty. No dependency added. Nothing committed. WP4b's files
 (`windows/approval/**`, `windows/tumbler/**`, `design/**`, `shared/ui/**`) were not touched.
 
@@ -185,7 +185,7 @@ on a narrow bar (each crumb now ellipsises).
 ## 7. Gates
 
 `pnpm typecheck` clean. `pnpm exec vitest run --reporter=dot`: **143 files, 1488 tests, all passed**
-(this includes WP4b's in-flight tests). Rust diff vs 859fa04 empty.
+(this includes WP4b's in-flight tests). Rust diff vs c4bbe5b empty.
 
 ## 8. Open questions
 

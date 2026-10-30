@@ -31,7 +31,7 @@ Only when `apps/desktop/client/` is in the span AND `apps/desktop/client/node_mo
 
 Otherwise record the client gate as "not run: no node_modules exists in a worktree". Never install.
 
-Calibration (base c9401ea, worktree): fmt exit 0, clippy exit 0, test exit 0 (217 passed, 0 failed).
+Calibration (base 2aa7a32, worktree): fmt exit 0, clippy exit 0, test exit 0 (217 passed, 0 failed).
 All three Rust gates were green at that base, so the robustness gate stays the full gate set.
 Re-calibrate if a later base differs; a gate seen failing is never declared green.
 

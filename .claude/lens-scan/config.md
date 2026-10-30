@@ -45,7 +45,7 @@ features:
 
 ## Skill improvement log
 
-- 2026-10-14: the context map lists files, not directories, for the Rust crates, so a file split (68a7a49 split table-runtime's tests.rs) drops `loc` with no real change. Before reading a delta, check `git log --stat` since the last measure run for new files under a mapped crate; refresh the context map first if there are any.
+- 2026-10-14: the context map lists files, not directories, for the Rust crates, so a file split (008ba69 split table-runtime's tests.rs) drops `loc` with no real change. Before reading a delta, check `git log --stat` since the last measure run for new files under a mapped crate; refresh the context map first if there are any.
 
 ## Skill improvement log
 

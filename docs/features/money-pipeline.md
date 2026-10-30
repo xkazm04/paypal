@@ -306,7 +306,7 @@ results: `deal_evidence` and `deal_reconcile` (main), `approval_summary` (approv
   amount. If it does not, `Order::verify` refuses the order.
 - Left by the read-back work: no approval-window action re-sends an owner-decided step under a
   fresh ticket. Open operations on deals that ended another way (a peer WITHDRAW) are not
-  resolved. The Book counted a parked capture under "On hold" until DECISIONS.md section 34 (85faf93).
+  resolved. The Book counted a parked capture under "On hold" until DECISIONS.md section 34 (90ddad1).
 - Deadline paths, from deadline-safe-default full r1 (2026-10-10; DECISIONS.md sections 35 and 37). The first
   three wait on the operator's Approval:
   - robustness-1: a parked rescue invoice send whose invoice reads neither DRAFT nor SENT (CANCELLED, other, or not

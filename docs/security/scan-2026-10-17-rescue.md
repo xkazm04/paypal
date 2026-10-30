@@ -1,9 +1,9 @@
 # Security scan - The Table - subscription rescue, owner read - 2026-10-17
 
 A focused scan of the subscription-rescue path after DECISIONS §51b: `Pipeline::rescue_approve`,
-the new `Pipeline::rescue_owner_read` (`919c5dd`), the in-memory spent-ticket set beside them,
+the new `Pipeline::rescue_owner_read` (`9c90f42`), the in-memory spent-ticket set beside them,
 `OwnerTicket` minting and validation, and the desktop `rescue_approve` command that carries the
-owner's decision there. Base: `919c5dd`, branch `autopilot/codebase-security-scan-6c541480`.
+owner's decision there. Base: `9c90f42`, branch `autopilot/codebase-security-scan-6c541480`.
 **Nothing at medium or higher was found, so nothing was fixed. Every item is report only.** No live
 PayPal call was made and no money was used. The only network-free tool run was
 `cargo deny --offline check advisories` against the local advisory database.
@@ -29,7 +29,7 @@ Severity is judged for this app: a hackathon desktop wallet against the PayPal *
 
 | ID | Severity | Category | File:line | Status | Action |
 |---|---|---|---|---|---|
-| R-1 | Low | defence in depth (ticket binding) | `crates/table-app/src/auth.rs:27-35`, `:75-85`, `:152-172` | **fixed** `9cf5ce2` | An `ApprovalSession` holds a random 16-byte session id; each `OwnerTicket` carries it and `validate` refuses a ticket from another session |
+| R-1 | Low | defence in depth (ticket binding) | `crates/table-app/src/auth.rs:27-35`, `:75-85`, `:152-172` | **fixed** `aeb96cd` | An `ApprovalSession` holds a random 16-byte session id; each `OwnerTicket` carries it and `validate` refuses a ticket from another session |
 | R-2 | Info | rate / audit volume | `crates/table-app/src/rescue.rs:496-512`; `crates/table-runtime/src/service.rs:664-666` | open | Accept: one GET per privileged owner decision, at most one per deal per second |
 | R-3 | Info | audit legibility | `crates/table-runtime/src/service.rs:664` (outside scope) | open | The owner read is logged as an `owner.decision` "rescue" row, also when the spent set then refuses it |
 | R-4 | Info | memory | `crates/table-app/src/pipeline.rs:132` | open | The spent set is never pruned (one tuple per owner read); entries older than 60 s could be dropped |
@@ -210,8 +210,8 @@ as `a_second_ticket_in_the_same_second_reads_nothing` would say what it proves.
 
 ## Dependencies, secrets and risky patterns
 
-- **Dependencies.** The rescue commits `a644b19` and `919c5dd` change no manifest and no
-  `Cargo.lock` (the last lockfile change is `2eb9061`, the rustls bump).
+- **Dependencies.** The rescue commits `d0f4277` and `9c90f42` change no manifest and no
+  `Cargo.lock` (the last lockfile change is `e92448b`, the rustls bump).
   `cargo deny --offline check advisories` reports `advisories ok` against the local advisory
   database (snapshot of 2026-10-15; not refreshed, as no network was used).
 - **Secrets.** No secret is read or written on the owner-read path. The IPC token is compared in

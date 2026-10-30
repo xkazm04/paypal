@@ -201,7 +201,7 @@ unlock):
 - Reconciliation runs only when the owner clicks "Check my PayPal statement" on a deal; there is no
   background statement check and no Book-wide "check all".
 - Book totals no longer count a capture whose PayPal answer was lost and parked under "On hold"
-  (85faf93, DECISIONS section 34): `sums(deals, checking)` puts a payment being checked with PayPal in
+  (90ddad1, DECISIONS section 34): `sums(deals, checking)` puts a payment being checked with PayPal in
   no bucket, because PayPal may already have collected it. Its row keeps its amount in its bucket
   column and the bucket filter still lists it there; the tone of the week answer still counts every
   AUTHORIZED deal (`holds` in `WeekAnswer`). Surfaces outside the Book that may still word a checked

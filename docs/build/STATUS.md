@@ -234,7 +234,7 @@ one signed file (`table.proof.v1`, `table_proto::ProofBundle`) and `crates/table
 - Not yet run: the native save dialog (compile/clippy only, no GUI harness). The verifier logic mirrors
   the ledger's transcript/audit checks rather than sharing code; the export-then-verify test guards
   that parity.
-- Council-lite r1 rework (council run 536d1a41; rework merged as a95b80a, 2026-10-07): the PayPal-order check fails any 2xx order create,
+- Council-lite r1 rework (council run 536d1a41; rework merged as 2528044, 2026-10-07): the PayPal-order check fails any 2xx order create,
   authorize or order read with no stored binding, and names the call. Bundles from before bindings
   were stored (pre-0007) now fail by design; a deal with no order call passes. Check 4 ('closed
   mandate binds terms and amount') compares each countersigned payee with the owner-signed
@@ -250,7 +250,7 @@ one signed file (`table.proof.v1`, `table_proto::ProofBundle`) and `crates/table
   table_client::check_proof_file. The sheet and the table-verify CLI both state the owner-key anchor
   and the T9 limit (removed newer records cannot be seen). Not yet run: the native open dialog (no
   GUI harness); client tsc/vitest in a worktree.
-- Council-lite r2 (2026-10-07, council run 2026-10-07-audit-trail-export-lite-r2, at 3e9bcae): ready,
+- Council-lite r2 (2026-10-07, council run 2026-10-07-audit-trail-export-lite-r2, at b18c0ce): ready,
   overall 0.63. Scores: value 0.56, craft 0.66, robustness 0.72; coverage 0.70. Rivalry and economics
   were not judged. Uncalibrated; one session judged all rows. All six r1 lines are closed, each with
   a test.
@@ -263,11 +263,11 @@ one signed file (`table.proof.v1`, `table_proto::ProofBundle`) and `crates/table
     - The Audit sheet is a dead end when the chain fails.
     - No test exports from a corrupt chain or with a missing key.
     - The rework's client TypeScript has never been typechecked: a worktree has no node_modules.
-  - Gates were cited, not run: 39e07aad's merge gate at 3e9bcae passed `cargo test --workspace`.
-- Full council r1 (2026-10-09, at b5f91e2): ready, overall 0.6443 on coverage 0.78. The judges are uncalibrated, so the floors are advisory. Ready is not an approval: the operator decides.
+  - Gates were cited, not run: 39e07aad's merge gate at b18c0ce passed `cargo test --workspace`.
+- Full council r1 (2026-10-09, at ff25ac9): ready, overall 0.6443 on coverage 0.78. The judges are uncalibrated, so the floors are advisory. Ready is not an approval: the operator decides.
   - Open, value: the green 'Every check passed' chip is not qualified when the file's owner key is not the wallet's own (`windows/main/modules/book/ProofCheck.tsx`).
   - Rivalry was not measured: the council produced no rivalry verdict.
-- UNVERIFIED: the PayPal-order check (feb5cc6) needs, from each 2xx order create, authorize and order
+- UNVERIFIED: the PayPal-order check (45c227d) needs, from each 2xx order create, authorize and order
   read, the stored binding of every purchase unit: custom_id, invoice_id, payee.merchant_id and
   amount (kept by `binding_projection`, crates/table-ledger/src/redaction.rs:94; compared in
   `bindings`, crates/table-verify/src/lib.rs:323). The client asks for the full body with
@@ -336,7 +336,7 @@ Behaviour changes worth knowing:
   label and clause 6; the in-memory notification set is pruned. Tumbler surface writes are debounced
   (400 ms) - **compile/clippy-verified only, needs the native check**.
 - Attention, walk-away forecast (T4 slices 1-2): `table_attention::forecast` mirrors
-  `scheduler.rs` `tick_deal` at b260727 and, since slice 2, the gates inside the pipeline calls it
+  `scheduler.rs` `tick_deal` at 5f87a52 and, since slice 2, the gates inside the pipeline calls it
   makes. Shield rule: a create (`Authority::Policy`) or an authorize/capture
   (`Authority::SellerMandate`) line appears only if the pipeline's own gate passes at the step's
   time; the shield refuses both on ASK (market reference absent or older than 900 s, new
@@ -357,15 +357,15 @@ Behaviour changes worth knowing:
   and checks state, `decided_by` and audit; buyer approval is simulated by the offline poll). Slice 3
   remains: the Tumbler "If you walk away" block and the quit confirm.
 - Attention fixes (council attention-escalation): a failed attention read is one visible Fault per
-  streak and clears the cache (a83458f); a notification claim is released when no toast was shown
-  (3ac0b38); Let it lapse needs a Gate whose card offers it (c734558).
-- **attention-escalation council-lite r2 rework (2026-10-07; d7d74cf, a3d4908, 83f70dc).**
+  streak and clears the cache (efbfa2d); a notification claim is released when no toast was shown
+  (e3bab1d); Let it lapse needs a Gate whose card offers it (7d6ef8f).
+- **attention-escalation council-lite r2 rework (2026-10-07; 4ab3d22, 74411c8, 8bb267d).**
   - Each Tumbler card's silence line is now worded from the same snapshot's forecast, by `table_attention::word_silence`. A seller card says the payment the buyer approved is collected, or put on hold, instead of 'no money moves'. With no forecast, it promises nothing.
   - The forecast shows authorize and capture only when the payment executor is configured; without it, they fail the tick.
   - The shell shows each failure streak once, to main and the tumbler (`fault_previous` is cleared on a good attention read). The tumbler shows a notice that the cards may be out of date.
   - UX-GUIDE question 3 is updated.
   Tests: `silence::tests` (a card per forecast ending, `card_and_forecast_agree_over_every_input`, `unreadable_forecast_promises_nothing_for_a_seller_that_may_move` and `without_a_payment_executor_the_card_does_not_claim_money_in`), `forecast::tests::without_a_payment_executor_no_authorize_or_capture_is_forecast` and `native::events::fault_tests::each_failure_streak_is_shown_once`. Client tsc and vitest were not run in the worktree.
-- **attention-escalation full council r1 (2026-10-09, at 95a341c).** Outcome ready: overall 0.6257 on coverage 0.70. The judges are uncalibrated, so the floors are advisory. Ready is not an approval: the operator decides.
+- **attention-escalation full council r1 (2026-10-09, at fd34fce).** Outcome ready: overall 0.6257 on coverage 0.70. The judges are uncalibrated, so the floors are advisory. Ready is not an approval: the operator decides.
   - Open, craft: the OS toast shows the runtime's internal headline and silence line ('Countersign', 'Capture or void', 'If ignored:') instead of the shared words (`apps/desktop/src-tauri/src/native/events.rs`, `show_toast`, about lines 357-362).
   - Open, robustness: a failed notification claim is read as a refusal, so that rung's toast is never tried again and nothing records it (`events.rs`, about lines 282-301).
   - Rivalry and economics were not measured: no lookups and no telemetry.
@@ -1019,7 +1019,7 @@ UI or sandbox criterion. Test names refer to their owning crate's tests.
 | U1 | Attention w4_tumbler_schema_has_no_untrusted_text_and_w11_lock_preserves_items asserts on_silence; client console.test.tsx 'the decision centre > walks every decision with its "if you do nothing" line' (3 scales, every attention item shows its silence line) and foundation.test.ts 'sorts attention by deadline and keeps the default-on-silence line'. **Verified offline** (mock-backed client; Tumbler card forms are covered by logic tests only, no native-shell UAT). |
 | U2 | Mode is generated on deals/items/receipt contract; client badges: `apps/desktop/client/src/windows/approval/modeBadge.render.test.tsx` 'U2: the approval window carries a mode badge > a sandbox deal shows "Sandbox" in the title bar' and '> a replayed deal shows "Replay" in the title bar'; `src/windows/main/console/modeBadge.test.tsx` 'U2: the Main console carries a mode badge > the footer shows the wallet’s mode badge on #', '#m=book' and '#p=settings', and '> the Book ledger badges non-sandbox deals and leaves sandbox deals bare' (Ledger.tsx LedgerRow draws ModeBadge only when `deal.mode !== 'sandbox'`: the intended rule); `src/windows/tumbler/modeBadge.test.tsx` 'U2: the Tumbler carries a mode badge > the live Tumbler on the mock wallet draws the wallet’s mode badge on its stack form', 'Flags draws the sandbox/replay/scripted_engine badge, locked or not', 'Flags draws no badge until the mode is known' and 'the ticker line carries the item’s mode badge'. Exports: the Book CSV carries a `mode` column on every row and the modes in the file name (existing `src/windows/main/modules/book/model.test.ts` 'csv > writes exact decimals, neutralises formulas and carries the mode on every row'; Ledger.tsx useExport names the file `<name>-<modes>-<date>.csv`). Proof export: `ProofBundle.deal` is the `table_core::Deal` read back from the `deals.mode` column, so the mode is a first-class field of the exported file (no new field, commitment and signature untouched); table-ledger `tests::an_exported_proof_carries_the_deal_mode_in_the_deal_the_file_and_the_created_audit_row` exports a sandbox, a replay and a scripted_engine deal and asserts `bundle.deal.mode`, the serialized JSON's `deal.mode` and the `deal.created` audit row's `detail_json` mode. **Verified offline** (badges, Book CSV and proof export all carry the mode); no production code added. |
 | U3 | Protocol human_note_is_bounded_and_never_in_agent_projection; ledger w4_received_injection_note_stays_out_of_attention_at_every_form; client windows/main/console/areas/shared/NoteChip.test.tsx 'U3: the counterparty note is plain text > NoteText draws markup, a link and an injection as literal text and creates no element from it' and '> opening the chip reads the note once and offers nothing to act on it' (a hostile note with <b>, a markdown link, <a href>, <img onerror> and an instruction: the text is in the DOM verbatim, no element, href or src is made from it, and the only control is the chip). **Verified offline** (mock-backed client; no native-shell or sandbox run claimed). |
-| U4 | **Checked statically; 1280x800 inspection on the native shell still pending, so not fully verified.** `apps/desktop/client/src/styles/fontFloor.test.ts` 'U4: no UI text under 12 px (static check; ...)': 'reads a useful number of font sizes', 'the type scale itself keeps the floor: every --fs-* token except the unused micro token is 12px or more', 'the microprint token is declared but used by no font-size', 'every font-size in the stylesheets resolves to 12px or more, but the known ones', 'no component sets a font size inline' and 'sizes that depend on a parent or a container are few (they are not judged here)'. It reads every .css under src and resolves font-size and the `font:` shorthand size (var(--fs-*) through tokens.css, rem against the html size the client sets, 14px, or the Tumbler's 13px, vw against 1280, min/max/clamp by lower bound); no .tsx/.ts sets a font size inline. **Offenders: the five real px ones were fixed in 0f9777d** (approval.css `.dr-hint > .dr-mark` 9px, `.dr-mark` 10px, `.nx-n` 11px; tumbler.css `.fr-n` 10px, `.mini .m-n` 9px; all now `var(--fs-small)` = 12px, their badges grown to `--sp-5`/`--sp-4` and the legend puck from 22px to 26px). **KNOWN_UNDER_FLOOR keeps only the two brand.css SVG seal sizes** (`.br-seal text` 1.85px and `.br-seal text.deg` 1.9px): SVG user units, scaled by the seal's box, not screen px. A new sub-12px size fails the test, and so does a pinned one that is fixed and not removed. Sizes in em or cq units are not judged. |
+| U4 | **Checked statically; 1280x800 inspection on the native shell still pending, so not fully verified.** `apps/desktop/client/src/styles/fontFloor.test.ts` 'U4: no UI text under 12 px (static check; ...)': 'reads a useful number of font sizes', 'the type scale itself keeps the floor: every --fs-* token except the unused micro token is 12px or more', 'the microprint token is declared but used by no font-size', 'every font-size in the stylesheets resolves to 12px or more, but the known ones', 'no component sets a font size inline' and 'sizes that depend on a parent or a container are few (they are not judged here)'. It reads every .css under src and resolves font-size and the `font:` shorthand size (var(--fs-*) through tokens.css, rem against the html size the client sets, 14px, or the Tumbler's 13px, vw against 1280, min/max/clamp by lower bound); no .tsx/.ts sets a font size inline. **Offenders: the five real px ones were fixed in f5451e2** (approval.css `.dr-hint > .dr-mark` 9px, `.dr-mark` 10px, `.nx-n` 11px; tumbler.css `.fr-n` 10px, `.mini .m-n` 9px; all now `var(--fs-small)` = 12px, their badges grown to `--sp-5`/`--sp-4` and the legend puck from 22px to 26px). **KNOWN_UNDER_FLOOR keeps only the two brand.css SVG seal sizes** (`.br-seal text` 1.85px and `.br-seal text.deg` 1.9px): SVG user units, scaled by the seal's box, not screen px. A new sub-12px size fails the test, and so does a pinned one that is fixed and not removed. Sizes in em or cq units are not judged. |
 | W1 | Native close-to-tray/runtime route retention implemented; client routeRestore.test.tsx (`apps/desktop/client/src/windows/main/console/`) 'a module layer comes back as the same module, with the same crumb trail' and 'a deal opened from Find, a layer down, comes back as the same deal' unmount the console and mount it again (the route is the URL hash) and it lands on the same layer, hash and crumbs; client route restoration **verified offline** (mock-backed client; no sandbox or native-shell run claimed). Still pending: the interactive native close-to-tray and reopen. |
 | W2 | Pure ladder emits show_without_activation; native background projection does not show/focus; native no-activation/ladder wired; GetForegroundWindow interactive test pending. |
 | W3 | Desktop w3_release_set_is_approval_only_and_all_commands_are_declared; app runtime label/token/lock test; native IPC integration test still owed. |
@@ -1334,14 +1334,14 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
 - **C-2 (Medium) fixed.** `Client::execute` projects the binding from the raw body before redaction (`Observation.binding` -> `PaypalCall.binding`); `record_paypal_call` and `finish_operation` store it instead of re-projecting the redacted body, so `paypal_calls.binding_json` now holds `custom_id`, `invoice_id`, `payee_merchant_id` and amount on the live path. `table-verify` requires all four on every order record with purchase units and its result text names what it compared. Tests: `create_observation_binds_custom_id_invoice_payee_and_amount_without_the_email` (`table-paypal/tests/client.rs`), `the_ledger_stores_the_carried_binding_and_never_re_projects_the_redacted_response` and `paypal_bindings_keep_identifiers_and_amount_but_never_payer_text_or_links` (`table-ledger`), and the custom_id, payee and missing-field tamper cases in `two_wallet_actors_negotiate_and_settle_through_in_process_relay_without_buyer_api_access` (`table-runtime/src/relay_tests.rs`). Bindings recorded before this fix lack custom_id and payee and now fail verification.
 - **C-5 (Medium) fixed.** The HOUSE seller no longer polls an `AwaitingApproval` deal every second. `Seller` keeps an in-memory per-deal `PollSchedule` (`services/house-seller/src/hosted.rs`): first poll at once, then 5 s doubling to a 60 s cap, restarted when the deal's state changes and dropped when the deal leaves `AwaitingApproval` or reaches its deadline. Deadlines and the `Agreed`, `Approved` and `Authorized` steps still run on every tick. A deal that is never approved gets 363 polls over the 6 h window instead of about 21,600. No ledger change and no migration. Tests: `six_hour_window_polls_a_few_hundred_times_not_21600`, `backoff_doubles_to_the_cap`, `state_change_resets_the_interval`, `deals_are_scheduled_independently_and_forgotten`. The scan's optional skip of identical polls in `record_paypal_call` was not done.
 - **C-8 (Low) fixed.** A stalled or dead HOUSE actor is now visible. `HouseHandle::table` and `snapshot` answer 429 only when the channel is full, `Unavailable` (503) when it is closed, and `Unavailable` when the actor does not reply within 20 s. The actor writes an `AtomicI64` heartbeat on every timer tick, and HOUSE serves its own `/healthz`, which answers 503 when the heartbeat is more than 30 s old and 200 otherwise. `rendezvous` gained `relay_router` (mailbox routes without `/healthz`); `rendezvous::router` is that plus the always-200 `/healthz`, so the standalone rendezvous binary is unchanged. Tests: `closed_channel_is_unavailable`, `full_channel_is_full`, `reply_that_never_comes_is_unavailable_after_the_timeout`, `healthz_follows_the_heartbeat`; `services/rendezvous/tests/relay.rs` still passes.
-- **C-10 (security scan 2026-10-07, Low) fixed in 95d7b37:** table-proto validate_settle now binds the SETTLE approve_url to its own order. The path must be exactly /checkoutnow, and the query must be exactly one pair token=<order_id> (percent-decoded, exact match). Anything else is refused with the new SettlementError::Order ("approval link must open the SETTLE order"), distinct from Host. approval_url() is unchanged. UNVERIFIED: the /checkoutnow?token=<order id> approve-link shape is recalled, not sourced (.research/paypal-platform.md does not document it); a sandbox spike must record a real Orders v2 approve link and confirm it, otherwise legitimate links may be refused. 5635a68 also binds the approve link in the settlement-truth test cases 1-3 (`crates/table-ledger/src/tests.rs`). Lite r2 follow-ups craft-2 (the seller wallet signs a SETTLE whose link it checked for the host only) and craft-6 (no `checks.rs` line states the order binding) remain open (DECISIONS 24).
-- **C-6 (Medium) fixed.** The HOUSE and the standalone relay now serve through `rendezvous::serve` instead of `axum::serve` (5e12453, 2f0e35b, 48ce7f6; DECISIONS section 16, e5cdddd). Limits: at most 512 open connections (clients wait in the backlog past that); 10 s to read a request head; 10 s for each body chunk; 30 s for a whole request (above the 25 s long-poll cap and the HOUSE's 20 s actor reply timeout); at most 128 concurrent long-polls across both poll routes, and a poll over that is answered at once as `wait=0`, never with an error. The timeouts are applied once to the finished router, so the HOUSE's own routes are covered. Tests in `services/rendezvous/tests/serve.rs`: `a_partial_header_is_closed_after_the_header_timeout`, `the_connection_limit_holds_and_frees_on_close`, `a_body_trickled_past_the_timeout_is_refused`, `a_request_over_the_whole_timeout_answers_408`, `a_long_poll_of_25_seconds_still_answers_under_the_default_limits`, `long_polls_past_the_permit_limit_answer_at_once_and_permits_come_back`. Whether Render's edge enforces any of this stays unverified.
-- **house-seller-demo council-lite r1 rework (2026-10-07; 0373f21 line 1, d7ec3d1 line 3, 5915462 line 2).** Three fixes.
+- **C-10 (security scan 2026-10-07, Low) fixed in 0b244e6:** table-proto validate_settle now binds the SETTLE approve_url to its own order. The path must be exactly /checkoutnow, and the query must be exactly one pair token=<order_id> (percent-decoded, exact match). Anything else is refused with the new SettlementError::Order ("approval link must open the SETTLE order"), distinct from Host. approval_url() is unchanged. UNVERIFIED: the /checkoutnow?token=<order id> approve-link shape is recalled, not sourced (.research/paypal-platform.md does not document it); a sandbox spike must record a real Orders v2 approve link and confirm it, otherwise legitimate links may be refused. 435eb0d also binds the approve link in the settlement-truth test cases 1-3 (`crates/table-ledger/src/tests.rs`). Lite r2 follow-ups craft-2 (the seller wallet signs a SETTLE whose link it checked for the host only) and craft-6 (no `checks.rs` line states the order binding) remain open (DECISIONS 24).
+- **C-6 (Medium) fixed.** The HOUSE and the standalone relay now serve through `rendezvous::serve` instead of `axum::serve` (dfc31b8, 00ed55c, a985f33; DECISIONS section 16, 5690f8d). Limits: at most 512 open connections (clients wait in the backlog past that); 10 s to read a request head; 10 s for each body chunk; 30 s for a whole request (above the 25 s long-poll cap and the HOUSE's 20 s actor reply timeout); at most 128 concurrent long-polls across both poll routes, and a poll over that is answered at once as `wait=0`, never with an error. The timeouts are applied once to the finished router, so the HOUSE's own routes are covered. Tests in `services/rendezvous/tests/serve.rs`: `a_partial_header_is_closed_after_the_header_timeout`, `the_connection_limit_holds_and_frees_on_close`, `a_body_trickled_past_the_timeout_is_refused`, `a_request_over_the_whole_timeout_answers_408`, `a_long_poll_of_25_seconds_still_answers_under_the_default_limits`, `long_polls_past_the_permit_limit_answer_at_once_and_permits_come_back`. Whether Render's edge enforces any of this stays unverified.
+- **house-seller-demo council-lite r1 rework (2026-10-07; e4ecf43 line 1, 065ca59 line 3, 5915462 line 2).** Three fixes.
   (1) A full HOUSE (429) and a refusing HOUSE (any other 4xx, with a fixed refusal body naming daily_limit or other, and no free text) are told apart from a HOUSE that did not answer: `table_relay::Error::{Full, Refused}` and `answer_error`. The wallet words each case under REFUSED ('The house is full right now', 'The house has hit its limit for today', 'The house turned this table down', each with 'No money moved') and leaves the house Ready. Only no answer is UNAVAILABLE ('The house is waking or could not be reached') and goes back to Idle. A failed join no longer marks the house 'not part of this version'. PairingDesk shows 'Try again; nothing is lost' only for UNAVAILABLE and drops the unmeasured 'about a minute'.
   (2) DECISIONS 12 is built: the tick writes the heartbeat before and after every awaited deal step. `HEARTBEAT_STALE` is 190 s: 3 attempts x (OAuth 30 s + call 30 s) + backoff 3 s = 183 s, plus 7 s. A stalled actor still reads 503. At startup the HOUSE logs each money operation that a previous run left pending (deal, operation, attempt, outcome unknown). The pipeline's primary key prevents a second request id. Resolving the operation is T10. SIGTERM or ctrl-c stops serving gracefully, then the actor finishes the tick in flight and exits.
   (3) Every failed tick step logs `house step=<step> deal=<id> error=<code>` to stderr. A failure that repeats is folded into one line until it changes. tokio's `signal` feature is enabled for house-seller (no new crate).
   Tests: `answers_split_into_full_refused_and_unavailable`, `house_full_daily_limit_refusal_and_silence_reach_the_wallet_in_plain_words`, `house_health_stays_up_through_a_slow_tick_of_several_deals`, `house_restart_mid_capture_reserves_no_second_request_id_and_reports_it`, `house_drain_finishes_the_tick_in_flight_then_stops`, `house_failed_step_writes_one_redacted_log_line` and `healthz_follows_the_heartbeat`. PairingDesk.tsx was not typechecked (a worktree has no client node_modules).
-- **house-seller-demo full council r1 (2026-10-07, at 4b55400).** Outcome ready: overall 0.547 on coverage 0.70. The judges are uncalibrated, so the floors are advisory. Ready is not an approval: the operator decides.
+- **house-seller-demo full council r1 (2026-10-07, at ced64ba).** Outcome ready: overall 0.547 on coverage 0.70. The judges are uncalibrated, so the floors are advisory. Ready is not an approval: the operator decides.
   Scores: value 0.50, craft 0.56, robustness 0.62. Rivalry and economics were not measured: no lookups, no price book, no telemetry, and the HOUSE is not deployed.
   The lite lines:
   - Line 3 (redacted log) is closed.
@@ -1372,10 +1372,10 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
 ### 2026-10-24: tiger value pass on the Spend page (agent-gated-spend)
 
 Record: [tiger/2026-10-24-agent-gated-spend.md](tiger/2026-10-24-agent-gated-spend.md). A headless, single-family pass. Three display-only items were built in `apps/desktop/client` (no IPC, no Rust, no money path):
-- **C1** (ddbaef7): a row says "Over the per-deal limit" only when the amount is over it. The per-deal rule also refuses a category (`mandate.rs:458-459`), so a refusal within the limit reads "Stopped by your “Limit per deal” rule".
-- **C2** (f9f0d1e): a cleared purchase waiting at Agreed passes every rule in its lane, instead of "?" everywhere. Rust clears a purchase into Agreed only after the mandate check (`deal.rs:373`, `agent.rs:695-699`). The ask-me rule shows "Asks you" only above its amount, and the pane says PayPal hasn't been asked yet.
+- **C1** (9a3dcc8): a row says "Over the per-deal limit" only when the amount is over it. The per-deal rule also refuses a category (`mandate.rs:458-459`), so a refusal within the limit reads "Stopped by your “Limit per deal” rule".
+- **C2** (97cf054): a cleared purchase waiting at Agreed passes every rule in its lane, instead of "?" everywhere. Rust clears a purchase into Agreed only after the mandate check (`deal.rs:373`, `agent.rs:695-699`). The ask-me rule shows "Asks you" only above its amount, and the pane says PayPal hasn't been asked yet.
 - **C3** (2610405): the decision card says every purchase waits for the owner because no rule can pay one (`pipeline.rs:408-412`). Before, it said "Your rules leave this decision to you". The explainer now says the agent can only ask.
-- agent-gated-spend r3 (07763cd, 86f1111): a waiting purchase cleared under an earlier rule version reads "not checked against these", never "passed"; matching versions say "passed when cleared (version N)"; rebind not visible client-side (waits on Rust recording the clearing version).
+- agent-gated-spend r3 (e25a9d8, 695f56f): a waiting purchase cleared under an earlier rule version reads "not checked against these", never "passed"; matching versions say "passed when cleared (version N)"; rebind not visible client-side (waits on Rust recording the clearing version).
 
 Waits on the operator:
 - S1: a per-deal rule for another kind is drawn as "does not apply", where Rust refuses.
@@ -1441,7 +1441,7 @@ the full client and Rust gates after every merge. Wave 1: T4 slice 3 + T2 badge,
 it, the Linux legs of CI were made green: `table-engine/tests/native.rs` wrote `codex.exe` (only
 Windows resolves it) and left Windows-only helpers unused under clippy `-D warnings`.
 
-### T4 slice 3 walk-away + quit confirm, T2 practice-agent badge (83174f3, 93e93f3)
+### T4 slice 3 walk-away + quit confirm, T2 practice-agent badge (67babe3, 34baa30)
 
 - **Quit lines (pure, new):** `table_attention::quit` adds `quit_lines(&[QuitSource], &[ForecastLine]) -> QuitLines { while_off, at_paypal }`, `QuitLine { deal_id, label, effect, amount_minor, currency, text }`, `QuitEffect` (`request_not_sent | not_collected | not_collected_if_approved | waits | request_runs_out | hold_runs_out | seller_may_collect`), `ON_QUIT` and `quit_message` (native dialog text: deal numbers, never ids). Quitting stops the scheduler, so every create, authorize or capture in the forecast becomes a "won't happen while The Table is off" line; a buyer-approval step reads "If the buyer approves on PayPal, the payment is not collected until you open The Table again". An order awaiting approval or a hold also gets "still happens at PayPal by itself" (approve window; a hold released by PayPal after 29 days at most, paypal-platform.md:22/:114 [S]). A buyer deal already approved or on hold says the seller can still collect it (paypal-platform.md:361). Every pending deal gets at least one line; no line says money goes out.
 - **Contract:** `QuitSummary` gains optional `while_off` / `at_paypal` (`None` when the forecast read fails); bindings `QuitSummary.ts`, `QuitLine.ts`, `QuitEffect.ts`. `quit_confirm`'s `confirmation_id` now hashes `(pending deals, while_off, at_paypal, on_quit)`, so a change that alters only the lines is refused.
@@ -1455,22 +1455,22 @@ Windows resolves it) and left Windows-only helpers unused under clippy `-D warni
 - **UNVERIFIED:** how long PayPal keeps an approved-but-uncollected order is not in the research, so no line claims it.
 - **Left:** native Windows compile and check of the tray quit dialog; a Tumbler-menu quit entry if a menu is added.
 
-### T7 "Maya's week" director: a no-install judge path on the mock (deceb2b, aaec457)
+### T7 "Maya's week" director: a no-install judge path on the mock (3671609, 47732f4)
 
 Client only, no contract change. Run: `pnpm --dir apps/desktop/client dev`, open `/director.html`
-(or, for a static `dist`, build with `pnpm --dir apps/desktop/client build:director`; a plain `build` and the release build omit it, a65be99). Linked from the README.
-- **Decision (2026-10-18):** director.html is a dev-only, opt-in build input (operator's decision, put into effect by a65be99), recorded with the ElevenLabs public-use confirmation (e0105056).
+(or, for a static `dist`, build with `pnpm --dir apps/desktop/client build:director`; a plain `build` and the release build omit it, 7ddf099). Linked from the README.
+- **Decision (2026-10-18):** director.html is a dev-only, opt-in build input (operator's decision, put into effect by 7ddf099), recorded with the ElevenLabs public-use confirmation (cfb4ecf8).
 - **One clock.** `src/lib/clock.ts` is the only clock: `nowUnix()` (format.ts) and `useNow()` (hooks.ts) read `clockNow()`; `useNow` re-renders at once on a jump; Tumbler snooze checks and the CircuitView facts timestamp moved off `Date.now()`. In the shell it is wall time: `simulateClock()` refuses when `__TAURI_INTERNALS__` is present and `setClockOffset` is ignored unless simulation is on.
 - **Shared mock clock.** `mockBackend()` turns simulation on and reads the offset from `localStorage['the-table-mock-clock']`; a `{kind:'clock'}` envelope on the `the-table-mock` BroadcastChannel keeps every mock window on one offset; `resetMockState()` clears it.
 - **`MockWorld`** (`mockBackend(label).world`, preview only, no money operation): `advance` / `sweep` apply table-core's deadline defaults (AUTHORIZED→AUTO_VOIDED; PAIRING/LISTED/NEGOTIATING/AGREED→WITHDRAWN; SETTLING/AWAITING_APPROVAL/APPROVED→EXPIRED), each with `decided_by {type:'safe_default', deadline}`, an audit row, `deal:changed` + `receipt:created` with the shell's sentence, then `attention:changed`. `rewind(label, upTo, interim)` shows a deal part-way through its signed steps; `reset(at?)` starts the week at a story time (14:02:04 local, so the fixtures' 18:00 and 20:00 are true).
 - **Beats as data** (`src/director/`): `actions.ts` (typed `Action` union with deliberately no approve, pay, capture or release action; `runActions`, `applyWorld`, `foldScene`), `helpers.ts` (every Tumbler preview control as a beat helper; `Preview.tsx` runs the same helpers; new stage controls "Deadline passes" and "Four hours pass"; the ≤2 h / ≤15 min controls move the shared clock), `beats.ts` (21 beats in 6 chapters, about 2:50): (a) the haggle to Dan's $329 counter, the ask-me-above gate, the Tumbler card, the approval window opens (never approved); (d) the clock runs past the deadline and D-0193 is withdrawn by the safe default; (c) D-0199's $339 request does not match the $329 deal: a hold and a review with no pay button; (b) The Table closes, D-0190 on hold, days pass, AUTO_VOIDED.
-- **`director.html`** (vite input `director`): a dark (or light, following `table-theme`) stage with the three windows framed at native sizes (`index.html` 1280×800, `approval.html` 744×660, `tumbler.html?frame=director` = new bare `preview/Framed.tsx`), a camera that follows each beat, a caption rail with simulated time, play/pause/previous/next/restart (Space, ←, →, Home), a per-chapter scrubber, and the permanent banner "Browser preview with sample data — not the wallet. No PayPal page is ever shown." `?beat=`, `?play=0`, `?camera=desk`. Refuses to run inside the shell; built only by `build:director` (THE_TABLE_DIRECTOR_BUILD=1, a65be99); a plain build and the release emit only index, tumbler and approval, and the dev server still serves it.
+- **`director.html`** (vite input `director`): a dark (or light, following `table-theme`) stage with the three windows framed at native sizes (`index.html` 1280×800, `approval.html` 744×660, `tumbler.html?frame=director` = new bare `preview/Framed.tsx`), a camera that follows each beat, a caption rail with simulated time, play/pause/previous/next/restart (Space, ←, →, Home), a per-chapter scrubber, and the permanent banner "Browser preview with sample data — not the wallet. No PayPal page is ever shown." `?beat=`, `?play=0`, `?camera=desk`. Refuses to run inside the shell; built only by `build:director` (THE_TABLE_DIRECTOR_BUILD=1, 7ddf099); a plain build and the release emit only index, tumbler and approval, and the dev server still serves it.
 - **Wording:** `words.ts` gains plain words for the shell's deadline sentence; the D-0199 fixture's silence line no longer says "SETTLE" (coordinator fix).
 - **Tests (22):** `src/lib/clock.test.ts` (4), `src/director/beats.test.ts` (8: ordered, readable timing, known actions only, never moves money, plain-word captions, all four stories, beatAt, helpers cover every preview control), `src/director/story.test.ts` (10: each story's end state, the whole run never transitions into a money state and every lapse is safe_default, seek equivalence, shared offset, ladder follows the clock, reset alignment, the clock never runs backwards).
 - **Deviations:** story order is a, d, c, b (a days-long jump in b would lapse the haggle first). The mock's idle lock follows the simulated clock, so the Tumbler shows its lock after jumps over 15 minutes (accurate).
 - **Left:** reuse the beat file for Playwright video takes; measure time-to-first-gate on cold viewers (target under 30 s); host the static build at a public link.
 
-### T5 Rust-composed approval checks (97cb9eb; approval-window-1)
+### T5 Rust-composed approval checks (d11ba50; approval-window-1)
 
 The approval checklist is composed by the pipeline from the predicates the money steps run, and
 each owner decision is bound to the exact list it was taken on. No new command, capability,
@@ -1486,7 +1486,7 @@ migration or dependency; no PayPal endpoint, field or limit added.
 - **Flaky under load (seen once, unrelated):** `house_tests::house_health_stays_up_through_a_slow_tick_of_several_deals` timed out at 10 s with load ~4.5; passed 3 times alone.
 - **Left:** a Proof drawer reading `owner.decision` rows ("owner saw: …"); the per-decision native prompt (native-shell-1); a buyer haggle's PayPal order payee is not read (the order is seller-owned).
 
-### T6 Rewind: who decided each money step (3e75215, 0b433e8; main-window-2)
+### T6 Rewind: who decided each money step (aaa3091, dab7744; main-window-2)
 
 It shows, from the verified audit chain, who decided each money step. Typed DecisionTraces
 (money-pipeline-2) are not built. No migration, no new dependency, no new privileged command, no
@@ -1501,7 +1501,7 @@ PayPal call, no write path; `audit_log` is unchanged.
 - **Deviations:** seconds not ms; one tick per money operation, not per `paypal_calls` row (order and reporting reads are not ticks).
 - **Left:** native shell command compiles only on Windows (not built here); the typed DecisionTrace would let `intent.refused` name its clause; no Proof drawer link from a tick.
 
-### T12 Mandate what-if before signing (d496eb1, 4ad4487; approval-window-2)
+### T12 Mandate what-if before signing (17c75e1, 84a8180; approval-window-2)
 
 `mandate_simulate(MandateSimulateArgs { draft: MandateSignArgs, from?, to? }) -> MandateSimulation { from, to, lines: Vec<SimulatedLine>, not_simulated }`.
 Approval label only, no token and no unlock (it moves nothing). Read-only: nothing is signed, no
@@ -1516,7 +1516,7 @@ refuse{clause, reason} | not_simulated`.
 - **Deviations:** seconds not ms; validity dates are not replayed against the past (each payload is checked at `max(now, payload.not_before)`, a what-if on the terms); a seller deal under a draft naming other than exactly one payee is `not_simulated`; Main's "Clause trace" reuse is not built.
 - **Left:** persist the Intent at check time if replayed intents ever diverge; Main "Clause trace"; mock usage approximates agreement order by creation time.
 
-### T10 PayPal ground truth: read-back resolver (3515b2f, 5e62cc2, 2b9b247; money-pipeline-1)
+### T10 PayPal ground truth: read-back resolver (cb31953, 4e7c464, a6c31af; money-pipeline-1)
 
 - **Citations corrected (2026-10-09, deal-to-settlement lite r1 robustness-3).** This entry named files and tests the tree does not have (`crates/table-app/tests/resolver.rs`, a table-ledger `resolver.rs`, `resolve_due`, `resend_gate`, `park_operation`, `resolve_confirmed`, `operation_checks`). What the tree has: the resolver in `crates/table-app/src/pipeline/resolve.rs` (`Pipeline::resolve_deal`, `Resolve::{Advance, Deadline}`, `may_resend`, `park`, `defer`, `SETTLE_SECS`); the ledger side in `crates/table-ledger/src/resolution.rs` (`open_operations`, `record_resolution`, `money_check`, `paypal_call_requests`) over migration `0008_resolution.sql` (append-only `operation_resolutions`, outcomes `confirmed | absent | resent | needs_owner | deferred`, each with one `money.resolved` audit row). A step is re-sent at most once (no resend budget or backoff); a park is one row and is not retried. The paths and tests below are corrected in place; the prose describing parks, backoff and audit actions is kept as it was written.
 
@@ -1534,7 +1534,7 @@ refuse{clause, reason} | not_simulated`.
 - **UNVERIFIED:** order reads list an authorization's captures under `purchase_units[].payments.captures` (the shape `Payments` already decodes); the authorization status `VOIDED` inside an order read (the research names only the webhook `PAYMENT.AUTHORIZATION.VOIDED`); the 6 h `PayPal-Request-Id` store for the Payments v2 capture and void (the research states it for Orders v2 only); the resolver has not run against the live sandbox. Add these to sandbox spike 3.
 - **Left:** an approval-window action to re-send an owner-decided step under a fresh ticket (the API accepts one; no command calls it); the sandbox-only "cut the wire" developer setting (only the test double exists); open operations on deals that ended for another reason (e.g. a peer WITHDRAW) are not resolved; Book totals still count a parked capture under "On hold"; a deal with no deadline and a parked create stays Settling. `house_health_stays_up_through_a_slow_tick_of_several_deals` timed out once under parallel load (10 s wait); passes alone.
 
-### Design polish pass 1: module pages, deal page, sheets (dccb6fe, 0ade069; client only)
+### Design polish pass 1: module pages, deal page, sheets (43fbb82, f12a088; client only)
 
 - **Sample times:** `buildMockState` gains a fixture-only `at: [created, updated]`; live deals sit at offsets matching their transcripts/notes/deadlines, closed deals are spread over the week so far (clamped to Monday 01:00 local so `ledgerScope` keeps them "this week"). Where a deal has a Rewind history, that history is the one clock (created = first step, updated = latest; coordinator, at merge). Silence lines use the core's sentences (`table-attention` silence.rs) instead of "auto-void at 72 h", fixed clock times or "SETTLE".
 - `clockLabel(unix, now?)`: weekday + time within 6 days, otherwise "3 Nov 23:20" (was "Shop rules in force until Tue" for a 27-day expiry).
@@ -1545,7 +1545,7 @@ refuse{clause, reason} | not_simulated`.
 - **Tests:** `lib/foundation.test.ts` (weekday vs date), `setup/limits.test.ts` (`setsLine`), `modules/counter/model.test.ts` (`currencyMark`); `clientRequests.test.ts` compares created_at with the fixture's value.
 - **Left:** the deal breadcrumb still shows the deal label (App.tsx); `countdown()` prints "2 d 18 h" (UX-GUIDE prefers "2 days 18 h"; shared with Tumbler/approval); two "Assistant · Shop order deals" cards look alike.
 
-### T14 Wallet-wide limits / exposure envelope (cac2633, ceefb45; core-domain-2)
+### T14 Wallet-wide limits / exposure envelope (c3b8d09, d5aec47; core-domain-2)
 
 - **Exposure fold (`table-core/src/exposure.rs`, pure):** `fold_exposure(&[ExposureDeal], now)` per currency (never converted), money out only (buyer deals): `paid_today`, `held` (AUTHORIZED now), `committed` (AGREED/SETTLING/AWAITING_APPROVAL/APPROVED now), `out_today` (the day's budget), `deals_today`. Released states never count; seller deals (money in) never count. Day rules are the per-mandate velocity's (scan C-4): a deal's place is its first `deal.transition` to AGREED in audit order; `exposure_for_deal` judges a deal against the deals that agreed earlier that UTC day and every other deal's held and committed money.
 - **WalletEnvelope** `{ version, currency, max_out_day, max_held, max_deals_day, expires }`, owner-signed over `b"table.wallet-envelope.v1\0" || JCS(payload)`; `validate()` refuses version 0, mixed currency, zero limits, bad expiry. `check()` only refuses: seller side allows; expired, other currency, deals today ≥ max, out today + amount > max_out_day, or held + committed + amount > max_held refuse. Refusals map to `Refusal { clause: ENVELOPE_CLAUSE (0) }`, Display `wallet limit <limit>: <reason>`.
@@ -1558,7 +1558,7 @@ refuse{clause, reason} | not_simulated`.
 - **One agreed-or-later set (lens p-fc5755):** `DealState::is_agreed_or_later`/`RELEASED`/`ALL` and `utc_day` in table-core are the only copies; the ledger's `usage_for` uses them (SQL released list generated, no literal). Agent refusal codes read a typed `Refusal.cause` (`RefusalCause`, in-process, not on the wire), not the reason text; user-visible text unchanged.
 - **Left:** per-currency envelopes; "after this: $X of $Y today" on a buyer decision; Book metrics from the same fold; native check of the new commands (Windows shell).
 
-### Design polish pass 2: Home (the Dial), the Tumbler, the approval window (2fa495f; client only)
+### Design polish pass 2: Home (the Dial), the Tumbler, the approval window (cdecb41; client only)
 
 - **Time words:** `countdown()` over a day reads "2 days 18 h" / "1 day 3 h" / "3 days" (UX-GUIDE); under a day it stays a ticking clock; one spelling for every `<Countdown>` (approval footer, deal page, Tumbler hand-off).
 - **Home, Needs you:** rows are a 3-line grid (verb + amount / who + time left / the default on silence across the full width, 2-line clamp); no id fallback. **Hub plate:** module + time left (no id), silence line up to 2 lines, `shortTitle()`, "Open deal". **Rewind:** one "Back to now" (the scrubber's), focus lands on Play, ticks and aria labels carry no ids. **Footer:** the permanent "Press ? for shortcuts" line (against principle 7) is a quiet `?` chip; the `?` sheet adds ↑ ↓ for decisions.
@@ -1568,7 +1568,7 @@ refuse{clause, reason} | not_simulated`.
 - **Tests:** `lib/foundation.test.ts` countdown days wording, `tumbler/logic.test.ts` tickers never name ids, `main/quit.test.ts` rows keep `dealId`.
 - **Left:** the deal page shows "‹ The Table" beside the "The Table ›" crumb (`Shell.tsx`); the director's `offsetWords` still says "N d N h later"; Tumbler stack rows still truncate at 440 px (full text on hover); the mock gives the "Checking with PayPal" item `kind: 'hold'`, so the stack shows "Paused" for it.
 
-### Book: "Ask in your own words" without an agent app (290a4ee; client only)
+### Book: "Ask in your own words" without an agent app (5e7ece4; client only)
 
 - **Built:** `modules/book/understand.ts`, a pure deterministic reader with a fixed word list (no LLM, no network, no IO) that turns a typed question (≤ 200 characters, `MAX_ASK`) into the closed `BookQuery`, answered by the existing `book_query`. Reads time ranges (today, yesterday, this/last week (Monday weeks), this/last month, this year, last N days, past week/fortnight/month, "since <weekday>", month names after "in"/"during", all time; sent as `range` [from, to) in RFC 3339 from the owner's UTC offset), metrics (count, sum_amount, avg_vs_market_pct, recovered_sum; default count + amount), statuses (paid, on hold, stopped, refused, refunded, mismatch, failed, disputed, in progress), kinds, groupings (day, counterparty, kind, state, decided_by; at most 2) and the reconciliation view. A counterparty filter matches only names from the known `counterparty_list` (display name, its parts, `declared_payee`, "house"); unpaired counterparties are never matched and a name made only of known words is never a name. Every word must be read or be a filler; otherwise the answer is "unsure" with the words it did not understand (never a guess). `book/rules.ts` ports `BookQuery::rejection` with Rust's exact words as a guard and test oracle; Rust still checks every query.
 - **Screen:** "I read this as:" chips (remove ×; time and grouping editable; "Any time" not removable), the note "Understood by your wallet · no AI involved", an unsure line with three tested phrasings; the UNAVAILABLE path for typed questions is gone; Enter asks, Esc clears; a late answer to an older question is ignored; answer columns and group cells in plain words. Mock `book_query` checks and applies the range.
@@ -1576,7 +1576,7 @@ refuse{clause, reason} | not_simulated`.
 - **Deviations:** spend and receive both read as "Paid" (money direction is not a BookQuery field; the answer keeps out and in on their own lines); grouped by day, the window uses local days while Rust's answer uses UTC days.
 - **Left:** suggestions while typing; amount/date/vs-market comparisons are not read from text ("over $100" stays unsure); the slip shows the original text after chip edits.
 
-### T9 glass-box HOUSE: public signed ledger, minutely head, buyer witness, scoreboard, verifier (d041ca9, 62c7d01; house-seller-1)
+### T9 glass-box HOUSE: public signed ledger, minutely head, buyer witness, scoreboard, verifier (1c15cdc, 0089846; house-seller-1)
 
 - **Types** (`table-proto/src/house_ledger.rs`): `HouseLedgerView` (`table.house.ledger.v1`), `HouseDealView`, `HouseRound`, `HouseMoneyStep`, `HouseClosed`, `HouseRefusals`, `HouseHead {epoch, epoch_started, row_count, audit_head, at}`, `SignedHouseHead`, `HousePrefix`/`SignedHousePrefix`; pure `compare_heads` → Same / Extends / Longer / NewEpoch / Shorter / Rewritten. Heads and prefixes are signed by the release agent key over JCS `["table.house.head.v1", head]` / `["table.house.prefix.v1", prefix]`. The epoch is the hash of the chain's first row, so a new disk is a visible new epoch. No field can carry free text; the guest appears only as a 12-character key-id prefix; no guest payee, PayPal id or secret.
 - **Ledger reads** (`table-ledger/src/glass.rs`): `Ledger::house_facts(limit)` verifies the whole chain once and reads envelopes, closed mandates, `paypal_calls` counts and audit rows; read-only.
@@ -1590,7 +1590,7 @@ refuse{clause, reason} | not_simulated`.
 - **UNVERIFIED:** WebCrypto Ed25519 support in judges' browsers (verified in Chromium 1194 only; others show "can't check here"); Render behaviour for the 503 window before the first publish after a cold start.
 - **Left:** optionally include the stored head in the T1 proof bundle; a projection test for a band-declined inbound offer; UAT on the deployed HOUSE once deploy is authorized.
 
-### Subscription rescue: one fix, DISCOUNT_THIS_CYCLE, end to end (406872e..24fca28; DECISIONS §13)
+### Subscription rescue: one fix, DISCOUNT_THIS_CYCLE, end to end (b5f42dd..dd78429; DECISIONS §13)
 
 The seven pieces of the submission cut:
 1. **Replay and detection.** `rescue_replay` (approval window, privileged: token + label + unlocked) records a failed renewal labelled REPLAY (subscription id, subscriber email, plan, cycle price) under the newest active rules carrying the fixes clause; without one it refuses ("Sign rules for fixing failed renewals first.") and writes nothing. The deal opens at AGREED and the window is rebound to it. `Pipeline::rescue_detect` opens a PayPal-reported (counted) rescue from a subscription read, built and tested offline but **not yet called** by any command or scheduler pass.
@@ -1607,7 +1607,7 @@ The seven pieces of the submission cut:
 - **UNVERIFIED** (marked in code; add to spike 8): `detail.invoice_number`, its length cap and `detail.note` on Invoicing v2 create; the `search-invoices` body field `invoice_number` and response `items`; that `billing_info.outstanding_balance` after one failed payment equals that cycle's price (`rescue_detect`).
 - **Left:** wire `rescue_detect` to a command or scheduler pass (and decide where the subscriber email comes from); run spike 8 (owner); Pause, Retry after fix, Downgrade; the Book page's local `isRecovered` estimate could read `rescue_book`.
 
-### T15 MarketWatch: keep prices fresh under a signed rule (5221f8f..97da5a2; market-data-1)
+### T15 MarketWatch: keep prices fresh under a signed rule (8ddaafc..aefaf3e; market-data-1)
 
 - **Rule:** `Clause::MarketWatch { items: [WatchedItem { item_ref, product_id }], max_refreshes_day }`, **clause 9** (after the rescue lever 8). Validated at signing: 1 to `MAX_WATCHED_ITEMS` = 20 items, no item twice; allowance 1 to `MAX_MARKET_CHECKS_DAY` = 200 a day; product id passes `market_product_valid` (shared with `table-market`). Optional, at most one per mandate. `check()` never reads it, so it grants no money authority; `mandate_simulate` answers are unchanged with or without it.
 - **Freshness (table-core):** `MARKET_FRESH_SECS` (900) and `market_fresh` replace the pipeline's inline check; `MARKET_REFRESH_LEAD_SECS` (60) and `market_refresh_due` mark a reference due when absent, from the future, or within 60 s of going stale; the market cache serves an entry only while not due. `market_watch_step` / `market_watch_open`: a seller deal is watched only up to Agreed (the forecast's seller-mandate window assumes no new reference after that), a buyer deal while pre-capture; terminal, captured and replay deals never.
@@ -1620,14 +1620,14 @@ The seven pieces of the submission cut:
 - **UNVERIFIED:** `MAX_MARKET_CHECKS_DAY` = 200 and `MAX_WATCHED_ITEMS` = 20 are wallet guards, not service limits; the per-call credit cost of the market service is not sourced (the hackathon key has 20,000 credits [S]).
 - **Left:** the mock never makes checks (fixed counts); no live test of the refresh loop with a real market key.
 
-### Director takes: stills, video and rehearsal check (e28211d; T7 "Left")
+### Director takes: stills, video and rehearsal check (979de41; T7 "Left")
 
 - `apps/desktop/client/scripts/takes.mjs` (`pnpm takes`) drives `director.html` through a read-only `window.__takes` hook (plan, now, seen, verify, play, pause; it never clicks inside a framed window). `--check` runs every beat and exits 1 on a page/console error or crash, a missing director banner or "Preview · sample data" badge, or a beat whose expected end state is not on screen (incl. the buttons the captions name). `--stills <dir> [--theme dark|light|both]` writes 1920x1080 `<theme>/NN-chapter-beat.png`. `--video <file.webm> [--chapter <n|id>]` records 1920x1080 with Chromium's recordVideo and, with ffmpeg, retimes the stretches between caption changes so every beat starts at its beat-file time (cue sheet `<file>.cues.json`). Deterministic story day 2026-11-05 14:02:04 America/Los_Angeles (`--date`, `--tz`). Playwright is not a dependency (global install, `PLAYWRIGHT=`, `PW_CHROMIUM=`); Node ≥ 22.18. Documented in `src/director/README.md`.
 - `src/director/takes.ts` (`EXPECT`, `checkBeat`, `stillName`, `selectChapter`, `takePlan`), `src/director/retime.ts` (`retimePlan`, `setptsExpr`; trims only when caption changes do not match the beats one for one or a stretch would warp more than 2x). Director: `?take=1` hides the transport, `?date=`, waits for frames to draw before a beat, the approval camera also frames the Tumbler, the mismatch deal stays at the $329 counter until `mismatch-agreed`, captions match what the cards offer.
 - Run (2026-10-08): `--check` all 21 beats ok; 42 stills; a 172.9 s whole-story webm (raw drift up to 2.4 s, corrected). Tests: `takes.test.ts` (10), `retime.test.ts` (6).
 - Left: record the final takes on Nov 6-9 (`pnpm takes --video …`).
 
-### T11 single-source authority manifest (cdf60f2; ipc-contract-1)
+### T11 single-source authority manifest (dc88142; ipc-contract-1)
 
 - **Table** (`crates/table-client/src/authority_table.rs`, dependency-free const data): one row per command (66): `name, labels (main/tumbler/approval), tier, (token, unlock), selection, enforcer`. `Tier` read / ui / act / session / owner / decision; the release set is tier >= session (19 commands, unchanged). `Selection` none / in_approval / required / pairing_in_approval. `Enforcer` runtime / shell (shell = `main_open`, `tumbler_set_form`, `tumbler_pin`, `tumbler_drag`, `tumbler_snap`, `proof_check`). `COMMANDS` and `RELEASE_COMMANDS` are const-derived; the hand lists are gone.
 - **Derived** (`authority.rs`): `manifest()` = SHA-256 over `b"table.authority-manifest.v1\0"` + JCS of the rows sorted by name; `capability_files()` (regenerated `capabilities/{main,tumbler,approval}.json`: same grants, new order, "generated, do not edit" description); `typescript()` → `bindings/authority.ts` (`AUTHORITY`, `AUTHORITY_MANIFEST`). `generate-bindings` writes all of them; a drift test fails when a checked-in file differs.
@@ -1641,7 +1641,7 @@ The seven pieces of the submission cut:
 - **UNVERIFIED:** the native shell and build.rs edits were never compiled here; the capability `description` key has not been read by a Windows build (Tauri v2 documents it as optional).
 - **Left:** the fingerprint in the proof bundle / receipts / owner-decision audit rows (needs a bundle format version); a generated authority markdown table; the W3 native IPC test on Windows.
 
-### First run: from install to a first safe deal (730029c; client only)
+### First run: from install to a first safe deal (431f176; client only)
 
 - **One path, every surface.** Pure model `src/lib/firstRun.ts` (`gettingStarted(facts)`, `connectionFacts`, `rulesInForce`); words `SAFETY_PROMISE`, `FIRST_RUN_TITLE`, `START_STEP`. Steps: (1) Connect PayPal sandbox (done when `payment_executor_configured`); (2) Sign your agents' rules (a rule set in force; `first_run` false is the fallback when `mandate_list` can't be read); (3) Try a practice deal with the house seller (done when `counterparty_list` has `house:true`). Shown while `first_run`, then until all three are done while no non-house wallet is connected; an unreadable fact stays unknown, never done.
 - **Home** (`home/Start.tsx`): "Your first safe deal in 3 steps", progress, the safety promise once ("Nothing pays without you or a rule you signed. Waiting never sends money."), the next step as the only gold button; the left column lists the steps (`shared/start.tsx`), each one click to where it happens (`approval_open` targets `credentials` / `mandate`, Connections on the house tab); the right column says what The Table does. **Settings sheet**, **Tumbler welcome** (first-run variant at 440×228) and the **approval owner configuration** show the same three steps.
@@ -1651,7 +1651,7 @@ The seven pieces of the submission cut:
 - **Deviations:** step 3 is done when the house seller is connected, not when a house deal exists (the table becomes a deal later); templates can't prefill the real house seller's payee (a release-time pin not exposed to the UI).
 - **Left:** a "you're set up" moment after step 3; showing the joined house practice table on Home.
 
-### T8 Shop around: one buyer intent, several sellers, first signed agreement wins (f8653eb, 0c04af2; pairing-and-relay-runtime-1 slice 1)
+### T8 Shop around: one buyer intent, several sellers, first signed agreement wins (e996f90, 5e92b87; pairing-and-relay-runtime-1 slice 1)
 
 - **Ledger:** migration **`0012_deal_groups.sql`** (`user_version` 12): `deal_groups(id, mandate_id, item_ref, opened_at, winner)` + `deals.group_id`, with triggers (no delete; a group is won once and only by one of its own tables; a deal joins one group once; `deals_group_agrees_once` refuses any grouped deal reaching AGREED unless it is the winner, a backstop below every Rust path). `open_group` takes 2-8 open buyer haggles under one mandate, one `item_ref`, distinct counterparties, none already grouped or holding our ACCEPT (`group.opened` per table; grouping only restricts). `commit_negotiation_in(tx, …)`'s ACCEPT branch calls `accept_guard` inside the same IMMEDIATE transaction: refused (`LedgerError::GroupClosed` → `REFUSED`) when another table already agreed or, for our own ACCEPT, when another table holds our outstanding ACCEPT; an agreeing ACCEPT claims `winner` (`group.won`). `commit_group_withdraw` writes `group.withdrawn {decided_by:"group_rule"}`, the signed WITHDRAW envelope and the transition in one transaction.
 - **App / runtime:** `Wallet::accept` and `check_owner_accept` refuse early (`can_owner_accept` off); agent refusals audited `intent.refused {layer:"group"}`; `Runtime::close_groups` withdraws every loser at each tick start, after an agent intent, after an owner accept and after each relay inbox pass (a crash between agreement and withdrawals finishes next tick). Commands `deal_group_open` (main, Act) and `deal_groups` (main, Read) → `DealGroupView` with prices from the verified signed transcript only. Two authority rows appended; `PINNED_MANIFEST` `9e34b82f…a1f7`. Rewind: `group.withdrawn` → `HistoryKind::GroupWithdrawn` / `HistoryAuthority::GroupRule`; `group.opened` / `group.won` bookkeeping. Daily budget and wallet limits count the group once with no new code (C-4 counts on agreement; one agreement per group). No money-path change: the winner settles like a single deal.
@@ -1663,9 +1663,9 @@ The seven pieces of the submission cut:
 
 ### Adversarial review of the night's money paths (2026-10-08)
 
-An independent read-only review of `ec80b00..` (crates, services, shell) against AGENTS.md found **no critical or high issue**: no second PayPal write under a new request id, no deadline default that captures, no invoice without an owner decision bound to a checks hash, no money-out path past the wallet limits, no IPC gate loosened by T11 (`band_set` and `market_refresh` got stricter), no UPDATE/DELETE on `audit_log`. It found liveness defects (a lost owner void that can never settle, a lost rescue send that never closes, a missing deadline check in `resolve_invoice_send`, a revoked mandate freezing an open step's safe default, the HOUSE prefix route sharing the tables queue, one wrong doc comment); a fix builder is on them.
+An independent read-only review of `0c79353..` (crates, services, shell) against AGENTS.md found **no critical or high issue**: no second PayPal write under a new request id, no deadline default that captures, no invoice without an owner decision bound to a checks hash, no money-out path past the wallet limits, no IPC gate loosened by T11 (`band_set` and `market_refresh` got stricter), no UPDATE/DELETE on `audit_log`. It found liveness defects (a lost owner void that can never settle, a lost rescue send that never closes, a missing deadline check in `resolve_invoice_send`, a revoked mandate freezing an open step's safe default, the HOUSE prefix route sharing the tables queue, one wrong doc comment); a fix builder is on them.
 
-### Liveness fixes from the money-path review (7d88df0)
+### Liveness fixes from the money-path review (8441abe)
 
 - **Lost owner void settles** (`table-app/src/resolve.rs`): `resolve_void` re-sends a void PayPal shows not done under its own stored request id on every due check, whoever decided it (no owner ticket, no `MAX_RESENDS` budget: a void is the safe direction and PayPal refuses a second void of one authorization); `decided_by` stays as recorded; a capture seen in the read still parks Ambiguous. Before, it parked NeedsOwner forever with money held at PayPal. **Deviation:** an owner's void re-sends without the owner, under the safe-default authority (AGENTS.md authority 3).
 - **Lost rescue invoice send closes** (`table-app/src/rescue.rs` `resolve_invoice_send`): with the invoice still DRAFT, `deadline_passed` is checked before `resend_gate`; past the deadline the step closes `not_done` and the fix expires; past the 6 h request-id window but before the deadline it closes `not_done` and expires at its deadline (a later approval cannot reserve the send again). The subscription is then free for a later rescue.
@@ -1674,7 +1674,7 @@ An independent read-only review of `ec80b00..` (crates, services, shell) against
 - **Tests:** `a_lost_owner_void_is_resent_under_its_own_id_and_settles`, `a_lost_send_still_draft_at_the_deadline_closes_and_frees_the_subscription`, `past_the_retry_time_an_open_draft_send_is_never_sent_again`, `a_revoked_mandate_never_freezes_an_open_capture_past_its_deadline`, `a_revoked_rescue_mandate_still_lets_an_unsent_fix_expire_and_never_signs_paid`, `prefix_reads_never_take_a_tables_slot`.
 - **Left:** after the request-id window, an owner approval of a closed DRAFT send is refused with a ledger conflict rather than plain words; a revoked mandate leaves a PAID rescue invoice or a confirmed capture waiting for the agent key (as before).
 
-### Accessibility and keyboard pass, WCAG 2.2 AA (5bae3f2; client only)
+### Accessibility and keyboard pass, WCAG 2.2 AA (03db584; client only)
 
 - **Audit** (a Playwright script, not shipped): names from the browser's accessibility tree, keyboard reach, ids, svg/img labels, contrast of every visible text element (pixel-sampled on gradients), a full Tab walk, mouse-only targets, landmarks/headings, live regions that change within 2 s, animations under reduced motion; over Home, first-run Home, six modules, two deals, 10 sheets/layers, 7 Tumbler forms and the approval window states, dark and light. Before → after: not keyboard-reachable 200→0, unnamed 40→0, contrast 68→1 (a badge under a popover, false positive), mouse-only 13→1 (the Tumbler ticker; the puck is the keyboard route), pages without h1 12→0.
 - **Focus:** `useModalFocus` keeps focus inside an open Sheet or the Find palette; `useFocusRescue` gives focus to the h1 when a decided money button unmounts; Esc closes the top layer and returns focus to its opener; coming back Home focuses the Dial.
@@ -1685,14 +1685,14 @@ An independent read-only review of `ec80b00..` (crates, services, shell) against
 - **Tests (21):** `lib/contrast.test.ts`, `shared/ui/focus.test.tsx`, Tumbler rung announcements, Dial value text. Client 686.
 - **Left:** Settings and agent-rules tabs use Tab rather than arrow keys.
 
-### "While you were away" on Home (7f8f85a; client only)
+### "While you were away" on Home (095cbdc; client only)
 
 - Pure model `windows/main/home/away.ts`: `awaySummary(steps, deals, lastSeen, now, {needs, truncated})` over `deal_history` steps plus `Deal.terms` amounts and the attention count; never counterparty text. Groups by outcome (paid / collected / invoice paid / on hold / released / checking with PayPal / refused / paused / mismatch / failed / renewal failed / lapsed / refunded / disputed) and by who decided (you / your rules / the buyer's approval under your shop rules / the safe default / a safety check / not recorded); per-currency totals in integer minor units, never summed across currencies; a later step on the same deal settles an earlier one; a capture whose answer was lost is "Checking with PayPal", never paid. "No money moved." when nothing was paid or collected. `worthShowing` hides a quiet summary under 30 minutes. Last seen per viewer in localStorage `table-last-seen` (try/catch; absent, garbage or future = the start of today).
 - `home/AwayCard.tsx`: a compact card above "This week" when something needs Maya (the Needs-you list stays the only gold), or the hub's content when nothing does; each line opens its deal or the Rewind at its first step; at most 4 lines, then "and N more on the Rewind"; "See it on the Rewind" opens the Rewind at last seen; dismiss stores now; hidden on first run and when the history read fails. Home counts as seen after 4 s on screen, every minute, on page close and when leaving Home.
 - Tests (39): `home/away.test.ts` (incl. the brief's morning paragraph word for word, currencies never added, JPY, lost answer → checking, safe-default vs owner release), `home/AwayCard.test.tsx` (5). Client 725.
 - Director takes now show the card on Home ("since the start of today"); `--check` passes all 21 beats.
 
-### Council open items: owner-key anchor, HOUSE slots and floor (526551f)
+### Council open items: owner-key anchor, HOUSE slots and floor (b71b7e3)
 
 Closes the T1 council-lite r2 must-address and the house-seller-demo full council r1 open-high lines (HOUSE slots, public floor) plus the medium `HEARTBEAT_STALE` line. No new IPC command (T11 table and fingerprint unchanged), no migration, no dependency.
 - **Owner-key anchor:** `OwnerFacts.owner_key_id` (`table_core::KeyId`, full 64-hex id of the owner's public key, via `Wallet::owner_public_key()`; the private key never crosses). Settings › Detailed › Saved keys and the approval window's owner configuration show it in groups of four with Copy (`src/shared/ownerKey.tsx`). `table_verify::Report.owner_key_id` is the full id (was truncated to 16). "Check a proof file" shows the file's key whole and says "Matches your wallet" or "A different wallet".
@@ -1704,7 +1704,7 @@ Closes the T1 council-lite r2 must-address and the house-seller-demo full counci
 - **Tests:** `house_schedule_counters_a_floor_bid_until_the_last_round_and_never_goes_below`, `house_unapproved_deal_lapses_after_thirty_minutes_and_frees_its_slot`, `house_counters_a_floor_bid_and_its_record_still_shows_nothing_below_the_floor`, extended owner-key and "not checked" assertions; client `src/shared/ownerKey.test.tsx` (6). Fixture `agreed_house` now offers 22.50 (the house's round-1 price).
 - **Left:** selective disclosure of the HOUSE floor (T13); no test exports from a corrupt chain or with a missing key.
 
-### Shield slice 2: the scam shield records, explains and holds for real (a97962e, 31be940)
+### Shield slice 2: the scam shield records, explains and holds for real (323b3ba, 9507a68)
 
 Migration **0013** (`0013_shield_record.sql`, `user_version` 13). No new IPC command (T11 unchanged).
 - **(1) A production writer for `Deal.shield`:** `table_core::ShieldRule` (payee_mismatch / friends_and_family / no_market_reference / price_over_market / new_counterparty_over_threshold / model_caution); `table_shield::explain` → `Finding { verdict, rule }` in the rules' order. `Pipeline::shield_step` runs inside create, authorize and capture after `authority()` and calls `Ledger::record_shield` (`deals.shield_verdict/shield_rule/shield_terms` + one audit row only on change: `shield.raised` for HOLD/BLOCK, new `shield.checked` for CLEAR/ASK). The order check's payee half (`raise_payee_mismatch`) raises BLOCK payee_mismatch from PayPal's typed `payee.merchant_id` before MISMATCH. A verdict for older terms is not projected, so a terms change judges again; HOLD, BLOCK and raised verdicts are kept as a floor; a computed ASK is not kept (a later market price still clears). Triggers: a BLOCK is never lowered; only a HOLD can carry a release.
@@ -1717,7 +1717,7 @@ Migration **0013** (`0013_shield_record.sql`, `user_version` 13). No new IPC com
 - **Left:** a production caller for model caution; a typed friends_and_family source; the Shield page's "Stopped" group still counts a released deal; the mock card module for D-0198 is `shield` where Rust says `spend`; native GUI not run.
 - **Client honesty (shield-screening rework):** the client no longer advertises the two unwired checks (friends & family, the AI second opinion): their cells and lights read "not active yet", the checks line and How page no longer say they ran, and the scale mock stops deals with those rules (mock store v19). A recorded `shield_rule` of either still shows. Client tests updated (`shield/matrix.test.ts`, `normal.test.ts`, `rule.test.ts`), not executed here (no node_modules).
 
-### Proof bundle v2: the night's evidence in one signed file (24b9f84; T1 follow-up)
+### Proof bundle v2: the night's evidence in one signed file (f46c4b4; T1 follow-up)
 
 - **Format** (`table-proto/src/proof.rs`): `PROOF_FORMAT = table.proof.v2` (`PROOF_FORMAT_V1` stays readable); new optional committed fields `authority_manifest`, `group: ProofGroup` (the `group.*` audit rows, each hashed over its own deal id), `house: ProofHouse {release, heads}`, `ProofOperation.request_id`, `ProofCall.request_id`. No v2 field carries counterparty free text. `evidence_commitment` uses the file's own format string as its domain (a v2 file relabelled v1 fails `evidence`).
 - **Export:** `Ledger::export_proof(id, owner, at, house)` adds request ids, the group and the kept house heads (≤ 1000); the runtime adds the T11 fingerprint (`Runtime::sign_proof`).
@@ -1728,7 +1728,7 @@ Migration **0013** (`0013_shield_record.sql`, `user_version` 13). No new IPC com
 - **Deviations:** a deal owner-decided before T5 has no `owner.decision` row, so its v2 file fails `owner_saw`; the CLI prints the fingerprint without a same-version verdict.
 - **Left:** selective disclosure (T13); a no-install checker for v2; the native dialogs not run.
 
-### Second review fixes (ecc4312, e2dfc53, 1928b43)
+### Second review fixes (a742ed1, d9fda57, 225b3c4)
 
 A second independent read-only review of the code merged after the first review found no broken invariant; four defects fixed:
 - **HOUSE 30-minute window race (medium):** `HOUSE_RECEIPT_GRACE_SECS` (15 min) delays only the buyer's safe default for a house-paired deal still awaiting approval (the recorded deadline and countdown stay `iat + 30 min`; waiting moves nothing); `Seller::bound_capture` cuts an authorized HOUSE deal's capture deadline to `iat + 30 min + grace − STEP_SECS − RECEIPT_DELIVERY_SECS` (a `deadline.set` row), so a stalled HOUSE voids rather than captures money the buyer's record would call lapsed; a compile-time assertion proves the grace covers it. UNVERIFIED: `RECEIPT_DELIVERY_SECS` = 120 s is a chosen budget.
@@ -1737,7 +1737,7 @@ A second independent read-only review of the code merged after the first review 
 - **Tests:** `house_approval_in_its_last_minute_ends_receipted_on_both_sides`, `house_voids_a_hold_whose_receipt_could_no_longer_reach_the_buyer`, `a_fix_whose_send_ended_is_refused_in_plain_words_and_writes_nothing`, `a_released_raised_hold_does_not_hide_a_new_hold_for_another_rule`, `a_step_refused_again_after_a_release_and_a_new_hold_is_a_second_refusal`, and extended pipeline/rescue tests.
 - **Left:** during the grace a house-paired buyer deal shows a passed deadline for up to 15 minutes; a capture confirmed only after the grace can still leave the buyer EXPIRED (needs late-RECEIPT acceptance on EXPIRED). Not changed by choice: `deal_group_open` stays a main-window Act without unlock (it moves no money).
 
-### Agent tool surface 1: closed table projection, coded refusals, role playbooks (47b2c25; agent-tool-surface-1 first slice)
+### Agent tool surface 1: closed table projection, coded refusals, role playbooks (1ca2e6d; agent-tool-surface-1 first slice)
 
 - **`table_core::agent` (pure):** `AgentProjection::build` is the design §6.4 table: deal id, side, kind, a fixed counterparty label (house / paired_wallet / unpaired), item ref, qty, currency, delivery, a closed `TablePhase`, prices (ours, theirs, pending offer), the band (floor, ceiling, rounds used/left, deadline), the effective deadline, market (p25/median/p75, fresh), price-only history (≤ 64 steps; NOTE, HELLO and APPROVED cannot be represented), turn and the closed list of allowed tools. Every type `deny_unknown_fields`, no free `String` field. `AgentProjection::refusal(tool, deal)` holds the table-side rules that `allowed` is computed from (shield hold, closed table, deadline, rounds exhausted, not your turn, band missing). Closed **`RefusalCode`** (`mandate_clause{clause}`, `wallet_limit`, `outside_band`, `rounds_exhausted`, `deadline_passed`, `owner_approval{clause}`, `group_closed`, `shield_hold{rule}`, `not_your_turn`, `table_closed`, `paused`, `run_ended`, `session_not_enabled`, `tool_absent`, `malformed_call`, `out_of_scope`, `market_unavailable`, `invalid_request`, `unavailable`) with fixed text. **`Playbook`** (`buyer_haggler`, `seller_counter`, `shopper`, `shop_assistant`) from `prompts/*.md` via `include_str!` (`prompts/negotiator.md` removed).
 - **table-app:** `Wallet::projection`; `table_view` returns it; `send_offer`/`accept_offer`/`withdraw_offer` check `projection.refusal` before the mandate check and return the updated projection; accept above clause 6 is REFUSED `owner_approval{6}` before signing; `Error::Agent(RefusalCode)` → REFUSED; every refused call writes one `intent.refused` row `{layer, tool, code, clause, reason}` (the old separate group/limit refusal audits merged).
@@ -1748,7 +1748,7 @@ A second independent read-only review of the code merged after the first review 
 - **UNVERIFIED:** whether claude-code / codex-cli surface MCP `structuredContent` with protocolVersion 2024-11-05 (the first text block carries the same JSON).
 - **Left:** live use waits on the attested native engine session (engine-adapters-1); the house rounds-to-agreement benchmark; an approval-window view of refusals per code.
 
-### Client code splitting (2ea22c8; perf, client only)
+### Client code splitting (2a18b76; perf, client only)
 
 Surfaces that are not on a window's first paint now load as their own chunks; the "chunk over 500 kB" warning is gone.
 - `src/lib/lazy.ts`: `lazyPart(load)` behaves like `React.lazy` until its chunk arrives, then renders directly (later navigation never suspends or flashes); `.preload()` loads once and retries after a failure; `preloadWhenIdle(parts)` loads parts after first paint.
@@ -1758,7 +1758,7 @@ Surfaces that are not on a window's first paint now load as their own chunks; th
 - Tests: `src/lib/lazy.test.tsx` (4); client 750; the director `--check` passes all 21 beats. Before/after screenshots match apart from the Dial's animation.
 - Left: no error boundary for a chunk that fails to load (assets are local in the shell).
 
-### Market-watch actor test flake, root-caused (4e96995, test only)
+### Market-watch actor test flake, root-caused (02c301f, test only)
 
 - **Cause:** the "created" wait polled for the deal to *be* in `AwaitingApproval`, but the offline PayPal double approves every order, so the next actor tick authorizes and captures under the seller mandate (H5) and the deal reaches `Receipted`; `AwaitingApproval` lasts one tick. On a loaded host the 1 s interval wins `select!` over the test's queued poll and the window is missed. Failing runs reported `deal last seen Receipted, market calls 1, checks [1], faults []`. The product is correct and unchanged.
 - **Fix:** waits use only conditions that stay true once reached (call count, stored price, the move into `AwaitingApproval` in the audit trail); assertions check that move is newer than `market.observed` and the countersign is `Policy { clause: 6 }`; a wait that gives up reports calls, gate, the last deal seen, checks, forecast, actor faults and the audit trail. Under CPU load (load 12–20): 3/3 failed before, 0/35 after. The other polling loops wait for states that stay put; three short 3 s tick-driven waits were widened to 30 s (coordinator).
@@ -1777,7 +1777,7 @@ Surfaces that are not on a window's first paint now load as their own chunks; th
 - **Known gap (lever design, not fixed):** after the subscriber pays the fix's invoice, PayPal's subscription may still show the failure and retry the full price itself; detection will not open a second fix, but stopping PayPal's retry is outside this slice. A still-open replay of the same subscription makes detection show "failed · no fix" until it ends.
 - **Left:** read PayPal's next retry time into the fix's deadline (5-day default today); the webhook / `webhooks-events` path; a live sandbox read (spike 8, owner); a main-window event on watch-list change (focus refresh only); the native shell edits are uncompiled (Windows-only).
 
-### Hostile-agent gauntlet and acceptance matrix (77d255c, 255193d; ops-and-delivery-1, the parts not yet built)
+### Hostile-agent gauntlet and acceptance matrix (b023eeb, 8ce06a4; ops-and-delivery-1, the parts not yet built)
 
 - **Gauntlet** (`crates/table-app/tests/gauntlet.rs`, `h1_h2_f1_s2_hostile_agent_gauntlet_leaves_only_lawful_money_rows`, no migration). A seeded SplitMix64 generator plays sessions against two real wallets (buyer with a haggle and a purchase from a paired shop; a seller). Agent calls go through the real `table_mcp::Server` router in process (tower `oneshot`, no socket); money steps through the real `Pipeline` and `table_paypal::Client::sandbox` over a recording in-memory transport (`FakePaypal`: method, path, PayPal-Request-Id, body). No network.
   - **Agent moves:** offers in band / above ceiling / below floor, malformed price text, accepts with stray sequences, withdraws, calls on the other / unknown / ended deal, 16 off-catalog tool names (capture, void, refund, …), role mismatches, malformed and extra-field arguments, sessions not enabled, purchases of 1-60 units with wrong payees or amounts, injection text in arguments. **Counterparty:** NOTE envelopes carrying a unique per-session tag plus injection text, signed and relayed; replays, single-character tampering, cross-deal delivery. **Owner** (approval window emulated as `service.rs` does it: `owner.decision` row then a ticket): accept, countersign, authorize, capture, void, unlock, revoke, signed wallet limits, a raised HOLD. **Scheduler:** seller create on clause 6, buyer approval through the verified `approval_link`, seller read-back + authorize/capture on its mandate, buyer poll, ticks of 30 s / 16 min / 7 h / 73 h, and create/authorize/capture probes under Policy, SellerMandate and HouseMandate. About 55% of moves are cooperative so hostile moves land on every stage.
@@ -1791,7 +1791,7 @@ Surfaces that are not on a window's first paint now load as their own chunks; th
 - **Dependencies:** dev-dependencies of `table-app`: `table-mcp`, `table-verify`, `axum`, `tower` 0.5 (`util`) - all workspace crates or already in Cargo.lock (a dev-dependency cycle table-mcp → table-app, allowed for integration tests). Coordinator: `[profile.dev.package]` opt-level 3 for `curve25519-dalek`, `ed25519-dalek`, `sha2`, `libsqlite3-sys` (leaf crates only; measured ~5x on the gauntlet). Merged gates: workspace 510 passed / 0 failed / 9 ignored in 3m19s.
 - **Deviations / left:** the predicate lives in the test file; the owner decision is emulated with the runtime's row shape (table-app has no approval service); agents paused is a runtime gate, not reached (only revoked mandates); the dossier carries the buyer's file only; 64 CI seeds, not thousands. Left: the in-app Proof sheet (card slice 2), house-side evidence, tests for the uncovered non-never-cut IDs, the native half of E1, a runtime-level gauntlet (paused agents, the read-back resolver), a first GitHub run.
 
-### Client polish 3: surfaces that landed after polish 2 (fe3731e, fc880a4, 6b1484b; 2026-10-08)
+### Client polish 3: surfaces that landed after polish 2 (cc0eaba, 2eb1032, 61db264; 2026-10-08)
 
 Wording and consistency pass over Book, Rescue, Shield, Counter, Spend, Home, the deal page, the approval review and the Tumbler. Client only; gating and IPC unchanged.
 
@@ -1805,7 +1805,7 @@ Wording and consistency pass over Book, Rescue, Shield, Counter, Spend, Home, th
 - **Coordinator (same wave):** `owner/Replay.tsx` → `owner/WhatIf.tsx` and `tables/Groups.tsx` → `tables/ShopAround.tsx`; each collided case-insensitively with `replay.ts` / `groups.ts`, which broke the Windows CI build from run 16 onward (TS1149/TS1261; the ubuntu leg was cancelled by fail-fast, so CI was red for ~6 hours of merges). `src/lib/casing.test.ts` fails on any such pair.
 - **Left:** the rules editor's payees text box shows the raw signed value "HOUSE"; Rescue Detailed is dense at 1280 with the inspector open; the Tumbler stack was not re-shot; mock items dp-cable-2m / hdmi-21 have no catalog names (fallback names stand in).
 
-### Evidence of informed silence: one ladder schedule, recorded rungs, defaults that cite them (5f3d7a2, d322b49; attention-ladder-1 first slice)
+### Evidence of informed silence: one ladder schedule, recorded rungs, defaults that cite them (ffcbdc8, 5638f42; attention-ladder-1 first slice)
 
 - **One schedule (pure):** `table_attention::LadderSchedule` / `LADDER` (breathe 7200 s, notify 900 s, snooze offered only with > 2700 s left, snooze 1800 s, quiet after 45 s at 55 %), helpers `breathes`, `notify_due`, `snooze_allowed`, `snooze_hides` (the notify rung always pierces a snooze), `snooze_until`. Every former copy reads it: `urgency`, `quiet_opacity_percent`, the snooze action in `AttentionSource::item`, `AttentionLadder::evaluate`, the runtime's notification claim / snooze check / snooze filter, the shell's breathe flag (`native/events.rs`), `tumbler/logic.ts` and the mock. Exported as `bindings/LadderSchedule.ts` plus the generated value file `bindings/ladder.ts` (drift-checked). `LadderEffects.suppressed`: a due notification held back by DND fires once per card and deadline.
 - **Types (table-core):** `LadderRung` (shown, breathing, notified, notify_suppressed, card_opened, review_opened, snoozed), `NotifySuppression` (do_not_disturb, notifications_off, system_quiet, not_shown), `RungMark { rung, at, reason? }`.
@@ -1817,7 +1817,7 @@ Wording and consistency pass over Book, Rescue, Shield, Counter, Spend, Home, th
 - **Deviations:** CardOpened = opening the deal from its Tumbler card (`tumbler_set_form` carries no deal); the rung dedupe is an in-transaction check, not an index table; `client_tests` owner_facts / book_query read attention once before counting audit rows (the actor's reads write "shown").
 - **Left:** the receipt ticker line naming the rungs; a trust-model row for "informed silence"; the mock never records "notified"; the native shell edits (`native/events.rs`, `native/routing.rs`) are compiled only by Windows CI. Seen at merge: a lapsed haggle's state chip reads "Withdrawn" while its banner says it lapsed (next polish pass).
 
-### "Your safety record": the whole-ledger check in the app (3ea15a4, 2b8a2b5; ops-and-delivery-1 slice 2)
+### "Your safety record": the whole-ledger check in the app (99efb22, 025a6f0; ops-and-delivery-1 slice 2)
 
 - **Predicate as a library** (`crates/table-verify/src/safety.rs`, pure): moved out of the gauntlet unchanged (`money_kind`, `unlawful`, `deal_violations`, `verifier_violations`, `VERIFIER_CHECKS`, `ledger_violations(chain, &[DealExport], needles)`); findings are `Violation { deal, kind, detail }` (authority, untracked_call, counterparty_text, refused_deal_called, verifier_check, chain_broken, evidence_unreadable); `tally()` counts money steps by authority (owner / signed_rule / seller_rules / house_rules / safe_default and its voids), `intent.refused` codes, and refused deals with their calls. `gauntlet.rs` keeps thin IO wrappers; its mutation tests pass unchanged against the library.
 - **Ledger:** `Ledger::export_proofs(limit, owner, at, house) -> LedgerExport { head, total, deals }` (verifies the chain once, exports the newest `limit` deals, each re-verifying its transcript; a failing deal comes back as `(id, error)`).
@@ -1829,7 +1829,7 @@ Wording and consistency pass over Book, Rescue, Shield, Counter, Spend, Home, th
 - **Merge note:** the takes check first failed with "Cannot read properties of undefined (reading 'labels')": the running Vite dev server does not watch the repo-root `bindings/` folder, so a regenerated `authority.ts` needs a dev-server restart.
 - **Left:** the predicate on the house wallet and as a whole-ledger dossier file in CI; note needles from inbound NOTE envelopes in the app; a Rewind tick linking to the sheet; the video beat from a release build; the mock's purchase fixtures still credit create/authorize to rule 6, which Rust refuses (see docs/features/spend-purchases.md).
 
-### Fair-price certificate on every receipt (da95e3b, 9c018d5; market-data-2 first slice)
+### Fair-price certificate on every receipt (861addd, 9667798; market-data-2 first slice)
 
 - **Raw-bytes hash:** `table_paypal::http::Transport::send_raw` returns `RawResponse { status, bytes }` (the default refuses, so a parsed-body-only transport can never give a re-serialised hash); `ReqwestTransport` shares one 1 MiB-capped `fetch`. `table_market::Client::comparables` POSTs `/v1/similar` through `send_raw` and takes `H256::digest(bytes)` before parsing (the old hash was over a re-serialised `serde_json::Value`).
 - **MarketRef v2 (table-core, pure):** optional `certificate: MarketCertificate { product_id, raw_sha256, match_kind: Similar, currency, comparables: Vec<MarketComparable { minor, product_id? }> }` (skipped when absent, so v1 bytes are unchanged); comparables sorted, 1 to `MAX_MARKET_COMPARABLES` = 30, ids only when well formed, no titles or prose. `validate()` recomputes the quartiles with `from_comparables` on every read and store (exact integer equality, currency, `raw_sha256 == response_hash`). `digest()` = commitment(("table.market.v2", retrieved_at, certificate)); `MarketCommitment::{V1, V2}`; integer `percentile` (round-half-up of 100·(below + equal/2)/n); `fair_price` → `FairPrice { state: rechecked | not_recheckable | broken, committed, percentile, prices, retrieved_at }`.
@@ -1870,7 +1870,7 @@ Wording and consistency pass over Book, Rescue, Shield, Counter, Spend, Home, th
 
 ## Onboarding slice 1: the agent app step and the tour (2026-10-09; client only)
 
-Goal 1 of the weekend brief (operator, 2026-10-09). Reconciled on main b5f91e2: no `engine` step and no tour existed, so all of it is new. Page: [`docs/features/onboarding.md`](../features/onboarding.md). No IPC command, Rust, binding, capability or dependency changed; nothing that moves money changed.
+Goal 1 of the weekend brief (operator, 2026-10-09). Reconciled on main ff25ac9: no `engine` step and no tour existed, so all of it is new. Page: [`docs/features/onboarding.md`](../features/onboarding.md). No IPC command, Rust, binding, capability or dependency changed; nothing that moves money changed.
 
 - **The fourth step, "Choose your agent app"** (56fbe4a). `StartStepKey`, `START_ORDER` and `START_STEP` gain `engine`. Fact: `settings.selected_engine`, readable in every window. Done on `claude-code` / `codex-cli`, to do on `scripted` (the practice agent a new wallet starts on), unknown while settings are unread (`engineChosen`). The Table also reads `engine_status`: a chosen app it reports unavailable keeps the step to do. `GettingStarted.total` is `START_ORDER.length` and `FIRST_RUN_TITLE` counts `START_STEP` ("Your first safe deal in 4 steps"). Home's step opens Settings; Settings' first-run checklist lists the four steps and the agent app's "Choose agent app…" opens the existing picker (`engine_select`, MAIN-only, unchanged). The approval window says "In The Table: Settings › Agent app"; the Tumbler's step opens The Table (`main_open`), as the practice step does.
 - **Order: last.** `['paypal', 'rules', 'practice', 'engine']`. The practice deal runs on the practice agent, so nothing before the agent app waits on it, and it is the one step that needs something installed outside the wallet. Putting it first would make a new owner install an app before they have seen a single safe deal.
@@ -1882,15 +1882,15 @@ Goal 1 of the weekend brief (operator, 2026-10-09). Reconciled on main b5f91e2: 
 
 ## Onboarding slice 2: the Director beat for the tour (2026-10-09; client only)
 
-Goal 1 of the weekend brief, its measure "Director beat plays it in the mock". Reconciled on main 95a341c: no first-run story and no tour action existed in `src/director/` or `scripts/takes.mjs`. Page: [`docs/features/onboarding.md`](../features/onboarding.md#watch-it). No IPC command, Rust, binding, capability or dependency changed; nothing that moves money changed; `windows/`, `lib/words.ts` and `mock/backend.ts` untouched.
+Goal 1 of the weekend brief, its measure "Director beat plays it in the mock". Reconciled on main fd34fce: no first-run story and no tour action existed in `src/director/` or `scripts/takes.mjs`. Page: [`docs/features/onboarding.md`](../features/onboarding.md#watch-it). No IPC command, Rust, binding, capability or dependency changed; nothing that moves money changed; `windows/`, `lib/words.ts` and `mock/backend.ts` untouched.
 
-- **The story as data** (07572a1). `director/firstRunStory.ts`: "First run", 5 chapters, 15 beats, 94 s (last caption at 84 s plus 10). `director/stories.ts` picks it with `director.html?story=first-run`; no `story` (or an unknown one) is Maya's week, whose beats, chapters, captions, times, `SCRIPT_LENGTH` (182 s), `EXPECT` and still names are unchanged. Its frames (`index.html`, `tumbler.html?frame=director`, `approval.html`) all carry `first_run=1`, and `entry.tsx` adds `first_run=1` to the director page's own address before the page's mock core is made, because the core reads its world from the page's search (`mock/backend.ts`, not changed). New action `{ do: 'owner' }` opens the approval window on the owner's setup; `Stage.owner` is optional, so the Tumbler preview stage needed no change. `Beat` and `Chapter` take the chapter ids as a type parameter (Maya's by default).
-- **The tour without a click** (2ef9204). `{ do: 'tour', win, at }` writes that window's progress with `saveTour` under `tourKey(true)` (`null` puts it away as finished). It is not a world action; the scene folds it and a First run seek writes every window's stop before the frames load (a window not yet pointed starts anew). `shared/tour.tsx` listens for `storage` and follows a write to its own key only (`lib/tour.ts` `tourFromStorage`, which also updates the page's in-memory progress). The mark already carried its stop as `data-tour-stop`, so no new attribute.
-- **Rehearsal** (a2bc9a6). `FIRST_RUN_EXPECT` in `takes.ts`, beside `EXPECT` and apart from its keys: the four steps (PayPal next, rules and practice not done, the agent app to do) and each window's mark stop, per beat. `Expect` gains `{ in, tour }` and `{ in, step, state }`; `Seen` gains optional `tour` and `steps`, which `Director.tsx` reads from the frames. `scripts/takes.mjs --story first-run` for `--check`, `--stills` and `--video`; Maya's week stays the default, and the script refuses when the page plays another story than the one asked for; the cue sheet names the story.
+- **The story as data** (2d6f27d). `director/firstRunStory.ts`: "First run", 5 chapters, 15 beats, 94 s (last caption at 84 s plus 10). `director/stories.ts` picks it with `director.html?story=first-run`; no `story` (or an unknown one) is Maya's week, whose beats, chapters, captions, times, `SCRIPT_LENGTH` (182 s), `EXPECT` and still names are unchanged. Its frames (`index.html`, `tumbler.html?frame=director`, `approval.html`) all carry `first_run=1`, and `entry.tsx` adds `first_run=1` to the director page's own address before the page's mock core is made, because the core reads its world from the page's search (`mock/backend.ts`, not changed). New action `{ do: 'owner' }` opens the approval window on the owner's setup; `Stage.owner` is optional, so the Tumbler preview stage needed no change. `Beat` and `Chapter` take the chapter ids as a type parameter (Maya's by default).
+- **The tour without a click** (c65480a). `{ do: 'tour', win, at }` writes that window's progress with `saveTour` under `tourKey(true)` (`null` puts it away as finished). It is not a world action; the scene folds it and a First run seek writes every window's stop before the frames load (a window not yet pointed starts anew). `shared/tour.tsx` listens for `storage` and follows a write to its own key only (`lib/tour.ts` `tourFromStorage`, which also updates the page's in-memory progress). The mark already carried its stop as `data-tour-stop`, so no new attribute.
+- **Rehearsal** (6219d1c). `FIRST_RUN_EXPECT` in `takes.ts`, beside `EXPECT` and apart from its keys: the four steps (PayPal next, rules and practice not done, the agent app to do) and each window's mark stop, per beat. `Expect` gains `{ in, tour }` and `{ in, step, state }`; `Seen` gains optional `tour` and `steps`, which `Director.tsx` reads from the frames. `scripts/takes.mjs --story first-run` for `--check`, `--stills` and `--video`; Maya's week stays the default, and the script refuses when the page plays another story than the one asked for; the cue sheet names the story.
 - **Tests (+21, client 840 → 861):** `director/stories.test.ts` (9, new: story choice, frame addresses in each world, the page's own address, beat file form, reading time, plain words with no vendor names or em dashes, presentation actions only, Maya's length pinned); `director/firstRunStory.test.ts` (6, new: four steps with the agent app to do; every tour stop is its window's, in `tourStops` order, all walked, put away last; no world, money or lock action; writes only to `table-tour:first-run`, the sample week's `the-table-mock-state-v18` and `table-tour` stay empty; a seek restores each window; each expected mark matches the fold); `director/takes.test.ts` (+3: First run's end states, plan, stills, chapters and checks); `lib/tour.test.ts` (+1: `tourFromStorage`); `shared/tour.test.tsx` (+2: a write to its key moves the mark, other keys do not; the first-run key, and put away).
 - **Gates:** client typecheck clean, vitest 861 of 861, build ok; `cargo test --workspace` green (no Rust changed).
 - **Played (slice 3, 2026-10-09).** Playwright 1.63.0 (an installed copy outside the repo, pointed at with `PLAYWRIGHT=<its index.mjs>`; not a dependency), Chromium 1243. Commands, from `apps/desktop/client`: `pnpm takes --check --port 1471` (Maya's week), `pnpm takes --check --story first-run --port 1471`, `pnpm takes --stills <dir outside the repo> --story first-run --theme both --port 1471`. Before the fix: Maya's week 22 of 22, First run 15 of 15. After it: 22 of 22 and 15 of 15, both exit 0. Stills were not committed.
-- **What the stills showed** (30 stills, both themes, looked at by an agent, not a person; every beat's still was opened in light, and the dark ones for the Tumbler and approval beats). The tour's mark shows on every beat, sits beside the element its caption names and reads clearly; the Tumbler's welcome mark fits the 520 x 460 frame; The Table's mark after the dial's intro is on the dial's welcome card; the approval window on the owner's setup says "Preview · sample data" and has no pay or approve button (its one gold button, "Connect PayPal...", opens the PayPal connection, as designed); Home's four steps show the agent app step to do; no em dash or vendor product name was seen on screen. **One defect, fixed (2c9dc41):** in the light theme the Tumbler frame was painted opaque white (its iframe forced `color-scheme: dark` on a light page), covering the approval window and the tour's mark on the approval beats; it has always done so in Maya's light stills too. A test pins the rule (client 861 → 862).
+- **What the stills showed** (30 stills, both themes, looked at by an agent, not a person; every beat's still was opened in light, and the dark ones for the Tumbler and approval beats). The tour's mark shows on every beat, sits beside the element its caption names and reads clearly; the Tumbler's welcome mark fits the 520 x 460 frame; The Table's mark after the dial's intro is on the dial's welcome card; the approval window on the owner's setup says "Preview · sample data" and has no pay or approve button (its one gold button, "Connect PayPal...", opens the PayPal connection, as designed); Home's four steps show the agent app step to do; no em dash or vendor product name was seen on screen. **One defect, fixed (bef21fd):** in the light theme the Tumbler frame was painted opaque white (its iframe forced `color-scheme: dark` on a light page), covering the approval window and the tour's mark on the approval beats; it has always done so in Maya's light stills too. A test pins the rule (client 861 → 862).
 - **Seen, not fixed (cosmetic):** the mark's highlight ring for "Your money stays put" overlaps the dial's "0 of 4 done" line, and the welcome beat's mark overlaps the "Take the tour" link under the card. The Table's last mark ("Tour · 5 of") stays visible behind the approval window on the approval beats, as that tour is still open.
 - **Still unverified:** the real 440 x 228 transparent Tumbler is native UAT. Gates this slice: typecheck clean, vitest 862 of 862, build ok, `cargo test --workspace` green (no Rust changed).
 - **Still native UAT:** the coach mark over the real 440 x 228 transparent, always-on-top Tumbler (slice 1's open item) is untouched by the director, which frames the Tumbler in a browser.
@@ -1902,31 +1902,31 @@ The council-lite r1 must-address: step 1 read "PayPal sandbox connected" when th
 
 ## Deal-to-settlement rework (lite r1 robustness-1, robustness-2)
 
-Council-lite round 1 (run 50d084ca, head 758b343) must-address lines 1 and 2, both milestone 1's T10 gap; both still held on 8b1aed7 at the lines cited. Closed in Rust only (table-app, table-ledger); the third line (value-1, a buyer deal reading "Paid" on the seller's receipt) and the words for a parked step follow on a client branch.
+Council-lite round 1 (run 50d084ca, head 50965ff) must-address lines 1 and 2, both milestone 1's T10 gap; both still held on 1a88e15 at the lines cited. Closed in Rust only (table-app, table-ledger); the third line (value-1, a buyer deal reading "Paid" on the seller's receipt) and the words for a parked step follow on a client branch.
 
 - **robustness-1, a parked money step was never closed.** `resolve_deal` skipped every parked step, so at the deadline `auto_void` refused forever behind a parked capture or void (the deal sat On hold with PayPal's hold in place). Now, once the deal's deadline has passed, `resolve_deal` reads a parked authorize, capture or void back under `Resolve::Deadline` (a GET grants nothing; the App Master's decision on the council's open question) and settles it by what PayPal shows: a hold still in place is voided once under `RequestId::for_operation(deal, attempt, "void")` on `DecidedBy::SafeDefault`; no authorization is recorded `absent` and the deal lapses; a capture PayPal committed is recorded as PayPal's truth and no void is sent; a read that fails is `deferred` and the next tick tries again. Before the deadline a parked step still waits for the owner. At the deadline a void goes once more whoever decided it (`may_resend`): the safe default is its authority (AGENTS.md invariant 3), so a parked owner void completes under its own request id with no ticket reused, and its deal ends VOIDED (the owner's void, as PayPal shows it), not AUTO_VOIDED. A deadline never captures and never mints a second request id.
 - **robustness-2, the deadline expired a deal over an unsettled authorize.** `deadline_default` dropped `resolve_deal`'s answer and went on to `apply_deadline_default`. Now, while an authorize is open (younger than `SETTLE_SECS`, unreadable, parked, or showing what no check accepts), `deadline_default` answers `Error::Unavailable` and does not expire the deal; its `Ok(true)` / `Ok(false)` contract is unchanged, so the scheduler and the HOUSE callers keep their meaning. `Ledger::apply_deadline_default` itself refuses (`Conflict`) while the deal has an authorize with no `confirmed` or `absent` resolution, so no caller can bypass the check. No schema change.
 - **A parked authorize PayPal shows held** is confirmed as an unparked one is: the deal becomes AUTHORIZED with its honor period counted from the first attempt, and that deadline voids it once on the safe default (at once when the period has already run out). It is never EXPIRED over a hold.
-- **Tests** (the four table-app tests fail on 8b1aed7's source and pass here): table-app `tests/pipeline.rs` `parked_capture_at_the_deadline_settles_to_what_paypal_shows` (PayPal holding: AUTO_VOIDED, capture `absent`, one void; PayPal captured: RECEIPTED, no void), `parked_authorize_at_the_deadline_lapses_or_is_voided_by_what_paypal_shows` (none: EXPIRED, authorize `absent`; held: AUTHORIZED, then AUTO_VOIDED at its own deadline with one void), `parked_void_at_the_deadline_goes_once_more_under_its_own_request_id`, `deadline_waits_for_an_unsettled_authorize_before_expiring` (an authorize lost 2 s before the deadline, before and after PayPal commits, and a parked authorize PayPal cannot be read for: APPROVED until resolved, then EXPIRED or voided as the double shows); table-ledger `deadline_default_refuses_while_an_authorize_is_open`. Each table-app case asserts the council's oracle: the final state equals the double's, every reserved request id is its operation's own and committed at most once, no capture is sent by a deadline, nothing is left open, and the audit chain verifies. No table-runtime test was added: the scheduler reaches this path only through `deadline_default`, whose contract is unchanged.
+- **Tests** (the four table-app tests fail on 1a88e15's source and pass here): table-app `tests/pipeline.rs` `parked_capture_at_the_deadline_settles_to_what_paypal_shows` (PayPal holding: AUTO_VOIDED, capture `absent`, one void; PayPal captured: RECEIPTED, no void), `parked_authorize_at_the_deadline_lapses_or_is_voided_by_what_paypal_shows` (none: EXPIRED, authorize `absent`; held: AUTHORIZED, then AUTO_VOIDED at its own deadline with one void), `parked_void_at_the_deadline_goes_once_more_under_its_own_request_id`, `deadline_waits_for_an_unsettled_authorize_before_expiring` (an authorize lost 2 s before the deadline, before and after PayPal commits, and a parked authorize PayPal cannot be read for: APPROVED until resolved, then EXPIRED or voided as the double shows); table-ledger `deadline_default_refuses_while_an_authorize_is_open`. Each table-app case asserts the council's oracle: the final state equals the double's, every reserved request id is its operation's own and committed at most once, no capture is sent by a deadline, nothing is left open, and the audit chain verifies. No table-runtime test was added: the scheduler reaches this path only through `deadline_default`, whose contract is unchanged.
 - **robustness-3 (citations):** `docs/features/money-pipeline.md` and the T10 entry above now cite `table-app/src/pipeline/resolve.rs`, `table-ledger/src/resolution.rs`, migration 0008 `operation_resolutions` and the tests in the tree.
 - **Left:** a parked void already re-sent once that PayPal still shows CREATED stays parked at the deadline: the original request is never sent a third time, and the deal stays AUTHORIZED (no hold the wallet has closed). A parked step whose read keeps showing what no check accepts (an amount or id mismatch) stays open past the deadline and is read once per tick.
 
 ### Deal-to-settlement lite r1 value-1, value-2, value-3 and owner-approval-decision craft-2 (words only)
 
-Reconciled against main (569ecb6) first: none of the four lines was true there. All four are words and display logic; no state machine, table-app, table-proto, migration or binding change.
+Reconciled against main (d70a43c) first: none of the four lines was true there. All four are words and display logic; no state machine, table-app, table-proto, migration or binding change.
 
-- **value-1 (8288cba): a buyer's deal reads paid on the seller's word alone.** Fact checked: a buyer haggle or shop order reaches RECEIPTED only through `accept_seller_receipt` (`receipt.rs`; `DealEvent::SellerReceiptVerified`), which writes `receipt_evidence='seller_attested'`; it turns `paypal_verified` and the deal RECONCILED only when `confirm_reporting` matches. The other route to RECEIPTED (`CAPTURED` + `ReceiptVerified`, `deal.rs:206`) is the *seller* wallet's `send_receipt`. So no buyer deal is RECEIPTED on PayPal's own word. `stateWord` gives a buyer haggle/shop-order RECEIPTED "Seller says paid" (gold, `SELLER_SAYS_PAID`, the sentence the deal page already used); `sellerSaysOnly()` in `lib/words.ts` is the one predicate. It is the same on kind, not on evidence, because the client state carries no evidence on a list row. Every `stateWord(` call passes side and kind (approval `model.ts` stateWord and strip, `says.ts`, Book group label and audit-trail rows, spend `gate.ts`); `beadKind`, `chipClass`, `isSettled`, `amountTone`, `moneyNow`, `amountNote`, `stripFor`, `summarize` (Home "paid out"), the Book "Paid" bucket, the deal answer (`story.ts`), the deal strip tone and the Tables chip tone treat it as waiting. The deal strip's RECEIPTED step reads "Receipt saved" for a buyer (CAPTURED already reads "Seller says paid"). The approval window's "done" status is gold and does not say "paid". Mock: D-0187 (buyer, RECEIPTED, SELLER_ATTESTED) now reads "Seller says paid"; no director beat, take or still pins its old words (checked `director/`), and Home's "paid out" for the sample week falls from $295 to $83 because D-0187's $212 is no longer counted. Rust pin, no new test: `seller_receipt_is_atomic_bound_attestation_and_never_a_paypal_call` (`table-ledger/src/tests.rs`) asserts `ReceiptEvidence::SellerAttested` and `Reconciliation::PendingReporting` on a buyer deal after a seller receipt, and a later test pins attested staying attested on a reporting mismatch.
-- **value-2 (a04743f): the parked-check words promised a retry.** Since 5bea1b1 a parked step is read back with PayPal at the deal's deadline, what PayPal shows decides, and the safe default releases a hold; nothing is collected. `MONEY_CHECK_PARKED`, `MONEY_CHECK_SILENCE` (Rust `table-attention` const and its identical client copy), the deal story, the Home away line, the Book "checking" row and the Tumbler line now say that. The T4 property holds (releasing a hold moves no money); the table-attention tests compare the const, so none changed.
-- **value-3 (ae0757d): MISMATCH.** "so no pay button was offered" is false when the poll finds the mismatch after SETTLE (`pipeline.rs`); it now says the wallet stopped it and it will not be paid. Left as written because they describe the wallet's own windows: `logic.ts` moneyNow "no pay button was offered" and the away line.
-- **craft-2 (9efc333): `outcomeText`** said "Payment sent" after `deal_capture` on a seller's collect; it now says "Payment collected" by side. It moved to `windows/approval/model.ts` (exported, with `DecisionCmd`) so it can be tested.
+- **value-1 (9b00cc4): a buyer's deal reads paid on the seller's word alone.** Fact checked: a buyer haggle or shop order reaches RECEIPTED only through `accept_seller_receipt` (`receipt.rs`; `DealEvent::SellerReceiptVerified`), which writes `receipt_evidence='seller_attested'`; it turns `paypal_verified` and the deal RECONCILED only when `confirm_reporting` matches. The other route to RECEIPTED (`CAPTURED` + `ReceiptVerified`, `deal.rs:206`) is the *seller* wallet's `send_receipt`. So no buyer deal is RECEIPTED on PayPal's own word. `stateWord` gives a buyer haggle/shop-order RECEIPTED "Seller says paid" (gold, `SELLER_SAYS_PAID`, the sentence the deal page already used); `sellerSaysOnly()` in `lib/words.ts` is the one predicate. It is the same on kind, not on evidence, because the client state carries no evidence on a list row. Every `stateWord(` call passes side and kind (approval `model.ts` stateWord and strip, `says.ts`, Book group label and audit-trail rows, spend `gate.ts`); `beadKind`, `chipClass`, `isSettled`, `amountTone`, `moneyNow`, `amountNote`, `stripFor`, `summarize` (Home "paid out"), the Book "Paid" bucket, the deal answer (`story.ts`), the deal strip tone and the Tables chip tone treat it as waiting. The deal strip's RECEIPTED step reads "Receipt saved" for a buyer (CAPTURED already reads "Seller says paid"). The approval window's "done" status is gold and does not say "paid". Mock: D-0187 (buyer, RECEIPTED, SELLER_ATTESTED) now reads "Seller says paid"; no director beat, take or still pins its old words (checked `director/`), and Home's "paid out" for the sample week falls from $295 to $83 because D-0187's $212 is no longer counted. Rust pin, no new test: `seller_receipt_is_atomic_bound_attestation_and_never_a_paypal_call` (`table-ledger/src/tests.rs`) asserts `ReceiptEvidence::SellerAttested` and `Reconciliation::PendingReporting` on a buyer deal after a seller receipt, and a later test pins attested staying attested on a reporting mismatch.
+- **value-2 (97463f1): the parked-check words promised a retry.** Since 47d2d42 a parked step is read back with PayPal at the deal's deadline, what PayPal shows decides, and the safe default releases a hold; nothing is collected. `MONEY_CHECK_PARKED`, `MONEY_CHECK_SILENCE` (Rust `table-attention` const and its identical client copy), the deal story, the Home away line, the Book "checking" row and the Tumbler line now say that. The T4 property holds (releasing a hold moves no money); the table-attention tests compare the const, so none changed.
+- **value-3 (fdb6acb): MISMATCH.** "so no pay button was offered" is false when the poll finds the mismatch after SETTLE (`pipeline.rs`); it now says the wallet stopped it and it will not be paid. Left as written because they describe the wallet's own windows: `logic.ts` moneyNow "no pay button was offered" and the away line.
+- **craft-2 (ffc6762): `outcomeText`** said "Payment sent" after `deal_capture` on a seller's collect; it now says "Payment collected" by side. It moved to `windows/approval/model.ts` (exported, with `DecisionCmd`) so it can be tested.
 - **Tests added or changed (client; the gate did not run tsc or vitest: the worktree has no `node_modules`):** new `lib/words.test.ts` (buyer RECEIPTED reads "Seller says paid" and is gold; buyer RECONCILED "Paid, on statement"; seller RECEIPTED "Paid to you, receipt saved"; MISMATCH words) and `windows/approval/model.test.ts` (outcomeText by side); added in `windows/main/logic.test.ts` (waiting chip/bead, not settled, D-0187), `windows/main/deal/story.test.ts`, `windows/main/modules/book/model.test.ts` and `lib/moneyCheck.test.ts`; changed `windows/main/logic.test.ts` `ledger summary` (out $295 to $83) and `windows/main/home/away.test.ts` (the checking line).
-- **Client checks after the merge (2026-10-10):** client tsc was green on main at 95d7b37, and two stale vitest expectations (`windows/main/logic.test.ts` RECEIPTED bead, `windows/main/deal/story.test.ts` D-0187 sub) were fixed in this branch. Vitest is not claimed green here; the merge gate does not run it.
+- **Client checks after the merge (2026-10-10):** client tsc was green on main at 0b244e6, and two stale vitest expectations (`windows/main/logic.test.ts` RECEIPTED bead, `windows/main/deal/story.test.ts` D-0187 sub) were fixed in this branch. Vitest is not claimed green here; the merge gate does not run it.
 - **Left, outside the declared paths or the brief:** `docs/ux/UX-GUIDE.md` row 65 still quotes the old parked sentence; the Book's query chips (`book/understand.ts` PAID states) filter on state alone, and a server-side `group_by state` row carries no side, so those still say "Paid" for a buyer RECEIPTED.
 - **Open question, reported not fixed:** a buyer deal still at AWAITING_APPROVAL (or APPROVED) can reach RECEIPTED on a seller's signed receipt alone (`accept_seller_receipt` allows both states; the transition table has `AwaitingApproval | Approved + SellerReceiptVerified`), needing only an order id on the deal, a PayPal-shaped capture id, the agreed amount and the transcript head. Nothing in the buyer wallet checks that the buyer actually approved. What moves it on: `confirm_reporting` at the reporting reconcile (RECONCILED on a match; a mismatch is recorded as `Reconciliation::Mismatch` with the evidence staying seller-attested), and the RECEIPTED route stays polled (`receipted_route_stays_polled_and_delivers_what_it_owes`).
 
 ## Onboarding rework (full r1 value-1)
 
-Full council r1 (run e04a5556, head 8b1aed7) must-address: "A judge with no engine CLI can never finish step 4, so Home stays in onboarding and hides the practice deal it promised". Reconciled on 9c3ed7e: `engineChosen` still returned false for `scripted`, so nothing finished step 4 without an app.
+Full council r1 (run e04a5556, head 1a88e15) must-address: "A judge with no engine CLI can never finish step 4, so Home stays in onboarding and hides the practice deal it promised". Reconciled on 3330b7f: `engineChosen` still returned false for `scripted`, so nothing finished step 4 without an app.
 
 - **Decision (the App Master's; the operator may overrule it through his Approval):** the practice agent finishes step 4 only through an explicit owner choice. The `scripted` a new wallet starts on never counts. No money is touched.
 - **Rust fact:** `SettingsSnapshot.engine_chosen` (table-client), true once the ledger preference `engine` exists (`engine_select` writes it, `scripted` included); read in `Runtime::settings` (service.rs). No new command, no authority row, permissions manifest unchanged. dispatcher.rs untouched.
@@ -1942,26 +1942,26 @@ Full council r1 (run e04a5556, head 8b1aed7) must-address: "A judge with no engi
 Five medium findings closed, one commit each (client tsc/vitest not run in the worktree; the
 Rust gate was):
 
-- robustness-3: a ledger failure after the keychain write no longer reports "not saved" (8bd8444).
+- robustness-3: a ledger failure after the keychain write no longer reports "not saved" (7a1dbc9).
 - robustness-2 (a, b) and craft-7: pasted keys are trimmed, empty-after-trim refused; failure branches
-  tested through `store_credential` in `configuration.rs` (92115ee). (c) `credential_prompt.rs`
+  tested through `store_credential` in `configuration.rs` (f5827e3). (c) `credential_prompt.rs`
   branches and (d) a live `KeyringVault` test are left out of scope.
-- value-2: a done practice step keeps one click, `START_STEP.practice.doneAct` (29e583b). The
+- value-2: a done practice step keeps one click, `START_STEP.practice.doneAct` (26970c9). The
   done lines moved into `START_STEP.*.doneLine`. The Tumbler's welcome list is in
   `windows/tumbler/forms.tsx` (outside this slice) and never shows step 3 done, so it is unchanged.
 - value-3: step 1 and the approval window's keys note say where sandbox keys come from, only
-  what `.research/paypal-platform.md` sources [S] (a3e717a). The native dialog text is unchanged.
-- craft-2: focus moves to the tour dialog on each new stop (3a80fc3).
+  what `.research/paypal-platform.md` sources [S] (6a87ab6). The native dialog text is unchanged.
+- craft-2: focus moves to the tour dialog on each new stop (a648016).
 
 No new UNVERIFIED items.
 
 ## Deal-to-settlement rework after lite r2 (value-1, robustness-1; DECISIONS.md section 23)
 
-Council-lite round 2 (run b7b8408a, head 5635a68) must-address lines 1 and 2. Reconciled against
-main (3049d68) first: no part was done there (`accept_seller_receipt` read no handoff, there was no
+Council-lite round 2 (run b7b8408a, head 435eb0d) must-address lines 1 and 2. Reconciled against
+main (dbda750) first: no part was done there (`accept_seller_receipt` read no handoff, there was no
 end for a seller-attested deal, `book.rs` keyed on `d.state` alone).
 
-- **robustness-1 (a), ccc548e: a seller receipt with no handoff is refused.** `Decision::OpenBrowser`
+- **robustness-1 (a), a7d38eb: a seller receipt with no handoff is refused.** `Decision::OpenBrowser`
   (`table-runtime/src/service.rs`) records `Ledger::handoff` in the same step as the owner's
   decision, before the URL is returned; `Action::Handoff` still records it too. `accept_seller_receipt`
   (`table-ledger/src/receipt.rs`), after its existing checks, refuses a buyer deal with no recorded
@@ -1976,12 +1976,12 @@ end for a seller-attested deal, `book.rs` keyed on `d.state` alone).
   `awaiting_payer` (order reads say PAYER_ACTION_REQUIRED) so the in-process relay tests approve only
   after the owner's OpenBrowser decision, the real order of events; no assertion was weakened and
   there is no test-only bypass in production code.
-- **value-1 Rust, 186578d.** `book.rs` reads the state for filters and groups as `CASE WHEN
+- **value-1 Rust, e360785.** `book.rs` reads the state for filters and groups as `CASE WHEN
   d.state='RECEIPTED' AND d.receipt_evidence='seller_attested' THEN 'RECEIPTED:buyer' ELSE d.state
   END`. r1's test: `seller_receipt_before_buyer_approval_never_reads_as_paid` (no handoff: refused, one
   row, no PayPal call; after it: RECEIPTED seller_attested before PayPal's approval, the Paid filter
   counts nothing, the state group is `RECEIPTED:buyer`).
-- **robustness-1 (b), e2290a0: the defined end is UNCONFIRMED.** `DealState::Unconfirmed` (terminal,
+- **robustness-1 (b), 965f2a1: the defined end is UNCONFIRMED.** `DealState::Unconfirmed` (terminal,
   not pre-capture), `DealEvent::CorroborationLapsed` (RECEIPTED to UNCONFIRMED), a late
   `ReportingMatched` still moves UNCONFIRMED to RECONCILED, `CORROBORATION_SECS` = 72 h.
   `Ledger::lapse_corroboration` (one IMMEDIATE transaction; buyer, RECEIPTED, seller_attested, 72 h
@@ -1998,7 +1998,7 @@ end for a seller-attested deal, `book.rs` keyed on `d.state` alone).
   `a_scheduler_tick_past_the_corroboration_window_ends_a_seller_attested_deal_unconfirmed` (one
   history step, safe default); the reporting test reconciles an UNCONFIRMED deal and pins the
   unmatched row.
-- **value-1 client, d9621b4.** `STATE.UNCONFIRMED` "Not confirmed by PayPal" (coral). The Book keys
+- **value-1 client, a243d7f.** `STATE.UNCONFIRMED` "Not confirmed by PayPal" (coral). The Book keys
   a seller-attested deal `RECEIPTED:buyer` locally too (`stateKey`) and labels a server row
   "Seller says paid" (`serverStateLabel`); the Paid chip leaves it and UNCONFIRMED out, Stopped does
   not claim UNCONFIRMED. The Tumbler ticker reads a SELLER_ATTESTED receipt "Seller says paid" with
@@ -2011,7 +2011,7 @@ end for a seller-attested deal, `book.rs` keyed on `d.state` alone).
 - **Deviation from the design report:** UNCONFIRMED is not in the report's deal-state list (section
   6.3). It is the defined end of a buyer's deal the seller said was paid and PayPal's statement never
   showed.
-- **Client checks after the merge (2026-10-10):** client tsc exit 0 and vitest 895 of 895 (82 files) on main at 2ff7ea1, run by the App Master. Clippy (--workspace --all-targets --exclude table-desktop, -D warnings) was reported clean by the builder before its rebase onto 4909d48; the merge gate did not run it.
+- **Client checks after the merge (2026-10-10):** client tsc exit 0 and vitest 895 of 895 (82 files) on main at 38150a7, run by the App Master. Clippy (--workspace --all-targets --exclude table-desktop, -D warnings) was reported clean by the builder before its rebase onto 681de8b; the merge gate did not run it.
 - **Left:** four items are decided and wait for one delivery (DECISIONS 28): `display.rs` counts
   UNCONFIRMED as a closed deal, never as paid; the walk-away forecast gains a lapse line and
   `ForecastSource` gains the receipt time for it; the Book gives UNCONFIRMED a bucket of its own, as an
@@ -2023,70 +2023,70 @@ No new UNVERIFIED items: the 72 h window rests on the research's 3 h reporting l
 
 ## Hosted relay rework after lite r1 (DECISIONS.md section 26)
 
-- **Hosted relay mailbox exhaustion fixed (2026-10-10, ad2ef32; DECISIONS 26; hosted-relay-service lite r1 robustness-1, the count half of relay-and-rendezvous-1).** `PUT /v1/mailbox/{hash}` over HTTP is now charged to a caller key: the TCP peer, or, with `RELAY_TRUSTED_PROXY_HOPS=n`, the nth `X-Forwarded-For` entry from the right (IPv6 keyed on its /64). A caller may hold 128 live mailboxes (`CALLER_ALLOWANCE`), and HTTP creates stop 64 slots below the 256 cap (`HOUSE_RESERVE`), so the HOUSE's in-process create always has room. Re-creating an existing mailbox is free; expiry (24 h) releases the slot. An unparsable hop setting fails startup. Deviation / UNVERIFIED: the root render.yaml sets `RELAY_TRUSTED_PROXY_HOPS=1` on the assumption that Render runs one proxy hop that appends the client address as the rightmost entry; nothing in .research documents it. Verify once on a deploy, e.g. by logging the derived key for a request from a known address. Residual: a caller with 2 IPv4 addresses (or 2 /64s) can still fill the 192-slot HTTP share; HOUSE deals keep working through the reserve, but wallet-to-wallet pairing does not. Authenticated `PUT` (the rest of relay-and-rendezvous-1) remains open. **P-4 fixed (4909d48):** services/rendezvous/Dockerfile and render.yaml deleted; the root blueprint is the only deployment. No new dependency; Cargo.lock unchanged.
-- **Relay caller key and HTTP share hardened (2026-10-10, 1cfa5c0; DECISIONS 26 amendment; hosted-relay-service lite r2, both robustness lines).** services/rendezvous: the caller key reads only the nth X-Forwarded-For entry from the right (n = RELAY_TRUSTED_PROXY_HOPS), split on raw bytes, so a non-ASCII byte in a client-written entry no longer voids the list and moves the key to the shared proxy peer. With n >= 1, a missing or unparsable nth entry is refused with 400; n = 0 keeps the TCP peer. The HTTP share (MAX_MAILBOXES - HOUSE_RESERVE) counts only HTTP-created mailboxes, so live HOUSE mailboxes no longer deny wallet pairings; the 256 store cap still refuses past it. CALLER_ALLOWANCE and HOUSE_RESERVE are unchanged, and so is the create handler's branch with no Connection. The existing test behind_one_proxy_the_rightmost_forwarded_for_entry_is_the_caller changed from the peer fallback to a 400. The UNVERIFIED mark on Render's single appending proxy stays.
+- **Hosted relay mailbox exhaustion fixed (2026-10-10, 0315f21; DECISIONS 26; hosted-relay-service lite r1 robustness-1, the count half of relay-and-rendezvous-1).** `PUT /v1/mailbox/{hash}` over HTTP is now charged to a caller key: the TCP peer, or, with `RELAY_TRUSTED_PROXY_HOPS=n`, the nth `X-Forwarded-For` entry from the right (IPv6 keyed on its /64). A caller may hold 128 live mailboxes (`CALLER_ALLOWANCE`), and HTTP creates stop 64 slots below the 256 cap (`HOUSE_RESERVE`), so the HOUSE's in-process create always has room. Re-creating an existing mailbox is free; expiry (24 h) releases the slot. An unparsable hop setting fails startup. Deviation / UNVERIFIED: the root render.yaml sets `RELAY_TRUSTED_PROXY_HOPS=1` on the assumption that Render runs one proxy hop that appends the client address as the rightmost entry; nothing in .research documents it. Verify once on a deploy, e.g. by logging the derived key for a request from a known address. Residual: a caller with 2 IPv4 addresses (or 2 /64s) can still fill the 192-slot HTTP share; HOUSE deals keep working through the reserve, but wallet-to-wallet pairing does not. Authenticated `PUT` (the rest of relay-and-rendezvous-1) remains open. **P-4 fixed (681de8b):** services/rendezvous/Dockerfile and render.yaml deleted; the root blueprint is the only deployment. No new dependency; Cargo.lock unchanged.
+- **Relay caller key and HTTP share hardened (2026-10-10, 26051dc; DECISIONS 26 amendment; hosted-relay-service lite r2, both robustness lines).** services/rendezvous: the caller key reads only the nth X-Forwarded-For entry from the right (n = RELAY_TRUSTED_PROXY_HOPS), split on raw bytes, so a non-ASCII byte in a client-written entry no longer voids the list and moves the key to the shared proxy peer. With n >= 1, a missing or unparsable nth entry is refused with 400; n = 0 keeps the TCP peer. The HTTP share (MAX_MAILBOXES - HOUSE_RESERVE) counts only HTTP-created mailboxes, so live HOUSE mailboxes no longer deny wallet pairings; the 256 store cap still refuses past it. CALLER_ALLOWANCE and HOUSE_RESERVE are unchanged, and so is the create handler's branch with no Connection. The existing test behind_one_proxy_the_rightmost_forwarded_for_entry_is_the_caller changed from the peer fallback to a 400. The UNVERIFIED mark on Render's single appending proxy stays.
 
 ## Security scan P-5, P-6, P-7 (2026-10-10)
 
-- **Closed (2026-10-10): 656ff60 (P-5), 29c2491 (P-6), 436964e (P-7).** .github/workflows/ci.yml has a top-level permissions: contents: read, and each of its 10 uses: lines is pinned to a full commit SHA with the tag as a comment. dtolnay/rust-toolchain is pinned to the commit that refs/heads/master named on 2026-10-10; its toolchain input stays 1.97, and it is re-pinned on purpose when the toolchain is bumped. No step, command or job changed. Dependabot for github-actions was not added (optional in P-5). .dockerignore excludes .env, .env.*, .contest, .claude, .personas, **/node_modules, **/dist and docs. The house-seller release build reads nothing under docs/: the one include_str! of docs/ is crates/table-ledger/src/tests.rs:123, in a test module. prompts/, the migrations and services/house-seller/entrypoint.sh stay in the build context. .gitignore covers *.sqlite3, *.sqlite3-*, *.db, *.pem and *.key; no tracked file matched them.
+- **Closed (2026-10-10): 418142e (P-5), d82e235 (P-6), 4086031 (P-7).** .github/workflows/ci.yml has a top-level permissions: contents: read, and each of its 10 uses: lines is pinned to a full commit SHA with the tag as a comment. dtolnay/rust-toolchain is pinned to the commit that refs/heads/master named on 2026-10-10; its toolchain input stays 1.97, and it is re-pinned on purpose when the toolchain is bumped. No step, command or job changed. Dependabot for github-actions was not added (optional in P-5). .dockerignore excludes .env, .env.*, .contest, .claude, .personas, **/node_modules, **/dist and docs. The house-seller release build reads nothing under docs/: the one include_str! of docs/ is crates/table-ledger/src/tests.rs:123, in a test module. prompts/, the migrations and services/house-seller/entrypoint.sh stay in the build context. .gitignore covers *.sqlite3, *.sqlite3-*, *.db, *.pem and *.key; no tracked file matched them.
 - **Pins checked (2026-10-10):** the App Master re-resolved each SHA with git ls-remote against github.com, and each matched its ref: actions/checkout refs/tags/v4 11d5960a326750d5838078e36cf38b85af677262; pnpm/action-setup refs/tags/v4^{} b906affcce14559ad1aafd4ab0e942779e9f58b1; actions/setup-node refs/tags/v4 49933ea5288caeca8642d1e84afbd3f7d6820020; EmbarkStudios/cargo-deny-action refs/tags/v2^{} 3c6349835b2b7b196a839186cb8b78e02f7b5f25; actions/upload-artifact refs/tags/v4 ea165f8d65b6e75b540449e92b4886f43607fa02; dtolnay/rust-toolchain refs/heads/master e2a55d2ffb04f378e9626c28d38b36d230d1e12f. UNVERIFIED: that GitHub Actions runs green on the pinned workflow. It has not run, because main is not pushed (origin/main was 31 commits behind main on 2026-10-10).
 
 ## Technical decision capture for six merges (2026-10-10; DECISIONS.md sections 24, 28, 30, 31)
 
 Ids are the ones on main. Merge order on main, oldest first: the onboarding polish, C-13, rework A, the evidence-words fix, C-11, rework B.
 
-- **First-run onboarding round-2 polish (full r2; DECISIONS 30).** craft-2 3dc2af4 (Back onto tour stop 1 keeps focus: the owner's move, not where focus lands, announces the stop; ring comment corrected); robustness-1 e76f3b1 (a failed date write after a saved key logs one line naming the credential and clears the old `stored_at`; `store_credential` takes `write_date(bool)`; the clear happens after the failed write, so a failed vault write leaves the old keys' date alone); robustness-2 8b1f530 (a failed `engine_select` shows its error in the Simple checklist beside 'Use practice agent' / 'Keep the practice agent for now', popover closed); value-1 2670d20 (Home's first-run column lists live deals as an 'Under way' row above the steps, one click to open; `START_ORDER` unchanged); value-2 eea601e (the house desk words a new practice table when `counterparty_list` shows the house; `pairing_join` HOUSE and the four-word check untouched; the payee typed last in the session is prefilled); the Tumbler's step 3 0561c75 (`SettingsSnapshot.house_connected`); 7e0aca1 names the mock check. tsc and vitest were not run by the builder (no client `node_modules`). Open: the owner's own payee is not held by the client, so the prefill is only what was typed earlier in the same session (a module variable); persisting it, or sourcing it from Rust, is undecided. `docs/features` was not checked (outside this capture) and may be stale on the first run: the Under way row, the new-table words, Tumbler step 3 reading done, the tour's Back focus.
-- **C-13 (Low) closed, 1cc991e.** `table-paypal::Secret` wraps `zeroize::Zeroizing<String>`, so PayPal credentials and the access token are wiped on drop. `Client::token()` returns a `Secret`, and the Basic and Bearer values are built without a plain `String` outliving the call. `ReqwestTransport` sets the Authorization `HeaderValue` sensitive, so reqwest and hyper never print it. New dependency: `zeroize` 1 in `table-paypal`. It is mainstream, Apache-2.0 or MIT, already locked for `services/house-seller`, and adds no new package or version to `Cargo.lock`. Residual: the cached token is cloned per call into a short-lived `Secret`, which is zeroized on drop. `serde_json` response bodies and the transient reqwest header copies are not zeroized.
+- **First-run onboarding round-2 polish (full r2; DECISIONS 30).** craft-2 2d29aab (Back onto tour stop 1 keeps focus: the owner's move, not where focus lands, announces the stop; ring comment corrected); robustness-1 023a78f (a failed date write after a saved key logs one line naming the credential and clears the old `stored_at`; `store_credential` takes `write_date(bool)`; the clear happens after the failed write, so a failed vault write leaves the old keys' date alone); robustness-2 e104335 (a failed `engine_select` shows its error in the Simple checklist beside 'Use practice agent' / 'Keep the practice agent for now', popover closed); value-1 b3828fd (Home's first-run column lists live deals as an 'Under way' row above the steps, one click to open; `START_ORDER` unchanged); value-2 7ee9ce6 (the house desk words a new practice table when `counterparty_list` shows the house; `pairing_join` HOUSE and the four-word check untouched; the payee typed last in the session is prefilled); the Tumbler's step 3 b3603e6 (`SettingsSnapshot.house_connected`); 9f6e983 names the mock check. tsc and vitest were not run by the builder (no client `node_modules`). Open: the owner's own payee is not held by the client, so the prefill is only what was typed earlier in the same session (a module variable); persisting it, or sourcing it from Rust, is undecided. `docs/features` was not checked (outside this capture) and may be stale on the first run: the Under way row, the new-table words, Tumbler step 3 reading done, the tour's Back focus.
+- **C-13 (Low) closed, 60f0b4a.** `table-paypal::Secret` wraps `zeroize::Zeroizing<String>`, so PayPal credentials and the access token are wiped on drop. `Client::token()` returns a `Secret`, and the Basic and Bearer values are built without a plain `String` outliving the call. `ReqwestTransport` sets the Authorization `HeaderValue` sensitive, so reqwest and hyper never print it. New dependency: `zeroize` 1 in `table-paypal`. It is mainstream, Apache-2.0 or MIT, already locked for `services/house-seller`, and adds no new package or version to `Cargo.lock`. Residual: the cached token is cloned per call into a short-lived `Secret`, which is zeroized on drop. `serde_json` response bodies and the transient reqwest header copies are not zeroized.
 - **Known flake: table-engine `cancellation_kills_descendants_and_dropped_runs_remove_registration`.** It failed once in the C-13 builder's full `cargo test --workspace --exclude table-desktop --no-fail-fast` run and passed on a rerun (a process-kill test, unrelated to the change). Not investigated.
-- **Deal-to-settlement rework A (DECISIONS 28, Delivered).** e876b3a drops the unused `waitFor` import that 8b1f530 left in `CircuitView.test.tsx`; 5e2290d splits the UNCONFIRMED words on whether a statement read came back unmatched and offers the statement check on UNCONFIRMED (r3 robustness-1, option c); f120bc9 counts an UNCONFIRMED deal as closed, never as paid (28 a); a290602 the walk-away forecast says a seller-attested buyer deal ends UNCONFIRMED at the receipt plus 72 hours (28 b); 56e0bb9 gives UNCONFIRMED a Book bucket of its own, as an end (28 c); 83ca634 lists an UNCONFIRMED end in 'While you were away', worded by whether a statement read happened (28 d). The builder wrote the client tests without `node_modules`. The five decisions it put forward were accepted by the App Master on 2026-10-10 (DECISIONS 28). `reconciliation.rs` keeps its existing UNVERIFIED note on the buyer-side reporting sign mapping; none is new.
-- **Evidence-words fix, 7bb3c6a:** `fix(deal): statement surfaces say how an UNCONFIRMED deal ended, not 'a delay, not a doubt'`. `statementLabel` in `deal/model.ts` keeps the tone and the 'Not on statement yet' text of an UNCONFIRMED deal but sets the reason to `unconfirmedMeans(statement_unmatched)`; it is used at the proof card, the PayPal records sheet's Statement row and the books sheet. The separate 'Ended' row is gone. It fixes the 3 red `evidence.test.tsx` cases. Client vitest 924/924, tsc exit 0, measured by the App Master on main at 7bb3c6a.
-- **C-11 (Low) partly fixed, 63e3627 (settled by the App Master 2026-10-10, checked on main).** `Runtime::new` provisions agent keys in a helper (`crates/table-runtime/src/service.rs`). A fresh ledger mints all slots as before. Otherwise the Negotiator is read with `existing_signing_key` and fails with `unavailable('Agent key provisioning failed')` if missing, with no key written; the Shopper and Assistant fail closed with the same message only when an active mandate pins an `agent_key` that no present slot holds, and a never-bound slot is minted. Test: `a_lost_agent_key_fails_closed_only_for_a_slot_the_wallet_used` (fresh mint, lost used Shopper, lost Negotiator, never-used Assistant). **Open (queued):** a Shopper or Assistant slot bound only by a withdrawn or superseded mandate is re-minted, because `list_mandates` returns active mandates only; closing it needs a `table-ledger` accessor for all mandate agent public keys (no schema change). The Negotiator is treated as used on any wallet that is not fresh, because pairing's own agent key is not stored in the ledger.
+- **Deal-to-settlement rework A (DECISIONS 28, Delivered).** baef161 drops the unused `waitFor` import that e104335 left in `CircuitView.test.tsx`; 41dae4c splits the UNCONFIRMED words on whether a statement read came back unmatched and offers the statement check on UNCONFIRMED (r3 robustness-1, option c); 652dd7c counts an UNCONFIRMED deal as closed, never as paid (28 a); 2bb46bb the walk-away forecast says a seller-attested buyer deal ends UNCONFIRMED at the receipt plus 72 hours (28 b); f8895f2 gives UNCONFIRMED a Book bucket of its own, as an end (28 c); 463f547 lists an UNCONFIRMED end in 'While you were away', worded by whether a statement read happened (28 d). The builder wrote the client tests without `node_modules`. The five decisions it put forward were accepted by the App Master on 2026-10-10 (DECISIONS 28). `reconciliation.rs` keeps its existing UNVERIFIED note on the buyer-side reporting sign mapping; none is new.
+- **Evidence-words fix, f58b587:** `fix(deal): statement surfaces say how an UNCONFIRMED deal ended, not 'a delay, not a doubt'`. `statementLabel` in `deal/model.ts` keeps the tone and the 'Not on statement yet' text of an UNCONFIRMED deal but sets the reason to `unconfirmedMeans(statement_unmatched)`; it is used at the proof card, the PayPal records sheet's Statement row and the books sheet. The separate 'Ended' row is gone. It fixes the 3 red `evidence.test.tsx` cases. Client vitest 924/924, tsc exit 0, measured by the App Master on main at f58b587.
+- **C-11 (Low) partly fixed, c6b2ccc (settled by the App Master 2026-10-10, checked on main).** `Runtime::new` provisions agent keys in a helper (`crates/table-runtime/src/service.rs`). A fresh ledger mints all slots as before. Otherwise the Negotiator is read with `existing_signing_key` and fails with `unavailable('Agent key provisioning failed')` if missing, with no key written; the Shopper and Assistant fail closed with the same message only when an active mandate pins an `agent_key` that no present slot holds, and a never-bound slot is minted. Test: `a_lost_agent_key_fails_closed_only_for_a_slot_the_wallet_used` (fresh mint, lost used Shopper, lost Negotiator, never-used Assistant). **Open (queued):** a Shopper or Assistant slot bound only by a withdrawn or superseded mandate is re-minted, because `list_mandates` returns active mandates only; closing it needs a `table-ledger` accessor for all mandate agent public keys (no schema change). The Negotiator is treated as used on any wallet that is not fresh, because pairing's own agent key is not stored in the ledger.
 - **Deal-to-settlement rework B (DECISIONS 31).**
-  - robustness-3 (lite r3): a seller hold found at the order's deadline is recorded, re-armed to first attempt + 72 h and captured on the next tick only for DigitalNow (SellerMandate); other deliveries auto-void at the re-armed deadline; runtime test over scheduler ticks (0739a29). The App Master decided this on 2026-10-10; no money behaviour changed.
-  - value-2 (lite r3): the parked money-check words say what PayPal shows decides and a payment PayPal already took stays paid; a release is promised only at the hold's own deadline unless it is paid first; `MONEY_CHECK_SILENCE` is byte-identical in `table-attention` and `words.ts` (f03bf6e).
-  - robustness-4 (lite r3): a parked authorize PayPal never shows readably ends EXPIRED (safe default) 72 h after its first attempt via `Ledger::end_unread_authorize`; no PayPal write, no schema change; the step stays parked and the card says to look in PayPal (d100027).
-  - craft-2 (lite r3): `table_proto::order_approval_url` is the one approve-link binding rule; `validate_settle` and `created_link` both call it, so the seller never signs a SETTLE its buyer refuses; the link shape is still UNVERIFIED (C-10) (56cfc60).
-  - Book residual (DECISIONS 28 class): the Book's statement chip, grid, row detail and 'PayPal agrees' card are state-aware; an UNCONFIRMED deal reads 'no match' with `unconfirmedMeans(read)`, is counted as its own end and kept as its own gap kind (6a0c44d). `book.css` was outside that run's paths, so the new kind borrows the unknown dashed style.
-  - Client vitest measured by the App Master on main at 6a0c44d: 931/932; lib/moneyCheck.test.ts:39 still forbade the word paid in the parked sentence B rewrote; tsc exit 0.
+  - robustness-3 (lite r3): a seller hold found at the order's deadline is recorded, re-armed to first attempt + 72 h and captured on the next tick only for DigitalNow (SellerMandate); other deliveries auto-void at the re-armed deadline; runtime test over scheduler ticks (4a81385). The App Master decided this on 2026-10-10; no money behaviour changed.
+  - value-2 (lite r3): the parked money-check words say what PayPal shows decides and a payment PayPal already took stays paid; a release is promised only at the hold's own deadline unless it is paid first; `MONEY_CHECK_SILENCE` is byte-identical in `table-attention` and `words.ts` (1f7365f).
+  - robustness-4 (lite r3): a parked authorize PayPal never shows readably ends EXPIRED (safe default) 72 h after its first attempt via `Ledger::end_unread_authorize`; no PayPal write, no schema change; the step stays parked and the card says to look in PayPal (973aec3).
+  - craft-2 (lite r3): `table_proto::order_approval_url` is the one approve-link binding rule; `validate_settle` and `created_link` both call it, so the seller never signs a SETTLE its buyer refuses; the link shape is still UNVERIFIED (C-10) (0c5ca2b).
+  - Book residual (DECISIONS 28 class): the Book's statement chip, grid, row detail and 'PayPal agrees' card are state-aware; an UNCONFIRMED deal reads 'no match' with `unconfirmedMeans(read)`, is counted as its own end and kept as its own gap kind (53b09f8). `book.css` was outside that run's paths, so the new kind borrows the unknown dashed style.
+  - Client vitest measured by the App Master on main at 53b09f8: 931/932; lib/moneyCheck.test.ts:39 still forbade the word paid in the parked sentence B rewrote; tsc exit 0.
   - **Residuals not built (open):** (1) the Book's statement filter 'Not yet <n>' and `StmtSummary` still count an UNCONFIRMED deal under `pending_reporting` (`statementCounts` is state-blind; a new Statement value would ripple through about 40 sites in the Book); (2) the `tumbler.waiting` help in `lib/words.ts` (:701 on main; the builder said :697) still says 'When a deadline passes, nothing is sent and any hold is released', which the DigitalNow capture contradicts; (3) the Tumbler still shows the 'Checking' chip and the 'checking with PayPal' clock on an ended deal's card (the Tumbler logic keys on `money_check` alone; only `on_silence` and the headline say it ended); (4) a parked capture whose deadline read shows an unknown status still answers Unavailable every tick, the same class as robustness-4 on the capture branch, which the council did not name; (5) an EXPIRED deal with a parked create, which already exists on main, now also gets the ended-card words, which are true for it.
 
 ## Tumbler rework after lite r1, the main-green fix and C-11b (2026-10-10; DECISIONS.md section 32)
 
 Ids are the ones on main.
 
-- **d602dc7:** the parked-sentence test in `lib/moneyCheck.test.ts` admits 'stays paid' and 'paid first', and still forbids saying this deal is paid or failed.
-- **126788d:** the snooze words promise only the card's return, not a reminder Do not disturb withholds. The ticker reads 'Snoozed · back at …' and 'the card comes back · the deadline still runs'; the Snooze button title, the ladder help and the 'less than 15 min left' caption no longer promise a reminder. The button label 'Remind me in 30 min' is unchanged on purpose.
-- **5c4f642:** a seller's held payment asks 'Collect or release' (the buyer keeps 'Capture or void'); its fallback silence is the new `SELLER_AUTHORIZED_SILENCE`, 'the hold releases itself at the deadline; nothing is taken', byte-identical in `table-attention` and `words.ts`.
-- **95b0362:** a deal that ended with its money step unsettled says it ended and the wallet sends nothing more, not 'Checking': chip 'Ended', clock, Why, ticker, ladder caption and stack chip.
-- **b9f751b:** the Tumbler tour's waiting stop no longer says every hold is released at a deadline; it says the wallet starts nothing new and what PayPal shows decides.
-- **84e03ca:** the walk-away 'not confirmed by PayPal' line, the let-lapse title ('Let it run out at its deadline · no money moves') and the Withdraw confirm ('Walk away from this deal … Your wallet tells them you are out · no money moves.') say only what the wallet does.
-- **673d7f8:** the ended card says Rust's line (DECISIONS 32), and the seller/buyer tests index with `!`.
-- **e91e859:** C-11b. A lost Shopper or Assistant key fails closed when any past mandate bound it, whatever its status (new read-only `Ledger::mandate_agent_keys`); C-11 is closed in the scan (docs/security/scan-2026-10-07.md).
-- **The main-green fix.** 84e03ca left client tsc at exit 1 (8 errors in tumbler/logic.test.ts) and vitest at 936 of 937. 673d7f8 fixed both. The App Master measured tsc exit 0 and vitest 937 of 937 in 86 files on main at 673d7f8. The merge gate runs cargo test only; the client gates are not in it.
+- **df61a9d:** the parked-sentence test in `lib/moneyCheck.test.ts` admits 'stays paid' and 'paid first', and still forbids saying this deal is paid or failed.
+- **455692d:** the snooze words promise only the card's return, not a reminder Do not disturb withholds. The ticker reads 'Snoozed · back at …' and 'the card comes back · the deadline still runs'; the Snooze button title, the ladder help and the 'less than 15 min left' caption no longer promise a reminder. The button label 'Remind me in 30 min' is unchanged on purpose.
+- **32a1a75:** a seller's held payment asks 'Collect or release' (the buyer keeps 'Capture or void'); its fallback silence is the new `SELLER_AUTHORIZED_SILENCE`, 'the hold releases itself at the deadline; nothing is taken', byte-identical in `table-attention` and `words.ts`.
+- **734186c:** a deal that ended with its money step unsettled says it ended and the wallet sends nothing more, not 'Checking': chip 'Ended', clock, Why, ticker, ladder caption and stack chip.
+- **9d57533:** the Tumbler tour's waiting stop no longer says every hold is released at a deadline; it says the wallet starts nothing new and what PayPal shows decides.
+- **414c976:** the walk-away 'not confirmed by PayPal' line, the let-lapse title ('Let it run out at its deadline · no money moves') and the Withdraw confirm ('Walk away from this deal … Your wallet tells them you are out · no money moves.') say only what the wallet does.
+- **a59f881:** the ended card says Rust's line (DECISIONS 32), and the seller/buyer tests index with `!`.
+- **c4f0677:** C-11b. A lost Shopper or Assistant key fails closed when any past mandate bound it, whatever its status (new read-only `Ledger::mandate_agent_keys`); C-11 is closed in the scan (docs/security/scan-2026-10-07.md).
+- **The main-green fix.** 414c976 left client tsc at exit 1 (8 errors in tumbler/logic.test.ts) and vitest at 936 of 937. a59f881 fixed both. The App Master measured tsc exit 0 and vitest 937 of 937 in 86 files on main at a59f881. The merge gate runs cargo test only; the client gates are not in it.
 - **Open, not changed.** The scheduler captures a seller's Authorized DigitalNow sale on its next tick, under the seller's mandate, unless the shield holds it. So its 'Collect or release' card may not last as a decision (the Tumbler builder's scheduler finding). It goes to the deal-to-settlement full council.
 
 ## Scan C-9a and C-9a2 (2026-10-10; DECISIONS.md section 33)
 
 Ids are the ones on main.
 
-- **a3d9a92:** C-9a. A refused relay batch stops that one deal's delivery, not the round. A deal takes at most one generation reset per 600 s, inbox rows of other generations that were already applied or rejected are pruned on a reset, and a deal holds at most 1024 inbox rows. Migration 0015 adds `relay_routes.generation_at`.
-- **0092ad2:** the two mailbox-loss tests moved their clocks 600 s on so they stayed green under the first window.
-- **2044b21:** C-9a2. The window counts from the last reset, not from the first adoption; the first adoption from the empty generation starts no window, so a fresh deal recovers at once from one lost mailbox.
-- **58e3517:** the two mailbox-loss tests are back to replaying at once, with no clock move.
-- **Gates.** The merge gate's cargo test passed at 0092ad2 (run 068ff2b3) and at 58e3517 (run 3cf37560). Both builders reported `cargo fmt --all --check` and `clippy --workspace --all-targets -D warnings` clean on their branches. The App Master measured `cargo fmt --all --check` exit 0 on main at 58e3517. No gate has measured clippy on main.
+- **0aa46df:** C-9a. A refused relay batch stops that one deal's delivery, not the round. A deal takes at most one generation reset per 600 s, inbox rows of other generations that were already applied or rejected are pruned on a reset, and a deal holds at most 1024 inbox rows. Migration 0015 adds `relay_routes.generation_at`.
+- **582c384:** the two mailbox-loss tests moved their clocks 600 s on so they stayed green under the first window.
+- **698e037:** C-9a2. The window counts from the last reset, not from the first adoption; the first adoption from the empty generation starts no window, so a fresh deal recovers at once from one lost mailbox.
+- **c3c4be4:** the two mailbox-loss tests are back to replaying at once, with no clock move.
+- **Gates.** The merge gate's cargo test passed at 582c384 (run 068ff2b3) and at c3c4be4 (run 3cf37560). Both builders reported `cargo fmt --all --check` and `clippy --workspace --all-targets -D warnings` clean on their branches. The App Master measured `cargo fmt --all --check` exit 0 on main at c3c4be4. No gate has measured clippy on main.
 - **Open:** none here. C-9b is fixed in the next section (Scan C-9b).
 
 ## Deal dashboard rework and the unshown read (2026-10-10; DECISIONS.md section 34)
 
 Ids are the ones on main.
 
-- **8e56ef1:** an ended money check on the deal page says PayPal never showed, not that it is being asked. New `MONEY_CHECK_NOW`, `MONEY_CHECK_ENDED_NOW`, `MONEY_CHECK_ENDED_PILL`, `MONEY_CHECK_ENDED_SHORT`, `moneyCheckPill` and `moneyCheckNow` in `lib/words.ts`; the deal page's Summary uses them once the deal is terminal.
-- **d8582bb:** the away card does not open with 'No money moved.' while a payment is being checked with PayPal.
-- **b7d2e84:** Home does not count a payment being checked as on hold (`heldAtPayPal` takes the deal ids being checked). It shows under Needs you with the check's pill and Money line on the bead tip, the hub label and the details.
+- **5f67c8f:** an ended money check on the deal page says PayPal never showed, not that it is being asked. New `MONEY_CHECK_NOW`, `MONEY_CHECK_ENDED_NOW`, `MONEY_CHECK_ENDED_PILL`, `MONEY_CHECK_ENDED_SHORT`, `moneyCheckPill` and `moneyCheckNow` in `lib/words.ts`; the deal page's Summary uses them once the deal is terminal.
+- **8a2f53f:** the away card does not open with 'No money moved.' while a payment is being checked with PayPal.
+- **621ed9e:** Home does not count a payment being checked as on hold (`heldAtPayPal` takes the deal ids being checked). It shows under Needs you with the check's pill and Money line on the bead tip, the hub label and the details.
 - **3698520:** a deal that ended at its deadline while PayPal was being asked never says no money moved. New `endedBeforePayPalShowed` in `windows/main/logic.ts`; the Rewind narration, Who decided, What you were shown and the away card (new outcome `unshown`) tell that PayPal never showed what happened.
-- **b5ccad5:** `windows/main/unshown.ts` (`endingsToRead`, `useEndedUnshown`) reads a deal's own record (`deal_evidence` `money_check`) for a deadline ending the steps cannot place. Read-only; a failed read leaves the deal out.
+- **444cde1:** `windows/main/unshown.ts` (`endingsToRead`, `useEndedUnshown`) reads a deal's own record (`deal_evidence` `money_check`) for a deadline ending the steps cannot place. Read-only; a failed read leaves the deal out.
 - **0670480:** the away card uses that read, and waits for it.
-- **43de15e:** the Rewind uses that read when the check began in an earlier week.
+- **1b7d36c:** the Rewind uses that read when the check began in an earlier week.
 - **1881489:** `docs/features/home-and-rewind.md` brought to these words.
 - **Gates.** The merge gate runs cargo test only. The App Master measured, on main: client `tsc --noEmit` exit 0 and vitest 946 of 946 in 87 files at 3698520; `tsc` exit 0 and vitest 955 of 955 in 88 files at 1881489.
 - **Council.** wallet-deal-dashboard lite r2 is ready (lite), overall 0.62, coverage 0.70. Its one must-address was the Rewind's bead tip (robustness-1); the bead tip is fixed in "Rewind bead tip rework" below.
@@ -2095,46 +2095,46 @@ Ids are the ones on main.
 
 Ids are the ones on main.
 
-- **f870297:** `Ledger::reject_inbox` rejects a batch of one deal and one generation in one transaction and appends one `envelope.rejected` row holding the generation, the count, the raw-message digests and the reason; `finish_inbox(false)` is a batch of one.
-- **6f7beb3:** `consume_inbox` collects a pass's refused messages and rejects them one batch per deal and generation.
-- **Gates.** The merge gate's cargo test passed (run 43982be1). The App Master measured `cargo fmt --all --check` exit 0 on main at 6f7beb3. The builder reported clippy clean.
+- **3c6e4bc:** `Ledger::reject_inbox` rejects a batch of one deal and one generation in one transaction and appends one `envelope.rejected` row holding the generation, the count, the raw-message digests and the reason; `finish_inbox(false)` is a batch of one.
+- **c93ac9d:** `consume_inbox` collects a pass's refused messages and rejects them one batch per deal and generation.
+- **Gates.** The merge gate's cargo test passed (run 43982be1). The App Master measured `cargo fmt --all --check` exit 0 on main at c93ac9d. The builder reported clippy clean.
 - **Open:** none. C-9c is closed by the HOUSE inbox entry at the end of this file (challenge-2026-10-15).
 
 ## Deal-to-settlement rework C, parts 1 and 2 (2026-10-10; DECISIONS.md sections 34 and 35)
 
 Ids are the ones on main.
 
-- **975e168:** part 1, R1. `deadline_default` answers `Ok(false)` for an AUTHORIZED deal whose only open operations are a parked capture or void the read-back could not settle; nothing is sent.
-- **9fe08fb:** part 1, R2. A parked capture or void is read back at its deadline at most once an hour (`PARKED_READ_SECS`, in memory per request id); a parked authorize is still read every tick.
-- **767043a:** the Book's statement filter and lens table count a deal that ended UNCONFIRMED as 'No match', an end, not as 'Not yet'.
-- **85faf93:** the Book's On hold figures (the tile and its Why, the week answer, the grid totals and the lens table) leave out a payment being checked with PayPal, as Home does.
-- **33f2c56:** the Book's status pill and grid row word a check with `moneyCheckPill`, so a deal that ended reads 'Not shown by PayPal'.
-- **c5e1694:** the Book's detail Money line and the Counter panel's Money and Outcome lines say the payment is being checked, not that it is on hold.
-- **Gates.** The merge gate's cargo test passed at 9fe08fb and at c5e1694. The App Master measured `cargo fmt --all --check` exit 0 at 9fe08fb, and client `tsc` exit 0 and vitest 961 of 961 in 88 files at c5e1694.
+- **0436a4f:** part 1, R1. `deadline_default` answers `Ok(false)` for an AUTHORIZED deal whose only open operations are a parked capture or void the read-back could not settle; nothing is sent.
+- **6896f78:** part 1, R2. A parked capture or void is read back at its deadline at most once an hour (`PARKED_READ_SECS`, in memory per request id); a parked authorize is still read every tick.
+- **2004f19:** the Book's statement filter and lens table count a deal that ended UNCONFIRMED as 'No match', an end, not as 'Not yet'.
+- **90ddad1:** the Book's On hold figures (the tile and its Why, the week answer, the grid totals and the lens table) leave out a payment being checked with PayPal, as Home does.
+- **3d8754b:** the Book's status pill and grid row word a check with `moneyCheckPill`, so a deal that ended reads 'Not shown by PayPal'.
+- **885962f:** the Book's detail Money line and the Counter panel's Money and Outcome lines say the payment is being checked, not that it is on hold.
+- **Gates.** The merge gate's cargo test passed at 6896f78 and at 885962f. The App Master measured `cargo fmt --all --check` exit 0 at 6896f78, and client `tsc` exit 0 and vitest 961 of 961 in 88 files at 885962f.
 - **Open:** part 3 (the Tumbler's ended card cannot be dismissed; it needs a design in `crates/table-attention`), and the surfaces listed under Open in DECISIONS.md section 34.
 
 ## Rewind bead tip rework (2026-10-10; wallet-deal-dashboard lite r2 robustness-1; DECISIONS.md section 34)
 
 Ids are the ones on main.
 
-- **0705f3f:** one reading of a money step being open, `checkOpenThrough` (`windows/main/logic.ts`); `endedBeforePayPalShowed` keeps its results and shares the loop.
-- **448fda5:** the Rewind's bead tip reads a payment being checked with PayPal, not on hold or nothing moved. New `rewindCheckTip` (`logic.ts`), `MONEY_CHECK_PILL` and `moneyCheckPillText` (`lib/words.ts`); Home's past beads use them.
-- **Open:** none here. The bead's drawn shape was fixed in the next section (662286b).
+- **220da92:** one reading of a money step being open, `checkOpenThrough` (`windows/main/logic.ts`); `endedBeforePayPalShowed` keeps its results and shares the loop.
+- **6d06cfe:** the Rewind's bead tip reads a payment being checked with PayPal, not on hold or nothing moved. New `rewindCheckTip` (`logic.ts`), `MONEY_CHECK_PILL` and `moneyCheckPillText` (`lib/words.ts`); Home's past beads use them.
+- **Open:** none here. The bead's drawn shape was fixed in the next section (2aad736).
 
 ## Deal dashboard rework after full council round 1 (2026-10-10; DECISIONS.md section 36)
 
 Ids are the ones on main.
 
-- **35af182:** `readEach` (`lib/readEach.ts`): per-deal reads at most 8 at once, each rejected after 10 s.
-- **deb1002:** an ending whose record could not be read is 'Not available yet', never 'no money moved'. `useEndedUnshown` returns a third outcome, `unread`; new `ENDING_UNREAD_PILL`, `ENDING_UNREAD_NOW`, `endingUnreadSentence` and `endingUnreadLine`.
-- **88a7109:** the away card reads statements only for the unconfirmed endings it words (`statementReadIds`), capped and through `readEach`.
-- **4eff7a9:** `deal_display` is read again only for live deals and deals whose row changed (`windows/main/displays.ts`).
-- **662286b:** a payment whose outcome is not known is a dashed bead (`BeadKind` 'unknown'), never on hold; new `beadLook.ts`; the dial legend says 'not known yet'.
-- **b8625d3:** the Rewind says when a busy week shows only its latest steps (`REWIND_TRUNCATED`).
-- **7322f9f:** test fix: real timers before `waitFor` in the never-answering read test.
+- **637aae1:** `readEach` (`lib/readEach.ts`): per-deal reads at most 8 at once, each rejected after 10 s.
+- **a65c36d:** an ending whose record could not be read is 'Not available yet', never 'no money moved'. `useEndedUnshown` returns a third outcome, `unread`; new `ENDING_UNREAD_PILL`, `ENDING_UNREAD_NOW`, `endingUnreadSentence` and `endingUnreadLine`.
+- **22b4886:** the away card reads statements only for the unconfirmed endings it words (`statementReadIds`), capped and through `readEach`.
+- **66391b6:** `deal_display` is read again only for live deals and deals whose row changed (`windows/main/displays.ts`).
+- **2aad736:** a payment whose outcome is not known is a dashed bead (`BeadKind` 'unknown'), never on hold; new `beadLook.ts`; the dial legend says 'not known yet'.
+- **842c6f7:** the Rewind says when a busy week shows only its latest steps (`REWIND_TRUNCATED`).
+- **810eeef:** test fix: real timers before `waitFor` in the never-answering read test.
 - **Gates.** The merge gate runs cargo test only. The App Master measured these on main:
-  - at b8625d3: client `tsc --noEmit` exit 0, and vitest 994 of 995 in 91 files. The one failure was a harness timeout in `unshown.test.ts`, fixed by 7322f9f;
-  - at 7322f9f: `tsc` exit 0, and vitest 995 of 995 in 91 files.
+  - at 842c6f7: client `tsc --noEmit` exit 0, and vitest 994 of 995 in 91 files. The one failure was a harness timeout in `unshown.test.ts`, fixed by 810eeef;
+  - at 810eeef: `tsc` exit 0, and vitest 995 of 995 in 91 files.
 - **Council.**
   - wallet-deal-dashboard full r1 failed: overall 0.31, coverage 0.25, robustness 0.45 under its 0.50 floor.
   - Full r2 is ready: overall 0.55, coverage 0.80, robustness 0.68, economics 0.10.
@@ -2145,13 +2145,13 @@ Ids are the ones on main.
 
 Ids are the ones on main.
 
-- **30de99a:** R1. A parked invoice send is read at its deadline or past the request id window (`REQUEST_ID_KEPT_SECS`), at most hourly (`PARKED_READ_SECS`), so a draft closes not done.
+- **c047749:** R1. A parked invoice send is read at its deadline or past the request id window (`REQUEST_ID_KEPT_SECS`), at most hourly (`PARKED_READ_SECS`), so a draft closes not done.
 - **6904055:** R2 and R3. A sent invoice is never expired unread; a create still closes at its deadline without an invoicing client; a failed deadline read waits and retries at `RESCUE_POLL_SECS`.
-- **e7222e1:** R4. The forecast leaves out a deal with an open operation (test only).
+- **de1e878:** R4. The forecast leaves out a deal with an open operation (test only).
 - **Gates.**
   - The merge gate's cargo test passed (run 2be0bddf).
-  - The App Master measured on main at e7222e1: `cargo test -p table-app --test rescue` 18 of 18, `cargo test -p table-runtime` 194 of 194, and `cargo fmt --all --check` exit 0.
-  - `cargo clippy --workspace --all-targets -- -D warnings` exited 0 at e7222e1. The dashboard full r2 pass measured it first-hand.
+  - The App Master measured on main at de1e878: `cargo test -p table-app --test rescue` 18 of 18, `cargo test -p table-runtime` 194 of 194, and `cargo fmt --all --check` exit 0.
+  - `cargo clippy --workspace --all-targets -- -D warnings` exited 0 at de1e878. The dashboard full r2 pass measured it first-hand.
 - **Council.**
   - Tiered major at wake 68.
   - deadline-safe-default lite r1 was ready at 0.8129, and this rework closes its one must-address.
@@ -2162,7 +2162,7 @@ Ids are the ones on main.
 
 Ids are the ones on main.
 
-- **Commits:** none. The council reviewed head bc09444.
+- **Commits:** none. The council reviewed head 51efa4d.
 - **Council.**
   - Ready, round 1 of 3 (full mode). Overall 0.6075, coverage 0.80.
   - Value 0.62, craft 0.68, robustness 0.80, economics 0.10. Rivalry is unmeasured, by the App Master's decision. No hard failures.
@@ -2183,7 +2183,7 @@ Ids are the ones on main.
 
 Ids are the ones on main.
 
-- **db81fd7:** a read-only, docs-only addendum. It covers the engine surface the 10-07 scan skipped and the delta 6f7beb3..bc09444.
+- **5b03cff:** a read-only, docs-only addendum. It covers the engine surface the 10-07 scan skipped and the delta c93ac9d..51efa4d.
 - **Findings.**
   - C-17 (Low, PLAUSIBLE), C-18 (Low, PLAUSIBLE, latent), C-19 (Low), C-20 (Info) and C-21 (Info). None is High and no fix was made.
   - C-12 is narrowed and still PLAUSIBLE. No new P-n. Open publication blockers: P-1 only.
@@ -2195,7 +2195,7 @@ Ids are the ones on main.
 
 Ids are the ones on main.
 
-- **Commits:** d65a9d6 (Rust test), 4e5efe7 (client change and test), and the docs commit that carries this section.
+- **Commits:** 0121a51 (Rust test), 4dd8662 (client change and test), and the docs commit that carries this section.
 - **Defect:** the 'week' lens had no range. The window ran it over `ledgerScope` deals, and `bq.run` sent it unranged, so Rust answered over every deal.
 - **Change.**
   - `lensAsRun` (`modules/book/understand.ts`) gives the week lens `whenRange({ k: 'this_week' }, { now, offsetMin })` at pick and at run time, the range a typed 'this week' sends. The ranged query is the one shown (`queryText`, `readQuery`).
@@ -2203,14 +2203,14 @@ Ids are the ones on main.
 - **Tests.**
   - Rust: `book::tests::a_range_counts_only_deals_created_from_from_and_before_to` (deals before, at from, inside, at to, after; counts only [from, to)).
   - Client (`modules/book/lensRange.test.ts`): 'a ranged week query' (carries the range of a typed this week; the window returns exactly the rows the Rust test counts) and 'a preset lens that names no time' (unchanged, reads every deal). Both use the same fixture instants.
-- **Gates.** `cargo test -p table-ledger`, clippy on table-ledger, `git diff --check`. Client tsc and vitest were not run by the gate (no node_modules in the worktree); the App Master ran them read-only on main at cdd949d: tsc --noEmit exit 0, vitest 998 of 998 in 92 files, lensRange.test.ts 3 of 3.
+- **Gates.** `cargo test -p table-ledger`, clippy on table-ledger, `git diff --check`. Client tsc and vitest were not run by the gate (no node_modules in the worktree); the App Master ran them read-only on main at e7cae99: tsc --noEmit exit 0, vitest 998 of 998 in 92 files, lensRange.test.ts 3 of 3.
 - **Open.** weekBounds (logic.ts, local Date) and whenSpan (understand.ts, fixed offset at now) may differ in a DST-change week; neither was changed.
 
 ## Book answer direction and counts (ops-ledger-query lite r2 must-address 1 and 2)
 
 Ids are the ones on main.
 
-- **Commits:** 909a02c (code, tests), and the docs commit that carries this section.
+- **Commits:** ae693e0 (code, tests), and the docs commit that carries this section.
 - **Defects.** The wallet's table added money out and money in into one Amount; and the answer counted every deal on record while the grid, its chip and 'It only reads your N deals' counted the week's.
 - **Change.**
   - `compile()` (`crates/table-ledger/src/book.rs`) adds `direction` ('out' for the buyer side, 'in' otherwise) as an always-on column and group, after mode. No `BookGroup` variant, so table-core, bindings and the table-mcp schema are unchanged. The mock's `book_query` keys its rows the same way.
@@ -2219,14 +2219,14 @@ Ids are the ones on main.
 - **Tests.**
   - Rust: `book::tests::a_paid_question_answers_money_out_and_money_in_on_separate_lines` (out 2 / 1500, in 2 / 1000, stopped deal in neither).
   - Client (`modules/book/direction.test.ts`): 'a paid-only question keeps money out and money in apart' (same fixture, window sums), 'the mock book_query answers a direction line like Rust' (mock rows against the deals on record), and 'deals the answer reaches but the grid does not show' (`outsideGrid`).
-- **Gates.** `cargo fmt --all --check`, clippy and `cargo test` on table-ledger, `cargo test -p table-runtime`, `cargo test -p table-mcp`, `git diff --check`. Client tsc and vitest were not run by the gate (no node_modules in the worktree); the App Master ran them read-only on main at 8ad9517: vitest 1001 of 1001 in 93 files, and tsc --noEmit exit 1 at direction.test.ts:37 (a bindings BookQuery passed to the window runQuery). e1cead3 runs it through lensQuery as answerAsked does and asserts that the mock answer has both an out and an in line.
+- **Gates.** `cargo fmt --all --check`, clippy and `cargo test` on table-ledger, `cargo test -p table-runtime`, `cargo test -p table-mcp`, `git diff --check`. Client tsc and vitest were not run by the gate (no node_modules in the worktree); the App Master ran them read-only on main at e5ad937: vitest 1001 of 1001 in 93 files, and tsc --noEmit exit 1 at direction.test.ts:37 (a bindings BookQuery passed to the window runQuery). 1a2804b runs it through lensQuery as answerAsked does and asserts that the mock answer has both an out and an in line.
 - **Open.** The answer still adds stopped, held and in-progress money when no state chip is set (r1 value-3). 'Spend' and 'receive' both read as Paid. The `BookAnswer` doc comment (crates/table-client/src/lib.rs ~:864, and bindings/BookAnswer.ts) still says rows are grouped by currency and mode first; direction is now a third always-on key.
 
 ## Book wallet amounts and evidence reads (ops-ledger-query full r1 must-address 1 and 2)
 
 Ids are the ones on main.
 
-- **Commits:** 23ed4af (wallet Amount), 3d34c8c (evidence reads), a22d58d (playbook and stale comments), and the docs commit that carries this section.
+- **Commits:** 02474e2 (wallet Amount), 65f748b (evidence reads), 5009e77 (playbook and stale comments), and the docs commit that carries this section.
 - **Defects.** With no status set, the wallet's table added paid, held, in-progress and stopped money into one Amount (value-1). Opening the Book sent one `deal_evidence` read per deal at once, and again on every deal-list refetch (economics-1).
 - **Change.**
   - `walletSumsApart(query)` (`modules/book/model.ts`) is true when the query groups by state or filters state (`eq` or `in`) to values that share one `bucketOf` bucket, judged on a plain deal. `WalletAnswer` shows the Amount column only then and otherwise says, in one hint, that amounts are left out. Rows, vs market and Recovered are unchanged.
@@ -2241,7 +2241,7 @@ Ids are the ones on main.
 
 Ids are the ones on main.
 
-- **Commits:** d4b28c1 (`readEach` takes an AbortSignal), 3656abf (evidence cache and passes), and the docs commit that carries this section.
+- **Commits:** 4fee9d2 (`readEach` takes an AbortSignal), 7294b91 (evidence cache and passes), and the docs commit that carries this section.
 - **Defects.** Every Book open still read every deal's evidence and every refetch re-read most paid deals (economics-1); a superseded pass kept reading, because `dead` only dropped its results (economics-6).
 - **Shape and why.** Client only: a cache at module scope that outlives the Book, a narrower re-read set, and one pass at a time. No IPC command and no Rust, so no authority-table row and no `PINNED_MANIFEST` change (theme T11). The council named a cache that outlives the Book as one way to close economics-1.
 - **Change.**
@@ -2307,7 +2307,7 @@ refusal on Capture are unchanged.
 
 ### Third pass: a second hold on an open step, true last clauses, unlock and pairing notices (full r2 must-address)
 
-- **Feature:** owner-approval-decision. Base 4f9141a. Client tsc and vitest were not run, by the
+- **Feature:** owner-approval-decision. Base f147620. Client tsc and vitest were not run, by the
   builder or by the merge gate (no node_modules in the worktree); the Director runs them on main.
 - **Lines 1 and 2 (one defect), closed in the smaller form.** A second Capture, Countersign or
   owner Void while the first step's operation is open reached a table-app guard
@@ -2358,7 +2358,7 @@ refusal on Capture are unchanged.
 
 ### After full r3: the token notice reads plain words everywhere (craft-24)
 
-- **Feature:** owner-approval-decision. Base 90887b5. Client only; no Rust touched. Client tsc and
+- **Feature:** owner-approval-decision. Base 90e633e. Client only; no Rust touched. Client tsc and
   vitest were not run, by the builder or by the merge gate (no node_modules in the worktree); the
   Director runs them on main.
 - **craft-24 is closed by this change, outside the council** (there is no round 4). `OwnerConfig.tsx`
@@ -2374,7 +2374,7 @@ refusal on Capture are unchanged.
 - **Still open for the operator:** craft-25 (the "asks PayPal" clauses are untrue for a lost owner create
   and a parked step), craft-26 (after a remount, Collect stays live), craft-27 (pairing INVALID for an
   unusable name), robustness-3 (no render test), robustness-4 and craft-12.
-- **Typecheck fix.** On main at 24a17ca the Director's client vitest was green (1070) and tsc failed on
+- **Typecheck fix.** On main at c837bad the Director's client vitest was green (1070) and tsc failed on
   `notices.test.ts`:38-39 (indexed access, `found[0]`); this commit fixes those two lines with `found[0]!`.
 
 ## Inspector (`npm run tauri:dev:test`)
@@ -2416,37 +2416,37 @@ arrow glyphs read aloud. Not looked at on screen yet.
 
 The main window is rebuilt as the Calibre "Seal" console (spark `table-console-rebuild`, design
 record `prototype/console-calibre/`), on branch `worktree-spark-table-console-rebuild` forked from
-`baseline/pre-rebuild` (859fa04). Nothing is on `main` yet. Builder notes, with file lists and
+`baseline/pre-rebuild` (c4bbe5b). Nothing is on `main` yet. Builder notes, with file lists and
 parity tables: `docs/build/rebuild/{wp1a,wp1b,wp2,wp25,wp3a,wp3b,wp3c,wp4a,wp4b,wp4c}.md`.
 
 **What was built, per package**
-- **WP0** (b30ed72): `@tanstack/react-query` and `@tanstack/react-virtual` added, the unused
+- **WP0** (9037a89): `@tanstack/react-query` and `@tanstack/react-virtual` added, the unused
   `zustand` removed.
-- **WP1a** (3382e59): Calibre tokens v3 (night default, day), motion tokens in CSS and
+- **WP1a** (1a2ffeb): Calibre tokens v3 (night default, day), motion tokens in CSS and
   `design/motion.ts`, two bundled OFL fonts, the console kit in `shared/ui` (Stack, TabStrip,
   ModuleTab, FilterChips, Facts, ListShell, HoldGesture, Presence), the brand layer `shared/brand`
   (Seal, Mark, Rosette, Graticule, KeyArt, DialStrip) as React elements, no innerHTML.
-- **WP1b** (761faa2): the query layer `lib/data/*` (one key per read, NAMED/FRESH policies, a 10 s
+- **WP1b** (de9e45d): the query layer `lib/data/*` (one key per read, NAMED/FRESH policies, a 10 s
   time limit, a read budget, ONE event-to-invalidation map, coalescing with one trailing read),
   narrow World selectors (a consumer re-renders only on its slice), `useWindowedRows`,
   `formatCount` (99+) / `formatTally`, error boundaries per window, layer and panel, the stale
   banner. `useQuery` keeps its signature. A 10-event burst at 500 deals: 339 reads before, 4 after.
-- **WP2** (069d31d): the console frame (top bar, crumbs, Find, keyboard map, Escape chain, focus
+- **WP2** (36980ff): the console frame (top bar, crumbs, Find, keyboard map, Escape chain, focus
   and scroll restore, calm motion, footer), the decision centre (one decision at a time in Rust's
   order, the "If you do nothing" line, ONE gold action that calls only `approval_open`, facts strip,
   seal presence, the small Dial as a bead strip, the stack row), the waiting list, the Charter (Set
   up as five lines; privileged steps hand off). Every older hash deep link still parses.
-- **WP2.5** (2363ce0): the layer registry (`console/layers*.ts`), `ModuleLayer`, `ListEngine`
+- **WP2.5** (f5cb60c): the layer registry (`console/layers*.ts`), `ModuleLayer`, `ListEngine`
   (search, filter counts in one pass, sort, windowed rows), row parts, the scale smoke harness.
   Rules, Connections, Settings, pairing and the safety record became layers (the Sheet is gone).
-- **WP3a/b/c** (2bad28a): the six modules (summary plus nested views), the deal page, Rewind, Agent
+- **WP3a/b/c** (8f03961): the six modules (summary plus nested views), the deal page, Rewind, Agent
   rules and Wallet limits, Connections and pairing, Settings, the safety record, each with a parity
   table in its note (every old feature within three moves, or a recorded cut).
-- **WP4a** (0fe967c): the Latest strip on every module and short place (no dead band), nested views
+- **WP4a** (3857b00): the Latest strip on every module and short place (no dead band), nested views
   in the URL (`&v=` on places, `&dv=` on a deal), two-step lists (click picks, Enter opens), dead
   code removed (`legacy.tsx`, `Modules.tsx`, `modules/common.tsx`, `evidence.ts`, `art.ts`), a11y,
   perf and resilience tests.
-- **WP4b** (0fe967c): the approval window as a front sheet of the console (graticule ground, bar
+- **WP4b** (3857b00): the approval window as a front sheet of the console (graticule ground, bar
   with "Back to The Table", calibrated plate, corner seal, facts strip) and the Tumbler in the
   Calibre tokens. `HoldButton` keeps its API with `HoldGesture` inside. The approval window now
   follows the stored theme and calm choice (before: always dark).
@@ -2456,7 +2456,7 @@ parity tables: `docs/build/rebuild/{wp1a,wp1b,wp2,wp25,wp3a,wp3b,wp3c,wp4a,wp4b,
   preview-and-director, SCALE-FINDINGS).
 
 **Gates.** No Rust, `bindings/`, authority table, capability or `PINNED_MANIFEST` change:
-`git diff --stat 859fa04 -- crates bindings apps/desktop/src-tauri` is empty. Client at the WP4a /
+`git diff --stat c4bbe5b -- crates bindings apps/desktop/src-tauri` is empty. Client at the WP4a /
 WP4b hand-off: `pnpm typecheck` clean, `pnpm exec vitest run` 143 files / 1488 tests passed,
 `pnpm build` passes; WP4c's own runs and `takes --check` are in `docs/build/rebuild/wp4c.md`.
 Guards that bite: `console/guard.test.ts` (no release command named under `windows/main`; the
@@ -2541,10 +2541,10 @@ run in the native shell or on the PayPal sandbox unless the line says so; neithe
 M4). The brief said 20 goals; its list names 19, and all 19 are here.
 
 **M1**
-1. T2 deterministic negotiator: **met**. 45db28d (policy in `table_core::negotiation`), 54fa425 (policy engine over MCP), section "T2 deterministic negotiator" above, "Practice agent" badge in 93e93f3.
-2. T4 walk-away forecast: **met** offline. 83174f3 (quit confirm worded from the forecast), 93e93f3 (Tumbler "If you walk away" row, quit sheet), 359493c (forecast tested against the scheduler). The native tray quit dialog is not compiled or checked on Windows.
-3. T5 READY checklist in Rust: **met**. 97cb9eb (checks composed in `table-app`, bound to every owner decision by `checks_hash`), tests listed in its section.
-4. T10 unknown outcomes resolve once: **met** offline. 5e62cc2 (read-back resolver, one request id), 2b9b247 (client). Not run against the live sandbox (spike 3 not run).
+1. T2 deterministic negotiator: **met**. ca2234e (policy in `table_core::negotiation`), a7049b6 (policy engine over MCP), section "T2 deterministic negotiator" above, "Practice agent" badge in 34baa30.
+2. T4 walk-away forecast: **met** offline. 67babe3 (quit confirm worded from the forecast), 34baa30 (Tumbler "If you walk away" row, quit sheet), 8f7c73a (forecast tested against the scheduler). The native tray quit dialog is not compiled or checked on Windows.
+3. T5 READY checklist in Rust: **met**. d11ba50 (checks composed in `table-app`, bound to every owner decision by `checks_hash`), tests listed in its section.
+4. T10 unknown outcomes resolve once: **met** offline. 4e7c464 (read-back resolver, one request id), a6c31af (client). Not run against the live sandbox (spike 3 not run).
 5. Submission cut decided: **met**. DECISIONS §1 (waves 1-3 before the video, wave 4 after).
 
 **M2**
@@ -2553,20 +2553,20 @@ M4). The brief said 20 goals; its list names 19, and all 19 are here.
 8. Major features full council + operator: **partly**. Full councils with operator answers are recorded for house-seller-demo, attention-escalation, first-run onboarding, deal-to-settlement, wallet-deal-dashboard, owner-approval-decision and ops-ledger-query (DECISIONS §23-§42); which features count as major is not written down, so completeness is not shown.
 
 **M3**
-9. Wave 2 first slices T6/T11/T12: **met**. T6 3e75215, T11 cdf60f2, T12 d496eb1 (merged as 5f70b0a); T7 is goal 10.
-10. T7 no-install path: **met** under the narrower measure of DECISIONS §42 item 1 (README `pnpm dev` and static `dist`). aaec457, deceb2b, e28211d. No public link, by choice.
+9. Wave 2 first slices T6/T11/T12: **met**. T6 aaa3091, T11 dc88142, T12 17c75e1 (merged as 808d9a6); T7 is goal 10.
+10. T7 no-install path: **met** under the narrower measure of DECISIONS §42 item 1 (README `pnpm dev` and static `dist`). 47732f4, 3671609, 979de41. No public link, by choice.
 11. Themes outside the cut marked post-submission: **met**. `docs/concepts/moonshot-backlog.md` marks T13, T16, T17, T18, T19 post-submission; DECISIONS §1.
 
 **M4**
 12. Native UAT: **open**. Every phase row and acceptance row still lists native UAT as pending; no UAT record exists.
 13. Live sandbox spikes: **prepared, awaiting owner run**. The owner runs spikes 1-5, 7 and 8 from `docs/build/SPIKE-RUNBOOK.md` (DECISIONS §44); only spike 6 (version only) has run (`SPIKE-RESULTS.md`). No live result is recorded yet.
-14. HOUSE deployed: **open**. Deploy files are fixed (4909d48) and the mailbox allowance is in (ad2ef32), but no deployment is recorded; deploy approval is the next step (DECISIONS §42 item 2).
+14. HOUSE deployed: **open**. Deploy files are fixed (681de8b) and the mailbox allowance is in (0315f21), but no deployment is recorded; deploy approval is the next step (DECISIONS §42 item 2).
 15. Acceptance rows verified: **partly**. The "Acceptance map" above names offline tests for the rows; the UI, sandbox and native parts of most rows are pending.
 
 **M5**
-16. Public repo, no blockers: **partly**. P-1 is cut at the tip (38d4b8d, 15f5d08) but git history still holds the original and a rewrite is the operator's call; the connection words fix (§42 item 2) is done (dd6f363); whether the repo is public is not shown by git.
+16. Public repo, no blockers: **partly**. P-1 is cut at the tip (26e6d11, c73f61b) but git history still holds the original and a rewrite is the operator's call; the connection words fix (§42 item 2) is done (13fe2c0); whether the repo is public is not shown by git.
 17. README setup: **partly**. `README.md` has the check commands and the no-install director steps, and now the subsection "Connect an agent engine and a relay address" under "Run The Table on Windows". It says the practice agent is the only usable engine, that `claude-code` and `codex-cli` are not yet available, that `TABLE_RELAY_URL` attaches a relay, and that the HOUSE is not deployed. A judge still cannot pair with the HOUSE or run a real engine, because those are not built or deployed.
-18. Video: **open**. The takes rig exists (e28211d) and its check passes, but no video is in the repo; recording is planned for Nov 6-9.
+18. Video: **open**. The takes rig exists (979de41) and its check passes, but no video is in the repo; recording is planned for Nov 6-9.
 19. Submitted: **open**. Nothing shows a Devpost submission (closes 2026-11-12 14:00 PT).
 
 ## Open or join a table after pairing (signed-haggle value line, 2026-10-16)
@@ -2631,7 +2631,7 @@ no PayPal call: money still moves only through the existing AUTHORIZE approval.
   Open (low): the kept table is keyed by deal id, not bound to the house key that served it.
   F2 fixed in dc14027: the kept table is stored as `house.table.<key_id>.<deal_id>` and read back by the exact counterparty key at `pairing_confirm`, `check_draft` and `deal_create`/`deal_join`; an older unbound `house.table.<deal_id>` preference is refused (owner re-pairs). Tests: `a_kept_table_is_bound_to_the_house_key_that_served_it`, `a_legacy_table_kept_by_deal_id_alone_is_refused`.
 
-2026-10-18: the shield rework's client tests (abf04a3, 774e252) were executed for real after `pnpm install --frozen-lockfile`: typecheck green; vitest 1660/1662 before any fix (2 load-timing failures, none in shield), 1662/1662 after; the shield suite passes (35/35).
+2026-10-18: the shield rework's client tests (5e17cda, e44cba8) were executed for real after `pnpm install --frozen-lockfile`: typecheck green; vitest 1660/1662 before any fix (2 load-timing failures, none in shield), 1662/1662 after; the shield suite passes (35/35).
 
 ## Acceptance map reconcile (2026-10-19)
 
@@ -2672,7 +2672,7 @@ Rows U2 and U4 only; every other row is as round 4 left it.
 - 2026-10-23 **U2** left unverified: the mode badge is covered on the approval window, the Main console footer, the Tumbler (stack form, Flags, ticker) and the Book ledger (badge on a non-sandbox deal, none on a sandbox deal), and the Book CSV export carries the mode. The proof export carries the mode only inside the `deal.created` audit row's detail, and no test asserts it; recorded in the row, no production code added.
 - 2026-10-23 round 6 **U2** verified offline: the round-5 premise was wrong, `ProofBundle.deal.mode` carries the mode. New test table-ledger `tests::an_exported_proof_carries_the_deal_mode_in_the_deal_the_file_and_the_created_audit_row` (sandbox, replay, scripted_engine: bundle deal mode, serialized `deal.mode`, `deal.created` audit detail). No production code.
 - 2026-10-23 **U4** checked statically: fontFloor.test.ts resolves every stylesheet font size to px and finds 7 sizes under 12px (marks, step numerals, SVG user units), listed in the row and not fixed. The 1280x800 inspection on the native shell is still pending.
-- 2026-10-23 round 7 **U4** the five real px offenders were raised to 12px or more in 0f9777d (approval.css step/mark badges, tumbler.css step circle and legend numeral); `KNOWN_UNDER_FLOOR` now pins only the two brand.css SVG seal sizes (`.br-seal text` 1.85px, `text.deg` 1.9px, SVG user units scaled by the seal's box, not screen px). The test names are unchanged. The 1280x800 inspection on the native shell is still pending, so the row stays not fully verified.
+- 2026-10-23 round 7 **U4** the five real px offenders were raised to 12px or more in f5451e2 (approval.css step/mark badges, tumbler.css step circle and legend numeral); `KNOWN_UNDER_FLOOR` now pins only the two brand.css SVG seal sizes (`.br-seal text` 1.85px, `text.deg` 1.9px, SVG user units scaled by the seal's box, not screen px). The test names are unchanged. The 1280x800 inspection on the native shell is still pending, so the row stays not fully verified.
   - Client run (worktree, `pnpm install --frozen-lockfile` in apps/desktop/client): `npx vitest run` 204 files / 1963 tests, all passed (round 5: 204 / 1963, unchanged); `npx tsc --noEmit` clean. No production code changed. The merge gate (cargo check + cargo test) does not run tsc or vitest.
 - Also: `withdraw.render.test.tsx` line 82 read `sent('deal_withdraw')[0].args` and failed `tsc` under noUncheckedIndexedAccess (TS2532); changed to `[0]?.args`, test-only.
 
@@ -2682,15 +2682,15 @@ Client run (worktree, `pnpm install --frozen-lockfile` in apps/desktop/client): 
 
 Record: `docs/build/tiger/2026-10-24-agent-negotiation-run.md` (thesis, seats, scope, what waits on the operator). Three seats ran (agy gemini, codex gpt, claude opus; grok skipped on its probe), two rounds, 20 proposals. Built under the operator's 2026-10-24 standup authorisation, no IPC, gate or money path change:
 
-- 7c6ae49 the deal page names the run that acted (live, else newest), not the deal's oldest (DECISIONS.md section 21's open condition). Test: `model.test.ts` "actingRun".
-- 872b6a6 a buyer haggle shows how far their price came down from their own signed listing, and the room under the most you'll pay (D-0193: "$60.00 from $389.00 (15.42%)", "$11.00"). Test: `story.test.ts` "how far their price came down".
-- 614ed59 golden runtime test `the_demo_haggle_is_what_the_practice_agent_signs_and_it_stops_at_the_ask_me_line`: on the demo's limits the practice agent signs $300 / $306 / $312 / $318 / $324 and the wallet refuses its ACCEPT of $329 on the ask-me rule, with a gate and zero PayPal calls. The film's current offers ($290 / $305 / $314 / $321 / $327) fail it.
+- f267e00 the deal page names the run that acted (live, else newest), not the deal's oldest (DECISIONS.md section 21's open condition). Test: `model.test.ts` "actingRun".
+- 4a126f0 a buyer haggle shows how far their price came down from their own signed listing, and the room under the most you'll pay (D-0193: "$60.00 from $389.00 (15.42%)", "$11.00"). Test: `story.test.ts` "how far their price came down".
+- 4bb129a golden runtime test `the_demo_haggle_is_what_the_practice_agent_signs_and_it_stops_at_the_ask_me_line`: on the demo's limits the practice agent signs $300 / $306 / $312 / $318 / $324 and the wallet refuses its ACCEPT of $329 on the ask-me rule, with a gate and zero PayPal calls. The film's current offers ($290 / $305 / $314 / $321 / $327) fail it.
 
 Found: a buyer table cannot open on a listing above its ceiling (the deal's terms are mandate-checked at creation), so the film's $389-against-$340 cannot happen in the app; each practice-agent run leaves one `session_not_enabled` refusal row while its grant is enabled, counted by the safety record as "out of turn". Both wait on the operator with the scope's C4-L3.
 
 Gates (worktree): `cargo fmt --all --check` clean; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo test --workspace` 914 passed / 0 failed / 10 ignored. Client (`pnpm install --frozen-lockfile` in apps/desktop/client): `npx tsc --noEmit` clean, `npx vitest run` 204 files / 1970 tests passed (was 204 / 1963). The merge gate does not run tsc or vitest.
 
-- robustness-4 (full r2) fixed: actor reports the Failed run snapshot and any run.finish audit fault on the engine-error path (bdceccc).
+- robustness-4 (full r2) fixed: actor reports the Failed run snapshot and any run.finish audit fault on the engine-error path (2daeb35).
 
 ## Tiger deepening: owner-approval-decision (2026-10-24)
 
@@ -2701,15 +2701,15 @@ The pass ran `single-family`: no council, because convening needs a seats worktr
 brief forbids creating one. Built under the operator's 2026-10-24 standup authorisation. Display
 only, inside `apps/desktop/client/src/windows/approval/`, with no IPC, gate or money-path change:
 
-- **677e73e** On a table of more than one item, the accept sets the price range beside the price per
+- **a6ffbfd** On a table of more than one item, the accept sets the price range beside the price per
   item (the wallet's band rule is per item, mandate.rs:503). It no longer sets the total beside it:
   2 × $300 had read "Dan offers $600.00, inside your $340.00 limit". Test: `review/perItem.test.ts`.
-- **dfa9acb** "Why am I being asked?" and the accept note state the ask-me rule as the wallet applies
+- **fbff7f4** "Why am I being asked?" and the accept note state the ask-me rule as the wallet applies
   it: it asks only strictly above the limit. Under or at the limit they no longer say "not to the
   agent". The Who decides row no longer calls an equal or uncomparable offer "below". Tests:
   `review/askMe.test.ts`, `review/why.test.ts`. The old pin asserted the untrue sentence and is
   replaced.
-- **1dee2c5** After a successful hold, the window names the checklist the decision was bound to: "the
+- **5f94e71** After a successful hold, the window names the checklist the decision was bound to: "the
   checks you saw (4 of 6 passed · 2 checked later)", which the wallet re-checked and recorded with
   the decision. The fold over the checklist no longer reads "Your checks before you decided" over
   the current list, which also showed on deals never decided. It now reads "The wallet's checks
@@ -2730,10 +2730,10 @@ pass. The merge gate (cargo) does not run tsc or vitest.
 ## Tiger deepening: subscription-rescue (2026-10-24)
 
 Record: [tiger/2026-10-24-subscription-rescue.md](tiger/2026-10-24-subscription-rescue.md). A headless, single-family pass (no council: convening needs a seats worktree, which this brief forbids). Four display-only items were built in `apps/desktop/client` (no IPC, no Rust, no executor or money path):
-- **C1** (1d96af9): "PayPal retries …" is said only on PayPal's own retry time (`RescueView.next_retry_at`), never the fix's deadline. Rust sets that deadline to PayPal's retry when known, else 5 days of its own (`rescue.rs:224-227`), and every path today opens with none. Without it the page says PayPal retries on its own, not "no retry set". A new line says when the fix closes and that nothing is sent then (`deal.rs:393`).
-- **C2** (7cb0036): a replayed failure (the demo's D-0188) no longer promises a PayPal retry on its summary, card, preview, Why? or "If you do nothing" line; it has no failed payment at PayPal.
-- **C3** (46293b7): the Rescue page's Watching view and card say why nothing is checked while the wallet's watch pass is held (`rescue_watch_hold`) or today's checks are used up, instead of "checked every few hours".
-- **C4** (3d5d12c): "Stop watching" says a fix the watch already suggested stays open (`stop_watching` leaves it untouched).
+- **C1** (b7fb420): "PayPal retries …" is said only on PayPal's own retry time (`RescueView.next_retry_at`), never the fix's deadline. Rust sets that deadline to PayPal's retry when known, else 5 days of its own (`rescue.rs:224-227`), and every path today opens with none. Without it the page says PayPal retries on its own, not "no retry set". A new line says when the fix closes and that nothing is sent then (`deal.rs:393`).
+- **C2** (bede514): a replayed failure (the demo's D-0188) no longer promises a PayPal retry on its summary, card, preview, Why? or "If you do nothing" line; it has no failed payment at PayPal.
+- **C3** (fd12048): the Rescue page's Watching view and card say why nothing is checked while the wallet's watch pass is held (`rescue_watch_hold`) or today's checks are used up, instead of "checked every few hours".
+- **C4** (16f2abe): "Stop watching" says a fix the watch already suggested stays open (`stop_watching` leaves it untouched).
 
 Waits on the operator:
 - W1: Rust's `RESCUE_SILENCE` names a PayPal retry for a replay too (`table-attention`).
@@ -2746,6 +2746,6 @@ Client gates in the worktree: tsc clean; vitest 211 files / 2022 tests passed (a
 
 ## value-2 resolved by the owner's choice (2026-10-29)
 
-agent-negotiation-run value-2 (ask a07e05ac): the owner chose "Keep as is, explain in UI". The seller's practice agent still accepts the first offer at or above its floor (`Policy::decide`, unchanged). The seller's own deal page now says so when its agent accepted exactly at the signed floor (`acceptedAtFloorLine` in `windows/main/deal/story.ts`, words `DEAL_AT_FLOOR`). Seller side only; the floor never reaches a buyer or counterparty view. Commit: 45dc3dc (words only; no money logic, Rust, bindings or mock changed). tsc and vitest were not run (no client node_modules in the worktree).
+agent-negotiation-run value-2 (ask a07e05ac): the owner chose "Keep as is, explain in UI". The seller's practice agent still accepts the first offer at or above its floor (`Policy::decide`, unchanged). The seller's own deal page now says so when its agent accepted exactly at the signed floor (`acceptedAtFloorLine` in `windows/main/deal/story.ts`, words `DEAL_AT_FLOOR`). Seller side only; the floor never reaches a buyer or counterparty view. Commit: 753cb28 (words only; no money logic, Rust, bindings or mock changed). tsc and vitest were not run (no client node_modules in the worktree).
 
-agent-negotiation-run value-2 follow-up (K-1): the at-floor line now compares the deal's agreed unit price (`terms.unit_price`) with the signed floor, because the signed ACCEPT carries no price (`display.rs:118`, `mock/backend.ts:952`), so the 45dc3dc check never matched in the real app. Client words only; no Rust, mock or signed content changed. Commit: this commit. tsc and vitest were not run (no client node_modules in the worktree). Open: `mock/fixtures.ts:315` still carries a priced ACCEPT that disagrees with the Rust shape.
+agent-negotiation-run value-2 follow-up (K-1): the at-floor line now compares the deal's agreed unit price (`terms.unit_price`) with the signed floor, because the signed ACCEPT carries no price (`display.rs:118`, `mock/backend.ts:952`), so the 753cb28 check never matched in the real app. Client words only; no Rust, mock or signed content changed. Commit: this commit. tsc and vitest were not run (no client node_modules in the worktree). Open: `mock/fixtures.ts:315` still carries a priced ACCEPT that disagrees with the Rust shape.

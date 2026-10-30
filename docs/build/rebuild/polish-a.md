@@ -3,7 +3,7 @@
 Scope: `windows/main/console/**` (not the footer), `shared/tour*`, `lib/words/**` (appended),
 `windows/approval/OwnerConfig.tsx` (one copy fix), `director/**`. No Rust, `bindings/`, `crates/`,
 authority, capability or mock change by me. No dependency added. Nothing committed.
-`git diff --stat 859fa04 -- crates bindings apps/desktop/src-tauri` is NOT empty, but the one file
+`git diff --stat c4bbe5b -- crates bindings apps/desktop/src-tauri` is NOT empty, but the one file
 there is `apps/desktop/src-tauri/icons/icon.ico`, builder C's logo work, not mine.
 
 ## 1. Open items
@@ -76,7 +76,7 @@ Test-only helper: `console/testing/manualClock.ts`.
 ## 3. Measurements
 
 Browser, `?scale=large`, mock at 40 ms per call, 1280x800, headless Chromium on the vite dev server. Each layer is switched to by hash from a warm centre, median of 5 runs. Script: `scratchpad/pa_perf.py`.
-- Before = HEAD 017b13f, served from a `git archive` copy on its own port.
+- Before = HEAD 84cfa96, served from a `git archive` copy on its own port.
 - After = this tree.
 - Answer = the first frame in which the new layer's heading has text.
 - Full = the last DOM change in the stage before 700 ms of quiet. Before the change the layer was one render, so its "full" includes late reads; after, full includes the reveal.
