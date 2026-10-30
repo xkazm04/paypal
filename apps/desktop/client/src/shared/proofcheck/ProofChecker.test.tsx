@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AUTHORITY_MANIFEST } from '@bindings/authority';
 import { CHECK_IDS } from '../../lib/proof/checks';
-import { SAMPLE_PROOF } from '../../lib/proof/sample';
+import { BUYER_PROOF, SAMPLE_PROOF } from '../../lib/proof/sample';
 import { ProofChecker } from './ProofChecker';
 
 // the real checker runs here, and a busy machine slows it: a generous clock keeps the tests about behaviour
@@ -138,5 +138,56 @@ describe('the person’s own edits and files', () => {
     // not a proof file at all
     fireEvent.change(picker, { target: { files: [new File(['[]'], 'other.json')] } });
     await waitFor(() => expect(container.querySelector('.pk-refused')?.textContent).toMatch(/not a proof file/), TIMEOUT);
+  });
+});
+
+describe('the buyer’s file and the other side', () => {
+  const mountBoth = () => render(<ProofChecker source={{ ...SAMPLE_PROOF }} samples={[SAMPLE_PROOF, BUYER_PROOF]} own={AUTHORITY_MANIFEST} />);
+
+  it('shows a line that passed only for want of anything to compare as dashed, not as a tick', async () => {
+    const { container } = render(<ProofChecker source={{ ...BUYER_PROOF }} own={AUTHORITY_MANIFEST} />);
+    await checked();
+    const r = rows(container);
+    for (const id of ['countersign', 'authority', 'paypal_order']) {
+      expect(kind(r[id]), id).toBe('dashed');
+      expect(within(r[id] as HTMLElement).getByText(/Nothing to check/)).toBeTruthy();
+    }
+    // ... while what the file does carry is checked: its messages, its record, the receipt, its seal
+    for (const id of ['transcript', 'audit', 'receipt', 'evidence']) expect(kind(r[id]), id).toBe('ok');
+    // and the verdict is the verifier's: every line that applies passed
+    expect(screen.getAllByText('Every check that applies passed').length).toBeGreaterThan(0);
+  });
+
+  it('puts the other side’s file beside this one and says the two tell the same story', async () => {
+    const { container } = mountBoth();
+    expect(container.querySelector('.pk-sides')).toBeNull(); // nothing to set beside before the file is checked
+    await checked();
+    fireEvent.click(await screen.findByRole('button', { name: /Use: The same sale, from the buyer/ }));
+    await screen.findByText('The two files tell the same story', {}, TIMEOUT);
+    expect(container.querySelectorAll('.pk-alist li.ok')).toHaveLength(7);
+    expect(container.querySelector('.pk-alist li.bad')).toBeNull();
+  });
+
+  it('shows the line a change is about when the files stop agreeing, and again when it is put back', async () => {
+    const { container } = mountBoth();
+    await checked();
+    fireEvent.click(await screen.findByRole('button', { name: /Use: The same sale, from the buyer/ }));
+    await screen.findByText('The two files tell the same story', {}, TIMEOUT);
+    fireEvent.click(screen.getByRole('button', { name: /Raise the price/ }));
+    await screen.findByText('The two files do not agree', {}, TIMEOUT);
+    const bad = [...container.querySelectorAll('.pk-alist li.bad')].map((li) => li.textContent);
+    expect(bad).toHaveLength(2);
+    expect(bad.join(' ')).toMatch(/Each file checks out on its own/);
+    expect(bad.join(' ')).toMatch(/They agree on the price/);
+    fireEvent.click(screen.getByRole('button', { name: 'Put the file back' }));
+    await screen.findByText('The two files tell the same story', {}, TIMEOUT);
+  });
+
+  it('says plainly when the other file is not a proof file', async () => {
+    const { container } = mountBoth();
+    await checked();
+    const picker = container.querySelector('.pk-sides input[type="file"]') as HTMLInputElement;
+    fireEvent.change(picker, { target: { files: [new File(['{"nope":1}'], 'nope.json')] } });
+    await waitFor(() => expect(container.querySelector('.pk-sides .pk-refused')?.textContent).toMatch(/not a proof file/), TIMEOUT);
   });
 });

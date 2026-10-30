@@ -11,6 +11,7 @@
 //! this verifier gives for the edited file. The TypeScript checker must give the same report for
 //! the same edits, and that is the parity test on the client side.
 use crate::{ProofReport, check_proof_file};
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use ed25519_dalek::SigningKey;
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -35,6 +36,8 @@ pub const CLIENT_DIR: &str = "../../apps/desktop/client/src/lib/proof/sample";
 pub const GOLDEN: &str = "golden.tableproof";
 /// The busy deal's file: a group, a held and released safety check, market prices, a lost answer.
 pub const BUSY: &str = "busy.tableproof";
+/// The same monitor sale as the buyer's wallet kept it.
+pub const BUYER: &str = "buyer.tableproof";
 /// The tampered copies and the verifier's reports on them.
 pub const PARITY: &str = "parity.json";
 
@@ -1184,6 +1187,247 @@ pub fn variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
     ])
 }
 
+/// The other side of the monitor sale: the buyer's wallet's file for the very same deal. The signed
+/// messages and the shop's signed receipt are the same bytes; the owner, the rules, the agent that signs
+/// the file and the record of what happened are the buyer's own. The buyer's wallet made no PayPal call
+/// (the buyer approved at PayPal's own page), so its file has no order records to compare.
+pub fn buyer_bundle() -> Made<ProofBundle> {
+    let seller = build(false)?;
+    let (owner, agent) = (signer("buyer-owner"), signer("buyer-agent"));
+    let seller_id = signer("agent").key_id()?;
+    let buyer_id = agent.key_id()?;
+    let deal_id = seller.deal.id;
+    let terms = seller.deal.terms.clone();
+    let terms_hash = terms.hash()?;
+    let mandate_id = "01K8W2R6Q9G5J8M2P4S7V0XZBD".parse()?;
+
+    // The buyer's rules: only the buy side, a limit over which the owner decides, and the shop's payee.
+    let payload = MandatePayload {
+        id: mandate_id,
+        version: 1,
+        agent_key: agent.public_key().to_bytes(),
+        clauses: vec![
+            Clause::Roles {
+                roles: vec![Role::Buy],
+            },
+            Clause::Counterparties {
+                rule: CpRule::Paired,
+            },
+            Clause::PerDeal {
+                kind: DealKind::Haggle,
+                max_amount: money(30_000)?,
+                categories: vec![Category::Office],
+            },
+            Clause::Band {
+                item_refs: vec![ItemRef::new(ITEM)?],
+                floor: None,
+                ceiling: Some(money(25_000)?),
+                max_rounds: 6,
+                deadline: T0 + 6 * 86_400,
+            },
+            Clause::Velocity {
+                max_deals_day: 6,
+                max_total_day: money(100_000)?,
+            },
+            Clause::HumanPresentOver {
+                amount: money(15_000)?,
+            },
+            Clause::Payees {
+                payees: vec![PayeeRef::new(PAYEE)?],
+            },
+        ],
+        not_before: T0 - 86_400,
+        expires: T0 + 30 * 86_400,
+    };
+    payload.validate()?;
+    let mandate = OpenMandate {
+        owner_sig: owner.sign_payload(&payload)?,
+        payload,
+    };
+
+    // The same messages, seen from the other end: what the shop sent, the buyer received.
+    let transcript: Vec<ProofEnvelope> = seller
+        .transcript
+        .iter()
+        .map(|e| ProofEnvelope {
+            inbound: !e.inbound,
+            raw: e.raw.clone(),
+            received_at: e.received_at,
+        })
+        .collect();
+    let describe = |raw: &str| -> Made<(String, u64)> {
+        let payload = raw.split('.').nth(1).ok_or("no payload")?;
+        let bytes = URL_SAFE_NO_PAD.decode(payload)?;
+        let body: Value = serde_json::from_slice(&bytes)?;
+        let typ = body.get("typ").and_then(Value::as_str).ok_or("no typ")?;
+        let seq = body.get("seq").and_then(Value::as_u64).ok_or("no seq")?;
+        Ok((typ.to_owned(), seq))
+    };
+
+    // The buyer's own record of it: its own chain, its own numbers.
+    let mut log = Log {
+        seq: 0,
+        prev: H256::digest(b"the-table/sample-proof/before-the-buyers-deal"),
+        deal: deal_id,
+        rows: Vec::new(),
+    };
+    log.other_deals(18);
+    let (buyer_actor, seller_actor) = (format!("agent:{buyer_id}"), format!("peer:{seller_id}"));
+    let saw = H256::digest(b"the-table/sample-proof/checklist/owner-accept");
+    let first = transcript.first().ok_or("no messages")?;
+    log.row(
+        first.received_at,
+        "policy",
+        "deal.created",
+        &json!({ "kind": "haggle", "mode": "sandbox", "terms_hash": hash_value(terms_hash)? }),
+    )?;
+    log.row(
+        first.received_at,
+        "policy",
+        "deadline.set",
+        &json!({ "authorization_at": null, "due_at": T0 + 6 * 86_400 }),
+    )?;
+    let transition = |from: DealState, to: DealState| json!({ "from": from, "to": to });
+    let mut owner_at = 0;
+    for entry in &transcript {
+        let (typ, seq) = describe(&entry.raw)?;
+        let hash = H256::digest(entry.raw.as_bytes());
+        let actor = if entry.inbound {
+            &seller_actor
+        } else {
+            &buyer_actor
+        };
+        let at = entry.received_at;
+        if typ == "ACCEPT" && !entry.inbound {
+            // The owner decided in the approval window, a moment before the buyer's agent sent it.
+            owner_at = at - 3;
+            log.row(
+                owner_at,
+                "owner",
+                "owner.decision",
+                &json!({
+                    "attempt": 1, "checks_hash": hash_value(saw)?,
+                    "decided_by": { "at": owner_at, "type": "human" },
+                    "decision": "deal_owner_accept", "terms_hash": hash_value(terms_hash)?,
+                }),
+            )?;
+        }
+        log.row(
+            at,
+            actor,
+            "envelope.accepted",
+            &json!({ "direction": if entry.inbound { "in" } else { "out" }, "hash": hash_value(hash)?, "seq": seq, "typ": typ }),
+        )?;
+        match typ.as_str() {
+            "LISTING" => log.row(at, "policy", "deal.transition", &transition(DealState::Pairing, DealState::Listed))?,
+            "OFFER" => log.row(at, "policy", "deal.transition", &transition(DealState::Listed, DealState::Negotiating))?,
+            "ACCEPT" if entry.inbound => log.row(
+                at,
+                "policy",
+                "deal.transition",
+                &json!({ "decided_by": { "at": owner_at, "type": "human" }, "from": "NEGOTIATING", "to": "AGREED" }),
+            )?,
+            "SETTLE" => {
+                log.row(at, "policy", "deal.transition", &transition(DealState::Agreed, DealState::Settling))?;
+                log.row(at, "policy", "deal.transition", &transition(DealState::Settling, DealState::AwaitingApproval))?;
+            }
+            "RECEIPT" => {
+                log.row(
+                    at,
+                    &seller_actor,
+                    "receipt.seller_attested",
+                    &json!({ "capture_id": seller.deal.paypal.capture, "transcript_head": hash_value(seller.receipts.first().ok_or("no receipt")?.transcript_head)? }),
+                )?;
+                log.row(at, "policy", "deal.transition", &transition(DealState::AwaitingApproval, DealState::Receipted))?;
+            }
+            _ => {}
+        }
+    }
+    let last = log.rows.last().map(|r| (r.seq, r.hash)).ok_or("no rows")?;
+    let rows = std::mem::take(&mut log.rows);
+    log.other_deals(6);
+    let audit_head = ProofAuditHead {
+        seq: log.seq.max(last.0),
+        hash: log.prev,
+    };
+
+    let updated = transcript.last().map_or(0, |e| e.received_at);
+    let deal = Deal {
+        id: deal_id,
+        created_at: seller.deal.created_at,
+        updated_at: updated,
+        kind: DealKind::Haggle,
+        side: Side::Buyer,
+        counterparty: seller_id,
+        terms,
+        state: DealState::Receipted,
+        mandate_id,
+        mandate_version: 1,
+        transcript_head: seller.deal.transcript_head,
+        paypal: PaypalRefs {
+            order: seller.deal.paypal.order.clone(),
+            authorization: None,
+            capture: seller.deal.paypal.capture.clone(),
+            subscription: None,
+        },
+        mode: Mode::Sandbox,
+        market: None,
+        shield: Some(ShieldVerdict::Clear),
+        decided_by: Some(DecidedBy::Human { at: owner_at }),
+        shield_rule: None,
+        shield_release: None,
+    };
+    let mut bundle = ProofBundle {
+        format: PROOF_FORMAT.into(),
+        exported_at: seller.exported_at,
+        deal,
+        owner_key: owner.public_key().to_bytes(),
+        mandate,
+        counterparty: ProofCounterparty {
+            agent_key: seller.mandate.payload.agent_key,
+            owner_key: seller.owner_key,
+        },
+        transcript,
+        closed_mandates: Vec::new(),
+        operations: Vec::new(),
+        paypal_calls: Vec::new(),
+        receipts: seller.receipts.clone(),
+        audit: rows,
+        audit_head,
+        authority_manifest: seller.authority_manifest,
+        group: None,
+        house: None,
+        evidence_head: H256::ZERO,
+        evidence_sig: Vec::new(),
+    };
+    bundle.evidence_head = bundle.evidence_commitment()?;
+    bundle.evidence_sig = agent.sign_commitment(bundle.evidence_head);
+    Ok(bundle)
+}
+
+/// The tampered copies of the buyer's file.
+pub fn buyer_variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
+    let amount = bundle.deal.terms.amount()?;
+    Ok(vec![
+        Variant {
+            name: "price",
+            edits: vec![Edit::set(
+                "/deal/terms/unit_price/minor",
+                json!(amount.minor() / 5 * 7),
+            )],
+            red: &["receipt", "evidence"],
+        },
+        Variant {
+            name: "transcript-head",
+            edits: vec![Edit::set(
+                "/deal/transcript_head",
+                serde_json::to_value(H256::ZERO)?,
+            )],
+            red: &["transcript", "evidence"],
+        },
+    ])
+}
+
 /// The tampered copies of the busy deal: edits to the records only it has.
 pub fn busy_variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
     let released = row_at(bundle, "shield.released", 0)?;
@@ -1255,7 +1499,7 @@ pub struct Sample {
     /// The checks that read "not checked" for this deal, because it has nothing of their kind.
     pub dashed: &'static [&'static str],
 }
-pub const SAMPLES: [Sample; 2] = [
+pub const SAMPLES: [Sample; 3] = [
     Sample {
         name: "monitor",
         file: GOLDEN,
@@ -1269,6 +1513,20 @@ pub const SAMPLES: [Sample; 2] = [
         bundle: busy_bundle,
         variants: busy_variants,
         dashed: &["house_record"],
+    },
+    Sample {
+        name: "buyer",
+        file: BUYER,
+        bundle: buyer_bundle,
+        variants: buyer_variants,
+        dashed: &[
+            "owner_saw",
+            "one_request",
+            "group",
+            "shield",
+            "house_record",
+            "market",
+        ],
     },
 ];
 

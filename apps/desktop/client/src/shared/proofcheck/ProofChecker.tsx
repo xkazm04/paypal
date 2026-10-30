@@ -13,9 +13,10 @@ import { CHECK_IDS, type CheckLine } from '../../lib/proof/checks';
 import { editsFor, type TamperId } from '../../lib/proof/tamper';
 import { PROOF_FILE_LIMIT, TOO_LARGE } from '../../lib/proof/verify';
 import { isCalm } from '../../design/motion';
-import { modeWord, PROOF_ALL_THAT_APPLY, PROOF_CAUGHT, PROOF_CHECKER as W, PROOF_SHORT, PROOF_CHECKS, PROOF_NOT_APPLICABLE, PROOF_NOT_CHECKED, PROOF_SOME_UNCHECKED, PROOF_VERSION_MATCH, PERMISSIONS_FINGERPRINT, TAMPER_WORDS, TAMPERS_SHOWN } from '../../lib/words';
+import { modeWord, PROOF_ALL_THAT_APPLY, PROOF_CAUGHT, PROOF_NOTHING, PROOF_NOTHING_SAID, PROOF_CHECKER as W, PROOF_SHORT, PROOF_CHECKS, PROOF_NOT_APPLICABLE, PROOF_NOT_CHECKED, PROOF_SOME_UNCHECKED, PROOF_VERSION_MATCH, PERMISSIONS_FINGERPRINT, TAMPER_WORDS, TAMPERS_SHOWN } from '../../lib/words';
 import { KeyId } from '../ownerKey';
 import { Btn, Chip, Kv, Seg } from '../ui';
+import { SidesCard } from './SidesCard';
 import { useProofRun, type Facts, type RunState } from './useProofRun';
 import './proofcheck.css';
 
@@ -41,6 +42,7 @@ const SIXTEEN = CHECK_IDS.length;
 
 /** The reason a dashed line is dashed: nothing of its kind in the deal, or a check not made. */
 function dashedWords(line: CheckLine): string {
+  if (vacuous(line)) return PROOF_NOTHING[line.id] ?? W.nothing;
   if (!line.applies) return PROOF_NOT_APPLICABLE[line.id] ?? PROOF_CHECKER_OLDER;
   if (line.detail.includes('cannot check Ed25519')) return W.noEd25519;
   if (line.detail.includes('this page does not') || line.detail.includes('this page ran into')) return W.notYetBuilt;
@@ -49,7 +51,10 @@ function dashedWords(line: CheckLine): string {
 const PROOF_CHECKER_OLDER = 'Not checked: files saved by older versions of the wallet don’t carry this record.';
 
 type Kind = 'ok' | 'bad' | 'dashed';
-const kindOf = (line: CheckLine): Kind => (line.ok ? 'ok' : line.checked && line.applies ? 'bad' : 'dashed');
+/** A line the verifier passed because the file has nothing of its kind (no approval, no money step, no PayPal
+ *  order): shown dashed, never as a tick that claims something was compared. */
+const vacuous = (line: CheckLine): boolean => line.ok && PROOF_NOTHING_SAID[line.id]?.test(line.detail) === true;
+const kindOf = (line: CheckLine): Kind => (vacuous(line) ? 'dashed' : line.ok ? 'ok' : line.checked && line.applies ? 'bad' : 'dashed');
 
 /** Every place two files differ, as a path with what was there and what is there now. */
 function changes(before: unknown, after: unknown, path = ''): Array<{ path: string; before: unknown; after: unknown }> {
@@ -254,7 +259,7 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
   const running = state.phase === 'running';
   const places = useMemo(() => placesIn(draft), [draft]);
 
-  const everChecked = hasChecked;
+  const everChecked = hasChecked || (state.phase === 'done' && state.refused === null);
   const caughtBy = bad.map((i) => CHECK_IDS[i] ?? '');
   const goTo = (cid: string) => {
     const row = document.getElementById(`${id}-row-${cid}`);
@@ -365,6 +370,7 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
           </div>
         </aside>
       </div>
+      {everChecked ? <SidesCard mine={state.phase === 'done' ? state.side : null} candidates={samples.filter((x) => x.name !== file.name)} own={own} headingLevel={level} /> : null}
       <div className="pk-drop" aria-hidden="true"><span>{W.dropNow}</span></div>
     </div>
   );

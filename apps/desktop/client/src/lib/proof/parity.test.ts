@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { AUTHORITY_MANIFEST } from '@bindings/authority';
 import busy from './sample/busy.tableproof?raw';
+import buyer from './sample/buyer.tableproof?raw';
 import golden from './sample/golden.tableproof?raw';
 import parity from './sample/parity.json';
 import { applyEdits, type Edit } from './edits';
@@ -16,7 +17,7 @@ import { checkProofText, type ProofReport } from './verify';
 type Variant = { name: string; edits: Edit[]; red: string[]; outcome: { report?: ProofReport; refused?: string } };
 type Entry = { golden: ProofReport; variants: Variant[] };
 const wallet = (parity as unknown as { samples: Record<string, Entry> }).samples;
-const FILES: Record<string, string> = { monitor: golden, busy };
+const FILES: Record<string, string> = { monitor: golden, busy, buyer };
 
 const tampered = (text: string, edits: Edit[]): string => {
   const document: unknown = JSON.parse(text);
@@ -27,8 +28,8 @@ const lines = (report: ProofReport) => report.checks.map((c) => [c.id, c.ok, c.c
 const red = (report: ProofReport) => report.checks.filter((c) => c.applies && c.checked && !c.ok).map((c) => c.id);
 
 describe('the samples', () => {
-  it('are the two practice deals', () => {
-    expect(Object.keys(wallet).sort()).toEqual(['busy', 'monitor']);
+  it('are the practice deals', () => {
+    expect(Object.keys(wallet).sort()).toEqual(['busy', 'buyer', 'monitor']);
   });
 });
 
@@ -72,6 +73,9 @@ describe('the tampered copies cover what a person would try', () => {
   });
   it('on the busy deal, the records only it has', () => {
     expect((wallet.busy as Entry).variants.map((v) => v.name)).toEqual(['shield-release', 'market-price', 'group-winner', 'group-agreed', 'request-id']);
+  });
+  it('on the buyer\'s file of the same sale', () => {
+    expect((wallet.buyer as Entry).variants.map((v) => v.name)).toEqual(['price', 'transcript-head']);
   });
   it('and a tamper the file has nothing to break is not offered', () => {
     expect(editsFor('market-price', JSON.parse(golden))).toBeNull();

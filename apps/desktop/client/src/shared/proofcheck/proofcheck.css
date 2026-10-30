@@ -118,3 +118,15 @@
 
 .pk-practice { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); font-size: var(--fs-small); }
 .pk-practice .ui-btn[aria-pressed='true'] { color: var(--teal-l); box-shadow: inset 0 -2px 0 var(--teal); }
+
+/* ---- the other side's file ------------------------------------------------------------------------- */
+.pk-sides { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); }
+.pk-sides .pk-h { margin: 0; }
+.pk-agreed { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); margin: var(--sp-2) 0 0; }
+.pk-alist { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); }
+.pk-alist li { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); gap: var(--sp-3); padding: var(--sp-1) 0; }
+.pk-alist .pk-mark { margin-top: 0; }
+.pk-alist li.ok .pk-mark { background: var(--ok); border-color: var(--ok); color: var(--on-ok); }
+.pk-alist li.bad .pk-mark { background: var(--refuse); border-color: var(--refuse); color: var(--on-refuse); }
+.pk-alist li.bad { background: color-mix(in srgb, var(--refuse) 9%, transparent); }
+.pk-alist li.dashed .pk-mark { border-style: dashed; color: var(--dim); }

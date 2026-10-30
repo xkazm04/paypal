@@ -70,6 +70,27 @@ export const PROOF_CHECKER = {
     'Anything on a dashed line. It is never a pass.',
   ],
 
+  // the other side's file
+  sides: {
+    head: 'Provable by both sides',
+    intro: 'A deal has two files, one from each wallet. Add the other side’s file and see whether the two tell the same story.',
+    use: (label: string) => `Use: ${label}`,
+    open: 'Choose the other side’s file',
+    remove: 'Take the other file away',
+    comparing: 'Checking the other file…',
+    agree: 'The two files tell the same story',
+    differ: 'The two files do not agree',
+    lines: {
+      each: 'Each file checks out on its own',
+      deal: 'They are about the same deal',
+      sides: 'One is the buyer’s, one is the seller’s',
+      keys: 'Each names the other side’s owner key',
+      messages: 'They end at the same signed message',
+      price: 'They agree on the price',
+      payment: 'They name the same payment',
+    },
+  },
+  nothing: 'Nothing to check',
   // the deal page's card
   card: {
     key: 'The signed proof',
@@ -93,6 +114,21 @@ export const PROOF_SHORT: Readonly<Record<string, string>> = {
   format: 'The file', mandate: 'Owner’s rules', transcript: 'Messages', countersign: 'Approvals', authority: 'Authority', paypal_order: 'PayPal’s order', audit: 'The record',
   receipt: 'Receipt', owner_saw: 'Owner’s checklist', one_request: 'One request', group: 'Shopping around', shield: 'Safety check', house_record: 'House record',
   permissions: 'Permissions', market: 'Market price', evidence: 'The seal',
+};
+
+/** A line that passed only because the file has nothing of its kind: not a green tick, a dashed line. */
+export const PROOF_NOTHING: Readonly<Record<string, string>> = {
+  countersign: 'Nothing to check: this wallet made no approval on this deal.',
+  authority: 'Nothing to check: this wallet took no money step on this deal.',
+  paypal_order: 'Nothing to check: this wallet never talked to PayPal about this deal. The other side’s file holds the order.',
+  receipt: 'Nothing to check: there is no receipt yet.',
+};
+/** What the verifier writes when it passed a check because there was nothing to check. */
+export const PROOF_NOTHING_SAID: Readonly<Record<string, RegExp>> = {
+  countersign: /^no countersign in this deal$/,
+  authority: /^no money operation in this deal$/,
+  paypal_order: /^no PayPal order in this deal/,
+  receipt: /^no receipt yet$/,
 };
 
 /** What a red line means, by check id: the plain claim that no longer holds. */
@@ -133,9 +169,10 @@ export const TAMPER_WORDS: Readonly<Record<TamperId, { label: string; what: stri
   'group-winner': { label: 'Crown the other seller', what: 'which table won the shop-around' },
   'group-agreed': { label: 'Agree both deals', what: 'the other seller’s table, marked as agreed' },
   'request-id': { label: 'Send the payment twice', what: 'the request the capture was sent under' },
+  'transcript-head': { label: 'Cut the messages short', what: 'where the signed messages are said to end' },
 };
 /** The tampers offered on screen, in order. */
 export const TAMPERS_SHOWN: readonly TamperId[] = [
   'price', 'paypal-amount', 'payee', 'receipt', 'audit-line', 'audit-gap', 'signature', 'refund', 'rules', 'owner-key',
-  'shield-release', 'market-price', 'group-winner', 'group-agreed', 'request-id',
+  'shield-release', 'market-price', 'group-winner', 'group-agreed', 'request-id', 'transcript-head',
 ];

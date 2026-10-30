@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Money } from '../../lib/proof/bundle';
 import { CHECK_IDS, type CheckLine } from '../../lib/proof/checks';
+import { type Side, sideOf } from '../../lib/proof/sides';
 import { prepareProof, verified } from '../../lib/proof/verify';
 import { isCalm } from '../../design/motion';
 
@@ -34,10 +35,12 @@ export interface RunState {
   refused: string | null;
   verified: boolean | null;
   facts: Facts | null;
+  /** What the file says about the deal, to set beside the other side's file; its verdict once done. */
+  side: Side | null;
   /** Counts up with each run, so a view can restart an animation. */
   run: number;
 }
-const EMPTY: RunState = { phase: 'idle', lines: CHECK_IDS.map(() => null), made: 0, before: null, refused: null, verified: null, facts: null, run: 0 };
+const EMPTY: RunState = { phase: 'idle', lines: CHECK_IDS.map(() => null), made: 0, before: null, refused: null, verified: null, facts: null, side: null, run: 0 };
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 /** How long a line stays up before the next: a dashed line passes quickly, a made one lingers. */
@@ -75,7 +78,9 @@ export function useProofRun(): { state: RunState; start: (text: string, pace?: '
       authority_manifest: prepared.authority_manifest,
       signatures: prepared.signatures,
     };
-    setState((s) => ({ ...s, facts }));
+    const side = await sideOf(prepared, false);
+    if (mine !== token.current) return;
+    setState((s) => ({ ...s, facts, side }));
     const made: CheckLine[] = [];
     const lines: Array<CheckLine | null> = kept ? [...kept] : CHECK_IDS.map(() => null);
     for (const [index, id] of CHECK_IDS.entries()) {
@@ -88,7 +93,8 @@ export function useProofRun(): { state: RunState; start: (text: string, pace?: '
       if (wait > 0) await sleep(wait);
       if (mine !== token.current) return;
     }
-    setState((s) => ({ ...s, phase: 'done', verified: verified(made) }));
+    const ok = verified(made);
+    setState((s) => ({ ...s, phase: 'done', verified: ok, side: s.side ? { ...s.side, verified: ok } : null }));
   }, []);
 
   const reset = useCallback(() => {

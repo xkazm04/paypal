@@ -7,7 +7,7 @@ import { applyEdits, type Edit, readAt } from './edits';
 
 export type TamperId =
   | 'price' | 'paypal-amount' | 'payee' | 'receipt' | 'audit-line' | 'audit-gap' | 'signature' | 'refund' | 'rules' | 'relabel' | 'owner-key'
-  | 'shield-release' | 'market-price' | 'group-winner' | 'group-agreed' | 'request-id';
+  | 'shield-release' | 'market-price' | 'group-winner' | 'group-agreed' | 'request-id' | 'transcript-head';
 
 type Doc = unknown;
 const rows = (doc: Doc): Array<{ action: string; at: number }> => {
@@ -88,6 +88,7 @@ export const TAMPERS: ReadonlyArray<{ id: TamperId; edits: (doc: Doc) => Edit[] 
     },
   },
   { id: 'relabel', edits: () => [{ op: 'set', path: '/format', value: 'table.proof.v1' }] },
+  { id: 'transcript-head', edits: () => [{ op: 'set', path: '/deal/transcript_head', value: Array.from({ length: 32 }, () => 0) }] },
   // the records only a busier deal has
   { id: 'shield-release', edits: (d) => [{ op: 'remove', path: `/audit/${nth(d, 'shield.released', 0)}` }] },
   {
