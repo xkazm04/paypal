@@ -16,13 +16,15 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use table_core::{
     Category, Clause, ClosedMandate, CpRule, Currency, Deal, DealId, DealKind, DealState,
-    DecidedBy, Delivery, H256, ItemRef, MandatePayload, Mode, Money, OpenMandate, PayeeRef,
-    PaypalRefs, Role, Side, Terms, canonical_bytes, invoice_id,
+    DecidedBy, Delivery, GroupId, H256, ItemRef, MandatePayload, MarketCertificate,
+    MarketComparable, MarketMatch, MarketRef, Mode, Money, OpenMandate, PayeeRef, PaypalRefs, Role,
+    ShieldRelease, ShieldRule, ShieldVerdict, Side, Terms, WatchedItem, canonical_bytes,
+    invoice_id,
 };
 use table_proto::{
     AgentSigner, Body, Envelope, Intent, MsgType, PROOF_FORMAT, ProofAuditHead, ProofAuditRow,
-    ProofBundle, ProofCall, ProofClosed, ProofCounterparty, ProofEnvelope, ProofOperation,
-    ProofReceipt, ReceiptStatus, ShortText,
+    ProofBundle, ProofCall, ProofClosed, ProofCounterparty, ProofEnvelope, ProofGroup,
+    ProofGroupTable, ProofOperation, ProofReceipt, ReceiptStatus, ShortText,
 };
 
 type Made<T> = Result<T, Box<dyn std::error::Error>>;
@@ -31,6 +33,8 @@ type Made<T> = Result<T, Box<dyn std::error::Error>>;
 pub const CLIENT_DIR: &str = "../../apps/desktop/client/src/lib/proof/sample";
 /// The sample file's name.
 pub const GOLDEN: &str = "golden.tableproof";
+/// The busy deal's file: a group, a held and released safety check, market prices, a lost answer.
+pub const BUSY: &str = "busy.tableproof";
 /// The tampered copies and the verifier's reports on them.
 pub const PARITY: &str = "parity.json";
 
@@ -76,15 +80,24 @@ impl Log {
             self.prev = H256::chain(self.prev, format!("another-deal-{}", self.seq).as_bytes());
         }
     }
-    fn row(&mut self, at: i64, actor: &str, action: &str, detail: &Value) -> Made<()> {
+    /// A row of the chain that belongs to another deal (a table of the same group): it advances the
+    /// chain and is returned, not kept.
+    fn row_of(
+        &mut self,
+        deal: DealId,
+        at: i64,
+        actor: &str,
+        action: &str,
+        detail: &Value,
+    ) -> Made<ProofAuditRow> {
         self.seq += 1;
         let detail_json = String::from_utf8(canonical_bytes(detail)?)?;
         let preimage = json!({
             "seq": self.seq, "at": at, "actor": actor, "action": action,
-            "deal_id": self.deal, "detail_json": detail,
+            "deal_id": deal, "detail_json": detail,
         });
         let hash = H256::chain(self.prev, &canonical_bytes(&preimage)?);
-        self.rows.push(ProofAuditRow {
+        let row = ProofAuditRow {
             seq: self.seq,
             at,
             actor: actor.to_owned(),
@@ -92,16 +105,21 @@ impl Log {
             detail_json,
             prev_hash: self.prev,
             hash,
-        });
+        };
         self.prev = hash;
+        Ok(row)
+    }
+    fn row(&mut self, at: i64, actor: &str, action: &str, detail: &Value) -> Made<()> {
+        let row = self.row_of(self.deal, at, actor, action, detail)?;
+        self.rows.push(row);
         Ok(())
     }
 }
 
 /// The money steps' PayPal answers, as the wallet redacts and stores them.
-fn order_body(id: &str, invoice: &str, status: &str, extra: Option<Value>) -> Value {
+fn order_body(id: &str, invoice: &str, value: &str, status: &str, extra: Option<Value>) -> Value {
     let mut unit = json!({
-        "amount": { "currency_code": "USD", "value": "212.00" },
+        "amount": { "currency_code": "USD", "value": value },
         "invoice_id": invoice,
     });
     if let (Some(extra), Some(object)) = (extra, unit.as_object_mut()) {
@@ -159,12 +177,36 @@ impl Wire<'_> {
 /// haggled from $249.00 to $212.00, Maya countersigns the order, the buyer approves at PayPal,
 /// her shop rule authorizes it, and Maya captures it once the monitor ships.
 pub fn sample_bundle() -> Made<ProofBundle> {
+    build(false)
+}
+/// The busy deal: the same shop sells the same kind of monitor, but this one is one table of a
+/// shop-around group, was agreed against a market price, was held by the safety check until Maya
+/// released it, and its capture's answer was lost and read back. It has the records the first
+/// deal has none of.
+pub fn busy_bundle() -> Made<ProofBundle> {
+    build(true)
+}
+
+fn build(busy: bool) -> Made<ProofBundle> {
+    let t0 = if busy { T0 + 2 * 86_400 } else { T0 };
     let (owner, agent) = (signer("owner"), signer("agent"));
     let (peer_owner, peer) = (signer("buyer-owner"), signer("buyer-agent"));
     let (agent_id, peer_id) = (agent.key_id()?, peer.key_id()?);
 
-    let deal_id: DealId = "01K8W2R6Q4N5M9T3VXZ7B1CD0E".parse()?;
-    let mandate_id = "01K8W2R6Q0F4H8J2KMNPQRSTVW".parse()?;
+    let deal_id: DealId = if busy {
+        "01K8W4C9X7D2F6H0J3M5P8R1TV"
+    } else {
+        "01K8W2R6Q4N5M9T3VXZ7B1CD0E"
+    }
+    .parse()?;
+    let mandate_id = if busy {
+        "01K8W4C9X0A3B6D9E2G5K8N1QS"
+    } else {
+        "01K8W2R6Q0F4H8J2KMNPQRSTVW"
+    }
+    .parse()?;
+    let other_table: DealId = "01K8W4C9X2Q7S0V3Y6Z9A2C5EG".parse()?;
+    let group_id: GroupId = "01K8W4C9X5B8D1F4H7K0M3P6RT".parse()?;
     let delivery = Delivery::ShipThenCapture { days: 3 };
     let terms_at = |minor: i64| -> Made<Terms> {
         Ok(Terms {
@@ -175,12 +217,42 @@ pub fn sample_bundle() -> Made<ProofBundle> {
             delivery: delivery.clone(),
         })
     };
-    let (ask, offer, counter, agreed) = (24_900, 19_000, 23_500, 21_200);
+    let (ask, offer, counter, agreed) = if busy {
+        (27_900, 22_000, 25_500, 24_900)
+    } else {
+        (24_900, 19_000, 23_500, 21_200)
+    };
     let terms = terms_at(agreed)?;
     let terms_hash = terms.hash()?;
+    let amount_text = terms.amount()?.decimal();
+    // The market prices the deal was agreed against (busy only): seven comparables, so the band is
+    // computed again from them by anyone.
+    let market = if busy {
+        let comparables = [11_900, 12_400, 12_900, 13_500, 14_200, 15_000, 16_200]
+            .map(|minor| MarketComparable {
+                minor,
+                product_id: None,
+            })
+            .to_vec();
+        let certificate = MarketCertificate::new(
+            "dell-p2422h".into(),
+            H256::digest(b"the-table/sample-proof/market-response"),
+            MarketMatch::Similar,
+            Currency::USD,
+            comparables,
+        )?;
+        Some(MarketRef::certified(certificate, t0 + 30)?)
+    } else {
+        None
+    };
+    let market_digest = market
+        .as_ref()
+        .map(MarketRef::digest)
+        .transpose()?
+        .flatten();
 
     // The owner's signed rules. Maya decides every order over $150.00 herself.
-    let payload = MandatePayload {
+    let mut payload = MandatePayload {
         id: mandate_id,
         version: 2,
         agent_key: agent.public_key().to_bytes(),
@@ -199,9 +271,9 @@ pub fn sample_bundle() -> Made<ProofBundle> {
             Clause::Band {
                 item_refs: vec![ItemRef::new(ITEM)?],
                 floor: Some(money(19_000)?),
-                ceiling: Some(money(26_000)?),
+                ceiling: Some(money(if busy { 30_000 } else { 26_000 })?),
                 max_rounds: 6,
-                deadline: T0 + 6 * 86_400,
+                deadline: t0 + 6 * 86_400,
             },
             Clause::Velocity {
                 max_deals_day: 10,
@@ -214,9 +286,19 @@ pub fn sample_bundle() -> Made<ProofBundle> {
                 payees: vec![PayeeRef::new(PAYEE)?],
             },
         ],
-        not_before: T0 - 86_400,
-        expires: T0 + 30 * 86_400,
+        not_before: t0 - 86_400,
+        expires: t0 + 30 * 86_400,
     };
+    if busy {
+        // Maya lets her shop keep this monitor's market price fresh: the rule binds the item to its product.
+        payload.clauses.push(Clause::MarketWatch {
+            items: vec![WatchedItem {
+                item_ref: ItemRef::new(ITEM)?,
+                product_id: "dell-p2422h".into(),
+            }],
+            max_refreshes_day: 12,
+        });
+    }
     payload.validate()?;
     let mandate = OpenMandate {
         owner_sig: owner.sign_payload(&payload)?,
@@ -235,7 +317,7 @@ pub fn sample_bundle() -> Made<ProofBundle> {
     };
     let item = ItemRef::new(ITEM)?;
     let (t_list, t_offer, t_counter, t_last, t_accept) =
-        (T0, T0 + 95, T0 + 240, T0 + 410, T0 + 415);
+        (t0, t0 + 95, t0 + 240, t0 + 410, t0 + 415);
     wire.send(
         true,
         t_list,
@@ -283,7 +365,7 @@ pub fn sample_bundle() -> Made<ProofBundle> {
     wire.send(false, t_accept, 86_400, accept())?;
     wire.send(true, t_accept + 20, 86_400, accept())?;
 
-    let t_owner = T0 + 1_800;
+    let t_owner = t0 + 1_800;
     let invoice = invoice_id(deal_id, 1)?;
     let (order, authorization, capture) = (
         "5O190127TN364715T",
@@ -306,8 +388,8 @@ pub fn sample_bundle() -> Made<ProofBundle> {
         },
     )?;
     let settle_head = wire.head();
-    let (t_approved, t_authorized) = (T0 + 2_100, T0 + 2_135);
-    let (t_capture, t_receipt) = (T0 + 86_400 + 3_600 * 5, T0 + 86_400 + 3_600 * 5 + 40);
+    let (t_approved, t_authorized) = (t0 + 2_100, t0 + 2_135);
+    let (t_capture, t_receipt) = (t0 + 86_400 + 3_600 * 5, t0 + 86_400 + 3_600 * 5 + 40);
     wire.send(
         true,
         t_receipt,
@@ -362,7 +444,7 @@ pub fn sample_bundle() -> Made<ProofBundle> {
 
     // PayPal's answers, redacted, with the identifier-only binding the wallet stores for each order.
     let binding = json!({ "purchase_units": [{
-        "amount": { "currency_code": "USD", "value": "212.00" },
+        "amount": { "currency_code": "USD", "value": amount_text },
         "custom_id": terms_hash.hex(),
         "invoice_id": invoice,
         "payee_merchant_id": PAYEE,
@@ -387,7 +469,7 @@ pub fn sample_bundle() -> Made<ProofBundle> {
             "POST",
             "/v2/checkout/orders",
             201,
-            order_body(order, &invoice, "CREATED", None),
+            order_body(order, &invoice, &amount_text, "CREATED", None),
             Some(binding.clone()),
             t_owner + 2,
             request("create"),
@@ -396,7 +478,7 @@ pub fn sample_bundle() -> Made<ProofBundle> {
             "GET",
             &format!("/v2/checkout/orders/{order}"),
             200,
-            order_body(order, &invoice, "APPROVED", None),
+            order_body(order, &invoice, &amount_text, "APPROVED", None),
             Some(binding.clone()),
             t_approved,
             format!("{deal_id}-poll"),
@@ -408,9 +490,10 @@ pub fn sample_bundle() -> Made<ProofBundle> {
             order_body(
                 order,
                 &invoice,
+                &amount_text,
                 "COMPLETED",
                 Some(json!({ "authorizations": [{
-                    "amount": { "currency_code": "USD", "value": "212.00" },
+                    "amount": { "currency_code": "USD", "value": amount_text },
                     "id": authorization, "status": "CREATED",
                 }]})),
             ),
@@ -423,7 +506,7 @@ pub fn sample_bundle() -> Made<ProofBundle> {
             &format!("/v2/payments/authorizations/{authorization}/capture"),
             201,
             json!({
-                "amount": { "currency_code": "USD", "value": "212.00" },
+                "amount": { "currency_code": "USD", "value": amount_text },
                 "id": capture, "status": "COMPLETED",
             }),
             None,
@@ -431,6 +514,15 @@ pub fn sample_bundle() -> Made<ProofBundle> {
             request("capture"),
         ),
     ];
+    let mut paypal_calls = paypal_calls;
+    if busy {
+        // PayPal's answer to the capture never arrived: the call is kept with no answer, and the wallet
+        // read the capture back under the same request id.
+        if let Some(last) = paypal_calls.last_mut() {
+            last.status = None;
+            last.body = Value::Null;
+        }
+    }
 
     // The deal's slice of the ledger's audit chain.
     let mut log = Log {
@@ -463,8 +555,38 @@ pub fn sample_bundle() -> Made<ProofBundle> {
         t_list,
         policy,
         "deadline.set",
-        &json!({ "authorization_at": null, "due_at": T0 + 6 * 86_400 }),
+        &json!({ "authorization_at": null, "due_at": t0 + 6 * 86_400 }),
     )?;
+    // The shop-around group: Maya's agent opened two tables for the same buyer; this is one of them.
+    let mut other_rows = Vec::new();
+    if busy {
+        log.row(
+            t_list,
+            "owner",
+            "group.opened",
+            &json!({ "group_id": group_id, "tables": 2 }),
+        )?;
+        other_rows.push(log.row_of(
+            other_table,
+            t_list,
+            "owner",
+            "group.opened",
+            &json!({ "group_id": group_id, "tables": 2 }),
+        )?);
+        if let Some(market) = &market {
+            log.row(
+                t_list + 30,
+                "market",
+                "market.observed",
+                &json!({
+                    "digest": hash_value(market_digest.ok_or("no market digest")?)?,
+                    "reference": serde_json::to_value(market)?,
+                    "response_hash": hash_value(market.response_hash)?,
+                    "retrieved_at": market.retrieved_at,
+                }),
+            )?;
+        }
+    }
     log.row(
         t_list,
         &agent_actor,
@@ -509,22 +631,61 @@ pub fn sample_bundle() -> Made<ProofBundle> {
         "envelope.accepted",
         &accepted(false, 4, MsgType::Accept, 3)?,
     )?;
-    log.row(
-        t_accept,
-        policy,
-        "deal.transition",
-        &json!({ "decided_by": { "clause": 6, "type": "policy" }, "from": "NEGOTIATING", "to": "AGREED" }),
-    )?;
+    let mut agreement = json!({ "decided_by": { "clause": 6, "type": "policy" }, "from": "NEGOTIATING", "to": "AGREED" });
+    if let (Some(digest), Some(object)) = (market_digest, agreement.as_object_mut()) {
+        object.insert(
+            "market".into(),
+            json!({ "digest": hash_value(digest)?, "format": "table.market.v2" }),
+        );
+    }
+    log.row(t_accept, policy, "deal.transition", &agreement)?;
+    if busy {
+        log.row(
+            t_accept,
+            policy,
+            "group.won",
+            &json!({ "group_id": group_id }),
+        )?;
+    }
     log.row(
         t_accept + 20,
         &agent_actor,
         "envelope.accepted",
         &accepted(true, 5, MsgType::Accept, 3)?,
     )?;
+    if busy {
+        // The group rule calls the other table off after the win.
+        other_rows.push(log.row_of(
+            other_table,
+            t_accept + 25,
+            policy,
+            "group.withdrawn",
+            &json!({ "decided_by": "group_rule", "group_id": group_id, "winner": deal_id }),
+        )?);
+    }
     log.other_deals(17);
     // What the owner saw is recorded as a hash of the checklist, before the step it covers.
     let saw =
         |what: &str| H256::digest(format!("the-table/sample-proof/checklist/{what}").as_bytes());
+    if busy {
+        // The safety check held the deal (the price is over 1.4 times the market median); Maya released
+        // that hold, for these terms and that rule only, before deciding.
+        log.row(
+            t_owner - 60,
+            "shield",
+            "shield.raised",
+            &json!({ "rule": "price_over_market", "verdict": "HOLD" }),
+        )?;
+        log.row(
+            t_owner - 40,
+            "owner",
+            "shield.released",
+            &json!({
+                "decided_by": decided(&owner_create)?, "from": "hold",
+                "rules": ["price_over_market"], "terms_hash": hash_value(terms_hash)?, "to": "released",
+            }),
+        )?;
+    }
     log.row(
         t_owner - 25,
         "owner",
@@ -535,12 +696,14 @@ pub fn sample_bundle() -> Made<ProofBundle> {
             "terms_hash": hash_value(terms_hash)?,
         }),
     )?;
-    log.row(
-        t_owner - 24,
-        "shield",
-        "shield.checked",
-        &json!({ "rule": null, "terms_hash": hash_value(terms_hash)?, "verdict": "CLEAR" }),
-    )?;
+    if !busy {
+        log.row(
+            t_owner - 24,
+            "shield",
+            "shield.checked",
+            &json!({ "rule": null, "terms_hash": hash_value(terms_hash)?, "verdict": "CLEAR" }),
+        )?;
+    }
     log.row(
         t_owner,
         "owner/policy",
@@ -637,6 +800,18 @@ pub fn sample_bundle() -> Made<ProofBundle> {
         "money.authorized",
         &json!({ "decided_by": decided(&owner_capture)?, "operation": "capture", "request_id": request("capture") }),
     )?;
+    if busy {
+        // The capture's answer was lost; the wallet read it back, under the one request id it was sent with.
+        log.row(
+            t_capture + 2,
+            "pipeline",
+            "money.resolved",
+            &json!({
+                "confirmed": true, "decided_by": decided(&owner_capture)?, "observed": "completed",
+                "operation": "capture", "outcome": "confirmed", "request_id": request("capture"),
+            }),
+        )?;
+    }
     log.row(
         t_capture + 3,
         policy,
@@ -670,6 +845,27 @@ pub fn sample_bundle() -> Made<ProofBundle> {
     let last = log.rows.last().map(|r| (r.seq, r.hash)).ok_or("no rows")?;
     // The wallet-wide chain runs on past this deal's last row, so the file names a later head.
     let rows = std::mem::take(&mut log.rows);
+    let group = busy.then(|| ProofGroup {
+        id: group_id,
+        opened_at: t_list,
+        winner: Some(deal_id),
+        tables: vec![
+            ProofGroupTable {
+                deal_id,
+                state: DealState::Receipted,
+                rows: rows
+                    .iter()
+                    .filter(|r| r.action.starts_with("group."))
+                    .cloned()
+                    .collect(),
+            },
+            ProofGroupTable {
+                deal_id: other_table,
+                state: DealState::Withdrawn,
+                rows: other_rows.clone(),
+            },
+        ],
+    });
     log.other_deals(9);
     let audit_head = ProofAuditHead {
         seq: log.seq.max(last.0),
@@ -696,11 +892,19 @@ pub fn sample_bundle() -> Made<ProofBundle> {
             subscription: None,
         },
         mode: Mode::Sandbox,
-        market: None,
-        shield: Some(table_core::ShieldVerdict::Clear),
+        market,
+        shield: Some(if busy {
+            ShieldVerdict::Hold
+        } else {
+            ShieldVerdict::Clear
+        }),
         decided_by: Some(owner_capture),
-        shield_rule: None,
-        shield_release: None,
+        shield_rule: busy.then_some(ShieldRule::PriceOverMarket),
+        shield_release: busy.then(|| ShieldRelease {
+            terms_hash,
+            rules: vec![ShieldRule::PriceOverMarket],
+            at: t_owner - 40,
+        }),
     };
     let mut bundle = ProofBundle {
         format: PROOF_FORMAT.into(),
@@ -728,7 +932,7 @@ pub fn sample_bundle() -> Made<ProofBundle> {
         audit: rows,
         audit_head,
         authority_manifest: Some(manifest),
-        group: None,
+        group,
         house: None,
         evidence_head: H256::ZERO,
         evidence_sig: Vec::new(),
@@ -945,6 +1149,55 @@ pub fn variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
     ])
 }
 
+/// The tampered copies of the busy deal: edits to the records only it has.
+pub fn busy_variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
+    let released = row_at(bundle, "shield.released", 0)?;
+    let group = bundle.group.as_ref().ok_or("no group")?;
+    let other = group
+        .tables
+        .get(1)
+        .map(|t| t.deal_id)
+        .ok_or("no second table")?;
+    let capture = bundle
+        .operations
+        .iter()
+        .position(|o| o.operation == "capture")
+        .ok_or("no capture step")?;
+    Ok(vec![
+        Variant {
+            name: "shield-release",
+            edits: vec![Edit::remove(format!("/audit/{released}"))],
+            red: &["shield", "evidence"],
+        },
+        Variant {
+            name: "market-price",
+            edits: vec![Edit::set(
+                "/deal/market/certificate/comparables/0/minor",
+                json!(5_000),
+            )],
+            red: &["market", "evidence"],
+        },
+        Variant {
+            name: "group-winner",
+            edits: vec![Edit::set("/group/winner", json!(other))],
+            red: &["group", "evidence"],
+        },
+        Variant {
+            name: "group-agreed",
+            edits: vec![Edit::set("/group/tables/1/state", json!("RECEIPTED"))],
+            red: &["group", "evidence"],
+        },
+        Variant {
+            name: "request-id",
+            edits: vec![Edit::set(
+                format!("/operations/{capture}/request_id"),
+                json!("a-second-request-id"),
+            )],
+            red: &["authority", "one_request", "evidence"],
+        },
+    ])
+}
+
 /// What the verifier says about some bytes: its report, or why it would not read them.
 fn outcome(bytes: &[u8]) -> Value {
     match check_proof_file(bytes) {
@@ -956,34 +1209,72 @@ fn report(bytes: &[u8]) -> Made<ProofReport> {
     check_proof_file(bytes).map_err(|e| e.message.into())
 }
 
-/// The two files the client reads: the sample, and the verifier's word on it and its tampered copies.
-pub fn files() -> Made<(Vec<u8>, Vec<u8>)> {
-    let bundle = sample_bundle()?;
-    let golden = serde_json::to_vec_pretty(&bundle)?;
-    let document: Value = serde_json::from_slice(&golden)?;
-    let mut tampered = Vec::new();
-    for variant in variants(&bundle)? {
-        let mut copy = document.clone();
-        apply(&mut copy, &variant.edits)?;
-        tampered.push(json!({
-            "name": variant.name,
-            "edits": variant.edits,
-            "red": variant.red,
-            "outcome": outcome(&serde_json::to_vec_pretty(&copy)?),
-        }));
+/// One sample deal as the client reads it: its file, and the copies of it that are tampered with.
+#[derive(Debug)]
+pub struct Sample {
+    /// The key the client finds it under in `parity.json`.
+    pub name: &'static str,
+    pub file: &'static str,
+    pub bundle: fn() -> Made<ProofBundle>,
+    pub variants: fn(&ProofBundle) -> Made<Vec<Variant>>,
+    /// The checks that read "not checked" for this deal, because it has nothing of their kind.
+    pub dashed: &'static [&'static str],
+}
+pub const SAMPLES: [Sample; 2] = [
+    Sample {
+        name: "monitor",
+        file: GOLDEN,
+        bundle: sample_bundle,
+        variants,
+        dashed: &["one_request", "group", "shield", "house_record", "market"],
+    },
+    Sample {
+        name: "busy",
+        file: BUSY,
+        bundle: busy_bundle,
+        variants: busy_variants,
+        dashed: &["house_record"],
+    },
+];
+
+/// The files the client reads: each sample, and the verifier's word on every sample and its tampered
+/// copies. Each is `(file name, bytes)`.
+pub fn files() -> Made<Vec<(String, Vec<u8>)>> {
+    let mut out = Vec::new();
+    let mut reports = serde_json::Map::new();
+    for sample in &SAMPLES {
+        let bundle = (sample.bundle)()?;
+        let golden = serde_json::to_vec_pretty(&bundle)?;
+        let document: Value = serde_json::from_slice(&golden)?;
+        let mut tampered = Vec::new();
+        for variant in (sample.variants)(&bundle)? {
+            let mut copy = document.clone();
+            apply(&mut copy, &variant.edits)?;
+            tampered.push(json!({
+                "name": variant.name,
+                "edits": variant.edits,
+                "red": variant.red,
+                "outcome": outcome(&serde_json::to_vec_pretty(&copy)?),
+            }));
+        }
+        reports.insert(
+            sample.name.to_owned(),
+            json!({ "golden": report(&golden)?, "variants": tampered }),
+        );
+        out.push((sample.file.to_owned(), golden));
     }
-    let parity = json!({ "golden": report(&golden)?, "variants": tampered });
-    let mut parity = serde_json::to_vec_pretty(&parity)?;
+    let mut parity = serde_json::to_vec_pretty(&json!({ "samples": reports }))?;
     parity.push(b'\n');
-    Ok((golden, parity))
+    out.push((PARITY.to_owned(), parity));
+    Ok(out)
 }
 
-/// Writes both files into `dir`.
+/// Writes every file into `dir`.
 pub fn write_to(dir: &std::path::Path) -> Made<()> {
-    let (golden, parity) = files()?;
     std::fs::create_dir_all(dir)?;
-    std::fs::write(dir.join(GOLDEN), golden)?;
-    std::fs::write(dir.join(PARITY), parity)?;
+    for (name, bytes) in files()? {
+        std::fs::write(dir.join(name), bytes)?;
+    }
     Ok(())
 }
 
@@ -1005,41 +1296,46 @@ mod tests {
     }
 
     #[test]
-    fn the_sample_verifies_and_says_what_it_does_not_cover() -> Made<()> {
-        let (golden, _) = files()?;
-        let report = report(&golden)?;
-        assert!(report.verified, "{:#?}", report.checks);
-        assert_eq!(report.same_version, Some(true));
-        let dashed: Vec<&str> = report
-            .checks
-            .iter()
-            .filter(|c| !c.applies)
-            .map(|c| c.id.as_str())
-            .collect();
-        // This deal had no shop-around group, no shield hold, no house seller record, no market
-        // price and no second look at PayPal: those lines read "not checked", never green.
-        assert_eq!(
-            dashed,
-            ["one_request", "group", "shield", "house_record", "market"]
-        );
-        assert!(report.checks.iter().filter(|c| c.applies).all(|c| c.ok));
+    fn each_sample_verifies_and_says_what_it_does_not_cover() -> Made<()> {
+        for sample in &SAMPLES {
+            let golden = serde_json::to_vec_pretty(&(sample.bundle)()?)?;
+            let report = report(&golden)?;
+            assert!(report.verified, "{}: {:#?}", sample.name, report.checks);
+            assert_eq!(report.same_version, Some(true), "{}", sample.name);
+            let dashed: Vec<&str> = report
+                .checks
+                .iter()
+                .filter(|c| !c.applies)
+                .map(|c| c.id.as_str())
+                .collect();
+            // What the deal has nothing of reads "not checked", never green (the first deal has no
+            // group, hold, market price or second look at PayPal; the busy one has all of them).
+            assert_eq!(dashed, sample.dashed, "{}", sample.name);
+            assert!(
+                report.checks.iter().filter(|c| c.applies).all(|c| c.ok),
+                "{}",
+                sample.name
+            );
+        }
         Ok(())
     }
 
     #[test]
     fn each_tamper_turns_exactly_the_named_checks_red() -> Made<()> {
-        let bundle = sample_bundle()?;
-        let document: Value = serde_json::from_slice(&serde_json::to_vec_pretty(&bundle)?)?;
-        for variant in variants(&bundle)? {
-            let mut copy = document.clone();
-            apply(&mut copy, &variant.edits)?;
-            let bytes = serde_json::to_vec_pretty(&copy)?;
-            match check_proof_file(&bytes) {
-                Ok(report) => {
-                    assert!(!report.verified, "{} still verifies", variant.name);
-                    assert_eq!(red(&report), variant.red, "{}", variant.name);
+        for sample in &SAMPLES {
+            let bundle = (sample.bundle)()?;
+            let document: Value = serde_json::from_slice(&serde_json::to_vec_pretty(&bundle)?)?;
+            for variant in (sample.variants)(&bundle)? {
+                let mut copy = document.clone();
+                apply(&mut copy, &variant.edits)?;
+                let bytes = serde_json::to_vec_pretty(&copy)?;
+                match check_proof_file(&bytes) {
+                    Ok(report) => {
+                        assert!(!report.verified, "{} still verifies", variant.name);
+                        assert_eq!(red(&report), variant.red, "{}", variant.name);
+                    }
+                    Err(_) => assert!(variant.red.is_empty(), "{} is refused", variant.name),
                 }
-                Err(_) => assert!(variant.red.is_empty(), "{} is refused", variant.name),
             }
         }
         Ok(())
@@ -1049,9 +1345,8 @@ mod tests {
     /// against the wrong thing.
     #[test]
     fn the_files_the_client_reads_are_current() -> Made<()> {
-        let (golden, parity) = files()?;
-        for (name, fresh) in [(GOLDEN, golden), (PARITY, parity)] {
-            let kept = std::fs::read(dir().join(name))?;
+        for (name, fresh) in files()? {
+            let kept = std::fs::read(dir().join(&name))?;
             assert!(
                 kept == fresh,
                 "{name} is stale: run `cargo run -p table-client --bin sample-proof`"
