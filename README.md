@@ -63,6 +63,11 @@ touches it: from the outside, over the wallet's own MCP server, under rules it c
 No agent app at hand? `cargo run -p table-sandbox -- --rehearse` runs a scripted client (no AI,
 and labelled so on the page) through the same door, along the same path.
 
+![The live page during a real agent app session, sped up 4x: an offer of $400 refused by rule 4, six signed offers up to $249.50, the house seller's yes, and the accept refused by rule 6. PayPal asked: 0.](crates/table-sandbox/docs/live-session.gif)
+
+*A real claude-code session (no script), sped up 4×: the agent tries $400 (rule 4 says no), haggles
+from $100 to $249.50, the house seller says yes, and the agent's accept is refused by rule 6.*
+
 Your agent reads the table, haggles with the house seller over signed offers, and the page shows
 each call with the rule that answered it. When the house seller says yes, your agent still cannot
 close the deal: the rule you signed says agreeing over $200 needs you in person, and no owner is

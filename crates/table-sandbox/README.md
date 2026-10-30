@@ -11,6 +11,8 @@ Connect any agent app that speaks streamable HTTP MCP to `http://127.0.0.1:1443/
 buy the 27-inch monitor at The Table. It haggles with the house seller over signed offers; every
 call is answered by a rule the owner signed, and the page shows which one.
 
+![The live page at the end of a real agent app session](docs/live-page.png)
+
 ## What runs
 
 ```
