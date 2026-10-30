@@ -6,22 +6,18 @@
 import { useMemo, useState } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
+import { AGREED_OR_LATER } from '@bindings/dealStates';
 import { useQuery } from '../../../../../lib/hooks';
 import { TABLES_WATCH as W } from '../../../../../lib/words';
 import { isLive } from '../../../logic';
 import { haggleOf, watchable } from '../../../modules/tables/corridor';
+import { takeWatched } from '../../../modules/tables/watchPick';
 import type { World } from '../../../world';
 import { ListEngine } from '../../ListEngine';
 import { StateChip, WhoChip } from '../../rows';
 import { Btn } from '../../../../../shared/ui';
 import { Corridor } from './Corridor';
 import { SplitView, useTranscript } from './parts';
-
-/** The table a "Watch it" button asked for, taken once by the view as it opens. */
-let wanted: string | null = null;
-export const watchTable = (dealId: string): void => { wanted = dealId; };
-
-const AGREED_OR_LATER = new Set<Deal['state']>(['AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED']);
 
 /** Haggles in watching order: the fullest finished haggles first (most offers signed, then newest),
  *  then the live tables, newest first. */
@@ -42,7 +38,7 @@ type Props = {
 
 export function WatchView({ deals, display, needOf, who }: Props) {
   const rows = useMemo(() => watchOrder(deals, display), [deals, display]);
-  const [k, setK] = useState<string | null>(() => { const w = wanted; wanted = null; return w; });
+  const [k, setK] = useState<string | null>(takeWatched);
   const [stage, setStage] = useState(false);
   const picked = (k !== null ? rows.find((d) => d.id === k) : undefined) ?? rows[0];
   const list = (

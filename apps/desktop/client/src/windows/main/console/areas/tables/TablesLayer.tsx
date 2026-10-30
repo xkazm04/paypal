@@ -28,7 +28,8 @@ import { EMPTY_TABLE, roomLine, TableDetail, type StepHandlers, type TableState 
 import { NeedCard } from './Need';
 import { SplitView, TheirWords, usePick } from './parts';
 import { canShopAround, liveGroups, ShopAroundButton, ShopView } from './Shop';
-import { watchTable, WatchView } from './Watch';
+import { watchTable } from '../../../modules/tables/watchPick';
+import { WatchView } from './Watch';
 
 const selModuleOf = (w: World) => w.moduleOfDeal;
 const selDisplay = (w: World) => w.display;
