@@ -19,6 +19,8 @@
 .say:not(.compact) .say-input { flex-basis: 100%; }
 .say .say-mic svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .say .say-mic.on { border-color: var(--gold); color: var(--gold-l); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent); }
+.say .say-mic.on { animation: say-listen 1.4s var(--ease) infinite; }
+@keyframes say-listen { 0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 28%, transparent); } 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--gold) 6%, transparent); } }
 .say .say-note { margin: 0; color: var(--dim); font-size: var(--fs-small); line-height: 1.4; }
 .say .say-listen { color: var(--gold-l); }
 
@@ -84,4 +86,4 @@ button.say-pillbody:focus-visible { outline: 2px solid var(--focus); outline-off
 /* the Charter's copy of the timeline: only the forecast's mark is explained */
 .say .say-tl { margin-top: var(--sp-2); }
 .say .say-tl .rw-legend > span:not(:last-child) { display: none; }
-@media (prefers-reduced-motion: reduce) { .say .say-pill { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .say .say-pill, .say .say-mic.on { animation: none; } }

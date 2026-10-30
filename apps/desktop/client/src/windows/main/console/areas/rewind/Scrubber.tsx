@@ -213,8 +213,8 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
         aria-valuetext={`${stepTime(r.t)}${isAhead ? ` · ${REWIND_AHEAD.forecastWord}` : ''}`}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { drag.current = false; }} onKeyDown={onKey}>
         <div className="rw-flags" aria-hidden="true">
-          {r.ahead ? <span className="rw-flag now" style={{ left: `${nowF * 100}%` } as CSSProperties}>{nowWord}</span> : null}
-          {ruleEndF !== null && ahead?.reach ? <span className={`rw-flag rule${ruleBeyond ? ' beyond' : ''}`} style={{ left: `${ruleEndF * 100}%` } as CSSProperties}>{REWIND_AHEAD.rule.ends(stepTime(ahead.reach.until))}</span> : null}
+          {r.ahead ? <span className={`rw-flag now${nowF < 0.14 ? ' start' : ''}`} style={{ left: `${nowF * 100}%` } as CSSProperties}>{nowWord}</span> : null}
+          {ruleEndF !== null && ahead?.reach ? <span className={`rw-flag rule${ruleBeyond ? ' beyond' : ''}${ruleEndF > 0.72 ? ' edge' : ''}`} style={{ left: `${ruleEndF * 100}%` } as CSSProperties}>{REWIND_AHEAD.rule.ends(stepTime(ahead.reach.until))}</span> : null}
         </div>
         <div className="rw-groove">
           {days.map((d) => <span key={d.at0} className="rw-day" style={{ left: `${d.edge * 100}%` } as CSSProperties} />)}

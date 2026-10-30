@@ -159,6 +159,9 @@
 .ar-rewind .rw-host .rw-flag.now { transform: translateX(calc(-100% - 6px)); color: var(--gold-l); }
 .ar-rewind .rw-host .rw-flag.rule { transform: translateX(6px); color: var(--teal-l); }
 .ar-rewind .rw-host .rw-flag.rule.beyond::after { content: ' ›'; }
+/* near an edge of the track the label turns inward, so it is never cut */
+.ar-rewind .rw-host .rw-flag.rule.edge { transform: translateX(calc(-100% - 6px)); }
+.ar-rewind .rw-host .rw-flag.now.start { transform: translateX(6px); }
 .ar-rewind .rw-host .rw-now { position: absolute; top: 0; bottom: 4px; width: 2px; margin-left: -1px; border-radius: 1px; pointer-events: none;
   background: var(--gold); box-shadow: 0 0 8px color-mix(in srgb, var(--gold) 60%, transparent); }
 .ar-rewind .rw-host .rw-now::before { content: ''; position: absolute; left: -3px; top: 0; width: 8px; height: 8px; background: var(--gold); clip-path: polygon(0 0, 100% 0, 50% 100%); }
