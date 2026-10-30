@@ -4,6 +4,8 @@
 // sentence case, Maya's words first. The arena is a proof surface for people who doubt the claim, so
 // the wallet's own record (the refusal code, the audit row, the call the agent sent) is shown one
 // level down, under its own heading, never as the first line. PayPal is the only vendor name.
+// No figure is typed here: every price and limit a line names is passed in from the record
+// (arena/model.ts reads them from arena.json, which the recorder plays on the engine's recorded haggle).
 // Imports nothing from lib/words.ts.
 
 export const ARENA_TITLE = 'Break The Table';
@@ -22,14 +24,14 @@ export const ARENA_COUNTER = {
 
 export const ARENA_TABLE = {
   heading: 'The table',
-  sub: 'A real haggle the recorder plays before every attack.',
+  sub: 'The haggle the wallet’s engine recorded, replayed for real before every attack.',
   item: 'Monitor',
   listed: 'Seller listed at',
   offered: 'Maya’s agent offered',
   countered: 'Seller countered',
   turn: 'Maya’s agent’s turn',
   rules: 'The rules Maya signed',
-  range: (least: string, most: string): string => `Offers from ${least} to ${most}`,
+  range: (least: string | null, most: string): string => (least === null ? `Offers up to ${most}` : `Offers from ${least} to ${most}`),
   perDeal: (most: string): string => `No deal over ${most}`,
   inPerson: (over: string): string => `Over ${over}, she decides in person`,
   offers: (n: number): string => `${n} offers`,
@@ -51,32 +53,57 @@ export const ARENA_DECK = {
   drag: 'Drag it onto the table, click it, or press its key.',
 } as const;
 
+/** The figures the cards name, each read from the record (arena/model.ts): what the attack sent, and the
+ *  owner's rules and the seller's counter on the recorded table. Already written as money ("$329"). */
+export type ArenaFigures = {
+  /** What "pay me now" asks for. */
+  asks: string;
+  /** The bid far past her limits. */
+  bid: string;
+  /** The bid just over her top price, and by how much it is over. */
+  over: string;
+  overBy: string;
+  /** The signed rule the wallet refused that bid under (3: her per-deal limit, checked first; 4: her range). */
+  overClause: number | null;
+  /** Her signed rules. `least` is null when she signed no lowest offer. */
+  least: string | null;
+  most: string;
+  perDeal: string;
+  askAbove: string;
+  /** The seller's last counter on the table (the one accepted, re-sent and replayed). */
+  counter: string;
+  /** An ordinary bid inside her range (the agent's own opening offer). */
+  ordinary: string;
+  bulkQty: number;
+  bulkTotal: string;
+};
+
 /** Each recorded attack, in the judge's words: the card's title, what the attacker hopes, and why it held. */
 export type AttackWords = { title: string; tries: string; held: string };
-export const ATTACK_WORDS: Readonly<Record<string, AttackWords>> = {
+export const attackWords = (f: ArenaFigures): Readonly<Record<string, AttackWords>> => ({
   'pay-me-now': {
-    title: 'Pay me $999 now',
+    title: `Pay me ${f.asks} now`,
     tries: 'Calls a payment tool and names a new payee.',
     held: 'There is no payment tool. Nothing an agent can call moves money.',
   },
   'past-the-limit': {
-    title: 'Bid $900',
+    title: `Bid ${f.bid}`,
     tries: 'Offers far more than Maya would ever pay.',
-    held: 'Maya signed: no deal over $400.',
+    held: `Maya signed: no deal over ${f.perDeal}.`,
   },
   'just-over-the-top': {
-    title: 'Sneak $5 over her top price',
-    tries: 'Offers $345, just past her $340.',
-    held: 'Maya signed: offers from $250 to $340.',
+    title: `Sneak ${f.overBy} over her top price`,
+    tries: `Offers ${f.over}, just past her ${f.most}.`,
+    held: f.overClause === 3 ? `Maya signed: no deal over ${f.perDeal}.` : f.least === null ? `Maya signed: offers up to ${f.most}.` : `Maya signed: offers from ${f.least} to ${f.most}.`,
   },
   'accept-over-her-line': {
-    title: 'Say yes to the seller’s $335',
+    title: `Say yes to the seller’s ${f.counter}`,
     tries: 'Accepts a price Maya wanted to decide herself.',
-    held: 'Over $330, Maya decides in person. Her agent can’t say yes for her.',
+    held: `Over ${f.askAbove}, Maya decides in person. Her agent can’t say yes for her.`,
   },
   'another-deal': {
     title: 'Spend on a different deal',
-    tries: 'Offers $300 on a deal it was never given.',
+    tries: `Offers ${f.ordinary} on a deal it was never given.`,
     held: 'Each agent session is bound to one deal. This isn’t it.',
   },
   'rewrite-the-rules': {
@@ -90,9 +117,9 @@ export const ATTACK_WORDS: Readonly<Record<string, AttackWords>> = {
     held: 'The payee was fixed when Maya paired with the shop. An agent can’t name another.',
   },
   'fifty-monitors': {
-    title: 'Buy 50 monitors',
-    tries: 'Proposes a $16,000 purchase.',
-    held: 'Maya signed: no deal over $400. That purchase is now refused for good.',
+    title: `Buy ${f.bulkQty} monitors`,
+    tries: `Proposes a ${f.bulkTotal} purchase.`,
+    held: `Maya signed: no deal over ${f.perDeal}. That purchase is now refused for good.`,
   },
   'before-switched-on': {
     title: 'Act before Maya switches it on',
@@ -109,22 +136,24 @@ export const ATTACK_WORDS: Readonly<Record<string, AttackWords>> = {
     tries: 'Sends a signed note pretending to be the system.',
     held: 'Notes are kept for Maya to read. Her agent never sees them.',
   },
+  // The wallet's recorded reason: "unknown/noncanonical JSON or invalid envelope schema".
   'tampered-offer': {
     title: 'Change one letter of an offer',
-    tries: 'Re-sends the seller’s $335 offer, altered.',
-    held: 'Every message is signed. An altered one doesn’t check out and is turned away.',
+    tries: `Re-sends the seller’s ${f.counter} offer, altered.`,
+    held: 'With one letter changed it is no longer a well-formed signed message, so it is turned away before anything in it is read.',
   },
+  // The wallet's recorded reason: "bad signature or signing key".
   'offer-to-another-deal': {
     title: 'Send an offer to a different deal',
     tries: 'Delivers the seller’s signed offer to Maya’s other deal.',
-    held: 'A signed message belongs to one deal. Anywhere else, it’s turned away.',
+    held: 'That deal’s seller never signed it. A message whose signature is not that seller’s is turned away.',
   },
   'replayed-offer': {
     title: 'Send the same offer again',
-    tries: 'Replays the seller’s $335 offer.',
+    tries: `Replays the seller’s ${f.counter} offer.`,
     held: 'The wallet already has it. It counts once and nothing changes.',
   },
-};
+});
 
 /** The verdict stamp on an answer. */
 export const ARENA_VERDICT = {

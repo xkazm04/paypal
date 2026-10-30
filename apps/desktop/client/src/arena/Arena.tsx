@@ -11,22 +11,23 @@ import { backend } from '../lib/runtime';
 import { usePrefersReducedMotion } from '../lib/hooks';
 import {
   ARENA_ANSWER, ARENA_AUTO, ARENA_COUNTER, ARENA_DECK, ARENA_FINALE, ARENA_HONEST, ARENA_LEDE, ARENA_LIVE, ARENA_NOTE, ARENA_PREVIEW, ARENA_RESET, ARENA_SAFETY, ARENA_TABLE, ARENA_TITLE,
-  ATTACK_WORDS,
 } from '../lib/words/arena';
+import { DAN_LABEL } from '../mock/haggle';
 import type { MockBackend } from '../mock/backend';
 import { Btn } from '../shared/ui';
 import { Answer, Finale, VERDICT_WORDS } from './Answer';
 import { FinaleCard, HeldCard, Suit, type CardHandlers } from './Deck';
 import { useCardDrag } from './drag';
-import { cardForKey, counters, deck, dollars, verdictOf, wholeDollars } from './model';
+import { ATTACK_WORDS, cardForKey, counters, deck, dollars, verdictOf, wholeDollars } from './model';
 import { attackById, isRefusal, RECORD, type RecordedAttack, type TableStep } from './record';
 import { CheckIt, SafetyPanel, type Played } from './Side';
 import { Gauntlet } from './Gauntlet';
 import { Wire } from './Wire';
 import './arena.css';
 
-/** Maya's monitor haggle with Dan in the sample week: where a played refusal and a typed note land. */
-const SAMPLE_DEAL = 'D-0193';
+/** Maya's monitor haggle with Dan in the sample week (D-0193): the very table the recorder replays from the
+ *  engine's recording before every attack, so a played refusal and a typed note land on it. */
+const SAMPLE_DEAL = DAN_LABEL;
 const LAND_MS = 620;
 /** The film's round (`?auto=1`): card keys, a typed note, then the closing card; one step every `AUTO_MS`. */
 export const AUTO_STEPS: readonly string[] = ['1', '4', 'q', 'note', '8', 'c'];
@@ -248,12 +249,13 @@ function TableFacts() {
       </div>
       <ol className="ar-steps">
         {step(h.find((s) => s.act === 'listing'), ARENA_TABLE.listed)}
-        {step(h.find((s) => s.act === 'offer' && s.by === 'you'), ARENA_TABLE.offered)}
-        {step(h.find((s) => s.act === 'counter'), ARENA_TABLE.countered)}
+        {/* where the replayed table stands: her agent's latest offer and the seller's latest counter */}
+        {step(h.findLast((s) => s.act === 'offer' && s.by === 'you'), ARENA_TABLE.offered)}
+        {step(h.findLast((s) => s.act === 'counter'), ARENA_TABLE.countered)}
         {RECORD.table.turn === 'yours' ? <li className="turn"><span>{ARENA_TABLE.turn}</span></li> : null}
       </ol>
       <ul className="ar-rules" aria-label={ARENA_TABLE.rules}>
-        <li>{ARENA_TABLE.range(wholeDollars(r.least), wholeDollars(r.most))}</li>
+        <li>{ARENA_TABLE.range(r.least === null ? null : wholeDollars(r.least), wholeDollars(r.most))}</li>
         <li>{ARENA_TABLE.perDeal(wholeDollars(r.per_deal))}</li>
         <li>{ARENA_TABLE.inPerson(wholeDollars(r.in_person_over))}</li>
         <li>{ARENA_TABLE.offers(r.offers)}</li>

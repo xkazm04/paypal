@@ -27,6 +27,8 @@
 // wallet answered in the browser preview's fixture (tests/gauntlet/arena.rs).
 #[path = "gauntlet/arena.rs"]
 mod arena;
+// The fixture recorders' shared switch (`TABLE_RECORD`) and the rule a recorded proof bundle is kept by.
+mod recorded;
 mod support;
 use async_trait::async_trait;
 use axum::{
@@ -621,11 +623,15 @@ struct Stats {
     final_states: BTreeMap<String, u64>,
     rejected_envelopes: u64,
     notes: u64,
+    /// Agent calls after which PayPal had a new request or the wallet a new stored call (each is
+    /// also a fault that fails the session).
+    reached_paypal: u64,
 }
 impl Stats {
     fn merge(&mut self, other: Self) {
         self.sessions += other.sessions;
         self.agent_calls += other.agent_calls;
+        self.reached_paypal += other.reached_paypal;
         self.rejected_envelopes += other.rejected_envelopes;
         self.notes += other.notes;
         for (k, v) in other.moves {
@@ -1105,6 +1111,7 @@ impl World {
             return None;
         }
         if self.paypal_rows() != rows_before || self.paypal_requests() != requests_before {
+            self.stats.reached_paypal += 1;
             self.faults
                 .push(format!("an agent call reached PayPal: {call}"));
         }

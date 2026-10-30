@@ -3,12 +3,12 @@
 // record one level down (the rows it wrote, what was sent beside what PayPal saw, what the agent could
 // still see). And the closing view: every attack held, the command that checks it, the attacks as a file.
 import { useState } from 'react';
-import { ARENA_ANSWER, ARENA_CHECK, ARENA_FINALE, ARENA_NOTE, ARENA_VERDICT, ATTACK_WORDS } from '../lib/words/arena';
+import { ARENA_ANSWER, ARENA_CHECK, ARENA_FINALE, ARENA_NOTE, ARENA_VERDICT } from '../lib/words/arena';
 import { Quarantine } from '../shared/honesty';
 import { Btn } from '../shared/ui';
 import { NoteChip } from '../windows/main/console/areas/shared/NoteChip';
 import { Gauntlet } from './Gauntlet';
-import { auditLine, dollars, minorOf, noteAsks, ruleName, stateWords, verdictOf, type Verdict } from './model';
+import { ATTACK_WORDS, auditLine, dollars, minorOf, noteAsks, ruleName, stateWords, verdictOf, type Verdict } from './model';
 import { PROOF_FILE_NAME, proofFile } from './proof';
 import { attackById, isRefusal, RECORD, type RecordedAttack } from './record';
 

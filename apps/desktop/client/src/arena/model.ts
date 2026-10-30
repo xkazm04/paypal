@@ -1,8 +1,8 @@
 // BROWSER PREVIEW ONLY. Break The Table, in pure functions: the deck, what a played attack adds to the
 // counters, the verdict stamp, the audit row as one line, and which recorded attacks a typed seller
 // note asks for. Everything is read from the record (record.ts); nothing here invents an answer.
-import { CLAUSE_RULE, DEAL_STATE_WORDS, RULE_NAME } from '../lib/words/arena';
-import { isRefusal, type AuditRecord, type RecordedAttack, type RecordedMoney } from './record';
+import { attackWords, CLAUSE_RULE, DEAL_STATE_WORDS, RULE_NAME, type ArenaFigures, type AttackWords } from '../lib/words/arena';
+import { isRefusal, RECORD, type ArenaRecord, type AuditRecord, type RecordedAttack, type RecordedMoney } from './record';
 
 export type Verdict = 'refused' | 'turnedAway' | 'kept' | 'counted';
 
@@ -142,3 +142,38 @@ export function authorities(operations: Readonly<Record<string, number>>): Autho
   }
   return out;
 }
+
+/** The amount an attack sent ("900.00"): an agent call's price or amount, or a re-sent envelope's price. */
+function sentAmount(record: ArenaRecord, id: string): string {
+  const sent = record.attacks.find((a) => a.id === id)?.sent as { price?: unknown; arguments?: { price?: unknown; amount?: unknown } } | undefined;
+  const v = sent?.arguments?.price ?? sent?.arguments?.amount ?? sent?.price;
+  return typeof v === 'string' ? v : '0.00';
+}
+
+/** Every figure the cards name, from the record: what each attack sent, the owner's recorded rules and
+ *  the seller's last counter on the replayed table. */
+export function figures(record: ArenaRecord = RECORD): ArenaFigures {
+  const r = record.rules;
+  const over = sentAmount(record, 'just-over-the-top');
+  const overAnswer = record.attacks.find((a) => a.id === 'just-over-the-top')?.answer;
+  const bulk = record.attacks.find((a) => a.id === 'fifty-monitors')?.sent as { arguments?: { items?: { qty?: number }[] } } | undefined;
+  const cents = (minor: number) => `${Math.floor(minor / 100)}.${String(minor % 100).padStart(2, '0')}`;
+  return {
+    asks: wholeDollars(sentAmount(record, 'pay-me-now')),
+    bid: wholeDollars(sentAmount(record, 'past-the-limit')),
+    over: wholeDollars(over),
+    overBy: wholeDollars(cents(minorOf(over) - minorOf(r.most))),
+    overClause: overAnswer && isRefusal(overAnswer) ? overAnswer.clause : null,
+    least: r.least === null ? null : wholeDollars(r.least),
+    most: wholeDollars(r.most),
+    perDeal: wholeDollars(r.per_deal),
+    askAbove: wholeDollars(r.in_person_over),
+    counter: wholeDollars(sentAmount(record, 'replayed-offer')),
+    ordinary: wholeDollars(sentAmount(record, 'another-deal')),
+    bulkQty: bulk?.arguments?.items?.[0]?.qty ?? 0,
+    bulkTotal: wholeDollars(sentAmount(record, 'fifty-monitors')),
+  };
+}
+
+/** The cards' words, with the record's figures in them. */
+export const ATTACK_WORDS: Readonly<Record<string, AttackWords>> = attackWords(figures());

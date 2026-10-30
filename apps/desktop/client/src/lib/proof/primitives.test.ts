@@ -9,10 +9,11 @@ import { fromView, placesIn, toFile, toView } from './fileText';
 import { locate } from './locate';
 import { fingerprint, WORDS } from './fingerprint';
 import golden from './sample/golden.tableproof?raw';
-import { SAMPLE_PROOF } from './sample';
+import { SAMPLE_PROOF } from './practice';
+import { HOUSE_PROOF } from './sample';
 import { invalidPayload } from './mandate';
 import { checkProofText } from './verify';
-import { SAMPLE_DEAL_ID } from './sampleId';
+import { GOLDEN_DEAL_ID as SAMPLE_DEAL_ID, RECORDED_DEAL_ID } from './sampleId';
 
 const hex = (text: string): Uint8Array => Uint8Array.from(text.match(/../g) ?? [], (h) => parseInt(h, 16));
 
@@ -130,6 +131,13 @@ describe('a key as words and colours', () => {
     expect(fingerprint('not hex')).toBeNull();
     // two keys that differ anywhere in the first eight bytes read differently
     expect(fingerprint('11'.repeat(32))).not.toEqual(fingerprint('11'.repeat(7) + '12' + '11'.repeat(24)));
+  });
+});
+
+describe('the recorded sample', () => {
+  it('is the deal the preview hands out as D-0205, by the id its file carries', () => {
+    expect((JSON.parse(HOUSE_PROOF.text) as { deal: { id: string } }).deal.id).toBe(RECORDED_DEAL_ID);
+    expect(HOUSE_PROOF.name).toBe(`${RECORDED_DEAL_ID}.tableproof`);
   });
 });
 

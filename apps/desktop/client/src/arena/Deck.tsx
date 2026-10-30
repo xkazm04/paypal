@@ -1,9 +1,9 @@
 // BROWSER PREVIEW ONLY. Break The Table's deck: the attack cards in their two suits and the closing
 // "Check it yourself" card. A card plays on click, on its key, or when dragged onto the table (drag.ts).
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { ARENA_DECK, ARENA_FINALE, ATTACK_WORDS } from '../lib/words/arena';
+import { ARENA_DECK, ARENA_FINALE } from '../lib/words/arena';
 import type { Held } from './drag';
-import { keyFor } from './model';
+import { ATTACK_WORDS, keyFor } from './model';
 import type { RecordedAttack } from './record';
 
 export type CardHandlers = {

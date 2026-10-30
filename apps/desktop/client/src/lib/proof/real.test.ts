@@ -2,7 +2,7 @@
 // Files the wallet's own runtime wrote, not files made for this checker: eight proof files taken from the
 // Rust test suite's real deals (a deal that has not started, seller and buyer flows, a shop-around group,
 // market prices, a lost answer read back, and the house seller's record kept and then found shortened).
-// `real.json` is the verifier's word on each, written by `cargo run -p table-client --bin real-proofs`. The
+// `real.json` is the verifier's word on each, written by `TABLE_RECORD=proofs cargo test -p table-client --lib sample_proof`. The
 // browser checker must give the same report for every one, line for line and word for word.
 import { describe, expect, it } from 'vitest';
 import { AUTHORITY_MANIFEST } from '@bindings/authority';

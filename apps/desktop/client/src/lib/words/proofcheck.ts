@@ -6,9 +6,9 @@ import type { TamperId } from '../proof/tamper';
 export const PROOF_CHECKER = {
   title: 'Check this proof',
   intro: 'A deal’s signed proof file, checked right here in your browser. Nothing is installed and the file is not sent anywhere.',
-  sampleKicker: 'Practice deal',
-  practiceHead: 'Practice deals',
-  sample: 'A real signed file, made with the wallet’s own signing code and checked by the same rules the wallet uses.',
+  sampleKicker: 'Recorded deal',
+  practiceHead: 'Recorded deals',
+  sample: 'A real signed file the wallet exported from a recorded run, checked by the same rules the wallet uses.',
   checksHead: 'The checks',
   run: 'Check this proof',
   running: 'Checking…',
@@ -122,6 +122,26 @@ export const PROOF_CHECKER = {
 } as const;
 
 /** The checks by a short name, for the strip that says which ones caught a change. */
+/** The recorded deals the checker offers to try (lib/proof/sample.ts): each the wallet's own export from a
+ *  recorder run. Figures come from the recordings, never typed here. */
+export const PROOF_SAMPLES = {
+  house: {
+    label: 'The house haggle',
+    story: (asked: string, agreed: string, askAbove: string) =>
+      `Maya’s agent haggled for a monitor with the house seller, recorded from the wallet’s own run: asked ${asked}, down to ${agreed}. Above ${askAbove} she decides, so the wallet stopped her agent’s yes and Maya accepted in her own approval window. Agreed; no money has moved in this file.`,
+  },
+  arenaAccept: {
+    label: 'An attack: a yes she didn’t give',
+    story: (counter: string, askAbove: string) =>
+      `From Break The Table: Maya’s agent, turned, tried to accept Dan’s ${counter}. Above ${askAbove} she decides in person, so the wallet refused it and wrote the refusal down. Nothing reached PayPal.`,
+  },
+  arenaBulk: {
+    label: 'An attack: a purchase too large',
+    story: (qty: number, amount: string, perDeal: string) =>
+      `From Break The Table: Maya’s agent, turned, proposed buying ${qty} monitors for ${amount}. Her limit per deal is ${perDeal}, so the wallet refused the purchase for good. Nothing reached PayPal.`,
+  },
+} as const;
+
 export const PROOF_SHORT: Readonly<Record<string, string>> = {
   format: 'The file', mandate: 'Owner’s rules', transcript: 'Messages', countersign: 'Approvals', authority: 'Authority', paypal_order: 'PayPal’s order', audit: 'The record',
   receipt: 'Receipt', owner_saw: 'Owner’s checklist', one_request: 'One request', group: 'Shopping around', shield: 'Safety check', house_record: 'House record',

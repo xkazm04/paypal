@@ -48,7 +48,8 @@ import { RESCUE_NO_RULES, RESCUE_SENT_SILENCE, RESCUE_SILENCE, RESCUE_WATCH_FULL
 import type { RescueWatchView } from '@bindings/RescueWatchView';
 import { invoiceText, leverOf, maskEmail, proposeDiscount, RESCUE_WATCH_MAX, RESCUE_WATCH_READS_DAY, validEmail, validSubscriptionId } from './rescue';
 import { AUTHORITY, AUTHORITY_MANIFEST, EVENT_AUDIENCE, type CommandAuthority } from '@bindings/authority';
-import { SAMPLE_DEAL_ID, SAMPLE_DEAL_LABEL } from '../lib/proof/sampleId';
+import { RECORDED_DEAL_ID } from '../lib/proof/sampleId';
+import { RECORDED_LABEL } from './haggle';
 import { LADDER } from '@bindings/ladder';
 import { buildFirstRunState, firstRunPreview, PRACTICE_TERMS, scalePreview, withFirstRun, worldKeys } from './firstRun';
 import { buildScaleState } from './scale';
@@ -657,13 +658,13 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       return { ...d.evidence, fair_price: fairPriceOf(d.deal.state, d.deal.market, d.deal.terms.unit_price) };
     },
     // A browser preview has no ledger or agent key to sign with, so it cannot sign a deal's file of its own:
-    // it hands out the one real signed file it carries (a practice deal made by the test suite), and says
-    // so for every other deal instead of faking one.
+    // it hands out the one real signed file it carries (the recorded house haggle, D-0205, as the wallet
+    // exported it in the haggle recorder's run), and says so for every other deal instead of faking one.
     deal_export_proof: async ({ deal_id }) => {
       find(deal_id);
-      if (deal_id !== SAMPLE_DEAL_ID) return fail('UNAVAILABLE', `This preview has no keys to sign a proof with. It carries one signed practice deal, ${SAMPLE_DEAL_LABEL}.`);
-      const { SAMPLE_PROOF } = await import('../lib/proof/sample');
-      (opts.save ?? downloadFile)(SAMPLE_PROOF.name, SAMPLE_PROOF.text);
+      if (deal_id !== RECORDED_DEAL_ID) return fail('UNAVAILABLE', `This preview has no keys to sign a proof with. It carries one deal the wallet itself signed, ${RECORDED_LABEL}.`);
+      const { HOUSE_PROOF } = await import('../lib/proof/sample');
+      (opts.save ?? downloadFile)(HOUSE_PROOF.name, HOUSE_PROOF.text);
       return true;
     },
     // The file is picked in the browser and checked in the page, by the checker that is the wallet

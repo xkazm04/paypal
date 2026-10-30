@@ -68,9 +68,12 @@ plays the shipped practice agent through the wallet's MCP door and mandate check
 seller's own rule (`Policy::decide_on_schedule`) to the owner's accept and the agreement, and against
 Dan's given counters to the refusal that waits for Maya. It writes
 `apps/desktop/client/src/mock/haggle.json`, and fails when the file drifts
-(`TABLE_HAGGLE_RECORD=1` re-records it). The browser preview's D-0193, D-0204 and D-0205, the
-director's captions (`director/recorded.ts`) and the films' narration (`director/filmPrices.test.ts`)
-are all checked against it.
+(`TABLE_RECORD=haggle` re-records it; `TABLE_HAGGLE_RECORD=1` still works). The browser preview's D-0193,
+D-0204 and D-0205, the director's captions (`director/recorded.ts`), the films' narration
+(`director/filmPrices.test.ts`, per beat: a figure only on the beat whose table shows it) and Break The
+Table (its recorder replays Dan's table, D-0193, before every attack) are all checked against it. The
+house table's agreed deal, as the wallet exports it, is the proof checker's recorded sample
+`lib/proof/sample/d-0205.tableproof`.
 
 ## How it works
 

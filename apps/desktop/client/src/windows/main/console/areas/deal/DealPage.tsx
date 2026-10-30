@@ -20,7 +20,7 @@ import type { WalletError } from '../../../../../lib/contract';
 import { clockLabel, formatMoney, shortHash, shortId } from '../../../../../lib/format';
 import { useMutation, useQuery } from '../../../../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../../../../lib/lazy';
-import { SAMPLE_DEAL_ID, SAMPLE_DEAL_LABEL } from '../../../../../lib/proof/sampleId';
+import { RECORDED_DEAL_ID, RECORDED_DEAL_LABEL as RECORDED_LABEL } from '../../../../../lib/proof/sampleId';
 import { backend } from '../../../../../lib/runtime';
 import {
   DEAL_ACT, DEAL_CARD, DEAL_DETAILS, DEAL_FIGS, DEAL_KICKER, DEAL_SIDE, DEAL_STORY, DEAL_WHO, houseRecordWord, houseWords, INSTRUCTIONS, kindWord, LATEST_OF, NOTICE_WHAT, OPEN_THE_DEAL, PROOF_CHECKER, rulesName, silenceWords, TABLES_WATCH,
@@ -104,8 +104,9 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
   const ended = isTerminal(deal);
   const atFloor = acceptedAtFloorLine(deal, disp.band, tr.data);
 
-  // The browser preview signs one practice deal; the wallet itself checks files through the Book.
-  const signed = backend().kind === 'mock' ? { sample: deal.id === SAMPLE_DEAL_ID, label: SAMPLE_DEAL_LABEL, open: () => nav.deal(SAMPLE_DEAL_ID) } : null;
+  // The browser preview carries one deal the wallet itself signed (the recorded house haggle, D-0205);
+  // the wallet itself checks files through the Book.
+  const signed = backend().kind === 'mock' ? { sample: deal.id === RECORDED_DEAL_ID, label: RECORDED_LABEL, open: () => nav.deal(RECORDED_DEAL_ID) } : null;
   const cards: LensCard[] = [
     {
       id: 'story', label: DEAL_CARD.story,

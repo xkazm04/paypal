@@ -285,8 +285,6 @@ describe('film record: who decided each money step', () => {
       ['D-0183', 'owner'],
       ['D-0185', 'agent'],
       ['D-0186', 'owner'],
-      // the shop's haggled monitor, the signed practice deal: Maya captured it herself once it shipped
-      ['D-0195', 'owner'],
     ]);
     expect(rec.filter((d) => d.decidedBy === 'deadline').every((d) => !d.paid)).toBe(true);
     const at = rec.map((d) => Date.parse(d.at));

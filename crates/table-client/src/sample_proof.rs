@@ -1,5 +1,16 @@
 //! One deterministic sample deal, as a signed v2 proof file, for the checker that runs in a browser.
 //!
+//! Test and tooling code only (`cfg(test)` or the `samples` feature): no shipped build compiles it.
+//! The three practice deals here are the parity oracles of the browser checker: each comes with
+//! tampered copies whose reports the checker must reproduce. What the preview shows a person are the
+//! recorded samples instead, written by the arena's and the haggle's recorders from real wallet runs
+//! (`sample/arena-*.tableproof`, `sample/d-0205.tableproof`); [`recorded_outcomes`] keeps the
+//! verifier's word on each in `sample/recorded.json`, and the checker is held to it.
+//!
+//! This module is the `proofs` recorder: `TABLE_RECORD=proofs` (or `all`) makes its tests rewrite
+//! `parity.json`, the practice files, `recorded.json`, `real/real.json` and `fuzz.json` instead of
+//! failing on drift. Run it after the arena and haggle recorders, which write the files it reads.
+//!
 //! The browser preview has no wallet and no keys, so it cannot export a proof of its own. This
 //! module builds one real file instead: fixed seeds, fixed ids, fixed times, every signature and
 //! hash made with the same types the wallet uses (`AgentSigner`, `canonical_bytes`,
@@ -10,6 +21,9 @@
 //! `parity.json` also holds tampered copies of the file, each as a few JSON edits and the report
 //! this verifier gives for the edited file. The TypeScript checker must give the same report for
 //! the same edits, and that is the parity test on the client side.
+#[cfg(test)]
+#[path = "../../table-app/tests/recorded/mod.rs"]
+mod recorded;
 use crate::{ProofReport, check_proof_file};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use ed25519_dalek::SigningKey;
@@ -42,6 +56,9 @@ pub const BUSY: &str = "busy.tableproof";
 pub const BUYER: &str = "buyer.tableproof";
 /// The tampered copies and the verifier's reports on them.
 pub const PARITY: &str = "parity.json";
+/// The verifier's word on every recorded sample (each `.tableproof` in [`CLIENT_DIR`] that is not a
+/// practice deal).
+pub const RECORDED: &str = "recorded.json";
 
 const ITEM: &str = "monitor-24-ips";
 const PAYEE: &str = "maya-monitors";
@@ -1572,10 +1589,21 @@ pub fn files() -> Made<Vec<(String, Vec<u8>)>> {
 
 /// The verifier's word on every `.tableproof` in `dir` (by file name), as the JSON the client's parity test reads.
 pub fn outcomes_in(dir: &std::path::Path) -> Made<Vec<u8>> {
+    outcomes_of(dir, |_| true)
+}
+
+/// The verifier's word on every recorded sample in `dir`: each `.tableproof` that is not one of the
+/// practice deals [`SAMPLES`] builds.
+pub fn recorded_outcomes(dir: &std::path::Path) -> Made<Vec<u8>> {
+    outcomes_of(dir, |name| !SAMPLES.iter().any(|s| s.file == name))
+}
+
+fn outcomes_of(dir: &std::path::Path, keep: impl Fn(&str) -> bool) -> Made<Vec<u8>> {
     let mut names: Vec<_> = std::fs::read_dir(dir)?
         .filter_map(Result::ok)
         .map(|e| e.path())
         .filter(|p| p.extension().is_some_and(|x| x == "tableproof"))
+        .filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(&keep))
         .collect();
     names.sort();
     let mut all = serde_json::Map::new();
@@ -1658,6 +1686,11 @@ mod tests {
     fn dir() -> std::path::PathBuf {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(CLIENT_DIR)
     }
+    /// `TABLE_RECORD=proofs` (or `all`): rewrite instead of failing on drift.
+    fn record() -> bool {
+        recorded::recording("proofs", None)
+    }
+    const RERUN: &str = "TABLE_RECORD=proofs cargo test -p table-client --lib sample_proof";
     /// A check "did not pass": it applies, was made, and failed.
     fn red(report: &ProofReport) -> Vec<&str> {
         report
@@ -1719,10 +1752,15 @@ mod tests {
     #[test]
     fn the_real_files_keep_the_words_the_verifier_gave_them() -> Made<()> {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(REAL_DIR);
+        let fresh = outcomes_in(&dir)?;
+        if record() {
+            std::fs::write(dir.join("real.json"), fresh)?;
+            return Ok(());
+        }
         let kept = std::fs::read(dir.join("real.json"))?;
         assert!(
-            kept == outcomes_in(&dir)?,
-            "the verifier now says something else about a real file: run `cargo run -p table-client --bin real-proofs -- {REAL_DIR} {REAL_DIR}/real.json`"
+            kept == fresh,
+            "the verifier now says something else about a real file: {RERUN}"
         );
         Ok(())
     }
@@ -1734,9 +1772,14 @@ mod tests {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../apps/desktop/client/src/lib/proof");
         let kept = std::fs::read(dir.join("fuzz.json"))?;
+        let fresh = fuzz_digests(&dir, &kept)?;
+        if record() {
+            std::fs::write(dir.join("fuzz.json"), fresh)?;
+            return Ok(());
+        }
         assert!(
-            kept == fuzz_digests(&dir, &kept)?,
-            "the verifier now says something else about an edited file: regenerate with `fuzz-proofs`"
+            kept == fresh,
+            "the verifier now says something else about an edited file: {RERUN}"
         );
         Ok(())
     }
@@ -1745,13 +1788,45 @@ mod tests {
     /// against the wrong thing.
     #[test]
     fn the_files_the_client_reads_are_current() -> Made<()> {
+        if record() {
+            return write_to(&dir());
+        }
         for (name, fresh) in files()? {
             let kept = std::fs::read(dir().join(&name))?;
-            assert!(
-                kept == fresh,
-                "{name} is stale: run `cargo run -p table-client --bin sample-proof`"
-            );
+            assert!(kept == fresh, "{name} is stale: {RERUN}");
         }
+        Ok(())
+    }
+
+    /// The recorded samples (the arena's refused attacks, the house haggle's agreed deal) all verify,
+    /// and `recorded.json` is the verifier's word on each, which the browser checker is held to.
+    #[test]
+    fn the_recorded_samples_verify_and_keep_the_verifiers_words() -> Made<()> {
+        let fresh = recorded_outcomes(&dir())?;
+        let words: serde_json::Map<String, Value> = serde_json::from_slice(&fresh)?;
+        assert!(
+            words.contains_key("d-0205.tableproof"),
+            "{:?}",
+            words.keys()
+        );
+        assert!(
+            words.keys().filter(|k| k.starts_with("arena-")).count() >= 8,
+            "{:?}",
+            words.keys()
+        );
+        for (name, word) in &words {
+            assert_eq!(word["report"]["verified"], true, "{name}: {word}");
+            assert_eq!(word["report"]["same_version"], true, "{name}: {word}");
+        }
+        if record() {
+            std::fs::write(dir().join(RECORDED), fresh)?;
+            return Ok(());
+        }
+        let kept = std::fs::read(dir().join(RECORDED))?;
+        assert!(
+            kept == fresh,
+            "{RECORDED} is not the verifier's word on the recorded samples: {RERUN}"
+        );
         Ok(())
     }
 }

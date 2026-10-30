@@ -37,6 +37,8 @@ export type RecordedAttack = {
   /** The agent's own table after a counterparty attack. */
   agent_saw?: AgentTable | null;
   envelopes_out: number;
+  /** Envelopes the owner's wallet kept from the attack (a kept note is one; a replay is none). */
+  envelopes_in: number;
   paypal_requests: number;
   paypal_calls: number;
   money_operations: number;
@@ -63,7 +65,10 @@ export type ArenaRecord = {
   format: string;
   check: string;
   seed: string;
-  rules: { item: string; least: string; most: string; per_deal: string; in_person_over: string; offers: number; payee: string; shop_payee: string };
+  /** The engine's recorded haggle the table was replayed from (mock/haggle.json and its table). */
+  recording: { file: string; table: string };
+  /** The owner's signed rules, from that recording. `least` is null: she signed no lowest offer. */
+  rules: { item: string; least: string | null; most: string; per_deal: string; in_person_over: string; offers: number; payee: string; shop_payee: string };
   table: AgentTable;
   attacks: RecordedAttack[];
   gauntlet: GauntletSummary;

@@ -1,8 +1,15 @@
 {
   "currency": "USD",
-  "how": "The shipped practice agent through the wallet's MCP door and mandate check. Re-record with TABLE_HAGGLE_RECORD=1 cargo test -p table-runtime --lib recorded_haggles.",
+  "how": "The shipped practice agent through the wallet's MCP door and mandate check. Re-record with TABLE_RECORD=haggle cargo test -p table-runtime --lib recorded_haggles.",
   "item": "monitor",
   "market": {
+    "comparables": [
+      30000,
+      30000,
+      33000,
+      36000,
+      36000
+    ],
     "median": 33000,
     "p25": 30000,
     "p75": 36000
@@ -12,7 +19,8 @@
     "ask_above": 25000,
     "ceiling": 34000,
     "floor": null,
-    "max_offers": 6
+    "max_offers": 6,
+    "per_deal": 34000
   },
   "schema": 2,
   "tables": {

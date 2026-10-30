@@ -6,8 +6,13 @@
 //   own accept and the agreement. The preview's D-0205 is this run; the shop-around table D-0204 is
 //   its opening (the house's rule is deterministic, so a table midway shows exactly these prices).
 // - `dan`: against Dan's given counters, up to the refusal that waits for Maya: the preview's D-0193.
-// Nothing in this file, the fixtures or the director's captions types one of these prices.
+//   The arena's recorder (crates/table-app/tests/gauntlet/arena.rs) replays this very table, on these
+//   rules and this market, before every attack, so Break The Table's attacks land on D-0193 too.
+// Nothing in this file, the fixtures, the arena or the director's captions types one of these prices.
+// The house table's agreed deal, as the wallet exported it, is the proof checker's recorded sample
+// lib/proof/sample/d-0205.tableproof.
 import recording from './haggle.json';
+import { RECORDED_DEAL_LABEL } from '../lib/proof/sampleId';
 
 export type RecordedBy = 'seller' | 'agent' | 'owner';
 export type RecordedAct = 'listing' | 'offer' | 'counter' | 'accept' | 'withdraw' | 'refused';
@@ -20,8 +25,8 @@ export type RecordedOutcome =
 export type RecordedHaggle = {
   currency: 'USD';
   item: string;
-  rules: { ceiling: number; floor: number | null; max_offers: number; ask_above: number };
-  market: { p25: number; median: number; p75: number };
+  rules: { ceiling: number; floor: number | null; max_offers: number; ask_above: number; per_deal: number };
+  market: { p25: number; median: number; p75: number; comparables: number[] };
   steps: RecordedStep[];
   outcome: RecordedOutcome;
 };
@@ -45,8 +50,8 @@ export function parseRecording(raw: unknown): Recording {
   const item = r.item as string;
   const rules = r.rules;
   const market = r.market;
-  if (!rules || !minor(rules.ceiling) || !(rules.floor === null || minor(rules.floor)) || !minor(rules.max_offers) || !minor(rules.ask_above)) return bad();
-  if (!market || !minor(market.p25) || !minor(market.median) || !minor(market.p75)) return bad();
+  if (!rules || !minor(rules.ceiling) || !(rules.floor === null || minor(rules.floor)) || !minor(rules.max_offers) || !minor(rules.ask_above) || !minor(rules.per_deal)) return bad();
+  if (!market || !minor(market.p25) || !minor(market.median) || !minor(market.p75) || !Array.isArray(market.comparables) || !market.comparables.every(minor)) return bad();
   const table = (name: string): RecordedHaggle => {
     const t = r.tables?.[name];
     const steps = t?.steps;
@@ -81,7 +86,10 @@ export function recordedTimes(rec: RecordedHaggle, start: number): number[] {
   });
 }
 
-/** The house table's label in the browser preview. */
-export const RECORDED_LABEL = 'D-0205';
+/** The house table's label in the browser preview (the deal whose signed file the preview carries). */
+export const RECORDED_LABEL = RECORDED_DEAL_LABEL;
+/** Dan's table's label in the browser preview, defined here once: the fixtures, the director's haggle
+ *  and the arena all name D-0193 through this. */
+export const DAN_LABEL = 'D-0193';
 /** It listed yesterday afternoon, so its agreement is never counted in today's limits (usage_for keys on the agreement day). */
 export const RECORDED_AGO = 26 * 3600 + 40 * 60;

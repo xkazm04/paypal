@@ -4,7 +4,7 @@
 // own runtime wrote. `fuzz.json` holds, for each, a digest of what the wallet's verifier says about the edited
 // file (its report, or why it will not read it): the browser checker must say exactly the same, so no edit,
 // however odd, can make it pass what the wallet fails or read what the wallet refuses.
-// Regenerate with `scripts/proof-fuzz.mjs` and `cargo run -p table-client --bin fuzz-proofs`.
+// Regenerate with `scripts/proof-fuzz.mjs` and `cargo run -p table-client --features samples --bin fuzz-proofs` (or `TABLE_RECORD=proofs cargo test -p table-client --lib sample_proof`).
 import { describe, expect, it } from 'vitest';
 import { AUTHORITY_MANIFEST } from '@bindings/authority';
 import { sha256, toHex } from './bytes';

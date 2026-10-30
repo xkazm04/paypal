@@ -26,6 +26,9 @@ pub use run_state::*;
 mod settings;
 pub use settings::*;
 pub mod playbooks;
+// The practice deals and the parity files of the browser checker: test and tooling code only. Never
+// in a shipped build; its tests run under `cargo test`, its bins under `--features samples`.
+#[cfg(any(test, feature = "samples"))]
 pub mod sample_proof;
 pub mod tray;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

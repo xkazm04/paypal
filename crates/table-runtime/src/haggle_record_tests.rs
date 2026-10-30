@@ -9,17 +9,28 @@
 //!
 //! Every signed price, each refusal and each decision land in
 //! `apps/desktop/client/src/mock/haggle.json`, which the browser preview's tables, the director's
-//! captions and the corridor draw from. The test fails when the engine and that file drift apart;
-//! run it with `TABLE_HAGGLE_RECORD=1` to write the file again from what the engine signs.
+//! captions, the corridor and the arena's recorder (`table-app/tests/gauntlet/arena.rs`, Dan's table)
+//! draw from. The house table's deal, as the wallet exports it once it is agreed, is kept as the
+//! proof checker's sample `d-0205.tableproof` (the preview's D-0205). The test fails when the engine
+//! and those files drift apart; `TABLE_RECORD=haggle` (or `all`; the older `TABLE_HAGGLE_RECORD=1`
+//! still works) writes them again from what the engine signs.
 use super::policy_tests::{envelope, install, pump};
 use super::*;
 use table_core::negotiation::{Decision as House, Policy};
 
+#[path = "../../table-app/tests/recorded/mod.rs"]
+mod recorded;
+
 /// The recording, from this crate's directory.
 const RECORDING: &str = "../../apps/desktop/client/src/mock/haggle.json";
+/// The house table's agreed deal, as the wallet exports it: the proof checker's recorded sample.
+const HOUSE_PROOF: &str = "../../apps/desktop/client/src/lib/proof/sample/d-0205.tableproof";
+const RERUN: &str = "TABLE_RECORD=haggle cargo test -p table-runtime --lib recorded_haggles";
 /// The demo's rules (the film's and the director's): Maya pays at most $340 over six offers, and
 /// above $250 she decides. The market for the monitor: p25 $300, median $330, p75 $360.
 const CEILING: i64 = 34_000;
+/// Her limit per deal, as she signed it in the preview (mandate M-14): no deal over $340.
+const PER_DEAL: i64 = 34_000;
 const ROUNDS: u8 = 6;
 const ASK_ABOVE: i64 = 25_000;
 const COMPARABLES: [i64; 5] = [30_000, 30_000, 33_000, 36_000, 36_000];
@@ -49,13 +60,19 @@ fn line(by: &str, act: &str, price: i64) -> Value {
 }
 
 /// Plays one table to the wallet's refusal of the agent's yes and, when `owner_says_yes`, on through
-/// the owner's accept and the seller's to the agreement. Returns the steps and the outcome.
-async fn play(seller: Seller, ask: i64, port: u16, owner_says_yes: bool) -> (Vec<Value>, Value) {
+/// the owner's accept and the seller's to the agreement. Returns the steps, the outcome and, for an
+/// agreed table, the deal as the wallet exports it.
+async fn play(
+    seller: Seller,
+    ask: i64,
+    port: u16,
+    owner_says_yes: bool,
+) -> (Vec<Value>, Value, Option<table_proto::ProofBundle>) {
     let usd = |n| Money::new(n, Currency::USD).unwrap();
     let (mut r, _, http, _, _) = runtime(true);
     let mut limits = clauses(Side::Buyer, DealKind::Haggle);
     if let Clause::PerDeal { max_amount, .. } = &mut limits[2] {
-        *max_amount = usd(50_000);
+        *max_amount = usd(PER_DEAL);
     }
     if let Clause::Band {
         floor,
@@ -229,7 +246,7 @@ async fn play(seller: Seller, ask: i64, port: u16, owner_says_yes: bool) -> (Vec
     );
     if !owner_says_yes {
         let outcome = json!({"state": "NEGOTIATING", "price": price, "waiting_for": "owner", "paypal_calls": 0});
-        return (lines, outcome);
+        return (lines, outcome, None);
     }
 
     // Maya decides in the approval window: she accepts the seller's counter with her own key.
@@ -294,7 +311,8 @@ async fn play(seller: Seller, ask: i64, port: u16, owner_says_yes: bool) -> (Vec
     assert!(http.0.lock().unwrap().paths.is_empty());
     let outcome =
         json!({"state": "AGREED", "price": price, "decided_by": "owner", "paypal_calls": 0});
-    (lines, outcome)
+    let bundle = r.export_proof(deal.id).unwrap();
+    (lines, outcome, Some(bundle))
 }
 
 #[tokio::test]
@@ -305,8 +323,10 @@ async fn the_recorded_haggles_are_what_the_engine_signs() {
         ask: usd(HOUSE_ASK),
         max_rounds: HOUSE_ROUNDS,
     };
-    let (house_steps, house_outcome) = play(Seller::House(house), HOUSE_ASK, 8766, true).await;
-    let (dan_steps, dan_outcome) = play(Seller::Given(&DAN_COUNTERS), DAN_ASK, 8767, false).await;
+    let (house_steps, house_outcome, house_deal) =
+        play(Seller::House(house), HOUSE_ASK, 8766, true).await;
+    let (dan_steps, dan_outcome, _) =
+        play(Seller::Given(&DAN_COUNTERS), DAN_ASK, 8767, false).await;
     let market = MarketRef::certified_prices(
         "monitor",
         H256::digest(b"similar"),
@@ -317,14 +337,15 @@ async fn the_recorded_haggles_are_what_the_engine_signs() {
     let recording = json!({
         "schema": 2,
         "recorded_by": "crates/table-runtime/src/haggle_record_tests.rs",
-        "how": "The shipped practice agent through the wallet's MCP door and mandate check. Re-record with TABLE_HAGGLE_RECORD=1 cargo test -p table-runtime --lib recorded_haggles.",
+        "how": format!("The shipped practice agent through the wallet's MCP door and mandate check. Re-record with {RERUN}."),
         "currency": "USD",
         "item": "monitor",
-        "rules": {"ceiling": CEILING, "floor": null, "max_offers": ROUNDS, "ask_above": ASK_ABOVE},
+        "rules": {"ceiling": CEILING, "floor": null, "max_offers": ROUNDS, "ask_above": ASK_ABOVE, "per_deal": PER_DEAL},
         "market": {
             "p25": market.p25.minor(),
             "median": market.median.minor(),
             "p75": market.p75.minor(),
+            "comparables": COMPARABLES,
         },
         "tables": {
             "house": {
@@ -339,24 +360,32 @@ async fn the_recorded_haggles_are_what_the_engine_signs() {
             },
         },
     });
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(RECORDING);
-    if std::env::var_os("TABLE_HAGGLE_RECORD").is_some() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let record = recorded::recording("haggle", Some("TABLE_HAGGLE_RECORD"));
+    // The house table's agreed deal: the proof checker's recorded sample (the preview's D-0205).
+    recorded::keep_bundle(
+        &root.join(HOUSE_PROOF),
+        &house_deal.expect("the house table is agreed"),
+        record,
+        RERUN,
+    )
+    .unwrap_or_else(|e| panic!("{e}"));
+    let path = root.join(RECORDING);
+    if record {
         let mut text = serde_json::to_string_pretty(&recording).unwrap();
         text.push('\n');
         std::fs::write(&path, text).unwrap();
         return;
     }
-    let file: Value = serde_json::from_slice(&std::fs::read(&path).unwrap_or_else(|e| {
-        panic!(
-            "{}: {e}; record it with TABLE_HAGGLE_RECORD=1",
-            path.display()
-        )
-    }))
+    let file: Value = serde_json::from_slice(
+        &std::fs::read(&path)
+            .unwrap_or_else(|e| panic!("{}: {e}; record it with {RERUN}", path.display())),
+    )
     .unwrap();
-    assert_eq!(
-        file,
-        recording,
-        "{} drifted from what the engine signs; re-record it with TABLE_HAGGLE_RECORD=1",
-        path.display()
-    );
+    if let Some(diff) = recorded::first_difference("haggle", &file, &recording) {
+        panic!(
+            "{} drifted from what the engine signs ({diff}); re-record it with {RERUN}",
+            path.display()
+        );
+    }
 }

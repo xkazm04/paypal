@@ -155,8 +155,8 @@ Open `http://localhost:1430/proof.html` (the same dev server): a deal's signed p
 right in the browser, line by line, and then you break it yourself (a button, or by typing over the
 price in the file's text) and watch exactly the right checks turn red. Nothing is installed and the
 file is not sent anywhere. It also takes any `.tableproof` file dropped on it, and a deal's other
-side's file to compare ("provable by both sides"). In the preview app the same checker is on the sold
-monitor's deal page (D-0195, Proof) and in the Book's "Check a proof file". The checker is a TypeScript
+side's file to compare ("provable by both sides"). In the preview app the same checker is on the recorded
+house haggle's deal page (D-0205, Proof) and in the Book's "Check a proof file". The checker is a TypeScript
 twin of `table-verify`, held equal to it by a test; see
 [`docs/features/proof-and-verification.md`](docs/features/proof-and-verification.md).
 

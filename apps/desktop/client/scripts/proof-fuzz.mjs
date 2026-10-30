@@ -2,7 +2,7 @@
 // Makes a corpus of random edits to the proof files the browser checker is tested on (the practice deals and
 // the files the wallet's own runtime wrote): `node scripts/proof-fuzz.mjs <count> <seed> > fuzz-in.json`.
 // Each entry is a source file and one to three edits (set, remove, or add one past the end of a list). Then
-// `cargo run -p table-client --bin fuzz-proofs -- fuzz-in.json src/lib/proof/fuzz.json` applies the edits
+// `cargo run -p table-client --features samples --bin fuzz-proofs -- fuzz-in.json src/lib/proof/fuzz.json` applies the edits
 // with the wallet's verifier and keeps a digest of what it says about each edited file; `fuzz.test.ts` makes
 // the browser checker say the same, byte for byte, about every one.
 import { readdirSync, readFileSync } from 'node:fs';

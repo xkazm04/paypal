@@ -81,7 +81,7 @@ export const BEATS: readonly Beat[] = [
   {
     id: 'haggle-open', chapter: 'haggle', at: 32, focus: 'main',
     caption: `Her agent wants a refurbished 27-inch monitor. Her signed rules: at most $340, six offers. Dan asks ${capUsd(F.danAsks)}. Her agent offers ${capUsd(F.herFirst)}.`,
-    do: [{ do: 'main', open: true, route: '#d=D-0193' }],
+    do: [{ do: 'main', open: true, route: `#d=${HAGGLE}` }],
   },
   {
     id: 'haggle-trade', chapter: 'haggle', at: 41, focus: 'main',
@@ -121,7 +121,7 @@ export const BEATS: readonly Beat[] = [
   {
     id: 'silence-lapsed', chapter: 'silence', at: 95, focus: 'desk',
     caption: 'She never answers. At the deadline the offer lapses by itself. No money moved.',
-    do: [...h.deadlinePasses(HAGGLE), { do: 'main', open: true, route: '#d=D-0193' }],
+    do: [...h.deadlinePasses(HAGGLE), { do: 'main', open: true, route: `#d=${HAGGLE}` }],
   },
   {
     // a module summary: the Tables tab, where the haggle now counts among the ended deals

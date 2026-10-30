@@ -7,6 +7,7 @@ import type { HistoryKind } from '@bindings/HistoryKind';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { mockBackend, resetMockState } from '../../mock/backend';
 import { buildMockState, fakeUlid } from '../../mock/fixtures';
+import { DAN_LABEL, RECORDED } from '../../mock/haggle';
 import { decidedLine, decisionSteps } from './console/areas/deal/decided';
 import { ENDING_UNREAD_NOW, ENDING_UNREAD_PILL, endingUnreadSentence, MONEY_CHECK_ENDED_NOW, MONEY_CHECK_ENDED_PILL, MONEY_CHECK_NOW } from '../../lib/words';
 import { checkOpenThrough, endedBeforePayPalShowed, endingCtx, historyAt, isMoneyCall, isRefusal, laneSteps, narrate, rewindCheckTip, stepSentence, stepTime, stepTimeFar, stepUnder, tickTone, weekFraction } from './logic';
@@ -195,8 +196,9 @@ describe('the mock serves Maya’s week like deal_history', () => {
     const deals = await main.invoke('list_deals', null);
     const end = historyAt(all.steps, NOW);
     for (const d of deals) expect(end.get(d.id)?.state, d.id).toBe(d.state);
-    // The deal page lists decisions only, and the window filter is [from, to).
-    expect(decisionSteps(await of('D-0193')).length).toBe(0);
+    // The deal page lists decisions only (on Dan's table, the wallet's recorded refusal of the agent's
+    // yes; mock/haggle.json), and the window filter is [from, to).
+    expect(decisionSteps(await of(DAN_LABEL)).length).toBe(RECORDED.dan.steps.filter((s) => s.act === 'refused').length);
     const first = all.steps[0]!;
     const from = await main.invoke('deal_history', { from: first.at + 1 });
     expect(from.steps.every((s) => s.at > first.at)).toBe(true);

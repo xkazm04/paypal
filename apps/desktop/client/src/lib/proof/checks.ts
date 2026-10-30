@@ -2,9 +2,10 @@
 // under the same ids and with the same lines, so the report this makes for a file is the report the
 // wallet makes for it. Each check runs even when an earlier one failed.
 //
-// Where a record needs arithmetic this page does not carry yet (a shop-around group, the house
-// seller's signed record, market prices worked out again), the line reads "not checked" and says
-// so. It never reads as passed.
+// All sixteen are checked here, the shop-around group, the house seller's signed record and the
+// market price worked out again included. A line reads "not checked" only where the verifier's does:
+// the deal has nothing of that kind, or the file lacks the record the check compares. It never reads
+// as passed.
 import { type Bytes, byteArray, same, sha256, toHex, ZERO32 } from './bytes';
 import { type AuditRow, type Bundle, type DecidedBy, readDecidedBy, sameMoney, showMoney, decimal } from './bundle';
 import { canonical, canonicalBytes } from './jcs';

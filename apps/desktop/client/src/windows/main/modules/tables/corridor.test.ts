@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { mockBackend } from '../../../../mock/backend';
-import { fakeUlid } from '../../../../mock/fixtures';
-import { RECORDED_HAGGLE, RECORDED_LABEL } from '../../../../mock/haggle';
+import { RECORDED_HAGGLE } from '../../../../mock/haggle';
+import { RECORDED_DEAL_ID } from '../../../../lib/proof/sampleId';
 import { captionOf, frameAt, haggleOf, haggleSpan, LEAD_MS, lunge, playbook, SLIDE_MS, spread, trackOf, watchable, xOf, type Beat, type Haggle } from './corridor';
 
 const usd = (minor: number) => ({ minor, currency: 'USD' as const });
@@ -28,7 +28,7 @@ function expectedBeats(): Beat[] {
 describe('watch the haggle: the recorded house table', () => {
   it('replays exactly what the engine signed: the mock D-0205 read back through the wallet’s own queries equals haggle.json', async () => {
     const main = mockBackend('main');
-    const id = fakeUlid(RECORDED_LABEL);
+    const id = RECORDED_DEAL_ID;
     const [deal, transcript, history, display] = await Promise.all([
       main.invoke('get_deal', { deal_id: id }),
       main.invoke('deal_transcript', { deal_id: id }),

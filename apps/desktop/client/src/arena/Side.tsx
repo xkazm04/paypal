@@ -3,10 +3,10 @@
 // with the rows this session's attacks wrote; and the command that checks every answer.
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '../lib/hooks';
-import { ARENA_CHECK, ARENA_SAFETY, ATTACK_WORDS } from '../lib/words/arena';
+import { ARENA_CHECK, ARENA_SAFETY } from '../lib/words/arena';
 import { Btn } from '../shared/ui';
 import { safetyWords } from '../windows/main/safety/model';
-import { auditLine, verdictOf } from './model';
+import { ATTACK_WORDS, auditLine, verdictOf } from './model';
 import { RECORD, type RecordedAttack } from './record';
 
 export type Played = { n: number; attack: RecordedAttack };

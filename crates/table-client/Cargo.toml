@@ -7,6 +7,10 @@ license.workspace = true
 publish.workspace = true
 [lints]
 workspace = true
+[features]
+# The browser checker's practice deals and parity files (`sample_proof`) and the bins that write
+# them. Off in every shipped build; `cargo run -p table-client --features samples --bin <name>`.
+samples = []
 [dependencies]
 table-core.workspace = true
 table-proto.workspace = true
@@ -20,3 +24,16 @@ serde_json.workspace = true
 ed25519-dalek.workspace = true
 base64.workspace = true
 ts-rs.workspace = true
+
+[[bin]]
+name = "sample-proof"
+path = "src/bin/sample-proof.rs"
+required-features = ["samples"]
+[[bin]]
+name = "real-proofs"
+path = "src/bin/real-proofs.rs"
+required-features = ["samples"]
+[[bin]]
+name = "fuzz-proofs"
+path = "src/bin/fuzz-proofs.rs"
+required-features = ["samples"]

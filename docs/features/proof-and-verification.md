@@ -163,8 +163,20 @@ inside the app, on the owner's own ledger, as "Your safety record".
     - **Two sides.** A deal has two files, one from each wallet. The checker takes the other side's file
       and compares the deal, the signed messages' end, the price, the payment and the owner keys each file
       names ("Provable by both sides").
-    - **The practice deals** are real signed files made by `crates/table-client/src/sample_proof.rs`
-      (`cargo run -p table-client --bin sample-proof`): fixed seeds, ids and times, signed with the
+    - **The recorded deals** the checker offers to try are files the wallet itself exported in recorder
+      runs: the house haggle's agreed deal (`sample/d-0205.tableproof`, table-runtime's haggle recorder)
+      and Break The Table's refused attacks (`sample/arena-<attack>.tableproof`, the arena recorder).
+      `sample/recorded.json` is the verifier's word on each; `parity.test.ts` holds the browser checker to
+      it, and each verifies with `cargo run -p table-verify --bin table-verify -- <file>`. Signatures and
+      nonces differ every run, so a recorder keeps a file while it verifies and, masked, says what the
+      wallet says today (`crates/table-app/tests/recorded/mod.rs`). `TABLE_RECORD=arena|haggle|proofs|all`
+      (comma lists allowed; `TABLE_ARENA_RECORD=1` and `TABLE_HAGGLE_RECORD=1` still work) makes the named
+      recorders rewrite instead of failing on drift. `node scripts/record.mjs` runs all three in order
+      (arena, haggle, proofs, each with its own `TABLE_RECORD`), and runs arena and proofs again when the
+      haggle step changed `haggle.json`, which the arena replays; a second run changes nothing.
+    - **The practice deals** stay as the parity oracles (tests only, never shown): real signed files made by
+      `crates/table-client/src/sample_proof.rs` (`cfg(test)` or the `samples` feature, never in a shipped
+      build; `cargo run -p table-client --features samples --bin sample-proof`): fixed seeds, ids and times, signed with the
       wallet's own types and checked by `check_proof_file`. There are three: the shop's monitor sale, the
       same sale from the buyer's side (the buyer's owner accepted the last counter in their own signature),
       and a busier deal (a shop-around group, a released safety hold, a market price, a lost answer read
@@ -172,8 +184,9 @@ inside the app, on the owner's own ledger, as "Your safety record".
       few JSON edits); the client's `parity.test.ts` requires the browser checker's report to equal it,
       line for line and word for word, and the tamper buttons' edits to equal Rust's. A Rust test fails when the
       committed files go stale.
-    - The preview carries one signed deal in its world (D-0195, the sold monitor); `deal_export_proof`
-      hands out that file, and says so for every other deal instead of faking one.
+    - The preview carries one signed deal in its world (D-0205, the recorded house haggle, under the deal id
+      its file carries); `deal_export_proof` hands out that file, and says so for every other deal instead
+      of faking one.
 
 ## Safety properties
 

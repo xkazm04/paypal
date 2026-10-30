@@ -4,6 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SafetyRecord } from '@bindings/SafetyRecord';
 import { mockBackend, resetMockState } from '../../../mock/backend';
+import { RECORDED } from '../../../mock/haggle';
 import { isMoneyCall } from '../logic';
 import { authorityParts, FAMILY_WORDS, safetyWords, scopeWords, VIOLATION_WORDS } from './model';
 
@@ -123,9 +124,11 @@ describe('the mock’s safety record', () => {
     expect(m.safe_default_voids).toBe(m.safe_default);
     expect(m.shop_rules).toBe(money.filter((s) => s.authority.type === 'seller_mandate').length);
     // The GPU request, two pushes past the most you'll pay, two reaches for a tool agents never have,
-    // and the recorded house haggle's yes over the ask-me line (mock/haggle.json).
-    expect(r.refusals).toBe(6);
-    expect(r.refusal_families).toEqual([{ family: 'your_rules', count: 4 }, { family: 'not_allowed', count: 2 }]);
+    // and the recorded tables' yeses over the ask-me line (mock/haggle.json: the house's D-0205 and
+    // Dan's D-0193), counted from the recording.
+    const recorded = [RECORDED.house, RECORDED.dan].flatMap((t) => t.steps).filter((s) => s.act === 'refused').length;
+    expect(r.refusals).toBe(5 + recorded);
+    expect(r.refusal_families).toEqual([{ family: 'your_rules', count: 3 + recorded }, { family: 'not_allowed', count: 2 }]);
     expect(r.refused_deals).toBe(deals.filter((d) => d.state === 'REFUSED').length);
     expect(r.refused_deal_calls).toBe(0);
     // Every refused step has no PayPal call.

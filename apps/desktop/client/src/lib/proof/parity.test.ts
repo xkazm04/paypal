@@ -1,6 +1,6 @@
 // @vitest-environment node
 // The browser checker against the wallet's verifier. `parity.json` is written by Rust
-// (`cargo run -p table-client --bin sample-proof`): the report `check_proof_file` gives for each sample
+// (`TABLE_RECORD=proofs cargo test -p table-client --lib sample_proof`, or `cargo run -p table-client --features samples --bin sample-proof`): the report `check_proof_file` gives for each sample
 // deal, and for tampered copies of it (each a few JSON edits). The checker here must give the same
 // report for the same file, line by line, and the same words. If the two ever disagree this fails; if
 // Rust's side goes stale a Rust test fails.
@@ -10,6 +10,7 @@ import busy from './sample/busy.tableproof?raw';
 import buyer from './sample/buyer.tableproof?raw';
 import golden from './sample/golden.tableproof?raw';
 import parity from './sample/parity.json';
+import recordedWords from './sample/recorded.json';
 import { applyEdits, type Edit } from './edits';
 import { editsFor, type TamperId } from './tamper';
 import { checkProofText, type ProofReport } from './verify';
@@ -64,6 +65,34 @@ for (const [name, text] of Object.entries(FILES)) {
     });
   });
 }
+
+// The recorded samples: deals the wallet exported from real recorder runs (the arena's refused attacks,
+// crates/table-app/tests/gauntlet/arena.rs; the house haggle's agreed deal, the preview's D-0205,
+// table-runtime's haggle recorder). `recorded.json` is the verifier's word on each (the `proofs`
+// recorder, sample_proof.rs); the checker must verify every one with the same report, line for line.
+const sampleFiles = import.meta.glob('./sample/*.tableproof', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const PRACTICE = new Set(['golden.tableproof', 'busy.tableproof', 'buyer.tableproof']);
+const recorded = Object.entries(sampleFiles)
+  .map(([path, text]) => [path.replace('./sample/', ''), text] as const)
+  .filter(([name]) => !PRACTICE.has(name));
+const recordedWallet = recordedWords as unknown as Record<string, { report?: ProofReport; refused?: string }>;
+
+describe('the recorded samples', () => {
+  it('are every recorded file, each with the verifier’s word', () => {
+    expect(recorded.map(([name]) => name).sort()).toEqual(Object.keys(recordedWallet).sort());
+    expect(recorded.map(([name]) => name)).toContain('d-0205.tableproof');
+    expect(recorded.filter(([name]) => name.startsWith('arena-')).length).toBeGreaterThanOrEqual(8);
+  });
+
+  it.each(recorded)('%s: verified, with the wallet verifier’s report', async (name, text) => {
+    const outcome = await checkProofText(text, AUTHORITY_MANIFEST);
+    if (!('report' in outcome)) throw new Error(outcome.refused);
+    const expected = recordedWallet[name]?.report as ProofReport;
+    expect(outcome.report.verified).toBe(true);
+    expect(lines(outcome.report)).toEqual(lines(expected));
+    expect(outcome.report).toEqual(expected);
+  });
+});
 
 describe('the tampered copies cover what a person would try', () => {
   it('on the monitor deal', () => {

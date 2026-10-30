@@ -2,7 +2,10 @@
 // writes and pins it). These checks keep the page honest about it: every card has words, every
 // refusal names its rule, and the record itself says nothing reached PayPal.
 import { describe, expect, it } from 'vitest';
-import { ATTACK_WORDS, RULE_NAME } from '../lib/words/arena';
+import { RULE_NAME } from '../lib/words/arena';
+import { ATTACK_WORDS, minorOf } from './model';
+import { DAN_LABEL, RECORDED, signedSteps } from '../mock/haggle';
+import { mockBackend, resetMockState } from '../mock/backend';
 import { isRefusal, RECORD } from './record';
 
 describe('the arena record', () => {
@@ -39,6 +42,29 @@ describe('the arena record', () => {
       expect(rows, a.id).toHaveLength(1);
       expect((rows[0]?.detail.code as { code: string }).code, a.id).toBe(a.answer.code);
     }
+  });
+
+  it('lands on the engine’s recorded table: Dan’s, step for step, on her recorded rules (the preview’s D-0193)', async () => {
+    const dan = RECORDED.dan;
+    expect(RECORD.recording).toEqual({ file: 'apps/desktop/client/src/mock/haggle.json', table: 'dan' });
+    const steps = signedSteps(dan);
+    expect(RECORD.table.history.map((s) => [s.by === 'you' ? 'agent' : 'seller', s.price?.minor])).toEqual(steps.map((s) => [s.by, s.price]));
+    expect(minorOf(RECORD.rules.most)).toBe(dan.rules.ceiling);
+    expect(minorOf(RECORD.rules.in_person_over)).toBe(dan.rules.ask_above);
+    expect(minorOf(RECORD.rules.per_deal)).toBe(dan.rules.per_deal);
+    expect(RECORD.rules.least === null ? null : minorOf(RECORD.rules.least)).toBe(dan.rules.floor);
+    expect(RECORD.rules.offers).toBe(dan.rules.max_offers);
+    // The refused yes is the recorded one: the same price, the same rule.
+    const refused = dan.steps.find((s) => s.act === 'refused');
+    const accept = RECORD.attacks.find((a) => a.id === 'accept-over-her-line');
+    expect(accept && isRefusal(accept.answer) ? accept.answer.clause : null).toBe(refused?.clause);
+    expect(RECORD.table.price).toEqual({ currency: 'USD', minor: refused?.price });
+    // And the sample world's D-0193, where a played refusal lands, is that same table.
+    resetMockState();
+    const main = mockBackend('main');
+    const id = main.world.deal(DAN_LABEL)?.deal.id ?? '';
+    const transcript = await main.invoke('deal_transcript', { deal_id: id });
+    expect(transcript.map((t) => t.price?.minor)).toEqual(steps.map((s) => s.price));
   });
 
   it('shows the agent its table after a seller’s attack, with no seller words in it', () => {

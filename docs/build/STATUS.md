@@ -2903,3 +2903,42 @@ which now runs past a gold Now line into the forecast's 72 hours.
   approval-window-only); a real microphone and the browser's speech service; the native shell has never been run
   interactively. The "if the price stays" lines compare an open table's latest price with the owner's two numbers; they
   are a preview, not the wallet's check.
+
+## One recorded truth (spark fusion-killer-1030, WP1, 2026-10-31)
+
+Every figure the arena, the preview's tables, the proof samples and the films show now comes from one
+recording, `apps/desktop/client/src/mock/haggle.json` (table-runtime's haggle recorder).
+- **Arena on the recorded table.** The arena recorder (`crates/table-app/tests/gauntlet/arena.rs`) no
+  longer plays its own haggle (389/290/335 on 250-340, per deal 400, in person over 330): it reads
+  `haggle.json` and replays Dan's table (listing 340, offers 300-324, counters 339-329) through both
+  agents' MCP doors, on the recording's rules (ceiling 340, no floor, per deal 340, ask above 250, six
+  offers; the same numbers as Maya's mandate M-14, held equal by `mock/haggle.test.ts`) and market (comparables 300/300/330/360/360), and asserts the agent's `table_view` equals the
+  recorded steps. The accept attack is the recorded refusal (clause 6 at $329). The preview's D-0193
+  (named once, `DAN_LABEL` in `mock/haggle.ts`) is that table: its transcript and now its history,
+  recorded refusal included, are built from the recording, and the arena's refusals and notes land on it.
+  Dan's table rather than the house's: see the WP1 report (one story with D-0193 and the film's gate).
+- **One switch.** `TABLE_RECORD=arena|haggle|proofs|all` (comma lists allowed; `TABLE_ARENA_RECORD=1`
+  and `TABLE_HAGGLE_RECORD=1` still work), shared helper `crates/table-app/tests/recorded/mod.rs`. A
+  recorder rewrites only when selected; otherwise it fails on drift. Recorded `.tableproof` files are
+  kept while they verify and, masked (signatures, hashes, keys, ids, nonces), match today's export, so
+  a second recording changes nothing. `node scripts/record.mjs` runs arena, haggle, then proofs (and
+  arena and proofs again if the haggle step changed `haggle.json`). With per deal 340 equal to her top
+  price, the arena's "just over the top" bid is refused by the per-deal clause (3), which the wallet
+  checks before the price range (4); the haggle's offers and refusal did not change.
+- **Proof samples from the recordings.** `lib/proof/sample/arena-<attack>.tableproof` (each refused
+  attack's deal, ten files) and `d-0205.tableproof` (the house table, agreed); `sample/recorded.json` is
+  the verifier's word on each (`proofs` recorder), and `parity.test.ts` holds the browser checker to it.
+  The checker's offered deals are now these recordings; the three `sample_proof` practice deals stay as
+  parity oracles only (`lib/proof/practice.ts`, tests).
+- **D-0195 removed** (the typed sold monitor, its history and mandate S-4): Tables 8 to 7, money in
+  239.50 to 27.50. The preview hands out D-0205's recorded file instead (D-0205 carries its file's id).
+- **`sample_proof` out of the shipped crate**: `cfg(any(test, feature = "samples"))`; the bins
+  `sample-proof`, `real-proofs`, `fuzz-proofs` need `--features samples`. `cargo tree -p table-desktop
+  -e features` names no `samples`; `cargo build -p table-desktop` does not compile `sample_proof.rs`.
+- **Arena fixes**: the two "why it held" lines now say what the wallet recorded; the note and replay
+  expectations are real (`Expect::NoteKept`: one envelope kept, one `envelope.accepted` NOTE row;
+  `Expect::CountedOnce`: no envelope added, no row); the gauntlet summary's PayPal-reaching calls and
+  violations, and the totals, are measured. Card words take their figures from the record.
+- **Films**: `filmPrices.test.ts` now checks per beat: a figure only on a beat whose table (cut where the
+  director has rewound it) shows it, or its signed limits. The mismatch beats' D-0199 is still a typed
+  sample deal, not a recording.

@@ -2,12 +2,13 @@
 // the scenario director can script. The stage's buttons run these same helpers, so a control and
 // its beat cannot drift apart. Each returns plain data (see actions.ts).
 import type { Action } from './actions';
+import { DAN_LABEL } from '../mock/haggle';
 
 const MIN = 60;
 const HOUR = 3600;
 
 /** The deal the stage's controls act on by default: Maya's monitor haggle with Dan. */
-export const HAGGLE = 'D-0193';
+export const HAGGLE = DAN_LABEL;
 /** The payment request whose amount does not match the signed deal. */
 export const MISMATCH = 'D-0199';
 /** The $64 dock on hold at PayPal. */

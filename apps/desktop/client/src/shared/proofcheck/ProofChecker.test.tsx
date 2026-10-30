@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AUTHORITY_MANIFEST } from '@bindings/authority';
 import { CHECK_IDS } from '../../lib/proof/checks';
-import { BUYER_PROOF, SAMPLE_PROOF } from '../../lib/proof/sample';
+import { BUYER_PROOF, SAMPLE_PROOF } from '../../lib/proof/practice';
 import { ProofChecker } from './ProofChecker';
 
 // the real checker runs here, and a busy machine slows it: a generous clock keeps the tests about behaviour
