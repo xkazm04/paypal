@@ -323,6 +323,7 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
         <section className="pk-checks" aria-labelledby={`${id}-checks`}>
           <div className="pk-top">
             <H id={`${id}-checks`} className="pk-h">{W.checksHead}</H>
+            {file.sample && file.story ? <p className="ui-hint pk-story">{file.story}</p> : null}
             <Verdict state={state} made={made} bad={bad.length} dashed={dashed} caught={caughtBy.map((cid) => PROOF_SHORT[cid] ?? cid)} onRun={() => void check(current, 'first')} />
             {by !== 'none' ? (
               <p className="pk-changed" role="status">
@@ -401,7 +402,6 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
               <span className="dim">{W.sizeOf(new Blob([current === null ? draft : toFile(current)]).size)}</span>
               {file.sample ? <Chip tone="dashed">{W.sampleKicker}</Chip> : null}
             </div>
-            {file.sample ? <p className="ui-hint">{file.story ?? W.sample}</p> : null}
             {file.sample ? <p className="ui-hint">{W.sample}</p> : null}
             <div className="pk-acts">
               <Btn sm onClick={save}>{W.save}</Btn>
