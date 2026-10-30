@@ -35,7 +35,7 @@ const MandateEditor = lazyPart(() => import('./MandateEditor').then((m) => m.Man
 const RescueReplay = lazyPart(() => import('./owner/RescueReplay').then((m) => m.RescueReplay));
 const RescueWatch = lazyPart(() => import('./owner/RescueWatch').then((m) => m.RescueWatch));
 
-const ENGINE_NAME = { 'claude-code': 'claude-code', 'codex-cli': 'codex-cli', scripted: 'practice agent' } as const;
+const ENGINE_NAME = { 'claude-code': 'claude-code', 'codex-cli': 'codex-cli', scripted: 'practice agent', outside: 'an agent app outside the wallet' } as const;
 const HOUSE_TEXT: Record<HouseState, string> = {
   unavailable: 'not included in this version',
   idle: 'wakes up when you join its table',

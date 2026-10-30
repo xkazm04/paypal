@@ -2829,3 +2829,57 @@ for the final run).
   `cargo run -p table-client --bin real-proofs`); a Rust test fails if the verifier's word on one of them changes.
 - **Existing tests moved with the added mock deal** (each commented): module count (Tables 6 to 7), the ledger's money in (27.50 to
   239.50), the Rewind's history, the film record's paid steps.
+
+## table-sandbox: hand your own agent a wallet it can't misuse (2026-10-30, hackathon/killer-1030/e3)
+
+A new crate and bin, `crates/table-sandbox` (`cargo run -p table-sandbox`), serving
+`http://127.0.0.1:1443/` (live page) and `/mcp` (streamable HTTP). It boots the wallet actor the
+way `native.rs` does and calls `spawn_networked`, with in-memory edges: SQLite ledger and vault in
+memory, both PayPal clients on a recording transport that counts and refuses (nothing leaves the
+process; throwaway credentials minted per boot), the house seller (`services/house-seller`:
+`Seller::new`, `start`, its deployed `router`) in process as the counterparty, reached through the
+wallet's own relay pump over an in-process `RelayApi`. An owner rule is signed at boot by a
+throwaway owner key; `OsReauth` always refuses (no owner is present). Market prices are a labelled
+sample (`market::SampleMarket` behind `MarketApi`), fetched by the wallet's own market watch (T15)
+under the rule's clause 9 (a throwaway market key is stored because the watch runs only with one).
+Each table's proof file (`deal_export_proof`) is verified on the page and at exit by `table-verify`.
+
+- **No new grant path.** The wallet's MCP server executes intents only for a run the runtime
+  started (`ActorBridge` needs a `RunId`; `agent_gate` checks the run). The outside agent has its
+  own engine id, `EngineId::Outside` (serialized `outside`; refused by `argv`, `resolve_command`
+  and `NativeEngine`, and never listed by `engine_info`, so `engine_select` refuses it from any
+  window). The sandbox seats `engine::OutsideAgent` there: the wallet starts it with `agent_start`,
+  hands it the run's grant, and it launches nothing. `run.start` rows say `outside` with the
+  buyer-haggler playbook. The front forwards each JSON-RPC body unchanged
+  to the wallet's loopback MCP server under that grant and journals what answered. The front's door:
+  loopback Host for its port, no `Origin` (browsers refused). claude-code and codex-cli stay gated.
+- **One turn per run.** A run ends itself at 100 s (inside `SESSION_SECS`), and the front starts a
+  new one when the deal's transcript head moves, as the desktop arms its negotiator once per peer
+  message. The 64-call budget therefore cuts off only an agent looping within one turn.
+- **table-runtime** gains a `sandbox` feature (`src/sandbox.rs`): pin an in-process house's release,
+  build the house request, pair + confirm + sign + join through the dispatcher's own functions, seat
+  an engine. Rust-only; no IPC command, no authority-table row, no money path.
+- **house-seller** gains `Seller::with_table_secs` (one minute to one hour; `TABLE_SECS = 300`, the
+  deployed default, is unchanged). The sandbox opens tables for fifteen minutes: a live agent app
+  session took four minutes for six rounds.
+- **Review:** an independent read-only review found eight defects in the front, journal and
+  rehearsal (none bypassed the wallet or leaked the grant); all fixed in ed67470.
+- **Deviation from the brief:** the system clock, not a fixed clock (the relay's settled-route
+  cadence, deadlines and the house's 300 s table need time to move).
+- **Rule numbers** (`lib.rs`): band ceiling $340 (rule 4 must hold the house's $329 listing for the
+  table to be joined), in-person line $200 (rule 6, under the house's $239 floor, so any agreement
+  waits for the owner), per deal $400 (rule 3). A buyer's band floor is where the agent starts, not
+  a fence.
+- **Dependencies:** none new to the workspace. `table-sandbox` uses existing packages (axum, reqwest,
+  tokio, tower as a normal dependency for in-process requests, ed25519-dalek, getrandom, ulid).
+- **Validated:** `cargo test -p table-sandbox` (smoke over loopback HTTP: refused at rule 4 naming
+  the bound, refused at rule 6, `pay_now` absent, PayPal asked 0 by both wallets, a fresh table, a
+  clean whole-ledger safety record); the official MCP TypeScript SDK client (1.20.2,
+  StreamableHTTPClientTransport) connects and calls tools; one live claude-code session (`claude -p`,
+  smallest model, strict MCP config) haggled $100 -> $249.99 in six offers, the house seller accepted,
+  and the agent's accept was refused at rule 6. UNVERIFIED: a live codex-cli session (its config keys
+  are from `.research/landscape-and-stack.md` [S]).
+- **Gates (2026-10-30 12:35):** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --
+  -D warnings`, `cargo test --workspace --no-fail-fast` (exit 0), `cargo deny check` (advisories,
+  bans, licenses, sources ok); client `pnpm typecheck`, `pnpm test` (211 files / 2029 tests),
+  `pnpm build`. The one client change: `OwnerConfig.tsx` names the new engine id.

@@ -26,6 +26,12 @@ pub enum EngineId {
     CodexCli,
     #[serde(rename = "scripted")]
     Scripted,
+    /// An agent app outside the wallet, connected to its loopback MCP server (the headless
+    /// sandbox, `crates/table-sandbox`). The wallet launches nothing for it: it starts the run,
+    /// hands its grant to the slot, and every call still passes the run gate and the signed rule.
+    /// Never listed by `engine_info`, so no window can select it.
+    #[serde(rename = "outside")]
+    Outside,
 }
 #[derive(ts_rs::TS, Debug, Clone, Serialize, Deserialize)]
 pub struct EngineInfo {

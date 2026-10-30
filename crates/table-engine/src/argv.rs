@@ -89,7 +89,7 @@ pub fn argv(engine: EngineId, o: &LaunchOptions) -> Result<Vec<String>, Error> {
             }
             a
         }
-        EngineId::Scripted => return Err(Error::Invalid),
+        EngineId::Scripted | EngineId::Outside => return Err(Error::Invalid),
     };
     if engine == EngineId::ClaudeCode {
         if o.profile == Profile::Agent {
