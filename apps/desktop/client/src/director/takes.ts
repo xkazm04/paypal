@@ -13,11 +13,13 @@ import type { KeyId } from '@bindings/KeyId';
 import type { StartStepState } from '../lib/firstRun';
 import type { MockBackend } from '../mock/backend';
 import type { MockDeal } from '../mock/fixtures';
-import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, GROUP_CLOSED, GROUP_WINNER, IF_NOTHING, REWIND_ANSWER, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, shoppingFor, stateWord, TABLES, TABLES_VIEWS, tablesItem, tablesShortWho, type StartStepKey, type TourStopId } from '../lib/words';
-import { nowUnix } from '../lib/format';
+import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, GROUP_CLOSED, GROUP_WINNER, IF_NOTHING, REWIND_ANSWER, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, shoppingFor, stateWord, TABLES, TABLES_VIEWS, TABLES_WATCH, tablesItem, tablesShortWho, type StartStepKey, type TourStopId } from '../lib/words';
+import { nowUnix, shortMoney } from '../lib/format';
 import { laneSteps, tickTone, weekBounds } from '../windows/main/logic';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
+import { capUsd as capUsdText, HAGGLE_FIGS as F } from './recorded';
+import { RECORDED } from '../mock/haggle';
 
 export type FrameName = 'main' | 'tumbler' | 'approval';
 
@@ -101,8 +103,8 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
     { deal: HOUSE_TABLE, state: 'NEGOTIATING' },
   ],
   'shop-prices': [
-    { in: 'main', text: '$389.00' },
-    { in: 'main', text: '$334.00' },
+    { in: 'main', text: usdText(F.danAsks) },
+    { in: 'main', text: usdText(F.houseNow) },
     { in: 'main', text: 'lowest so far' },
     NO_PAY_IN_MAIN,
     { deal: HOUSE_TABLE, state: 'NEGOTIATING' },
@@ -120,19 +122,19 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   ],
   'haggle-open': [
     { in: 'main', text: 'Refurbished 27-inch 4K monitor' },
-    { in: 'main', text: '$389.00' },
-    { in: 'main', text: '$290.00' },
+    { in: 'main', text: usdText(F.danAsks) },
+    { in: 'main', text: usdText(F.herFirst) },
   ],
   'haggle-trade': [
     { in: 'main', text: 'Refurbished 27-inch 4K monitor' },
     // halfway: her latest offer and the price range it stays inside (the deal page's facts)
-    { in: 'main', text: '$314.00' },
+    { in: 'main', text: usdText(F.herMid) },
     { in: 'main', text: 'Most you’ll pay $340.00' },
     { in: 'main', text: 'Offers used 3 of 6' },
-    { in: 'main', text: '$327.00', absent: true },
+    { in: 'main', text: usdText(F.herLast), absent: true },
   ],
   'haggle-close': [
-    { in: 'main', text: '$327.00' },
+    { in: 'main', text: usdText(F.herLast) },
     { in: 'main', text: 'Accept Dan’s $329.00?', absent: true },
   ],
   'haggle-gate': [
@@ -286,6 +288,36 @@ const FOUR_STEPS = (f: FrameName): Expect[] => [
   { in: f, step: 'engine', state: 'todo' },
 ];
 const NO_MARK = (f: FrameName): Expect => ({ in: f, tour: null });
+
+/** Each "Watch the haggle" beat's settled end state (watchStory.ts): the figures the replay names are
+ *  the engine's recording's (director/recorded.ts), and no window offers to pay. */
+const houseAgreed = RECORDED.house.outcome.price;
+const houseAskAbove = RECORDED.house.rules.ask_above;
+const usdShort = (minor: number) => shortMoney(minor, 'USD');
+export const WATCH_EXPECT: Readonly<Record<string, readonly Expect[]>> = {
+  'watch-glance': [
+    { window: 'main', open: true },
+    { in: 'main', text: usdText(F.danLast) },
+    NO_PAY_IN_MAIN,
+  ],
+  'watch-gate': [
+    { in: 'main', text: TABLES_WATCH.refusedYes(capUsdText(F.danLast), usdShort(houseAskAbove)) },
+    NO_PAY_IN_MAIN,
+  ],
+  'watch-trade': [
+    { in: 'main', text: TABLES_VIEWS.watch },
+    { in: 'main', text: 'House seller' },
+    NO_PAY_IN_MAIN,
+  ],
+  'watch-refused': [
+    { in: 'main', text: TABLES_WATCH.refusedYes(usdShort(houseAgreed), usdShort(houseAskAbove)) },
+    NO_PAY_IN_MAIN,
+  ],
+  'watch-agreed': [
+    { in: 'main', text: TABLES_WATCH.agreed(usdShort(houseAgreed)) },
+    NO_PAY_IN_MAIN,
+  ],
+};
 
 /** Each First run beat's settled end state (firstRunStory.ts), kept apart from Maya's week's: the
  *  four steps where a window shows them and the stop each window's mark shows. */

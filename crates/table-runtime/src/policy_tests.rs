@@ -11,7 +11,7 @@ use tower::ServiceExt;
 
 /// Hands each JSON-RPC request to the wallet's real MCP router, headers and all.
 #[derive(Clone, Default)]
-pub(crate) struct Loopback(Arc<Mutex<Option<axum::Router>>>);
+pub(crate) struct Loopback(pub(crate) Arc<Mutex<Option<axum::Router>>>);
 impl std::fmt::Debug for Loopback {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Loopback")
@@ -110,7 +110,7 @@ pub(crate) async fn settled(actor: &ActorHandle) -> Vec<RunSnapshot> {
     .await
     .unwrap()
 }
-fn envelope(
+pub(crate) fn envelope(
     r: &Runtime,
     deal: &Deal,
     peer: &AgentSigner,
@@ -569,7 +569,10 @@ async fn the_demo_haggle_is_what_the_practice_agent_signs_and_it_stops_at_the_as
 
 /// Drains the messages a policy run sends the actor, handled by the same runtime methods the
 /// actor loop calls, until no run is left.
-async fn pump(r: &mut Runtime, rx: &mut tokio::sync::mpsc::Receiver<crate::actor::Message>) {
+pub(crate) async fn pump(
+    r: &mut Runtime,
+    rx: &mut tokio::sync::mpsc::Receiver<crate::actor::Message>,
+) {
     use crate::actor::Message as M;
     while !r.runs.is_empty() {
         let message = tokio::time::timeout(std::time::Duration::from_secs(10), rx.recv())

@@ -17,6 +17,11 @@ import { runActions, type Stage } from './actions';
 import { BEATS } from './beats';
 import { HAGGLE, HOLD } from './helpers';
 import { centre, deadlinesRecord, decisionsRecord, deskTransform, FILM_PRESS, filmTarget, haggleRecord, HOUSE_TABLE, pressFor, readChapterRecord, recordShown, recordShownOnStage, shopRecord, stageRect, storyStartOn, syncShade, usdText } from './takes';
+import { HAGGLE_FIGS as F } from './recorded';
+import { pricesOf, RECORDED } from '../mock/haggle';
+
+const DAN = pricesOf(RECORDED.dan);
+const dollars = (minor: number): number => minor / 100;
 
 describe('film rectangles', () => {
   it('splits a frame prefix from the selector, and leaves page selectors alone', () => {
@@ -86,18 +91,19 @@ describe('film record: the haggle', () => {
     const rec = haggleRecord(upTo(2), mandate.payload.clauses);
     expect(rec.ceiling).toBe(340);
     expect(rec.askAbove).toBe(250);
-    expect(rec.offersMaya).toEqual([290]);
-    expect(rec.offersDan).toEqual([389]);
+    expect(rec.offersMaya).toEqual([F.herFirst]);
+    expect(rec.offersDan).toEqual([F.danAsks]);
     expect('gateAt' in rec).toBe(false);
   });
 
   it('follows the trade step by step, and raises the gate at Dan’s last counter', () => {
     expect(haggleRecord(upTo(10), mandate.payload.clauses)).toEqual({
-      ceiling: 340, askAbove: 250, offersMaya: [290, 305, 314, 321, 327], offersDan: [389, 372, 355, 344, 333],
+      // the engine's recorded run (mock/haggle.json): her five offers, and Dan's listing and counters before his last
+      ceiling: 340, askAbove: 250, offersMaya: DAN.agent.map(dollars), offersDan: DAN.seller.slice(0, -1).map(dollars),
     });
     const gate = haggleRecord(upTo(Number.MAX_SAFE_INTEGER), mandate.payload.clauses);
-    expect(gate.offersDan.at(-1)).toBe(329);
-    expect(gate.gateAt).toBe(329);
+    expect(gate.offersDan.at(-1)).toBe(F.danLast);
+    expect(gate.gateAt).toBe(F.danLast);
     // every one of her offers stays inside her signed ceiling
     expect(Math.max(...gate.offersMaya)).toBeLessThanOrEqual(gate.ceiling ?? 0);
   });
@@ -114,8 +120,8 @@ describe('film record: the haggle', () => {
   it('checks the record against what The Table draws', () => {
     expect(usdText(1234)).toBe('$1,234.00');
     const rec = haggleRecord(upTo(Number.MAX_SAFE_INTEGER), mandate.payload.clauses);
-    expect(recordShown(rec, 'Accept Dan’s $329.00? … $327.00')).toEqual([]);
-    expect(recordShown(rec, 'Accept Dan’s $329.00?')).toEqual(['the record says $327.00, The Table does not show it']);
+    expect(recordShown(rec, `Accept Dan’s $329.00? … ${usdText(F.herLast)}`)).toEqual([]);
+    expect(recordShown(rec, 'Accept Dan’s $329.00?')).toEqual([`the record says ${usdText(F.herLast)}, The Table does not show it`]);
   });
 });
 
@@ -172,8 +178,8 @@ describe('film record: shopping around', () => {
       group: 'Shopping around for the refurbished 27-inch 4K monitor',
       // Dan's table is rewound to his listing; the house seller's counter is the lowest so far
       sellers: [
-        { deal: HAGGLE, seller: 'Dan', price: 389, state: 'Negotiating' },
-        { deal: HOUSE_TABLE, seller: 'House seller', price: 334, state: 'Negotiating' },
+        { deal: HAGGLE, seller: 'Dan', price: F.danAsks, state: 'Negotiating' },
+        { deal: HOUSE_TABLE, seller: 'House seller', price: F.houseNow, state: 'Negotiating' },
       ],
     });
   });

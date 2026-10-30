@@ -1,0 +1,316 @@
+// Pure logic for "Watch the haggle": a table's signed transcript and its Rewind steps become the
+// beats the corridor plays, the clock that paces them, and the frame at any moment (so a seek, a
+// pause and reduced motion all draw the same picture). No React, no IPC; unit-tested in
+// corridor.test.ts. Money stays in integer minor units; every price is one a transcript step
+// carries, so the corridor can only draw what was signed.
+import type { Currency } from '@bindings/Currency';
+import type { HistoryStep } from '@bindings/HistoryStep';
+import type { TranscriptStep } from '@bindings/TranscriptStep';
+import { TABLES_WATCH as W } from '../../../../lib/words';
+import { ladderScale, short } from './ladder';
+
+export type Who = 'you' | 'them';
+
+export type Beat =
+  /** A signed price: their listing or counter, our agent's offer. */
+  | { kind: 'price'; by: Who; price: number; first: boolean }
+  /** The wallet refused our agent's step. `price` is the yes it tried (clause 6), null at a wall. */
+  | { kind: 'refused'; price: number | null; clause: number | null }
+  /** The owner said yes in the approval window. */
+  | { kind: 'owner'; price: number }
+  /** An accept by our agent (inside the rules) or by them. */
+  | { kind: 'accept'; by: Who; price: number }
+  /** Both sides accepted the same price. */
+  | { kind: 'agreed'; price: number; byOwner: boolean }
+  | { kind: 'withdrawn'; by: Who };
+
+/** What the corridor plays: our side, the signed walls, the market lane and the beats. */
+export type Haggle = {
+  currency: Currency;
+  /** Our side of the table: a buyer's agent climbs, a seller's comes down. */
+  side: 'buyer' | 'seller';
+  /** The signed band: the most a buyer pays, the least a seller takes (minor units). */
+  ceiling: number | null;
+  floor: number | null;
+  /** "Ask me above": the owner's own line for saying yes. */
+  askAbove: number | null;
+  maxOffers: number | null;
+  market: { p25: number; median: number; p75: number } | null;
+  beats: Beat[];
+};
+
+type Inputs = {
+  currency: Currency;
+  side: 'buyer' | 'seller';
+  transcript: readonly TranscriptStep[];
+  /** This deal's Rewind steps (deal_history); refusals and the owner's yes come from here. */
+  history?: readonly HistoryStep[] | null;
+  ceiling?: number | null;
+  floor?: number | null;
+  askAbove?: number | null;
+  maxOffers?: number | null;
+  market?: { p25: number; median: number; p75: number } | null;
+  /** A live table the wallet stopped for the owner (its attention gate): the rule and the price the
+   *  agent tried. Drawn as the refusal it stands for when the history has not recorded one yet. */
+  gate?: { clause: number | null; price: number } | null;
+};
+
+/** How far a counterparty's signed clock may run ahead of the wallet's (an envelope's `iat` is the
+ *  sender's; the wallet's own steps and its history share one clock). */
+const SKEW_SECS = 300;
+
+/** The beats of a table, in the order they happened. The transcript stays in the ledger's order (it
+ *  is never re-sorted by its `at`, which for their steps is their clock). A refusal from the history
+ *  falls before the first of our own steps signed after it, or the first of theirs signed well after
+ *  it. Only the refusals the corridor draws are taken: her ask-me rule stopping the agent's yes
+ *  (clause 6) and her limit (clause 4); a group closing a table, a wallet-limit stop or a missing
+ *  tool are other stories, and repeated refusals at one point are one beat. An ACCEPT carries no
+ *  price in the ledger: it accepts the offer on the table, the latest price either side named. */
+export function haggleOf(i: Inputs): Haggle {
+  const steps = i.transcript;
+  const history = [...(i.history ?? [])].sort((a, b) => a.at - b.at || a.seq - b.seq);
+  const ownerSaidYes = history.some((h) => h.kind === 'owner_accepted');
+  const slotOf = (at: number): number => {
+    const k = steps.findIndex((s) => (s.by === 'you' && s.at > at) || (s.by === 'them' && s.at > at + SKEW_SECS));
+    return k < 0 ? steps.length : k;
+  };
+  const refusalsAt = new Map<number, number | null>();
+  for (const h of history) {
+    if (h.kind !== 'intent_refused' || h.authority.type !== 'signed_rule') continue;
+    const clause = h.authority.clause;
+    if (clause !== 6 && clause !== 4) continue;
+    const slot = slotOf(h.at);
+    if (!refusalsAt.has(slot)) refusalsAt.set(slot, clause);
+  }
+  const beats: Beat[] = [];
+  let theirs: number | null = null;
+  let onTable: number | null = null;
+  let sawOurs = false;
+  let ended = false;
+  let accepts = { you: null as number | null, them: null as number | null };
+  const refuse = (slot: number) => {
+    const clause = refusalsAt.get(slot);
+    if (clause === undefined || ended || beats[beats.length - 1]?.kind === 'refused') return;
+    // An ask-me refusal stops the agent's yes to their latest price; a limit refusal is at the wall.
+    beats.push({ kind: 'refused', price: clause === 6 ? theirs : null, clause });
+  };
+  steps.forEach((s, k) => {
+    refuse(k);
+    const price = s.price?.minor ?? null;
+    if ((s.typ === 'LISTING' || s.typ === 'OFFER' || s.typ === 'COUNTER') && price !== null) {
+      beats.push({ kind: 'price', by: s.by, price, first: s.by === 'you' && !sawOurs });
+      if (s.by === 'you') sawOurs = true;
+      else theirs = price;
+      onTable = price;
+    } else if (s.typ === 'ACCEPT' && onTable !== null) {
+      const b: Beat = s.by === 'you' && ownerSaidYes ? { kind: 'owner', price: onTable } : { kind: 'accept', by: s.by, price: onTable };
+      accepts = { ...accepts, [s.by]: onTable };
+      const agreed = accepts.you !== null && accepts.you === accepts.them;
+      // Their accept that closes the deal is the snap itself; the owner's yes keeps its own beat.
+      if (!(agreed && s.by === 'them')) beats.push(b);
+      if (agreed && accepts.you !== null) {
+        beats.push({ kind: 'agreed', price: accepts.you, byOwner: ownerSaidYes });
+        accepts = { you: null, them: null };
+        ended = true;
+      }
+    } else if (s.typ === 'WITHDRAW') {
+      beats.push({ kind: 'withdrawn', by: s.by });
+      ended = true;
+    }
+  });
+  refuse(steps.length);
+  if (i.gate && !ended && beats[beats.length - 1]?.kind !== 'refused') {
+    beats.push({ kind: 'refused', price: i.gate.clause === 6 ? i.gate.price : null, clause: i.gate.clause });
+  }
+  return {
+    currency: i.currency, side: i.side,
+    ceiling: i.ceiling ?? null, floor: i.floor ?? null, askAbove: i.askAbove ?? null, maxOffers: i.maxOffers ?? null,
+    market: i.market ?? null, beats,
+  };
+}
+
+/** A haggle is worth watching once both sides have named a price. */
+export const watchable = (h: Haggle): boolean =>
+  h.beats.some((b) => b.kind === 'price' && b.by === 'you') && h.beats.some((b) => b.kind === 'price' && b.by === 'them');
+
+/** The first price and the price it ended at (agreed, else the latest), for the card. */
+export function haggleSpan(h: Haggle): { from: number; to: number } | null {
+  const prices = h.beats.filter((b): b is Extract<Beat, { kind: 'price' }> => b.kind === 'price');
+  const first = prices[0];
+  if (!first) return null;
+  const agreed = h.beats.find((b): b is Extract<Beat, { kind: 'agreed' }> => b.kind === 'agreed');
+  return { from: first.price, to: agreed?.price ?? prices[prices.length - 1]?.price ?? first.price };
+}
+
+// ---- the clock: when each beat lands (ms), and how long the corridor holds it
+
+/** The first beat lands after the walls have drawn. */
+export const LEAD_MS = 600;
+const HOLD: Record<Beat['kind'], number> = { price: 820, refused: 2600, owner: 1500, accept: 950, agreed: 2400, withdrawn: 1600 };
+/** A price slides into place over this long; a refusal lunges and bounces within its hold. */
+export const SLIDE_MS = 560;
+
+export type Cue = { at: number; hold: number; beat: Beat; i: number };
+export type Playbook = { cues: Cue[]; total: number };
+
+export function playbook(h: Haggle): Playbook {
+  let t = LEAD_MS;
+  const cues = h.beats.map((beat, i) => {
+    const c = { at: t, hold: HOLD[beat.kind], beat, i };
+    t += c.hold;
+    return c;
+  });
+  return { cues, total: t };
+}
+
+// ---- the frame at time t
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+/** Ease in and out (the hero film's curve, close enough for a slide). */
+export const ease = (p: number): number => (p < 0.5 ? 4 * p * p * p : 1 - (-2 * p + 2) ** 3 / 2);
+
+export type Frame = {
+  /** Where each puck is drawn now (minor units), or null before its first price. */
+  you: number | null;
+  them: number | null;
+  /** Every price each side has landed so far, oldest first (the trail). */
+  trail: { you: number[]; them: number[] };
+  /** The cue that last landed (its caption is read out), or -1 before the first. */
+  current: number;
+  /** 0..1 through a refusal: the lunge, the wall's flash and the bounce. */
+  refusal: { price: number | null; clause: number | null; p: number } | null;
+  /** 0..1 as the deal snaps shut at `price`. */
+  snap: { price: number; p: number; byOwner: boolean } | null;
+  /** The owner's yes: 0..1 while the hold ring fills, during her beat only (null before and after). */
+  owner: number | null;
+  /** Prices apart, as drawn (null until both sides have one). */
+  gap: number | null;
+  /** Our signed offers so far. */
+  offers: number;
+  /** Milliseconds since each side's latest price landed (the landing pulse), null before its first. */
+  since: { you: number | null; them: number | null };
+  done: boolean;
+};
+
+export function frameAt(pb: Playbook, t: number): Frame {
+  const trail = { you: [] as number[], them: [] as number[] };
+  const from = { you: null as number | null, them: null as number | null };
+  const to = { you: null as number | null, them: null as number | null };
+  const landed = { you: -Infinity, them: -Infinity };
+  let current = -1;
+  let refusal: Frame['refusal'] = null;
+  let snap: Frame['snap'] = null;
+  let owner: number | null = null;
+  let offers = 0;
+  for (const c of pb.cues) {
+    if (t < c.at) break;
+    current = c.i;
+    const b = c.beat;
+    const local = t - c.at;
+    if (b.kind === 'price') {
+      from[b.by] = to[b.by];
+      to[b.by] = b.price;
+      landed[b.by] = c.at;
+      trail[b.by].push(b.price);
+      if (b.by === 'you') offers += 1;
+    }
+    refusal = b.kind === 'refused' ? { price: b.price, clause: b.clause, p: clamp01(local / c.hold) } : null;
+    owner = b.kind === 'owner' ? clamp01(local / (c.hold * 0.8)) : null;
+    if (b.kind === 'agreed') snap = { price: b.price, p: clamp01(local / 520), byOwner: b.byOwner };
+  }
+  const at = (w: Who): number | null => {
+    const a = from[w];
+    const b = to[w];
+    if (b === null) return null;
+    if (a === null) return b;
+    return a + (b - a) * ease(clamp01((t - landed[w]) / SLIDE_MS));
+  };
+  let you = at('you');
+  let them = at('them');
+  if (snap && you !== null && them !== null) {
+    const p = ease(snap.p);
+    you += (snap.price - you) * p;
+    them += (snap.price - them) * p;
+  }
+  return {
+    you, them, trail, current, refusal, snap, owner, offers,
+    since: { you: Number.isFinite(landed.you) ? t - landed.you : null, them: Number.isFinite(landed.them) ? t - landed.them : null },
+    gap: you !== null && them !== null ? Math.abs(them - you) : null,
+    done: t >= pb.total,
+  };
+}
+
+/** The beat to jump to from `t` (keyboard on the timeline): the next or previous landing, at rest. */
+export function stepTo(pb: Playbook, t: number, dir: 1 | -1): number {
+  const rest = pb.cues.map((c) => Math.min(pb.total, c.at + SLIDE_MS));
+  if (dir > 0) return rest.find((r) => r > t + 1) ?? pb.total;
+  const before = rest.filter((r) => r < t - 1);
+  return before[before.length - 1] ?? 0;
+}
+
+/** How far a refused yes lunges toward the price it tried, then bounces back (0 = at rest, 1 = at the gate). */
+export function lunge(p: number): number {
+  if (p <= 0 || p >= 0.5) return 0;
+  if (p < 0.16) return ease(p / 0.16);
+  // a damped bounce off the gate
+  const q = (p - 0.16) / 0.34;
+  return Math.max(0, (1 - q) * Math.cos(q * Math.PI * 1.5));
+}
+
+// ---- the track
+
+export type Track = { lo: number; hi: number; ticks: number[] };
+
+/** The price axis: every signed price, the walls and the market lane. The ask-me line is left out
+ *  when it sits far below the haggle, so it cannot squeeze the track; it is drawn at the edge then. */
+export function trackOf(h: Haggle): Track | null {
+  const prices = h.beats.flatMap((b) => ('price' in b && b.price !== null ? [b.price] : []));
+  // The lane may run off the edge: the market's top end does not get to squeeze the haggle.
+  const s = ladderScale([...prices, h.ceiling, h.floor, h.market?.p25, h.market?.median]);
+  return s ? { lo: s.lo, hi: s.hi, ticks: s.ticks } : null;
+}
+
+/** Fraction across the track (0 = left, lowest price). */
+export const xOf = (v: number, t: Pick<Track, 'lo' | 'hi'>): number => (t.hi <= t.lo ? 0.5 : clamp01((v - t.lo) / (t.hi - t.lo)));
+
+// ---- words
+
+/** The line read out when a beat lands. */
+export function captionOf(b: Beat, h: Haggle, who: string): string {
+  const m = (v: number) => short(v, h.currency);
+  switch (b.kind) {
+    case 'price': {
+      if (b.by === 'you') return b.first ? W.opens(m(b.price)) : h.side === 'buyer' ? W.ourUp(m(b.price)) : W.ourDown(m(b.price));
+      const firstTheirs = h.beats.find((x) => x.kind === 'price' && x.by === 'them') === b;
+      if (firstTheirs) return h.side === 'buyer' ? W.lists(who, m(b.price)) : W.theirOffer(who, m(b.price));
+      return h.side === 'buyer' ? W.theirDown(who, m(b.price)) : W.theirUp(who, m(b.price));
+    }
+    case 'refused':
+      if (b.clause === 6 && b.price !== null) return h.askAbove !== null ? W.refusedYes(m(b.price), m(h.askAbove)) : W.refusedYesNoLine(m(b.price));
+      if (b.clause === 4) {
+        const wall = h.side === 'buyer' ? h.ceiling : h.floor;
+        return wall !== null ? W.refusedWall(m(wall)) : W.refusedOther;
+      }
+      return W.refusedOther;
+    case 'owner':
+      return W.ownerYes(m(b.price));
+    case 'accept':
+      return b.by === 'them' ? W.theyAccept(who, m(b.price)) : W.agentAccepts(m(b.price));
+    case 'agreed':
+      return `${W.agreed(m(b.price))} ${b.byOwner ? W.agreedByYou : W.agreedByRule}`;
+    case 'withdrawn':
+      return b.by === 'you' ? W.withdrawnYou : W.withdrawnThem(who);
+  }
+}
+
+/** Two pucks closer than `minPx` on a track `widthPx` wide are drawn `minPx` apart around their
+ *  midpoint, in their order, so neither hides the other (or the gate between them). Fractions in,
+ *  fractions out; the figures they carry are untouched. */
+export function spread(a: number, b: number, widthPx: number, minPx: number): [number, number] {
+  if (widthPx <= 0) return [a, b];
+  const gap = minPx / widthPx;
+  if (Math.abs(b - a) >= gap) return [a, b];
+  const mid = (a + b) / 2;
+  const dir = b >= a ? 1 : -1;
+  return [mid - (dir * gap) / 2, mid + (dir * gap) / 2];
+}

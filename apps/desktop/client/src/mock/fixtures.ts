@@ -36,6 +36,7 @@ import type { MockEnvelope } from './exposure';
 import type { RescueView } from '@bindings/RescueView';
 import type { RescueWatchView } from '@bindings/RescueWatchView';
 import { invoiceText, proposeDiscount } from './rescue';
+import { pricesOf, RECORDED, RECORDED_AGO, RECORDED_HAGGLE, RECORDED_LABEL, recordedTimes, signedSteps, type RecordedHaggle, type RecordedStep } from './haggle';
 
 export const USD: Currency = 'USD';
 export const usd = (dollars: number): Money => ({ minor: Math.round(dollars * 100), currency: USD });
@@ -276,29 +277,57 @@ export function buildMockState(now: number): MockState {
   };
 
   // --- Tables (haggle) -------------------------------------------------------------------
-  const haggle: Array<[number, 'you' | 'them', TranscriptStep['typ'], number]> = [
-    [1, 'them', 'LISTING', 389], [2, 'you', 'OFFER', 290], [3, 'them', 'COUNTER', 372], [4, 'you', 'COUNTER', 305],
-    [5, 'them', 'COUNTER', 355], [6, 'you', 'COUNTER', 314], [7, 'them', 'COUNTER', 344], [8, 'you', 'COUNTER', 321],
-    [9, 'them', 'COUNTER', 333], [10, 'you', 'COUNTER', 327], [11, 'them', 'COUNTER', 329],
-  ];
+  // Dan's table and the house seller's are the engine's own runs: mock/haggle.json, written and
+  // checked by the Rust recorder (the practice agent through the wallet's MCP door, its mandate check
+  // and its refusal of the agent's yes above $250). No price on them is typed here.
+  const cents = (minor: number): Money => ({ minor, currency: USD });
+  const recMarket: [number, number, number] = [RECORDED.dan.market.p25 / 100, RECORDED.dan.market.median / 100, RECORDED.dan.market.p75 / 100];
+  const transcriptOf = (steps: readonly RecordedStep[], at: (i: number) => number): TranscriptStep[] =>
+    // As the ledger projects it (display.rs): an ACCEPT names no price; it accepts the offer on the table.
+    steps.map((s, i) => ({ seq: i + 1, by: s.by === 'seller' ? 'them' : 'you', typ: s.act.toUpperCase() as TranscriptStep['typ'], price: s.act === 'accept' ? null : cents(s.price), at: at(i), verified: true }));
+  const bandOf = (rec: RecordedHaggle, offers: number): DealDisplay['band'] =>
+    ({ floor: rec.rules.floor === null ? null : cents(rec.rules.floor), ceiling: cents(rec.rules.ceiling), max_rounds: rec.rules.max_offers, rounds_used: offers });
+  // Dan's table: his counters come down to the price the agent would take, and the wallet stops it
+  // there for Maya (her ask-me rule).
+  const dan = RECORDED.dan;
   add({
     label: 'D-0193', title: 'Refurbished 27-inch 4K monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-27-4k',
-    price: 329, state: 'NEGOTIATING', shield: 'CLEAR', market: [301, 318, 336], deadline: now + 3 * H + 57 * 60 + 56, mandate: MANDATE_M14,
+    price: dan.outcome.price / 100, state: 'NEGOTIATING', shield: 'CLEAR', market: recMarket, deadline: now + 3 * H + 57 * 60 + 56, mandate: MANDATE_M14,
     silence: 'the offer lapses at the deadline, no money moves', at: [now - 46 * 60, now],
-    band: { floor: null, ceiling: usd(340), max_rounds: 6, rounds_used: 5 },
-    transcript: haggle.map(([seq, by, typ, p], i) => ({ seq, by, typ, price: usd(p), at: now - (40 - i * 4) * 60, verified: true })),
-    attention: { kind: 'gate', module: 'tables', headline: 'Countersign $329.00', counterparty: 'Dan · north-desk', clause: { mandate_id: MANDATE_M14, number: 6 }, urgency: 'calm', actions: ['review', 'withdraw', 'snooze30', 'open_in_table'] },
+    band: bandOf(dan, pricesOf(dan).agent.length),
+    transcript: transcriptOf(signedSteps(dan), (i) => now - (40 - i * 4) * 60),
+    attention: { kind: 'gate', module: 'tables', headline: `Countersign $${(dan.outcome.price / 100).toFixed(2)}`, counterparty: 'Dan · north-desk', clause: { mandate_id: MANDATE_M14, number: 6 }, urgency: 'calm', actions: ['review', 'withdraw', 'snooze30', 'open_in_table'] },
   });
-  // Maya shops around for the same monitor: the house seller has a table too (T8). Its counter is
-  // above Dan's and the agent answered it, so nothing waits for her on this table.
+  // Maya shops around for the same monitor: the house seller has a table too (T8). It is the house's
+  // run, three offers in (its rule is deterministic, so midway it shows exactly these prices); the
+  // agent answered its counter, so nothing waits for her on this table.
+  const houseNow = signedSteps(RECORDED.house, 6);
   add({
     label: 'D-0204', title: 'Refurbished 27-inch 4K monitor', kind: 'haggle', side: 'buyer', cp: KEY.house, item: 'monitor-27-4k',
-    price: 312, state: 'NEGOTIATING', shield: 'CLEAR', market: [301, 318, 336], deadline: now + 3 * H + 57 * 60 + 56, mandate: MANDATE_M14,
+    price: (houseNow[houseNow.length - 1]?.price ?? 0) / 100, state: 'NEGOTIATING', shield: 'CLEAR', market: recMarket, deadline: now + 3 * H + 57 * 60 + 56, mandate: MANDATE_M14,
     silence: 'the offer lapses at the deadline, no money moves', at: [now - 41 * 60, now - 3 * 60],
-    band: { floor: null, ceiling: usd(340), max_rounds: 6, rounds_used: 3 },
-    transcript: ([[1, 'them', 'LISTING', 349], [2, 'you', 'OFFER', 290], [3, 'them', 'COUNTER', 339], [4, 'you', 'COUNTER', 305], [5, 'them', 'COUNTER', 334], [6, 'you', 'COUNTER', 312]] as const)
-      .map(([seq, by, typ, p], i) => ({ seq, by, typ, price: usd(p), at: now - (40 - i * 7) * 60, verified: true })),
+    band: bandOf(RECORDED.house, houseNow.filter((s) => s.by === 'agent').length),
+    transcript: transcriptOf(houseNow, (i) => now - (40 - i * 7) * 60),
   });
+  // The house seller's table for another 27-inch 4K monitor, agreed yesterday, as the wallet's own
+  // engine played it: every price, the wallet's refusal of the agent's yes (the price is over her
+  // ask-me line) and Maya's decision come from mock/haggle.json, which the Rust recorder writes and
+  // checks. No price is typed here.
+  {
+    const rec = RECORDED_HAGGLE;
+    const start = now - RECORDED_AGO;
+    const times = recordedTimes(rec, start);
+    const sent = rec.steps.map((s, i) => ({ s, at: times[i] ?? start })).filter(({ s }) => s.act !== 'refused');
+    add({
+      label: RECORDED_LABEL, title: 'Refurbished 27-inch 4K monitor', kind: 'haggle', side: 'buyer', cp: KEY.house, item: 'monitor-27-4k',
+      price: rec.outcome.price / 100, state: 'RECEIPTED', shield: 'CLEAR', market: [rec.market.p25 / 100, rec.market.median / 100, rec.market.p75 / 100], mandate: MANDATE_M14,
+      receipt: 'SELLER_ATTESTED', reconciliation: 'matched', paypal: { order: '7HX41ZQ2', authorization: '5KD2P', capture: '1VB7R' },
+      decided: { type: 'human', at: times[rec.steps.findIndex((s) => s.by === 'owner')] ?? start },
+      at: [start - 60, sent[sent.length - 1]?.at ?? start],
+      band: bandOf(rec, pricesOf(rec).agent.length),
+      transcript: transcriptOf(sent.map(({ s }) => s), (i) => sent[i]?.at ?? start),
+    });
+  }
   add({ label: 'D-0201', title: 'Refurbished 24-inch IPS monitor', kind: 'haggle', side: 'buyer', cp: KEY.house, item: 'monitor-24-ips', price: 0.01, state: 'PAIRING', mandate: MANDATE_M14, at: [now - 3 * 60, now - 2 * 60], silence: 'the house seller is waking up · nothing is offered yet' });
   add({ label: 'D-0187', title: 'Refurbished 24-inch monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-24-ips', price: 212, state: 'RECEIPTED', mandate: MANDATE_M14, version: 2, market: [199, 207, 221], receipt: 'SELLER_ATTESTED', reconciliation: 'matched', paypal: { order: '5UV28QK1', authorization: '3HF1Z', capture: '8TA0W' }, decided: POLICY6, at: [back(0.9), back(0.82)] });
   add({ label: 'D-0176', title: 'Refurbished 32-inch 4K monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-32-4k', price: 455, state: 'WITHDRAWN', mandate: MANDATE_M14, version: 2, at: [back(1), back(0.96)] });
@@ -733,6 +762,27 @@ export function buildHistory(now: number): HistoryStep[] {
   ago(D('D-0198'), 2 * 3600, 'created');
   ago(D('D-0198'), 2 * 3600 - 60, 'proposed', 'AGREED', AGENT);
   ago(D('D-0198'), 2 * 3600 - 70, 'shield_held');
+  // The recorded house table (mock/haggle.json): who decided each step, on the recording's clock.
+  {
+    const rec = RECORDED_HAGGLE;
+    const id = D(RECORDED_LABEL);
+    const times = recordedTimes(rec, now - RECORDED_AGO);
+    ago(id, RECORDED_AGO + 60, 'created');
+    rec.steps.forEach((s, i) => {
+      const secs = now - (times[i] ?? now);
+      if (s.act === 'listing') ago(id, secs, 'offer_received', 'LISTED');
+      else if (s.act === 'offer') ago(id, secs, 'offer_sent', i === 1 ? 'NEGOTIATING' : null, AGENT);
+      else if (s.act === 'counter') ago(id, secs, 'offer_received');
+      else if (s.act === 'refused') ago(id, secs, 'intent_refused', null, { type: 'signed_rule', clause: s.clause ?? null });
+      else if (s.act === 'accept' && s.by === 'owner') ago(id, secs, 'owner_accepted', null, OWNER);
+      else if (s.act === 'accept') {
+        // After the haggle, the PayPal side (not part of the recording): her approval, then the receipt.
+        ago(id, secs, 'agreed', 'AGREED', OWNER);
+        ago(id, secs - 12 * 60, 'pay_link_received', 'AWAITING_APPROVAL');
+        ago(id, secs - 5 * 3600, 'receipted', 'RECEIPTED');
+      }
+    });
+  }
   ago(D('D-0193'), 41 * 60, 'created');
   ago(D('D-0193'), 40 * 60, 'offer_received', 'LISTED');
   ago(D('D-0193'), 36 * 60, 'offer_sent', 'NEGOTIATING', AGENT);

@@ -2750,8 +2750,6 @@ agent-negotiation-run value-2 (ask a07e05ac): the owner chose "Keep as is, expla
 
 agent-negotiation-run value-2 follow-up (K-1): the at-floor line now compares the deal's agreed unit price (`terms.unit_price`) with the signed floor, because the signed ACCEPT carries no price (`display.rs:118`, `mock/backend.ts:952`), so the 753cb28 check never matched in the real app. Client words only; no Rust, mock or signed content changed. Commit: this commit. tsc and vitest were not run (no client node_modules in the worktree). Open: `mock/fixtures.ts:315` still carries a priced ACCEPT that disagrees with the Rust shape.
 
-agent-negotiation-run value-2 (ask a07e05ac): the owner chose "Keep as is, explain in UI". The seller's practice agent still accepts the first offer at or above its floor (`Policy::decide`, unchanged). The seller's own deal page now says so when its agent accepted exactly at the signed floor (`acceptedAtFloorLine` in `windows/main/deal/story.ts`, words `DEAL_AT_FLOOR`). Seller side only; the floor never reaches a buyer or counterparty view. Commit: 45dc3dc (words only; no money logic, Rust, bindings or mock changed). tsc and vitest were not run (no client node_modules in the worktree).
-
 ## Break The Table: the judge plays the attacker (2026-10-30, hackathon killer-1030 e1)
 
 A browser-preview page (`apps/desktop/client/arena.html`, built by `build:director`, never in the
@@ -2785,3 +2783,31 @@ wallet's answers. Nothing on it is acted:
   only under "The wallet's own record", below the plain-words answer. The mock's safety record still
   folds refusal families into two (it has no code per history step), unlike Rust's `family()`.
 - Gates: client typecheck, vitest, build; cargo fmt, clippy `-D warnings`, test --workspace.
+
+## Watch the haggle, drawn by the real engine (hackathon killer-1030 e4, 2026-10-30)
+
+Branch `hackathon/killer-1030/e4`. Closes the sequencing doc's R1 (agent-negotiation-run C4): the
+film's and the preview's haggle prices now come from the engine.
+
+- **Recorder and drift test** (`crates/table-runtime/src/haggle_record_tests.rs`, test-only): the
+  shipped practice agent plays two tables through the wallet's in-process MCP router, mandate check,
+  clause-6 refusal audit row and attention gate. The house seller answers on its own rule (ask $340,
+  floor $316, six rounds; `Policy::decide_on_schedule`, its round counted as `hosted.rs` counts it),
+  and the run goes on through the owner's `OwnerAccept` and the house's accept to AGREED at $324. Dan's
+  counters are given (the golden run of 614ed59), up to the refusal of the agent's yes to $329. Zero
+  PayPal calls in both. It writes `apps/desktop/client/src/mock/haggle.json` under
+  `TABLE_HAGGLE_RECORD=1`, and otherwise fails on any drift (it compares parsed JSON, so line endings
+  don't matter). The house seller's service itself (relay, PayPal) is not started; its decision rule is
+  called directly. Its demo band is a choice, not a deployed mandate.
+- **Preview re-cut**: D-0193 (Dan), D-0204 (the house, three offers in) and the new D-0205 (the house,
+  agreed yesterday and receipted; the PayPal steps after the haggle are sample history) are built
+  from the recording, on its market (p25 $300 / median $330 / p75 $360). The director's captions and
+  rehearsal checks read `director/recorded.ts`. The films' narration says $340 and $332 where it said
+  $389 and $334, and `director/filmPrices.test.ts` fails on any spoken price the engine never signed.
+- **Watch the haggle** (Tables layer view, Watch it on table panes and haggle deal pages, a compact
+  glance in the decision centre): see `docs/features/tables-haggling.md`. No IPC command, binding,
+  capability or authority row was added; it reads existing queries only.
+
+Gates on the branch: client typecheck clean, vitest 214 files / 2042 tests, build clean; cargo fmt
+clean, clippy (workspace, all targets, -D warnings) and `cargo test --workspace` (see the hackathon log
+for the final run).
