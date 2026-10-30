@@ -58,6 +58,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     println!();
     println!("  time   call                          verdict and the rule that answered it");
+    // `localhost` resolves to ::1 first on many machines: answer there too when it is free.
+    if let Ok(v6) = tokio::net::TcpListener::bind((std::net::Ipv6Addr::LOCALHOST, port)).await {
+        let router = app.clone().router();
+        tokio::spawn(async move {
+            let _ = axum::serve(v6, router).await;
+        });
+    }
     let serving = axum::serve(listener, app.clone().router()).with_graceful_shutdown(async {
         let _ = tokio::signal::ctrl_c().await;
     });

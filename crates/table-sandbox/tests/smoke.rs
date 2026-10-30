@@ -195,6 +195,20 @@ async fn an_outside_agent_is_told_no_at_the_signed_limit_and_paypal_is_never_ask
     let (bundle, report) = h.app.proof_now().await.unwrap();
     assert_eq!(bundle.deal.id.to_string(), deal);
     assert!(report.verified(), "{:#?}", report.checks);
+    // The wallet's own record names who acted: an outside agent, started from the playbook.
+    let starts: Vec<&str> = bundle
+        .audit
+        .iter()
+        .filter(|row| row.action == "run.start")
+        .map(|row| row.detail_json.as_str())
+        .collect();
+    assert!(!starts.is_empty());
+    assert!(
+        starts
+            .iter()
+            .all(|d| d.contains(r#""engine":"outside""#) && d.contains("buyer_haggler")),
+        "{starts:?}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

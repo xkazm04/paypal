@@ -196,6 +196,9 @@ function renderRules() {
     if (e.clause === 4 || e.clause === 6 || e.clause === 3) hits[e.clause] += 1;
     if (e.code === "tool_absent" || e.code === "malformed_call") hits.door += 1;
   }
+  const pushes = hits[4] + hits[6] + hits[3] + hits.door;
+  $("held").hidden = pushes === 0;
+  text("held", "Your agent pushed against a rule " + pushes + (pushes === 1 ? " time" : " times") + ". The rule held every time.");
   for (const key of Object.keys(hits)) {
     text("hits-" + key, hits[key] ? "held ×" + hits[key] : "");
     $("rule-" + key).classList.toggle("held", hits[key] > 0);

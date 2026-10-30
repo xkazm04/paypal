@@ -11,9 +11,9 @@
 //! - an owner rule signed at boot by a throwaway owner key, and no owner present: anything that
 //!   needs the owner in person cannot happen here.
 //!
-//! The outside agent takes the policy negotiator's engine slot ([`engine::OutsideAgent`]). The
-//! front ([`front`]) carries its MCP calls to the wallet's own loopback server under the run's
-//! grant, and journals each call with the rule that answered it.
+//! The outside agent has its own engine slot ([`engine::OutsideAgent`], `EngineId::Outside`, which
+//! no window can select). The front ([`front`]) carries its MCP calls to the wallet's own loopback
+//! server under the run's grant, and journals each call with the rule that answered it.
 pub mod engine;
 pub mod front;
 pub mod journal;

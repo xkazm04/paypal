@@ -48,6 +48,7 @@ main { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 20px; pa
 
 .counter { border-color: #24483a; background: linear-gradient(180deg, rgba(70, 196, 139, 0.10), var(--card) 70%); }
 .counter .big { font-size: 88px; font-weight: 800; color: var(--ok); line-height: 1; letter-spacing: -0.03em; }
+.held { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: rgba(240, 106, 106, 0.10); color: var(--ink); font-weight: 600; font-size: 13.5px; }
 .counter.bad { border-color: var(--no); }
 .counter.bad .big { color: var(--no); }
 

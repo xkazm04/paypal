@@ -139,10 +139,11 @@ impl App {
             .route("/api/proof", get(proof))
             .with_state(self)
     }
-    fn hosts(&self) -> [String; 2] {
+    fn hosts(&self) -> [String; 3] {
         [
             format!("127.0.0.1:{}", self.port),
             format!("localhost:{}", self.port),
+            format!("[::1]:{}", self.port),
         ]
     }
     /// The same door as the wallet's own: a loopback Host for this port.

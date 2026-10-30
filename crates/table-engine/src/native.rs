@@ -57,7 +57,10 @@ impl NativeEngine {
         root: PathBuf,
         limits: RunLimits,
     ) -> Result<Self, Error> {
-        if id == EngineId::Scripted || limits.init.is_zero() || limits.total < limits.init {
+        if matches!(id, EngineId::Scripted | EngineId::Outside)
+            || limits.init.is_zero()
+            || limits.total < limits.init
+        {
             return Err(Error::Invalid);
         }
         std::fs::create_dir_all(&root).map_err(|_| Error::Process)?;

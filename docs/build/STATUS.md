@@ -2763,9 +2763,12 @@ under the rule's clause 9 (a throwaway market key is stored because the watch ru
 Each table's proof file (`deal_export_proof`) is verified on the page and at exit by `table-verify`.
 
 - **No new grant path.** The wallet's MCP server executes intents only for a run the runtime
-  started (`ActorBridge` needs a `RunId`; `agent_gate` checks the run). The outside agent takes the
-  policy negotiator's engine slot (`engine::OutsideAgent`): the wallet starts it with `agent_start`,
-  hands it the run's grant, and it launches nothing. The front forwards each JSON-RPC body unchanged
+  started (`ActorBridge` needs a `RunId`; `agent_gate` checks the run). The outside agent has its
+  own engine id, `EngineId::Outside` (serialized `outside`; refused by `argv`, `resolve_command`
+  and `NativeEngine`, and never listed by `engine_info`, so `engine_select` refuses it from any
+  window). The sandbox seats `engine::OutsideAgent` there: the wallet starts it with `agent_start`,
+  hands it the run's grant, and it launches nothing. `run.start` rows say `outside` with the
+  buyer-haggler playbook. The front forwards each JSON-RPC body unchanged
   to the wallet's loopback MCP server under that grant and journals what answered. The front's door:
   loopback Host for its port, no `Origin` (browsers refused). claude-code and codex-cli stay gated.
 - **One turn per run.** A run ends itself at 100 s (inside `SESSION_SECS`), and the front starts a
@@ -2776,8 +2779,6 @@ Each table's proof file (`deal_export_proof`) is verified on the page and at exi
   an engine. Rust-only; no IPC command, no authority-table row, no money path.
 - **Deviation from the brief:** the system clock, not a fixed clock (the relay's settled-route
   cadence, deadlines and the house's 300 s table need time to move).
-- **Honest gap:** the outside agent's runs are recorded under engine `scripted` (the policy slot's
-  id) in `run.start` rows; adding an `EngineId` variant would ripple to the TS bindings.
 - **Rule numbers** (`lib.rs`): band ceiling $340 (rule 4 must hold the house's $329 listing for the
   table to be joined), in-person line $200 (rule 6, under the house's $239 floor, so any agreement
   waits for the owner), per deal $400 (rule 3). A buyer's band floor is where the agent starts, not

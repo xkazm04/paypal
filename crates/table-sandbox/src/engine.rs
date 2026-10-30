@@ -13,9 +13,9 @@ use table_engine::{
 };
 use tokio::sync::{Notify, mpsc::Sender};
 
-/// The slot the outside agent takes. The policy negotiator's own slot: a haggling negotiator
-/// started from the table, the one role this sandbox serves.
-pub const SLOT: EngineId = EngineId::Scripted;
+/// The slot the outside agent takes: its own engine id, so the wallet's record names it
+/// (`run.start` rows say `outside`) and no window can select it.
+pub const SLOT: EngineId = EngineId::Outside;
 /// A run ends itself before the wallet's grant horizon (`table_mcp::SESSION_SECS`), so the
 /// front renews it between calls instead of an agent meeting an expired session.
 pub const RUN_SECS: u64 = 100;
