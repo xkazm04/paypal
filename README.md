@@ -58,6 +58,16 @@ closed. A static build also works: run `pnpm --dir apps/desktop/client build:dir
 `build`, and so the release build, does not include the director), then serve
 `apps/desktop/client/dist` and open `director.html` from it.
 
+**Watch the haggle.** In the preview's main window, open Tables and press **Watch the haggle** (or go
+to `index.html#m=tables&v=watch`). A haggle replays as two pucks closing on a price rail between the
+owner's walls. Where the wallet refused the agent's yes above her "ask me" line, a gold gate drops,
+the agent bounces off it, and the deal snaps shut only when she says yes herself. The demo's haggle
+prices are typed nowhere. `crates/table-runtime/src/haggle_record_tests.rs` plays the shipped
+practice agent through the wallet's own MCP door and mandate check, and writes
+`apps/desktop/client/src/mock/haggle.json`. The sample tables, the director's captions and the
+films' narration are all checked against that file, and the test fails if the file and the engine
+ever drift.
+
 This needs Node and pnpm and nothing else. The repo pins neither version.
 
 ### What is real and what is mocked
