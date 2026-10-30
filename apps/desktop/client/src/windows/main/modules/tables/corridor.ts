@@ -291,3 +291,15 @@ export function captionOf(b: Beat, h: Haggle, who: string): string {
       return b.by === 'you' ? W.withdrawnYou : W.withdrawnThem(who);
   }
 }
+
+/** Two pucks closer than `minPx` on a track `widthPx` wide are drawn `minPx` apart around their
+ *  midpoint, in their order, so neither hides the other (or the gate between them). Fractions in,
+ *  fractions out; the figures they carry are untouched. */
+export function spread(a: number, b: number, widthPx: number, minPx: number): [number, number] {
+  if (widthPx <= 0) return [a, b];
+  const gap = minPx / widthPx;
+  if (Math.abs(b - a) >= gap) return [a, b];
+  const mid = (a + b) / 2;
+  const dir = b >= a ? 1 : -1;
+  return [mid - (dir * gap) / 2, mid + (dir * gap) / 2];
+}

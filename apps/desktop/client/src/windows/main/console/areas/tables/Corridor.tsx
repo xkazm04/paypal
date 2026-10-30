@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type Keyboard
 import { usePrefersReducedMotion } from '../../../../../lib/hooks';
 import { TABLES_WATCH as W } from '../../../../../lib/words';
 import { Btn } from '../../../../../shared/ui';
-import { captionOf, frameAt, lunge, playbook, stepTo, trackOf, xOf, type Beat, type Haggle, type Playbook } from '../../../modules/tables/corridor';
+import { captionOf, frameAt, lunge, playbook, spread, stepTo, trackOf, xOf, type Beat, type Haggle, type Playbook } from '../../../modules/tables/corridor';
 import { short } from '../../../modules/tables/ladder';
 
 const pct = (f: number): string => `${(f * 100).toFixed(3)}%`;
@@ -55,6 +55,7 @@ export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle
   const track = useMemo(() => trackOf(haggle), [haggle]);
   const lines = useMemo(() => haggle.beats.map((b) => captionOf(b, haggle, who)), [haggle, who]);
   const clock = useClock(pb.total, autoplay && !reduced);
+  const [trackRef, widthPx] = useWidth();
   // Reduced motion: each beat is drawn as it rests (no slide, no lunge, no burst).
   const at = reduced ? restingTime(pb, clock.t) : clock.t;
   const f = frameAt(pb, at);
@@ -80,6 +81,10 @@ export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle
   const pulse = (since: number | null) => (since === null || reduced ? 0 : clamp01(since / PULSE_MS));
 
   const met = f.snap?.p === 1;
+  // Close pucks are drawn apart (more so with a gate between them); the snap brings them together.
+  const [youF, themF] = youX !== null && f.them !== null && !f.snap
+    ? spread(x(youX), x(f.them), widthPx, gateAt !== null ? 40 : 28)
+    : [youX !== null ? x(youX) : null, f.them !== null ? x(f.them) : null];
 
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     const to = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? stepTo(pb, clock.t, 1)
@@ -106,7 +111,7 @@ export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle
         </div>
       </div>
 
-      <div className="hc-track" aria-hidden="true">
+      <div className="hc-track" aria-hidden="true" ref={trackRef}>
         {haggle.market ? (
           <div className="hc-lane" style={{ left: pct(x(haggle.market.p25)), width: pct(x(haggle.market.p75) - x(haggle.market.p25)) }}>
             <span className="hc-median" style={{ left: pct((x(haggle.market.median) - x(haggle.market.p25)) / Math.max(1e-9, x(haggle.market.p75) - x(haggle.market.p25))) }} />
@@ -138,8 +143,8 @@ export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle
           </div>
         ) : null}
 
-        {f.them !== null && themPrice !== null ? <Puck side="them" x={x(f.them)} label={m(f.snap ? f.snap.price : themPrice)} hide={met} pulse={pulse(f.since.them)} /> : null}
-        {youX !== null && youPrice !== null ? <Puck side="you" x={x(youX)} label={m(f.snap ? f.snap.price : youPrice)} hide={met} pulse={pulse(f.since.you)} /> : null}
+        {themF !== null && themPrice !== null ? <Puck side="them" x={themF} label={m(f.snap ? f.snap.price : themPrice)} hide={met} pulse={pulse(f.since.them)} /> : null}
+        {youF !== null && youPrice !== null ? <Puck side="you" x={youF} label={m(f.snap ? f.snap.price : youPrice)} hide={met} pulse={pulse(f.since.you)} /> : null}
         {f.snap ? (
           <div className={`hc-deal${met ? ' on' : ''}`} style={{ left: pct(x(f.snap.price)), '--burst': burst.toFixed(3) } as CSSProperties}>
             <span className="hc-burst" />
@@ -207,4 +212,20 @@ function lastRefusal(h: Haggle): { price: number | null; clause: number | null }
     if (b?.kind === 'refused') return { price: b.price, clause: b.clause };
   }
   return null;
+}
+
+/** The element's width in pixels, kept current as it resizes (0 until measured). */
+function useWidth(): [(el: HTMLDivElement | null) => void, number] {
+  const [w, setW] = useState(0);
+  const obs = useRef<ResizeObserver | null>(null);
+  const ref = (el: HTMLDivElement | null) => {
+    obs.current?.disconnect();
+    obs.current = null;
+    if (!el) return;
+    setW(el.getBoundingClientRect().width);
+    if (typeof ResizeObserver === 'undefined') return;
+    obs.current = new ResizeObserver((entries) => { const e = entries[0]; if (e) setW(e.contentRect.width); });
+    obs.current.observe(el);
+  };
+  return [ref, w];
 }

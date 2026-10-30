@@ -4,7 +4,7 @@ import type { HistoryStep } from '@bindings/HistoryStep';
 import { mockBackend } from '../../../../mock/backend';
 import { fakeUlid } from '../../../../mock/fixtures';
 import { RECORDED_HAGGLE, RECORDED_LABEL } from '../../../../mock/haggle';
-import { captionOf, frameAt, haggleOf, haggleSpan, LEAD_MS, lunge, playbook, SLIDE_MS, trackOf, watchable, xOf, type Beat, type Haggle } from './corridor';
+import { captionOf, frameAt, haggleOf, haggleSpan, LEAD_MS, lunge, playbook, SLIDE_MS, spread, trackOf, watchable, xOf, type Beat, type Haggle } from './corridor';
 
 const usd = (minor: number) => ({ minor, currency: 'USD' as const });
 const step = (seq: number, by: 'you' | 'them', typ: TranscriptStep['typ'], price: number | null, at: number): TranscriptStep => ({ seq, by, typ, price: price === null ? null : usd(price), at, verified: true });
@@ -140,5 +140,17 @@ describe('the clock and the frame', () => {
     expect(lines[3]).toContain('$250');
     expect(lines[4]).toBe('You say yes to $336, in the approval window.');
     expect(lines[5]).toContain('Agreed at $336.');
+  });
+});
+
+describe('spread', () => {
+  it('leaves pucks far enough apart alone, and spreads close ones around their midpoint in order', () => {
+    expect(spread(0.2, 0.6, 600, 30)).toEqual([0.2, 0.6]);
+    const [a, b] = spread(0.5, 0.51, 600, 30);
+    expect(b - a).toBeCloseTo(30 / 600, 9);
+    expect((a + b) / 2).toBeCloseTo(0.505, 9);
+    const [c, d] = spread(0.51, 0.5, 600, 30);
+    expect(c).toBeGreaterThan(d);
+    expect(spread(0.5, 0.5, 0, 30)).toEqual([0.5, 0.5]);
   });
 });
