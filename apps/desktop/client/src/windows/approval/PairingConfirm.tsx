@@ -120,13 +120,20 @@ export function PairingConfirm({ pending, readError, onSettled }: Props) {
     );
   }
 
+  // A refusal that lapsed or ended the pairing re-reads it (onSettled), which then answers null: the
+  // answer to the owner's click stays on screen above the "nothing waiting" text.
+  const failure = error ? <WalletNotice error={error} what="Not connected" message={footerNoticeText('pairing', error)} /> : null;
+
   if (readError) return <WalletNotice error={readError} what="Nothing to confirm" message={footerNoticeText('pairing_read', readError)} />;
   if (pending === undefined) return <p className="ui-hint" role="status">Looking for a waiting connection…</p>;
   if (pending === null) {
     return (
-      <p className="ow-p">
-        No connection is waiting for you. Connecting starts in The Table: one of you creates a code, the other joins it. The Table then brings you here with four words, and each of you confirms them <b>here</b>. An expired or finished one doesn’t come back.
-      </p>
+      <>
+        {failure}
+        <p className="ow-p">
+          No connection is waiting for you. Connecting starts in The Table: one of you creates a code, the other joins it. The Table then brings you here with four words, and each of you confirms them <b>here</b>. An expired or finished one doesn’t come back.
+        </p>
+      </>
     );
   }
 
@@ -205,7 +212,7 @@ export function PairingConfirm({ pending, readError, onSettled }: Props) {
         </p>
       ) : null}
       {s.unlockError ? <WalletNotice error={s.unlockError} what={UNLOCK_HEADING} message={footerNoticeText('unlock', s.unlockError)} /> : null}
-      {error ? <WalletNotice error={error} what="Not connected" message={footerNoticeText('pairing', error)} /> : null}
+      {failure}
       <p className="ui-silence">
         <Hourglass /><span className="if">If you do nothing: </span><b>it waits, then lapses</b> · nothing is connected, nobody is paid
       </p>
