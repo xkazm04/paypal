@@ -222,6 +222,12 @@ impl World {
     pub fn deal(&self) -> Option<Deal> {
         self.deal.lock().ok().map(|d| d.clone())
     }
+    /// The deal as the house seller's own ledger holds it (trusted Rust inspection, never served
+    /// whole: the page reads only its state).
+    pub async fn house_deal(&self) -> Option<Deal> {
+        let house = self.house.lock().await;
+        house.as_ref()?.handle.snapshot(self.deal_id).await.ok()
+    }
     /// Ends the live run and stops the house (its tick in flight finishes first).
     pub async fn close(&self) {
         if let Some(live) = self.slot.live() {

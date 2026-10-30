@@ -106,44 +106,39 @@ impl Journal {
     }
 }
 
-/// Plain words for the rule a signed clause number names.
-pub fn clause_words(clause: u8) -> &'static str {
-    match clause {
-        0 => "your wallet-wide limits",
-        1 => "rule 1, what the agent may do",
-        2 => "rule 2, who it may deal with",
-        3 => "rule 3, the most per deal",
-        4 => "rule 4, your signed price band",
-        5 => "rule 5, how much a day",
-        6 => "rule 6, over this you decide in person",
-        7 => "rule 7, who may be paid",
-        _ => "a rule you signed",
-    }
-}
-
-/// What a refusal code means for the person watching, in one short phrase.
-fn code_words(code: &str) -> &'static str {
-    match code {
-        "outside_band" => "outside the price band you signed",
-        "owner_approval" => "needs you in person",
-        "rounds_exhausted" => "no offers left in the band",
-        "deadline_passed" => "the deadline has passed",
-        "not_your_turn" => "not its turn",
-        "table_closed" => "the table is closed",
-        "mandate_clause" => "a rule you signed does not allow it",
-        "wallet_limit" => "over your wallet-wide limit",
-        "tool_absent" => "no such tool for this agent",
-        "malformed_call" => "the call does not match the tool",
-        "out_of_scope" => "not this deal or item",
-        "market_unavailable" => "no market price cached",
-        "invalid_request" => "the wallet could not use the request",
-        "session_not_enabled" => "the session is not enabled",
-        "run_ended" => "the agent's run ended",
-        "paused" => "agents are paused",
-        "group_closed" => "another table already agreed",
-        "shield_hold" => "the scam shield holds the deal",
-        "unavailable" => "the wallet could not answer",
-        _ => "refused",
+/// What held, in the sandbox's own signed numbers: the rule's statement for a refusal code.
+fn held(code: &str, clause: Option<u8>) -> String {
+    use crate::front::dollars;
+    match (code, clause) {
+        ("outside_band", _) => format!("never offer over {}", dollars(crate::RULE_CEILING)),
+        ("rounds_exhausted", _) => format!("at most {} offers", crate::RULE_ROUNDS),
+        ("owner_approval", _) => format!(
+            "agreeing over {} needs you in person",
+            dollars(crate::RULE_IN_PERSON)
+        ),
+        ("deadline_passed", _) => "nothing is signed after the table's deadline".into(),
+        ("mandate_clause", Some(1)) => "your agent may only buy".into(),
+        ("mandate_clause", Some(2)) => "only the paired house seller".into(),
+        ("mandate_clause", Some(3)) => {
+            format!("at most {} on any one deal", dollars(crate::RULE_PER_DEAL))
+        }
+        ("mandate_clause", Some(5)) => "only so much a day".into(),
+        ("mandate_clause", Some(7)) => "only the house seller may be paid".into(),
+        ("mandate_clause", _) => "a rule you signed does not allow it".into(),
+        ("wallet_limit", _) => "your wallet-wide limit".into(),
+        ("not_your_turn", _) => "one offer at a time: wait for the house seller".into(),
+        ("table_closed", _) => "this table is closed".into(),
+        ("tool_absent", _) => "no such tool, and none of its tools can pay".into(),
+        ("malformed_call", _) => "the call does not match the tool".into(),
+        ("out_of_scope", _) => "only this table, this item".into(),
+        ("market_unavailable", _) => "no market price is cached in the sandbox".into(),
+        ("invalid_request", _) => "the wallet could not use the request".into(),
+        ("session_not_enabled", _) => "the session is not enabled yet".into(),
+        ("run_ended", _) => "the agent's turn ended".into(),
+        ("paused", _) => "every agent is paused".into(),
+        ("group_closed", _) => "another table already agreed".into(),
+        ("shield_hold", _) => "the scam check holds the deal".into(),
+        _ => "the wallet could not answer".into(),
     }
 }
 
@@ -261,15 +256,21 @@ pub fn read(request: Option<&Value>, status: u16, answer: Option<&Value>) -> Ent
                     .and_then(|w| w.get("text"))
                     .and_then(Value::as_str)
                     .map(str::to_owned);
-                let what = code.as_deref().map_or("refused", code_words);
-                entry.rule = match clause {
-                    Some(clause) => format!("{}: {what}", clause_words(clause)),
-                    None => match code.as_deref() {
-                        Some("tool_absent" | "malformed_call") => {
-                            format!("the wallet's MCP door: {what}")
-                        }
-                        _ => format!("the wallet: {what}"),
-                    },
+                let budget = entry
+                    .detail
+                    .as_deref()
+                    .is_some_and(|d| d.contains("tool-call budget"));
+                let statement = held(code.as_deref().unwrap_or(""), clause);
+                entry.rule = match (clause, code.as_deref()) {
+                    (None, _) if budget => format!(
+                        "The door held: {} calls a turn, a looping agent is cut off",
+                        table_mcp::CALL_BUDGET
+                    ),
+                    (Some(clause), _) if clause > 0 => format!("Rule {clause} held: {statement}"),
+                    (_, Some("tool_absent" | "malformed_call")) => {
+                        format!("The door held: {statement}")
+                    }
+                    _ => format!("The wallet held: {statement}"),
                 };
                 entry.code = code;
                 entry.clause = clause;
@@ -298,7 +299,7 @@ mod tests {
         assert_eq!(entry.outcome, Outcome::Refused);
         assert_eq!(entry.code.as_deref(), Some("outside_band"));
         assert_eq!(entry.clause, Some(4));
-        assert!(entry.rule.starts_with("rule 4"));
+        assert_eq!(entry.rule, "Rule 4 held: never offer over $340.00");
         assert_eq!(entry.detail.as_deref(), Some("at most 250.00"));
         assert_eq!(entry.tool.as_deref(), Some("send_offer"));
     }
@@ -310,7 +311,7 @@ mod tests {
         let answer = json!({"jsonrpc":"2.0","id":4,"result":{"isError":true,"content":[{"type":"text","text":wire.to_string()}]}});
         let entry = read(Some(&request), 200, Some(&answer));
         assert_eq!(entry.code.as_deref(), Some("tool_absent"));
-        assert!(entry.rule.contains("MCP door"));
+        assert!(entry.rule.starts_with("The door held"));
     }
 
     #[test]

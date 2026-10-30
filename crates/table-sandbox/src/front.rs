@@ -49,6 +49,12 @@ pub struct App {
     pub journal: Journal,
     /// One run start at a time.
     starting: tokio::sync::Mutex<()>,
+    /// The run the front last carried calls under, and the deal's transcript head when it began.
+    /// A run is one turn, as the desktop arms its negotiator once per peer message: when the
+    /// table moves, the next call goes under a new run (and a new call budget).
+    turn: std::sync::Mutex<Option<(table_core::RunId, table_core::H256)>>,
+    /// Read-only calls not yet printed (folded into one terminal line).
+    folded: std::sync::Mutex<Option<(String, u32)>>,
     /// One fresh table at a time.
     opening: tokio::sync::Mutex<()>,
     facts: tokio::sync::Mutex<Facts>,
@@ -105,6 +111,8 @@ impl App {
             http,
             journal: Journal::default(),
             starting: tokio::sync::Mutex::new(()),
+            turn: std::sync::Mutex::new(None),
+            folded: std::sync::Mutex::new(None),
             opening: tokio::sync::Mutex::new(()),
             facts: tokio::sync::Mutex::new(Facts::default()),
             runs: AtomicU64::new(0),
@@ -122,6 +130,7 @@ impl App {
             .route("/", get(page))
             .route("/app.js", get(script))
             .route("/app.css", get(style))
+            .route("/favicon.ico", get(|| async { StatusCode::NO_CONTENT }))
             .route("/api/state", get(state))
             .route("/api/journal", get(journal))
             .route("/api/fresh", post(fresh))
@@ -166,8 +175,16 @@ impl App {
     /// live or the live one is near its end.
     async fn ensure_run(&self, world: &World) -> Result<Arc<Live>, String> {
         let _one = self.starting.lock().await;
+        let head = world.deal().map(|d| d.transcript_head);
         if let Some(live) = world.slot.live() {
-            if live.fresh() {
+            let moved = self.turn.lock().is_ok_and(|mut turn| match *turn {
+                Some((run, began)) if run == live.run => Some(began) != head,
+                _ => {
+                    *turn = head.map(|head| (live.run, head));
+                    false
+                }
+            });
+            if live.fresh() && !moved {
                 return self
                     .running(world, live)
                     .await
@@ -200,6 +217,9 @@ impl App {
                         .filter(|l| l.run == snapshot.run)
                         && let Some(live) = self.running(world, live).await
                     {
+                        if let (Ok(mut turn), Some(head)) = (self.turn.lock(), head) {
+                            *turn = Some((live.run, head));
+                        }
                         return Ok(live);
                     }
                 }
@@ -265,10 +285,45 @@ impl App {
             self.journal.set_table(Some(table.clone()));
         }
         let entry = self.journal.push(entry);
+        if !self.echo.load(Ordering::Relaxed) {
+            return;
+        }
+        let read = entry.outcome == Outcome::Answered
+            && matches!(
+                entry.tool.as_deref(),
+                Some("table_view" | "market_reference")
+            );
+        let Ok(mut folded) = self.folded.lock() else {
+            return;
+        };
+        if read {
+            let tool = entry.tool.clone().unwrap_or_default();
+            match folded.as_mut() {
+                Some((held, count)) if *held == tool => *count = count.saturating_add(1),
+                _ => {
+                    if let Some((held, count)) = folded.take() {
+                        self.echo_line(&Self::fold_line(&held, count));
+                    }
+                    self.echo_line(&self.line(&entry));
+                    *folded = Some((tool, 0));
+                }
+            }
+            return;
+        }
+        if let Some((held, count)) = folded.take() {
+            self.echo_line(&Self::fold_line(&held, count));
+        }
         self.echo_line(&self.line(&entry));
     }
+    /// The line for reads folded since the last one printed.
+    fn fold_line(tool: &str, count: u32) -> String {
+        if count == 0 {
+            return String::new();
+        }
+        format!("         … {tool} ×{count} more (read only)")
+    }
     fn echo_line(&self, line: &str) {
-        if self.echo.load(Ordering::Relaxed) {
+        if !line.is_empty() && self.echo.load(Ordering::Relaxed) {
             println!("{line}");
         }
     }
@@ -397,6 +452,10 @@ impl App {
             Some(world) => self.facts(world).await,
             None => Facts::default(),
         };
+        let house_deal = match &world {
+            Some(world) => world.house_deal().await,
+            None => None,
+        };
         json!({
             "port": self.port,
             "item": crate::ITEM,
@@ -419,6 +478,7 @@ impl App {
                 "price_cents": d.terms.unit_price.minor(),
                 "decided_by": d.decided_by,
             })),
+            "house_deal": house_deal.as_ref().map(|d| json!({"state": d.state, "price_cents": d.terms.unit_price.minor()})),
             "paypal": {"buyer": self.recorders.buyer.asked(), "house": self.recorders.house.asked()},
             "calls": calls,
             "answered": answered,
