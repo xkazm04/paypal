@@ -101,6 +101,9 @@ impl Log for Stderr {
     }
 }
 
+/// How long a table stays open for haggling, in clock seconds, unless the signed band ends
+/// sooner: a buyer that falls silent has its table lapse with no money moved.
+pub const TABLE_SECS: i64 = 300;
 /// How long a table request waits for the actor before the caller sees 503.
 const REPLY_TIMEOUT: Duration = Duration::from_secs(20);
 /// Requests the actor queues for buyers' tables (and trusted snapshots); beyond it, 429.
@@ -240,6 +243,8 @@ pub struct Seller {
     /// The public projection and signed head the read routes serve (T9).
     pub(crate) published: Arc<RwLock<Option<Arc<Published>>>>,
     pub(crate) published_at: Option<i64>,
+    /// How long a new table stays open ([`TABLE_SECS`] unless set with `with_table_secs`).
+    table_secs: i64,
 }
 
 /// A money operation whose PayPal outcome is unknown and not yet resolved: its call failed
@@ -387,6 +392,7 @@ impl Seller {
             door: Arc::new(AtomicU64::new(0)),
             published: Arc::new(RwLock::new(None)),
             published_at: None,
+            table_secs: TABLE_SECS,
             clock,
             relay,
             settled_polls: table_ledger::SettledPollClock::default(),
@@ -463,6 +469,13 @@ impl Seller {
     #[must_use]
     pub fn with_log(mut self, log: Arc<dyn Log>) -> Self {
         self.log = log;
+        self
+    }
+    /// Opens each new table for `secs` (one minute to one hour) instead of [`TABLE_SECS`]: the
+    /// headless sandbox gives a judge's own agent app time to think. The signed band's deadline
+    /// still caps it.
+    pub fn with_table_secs(mut self, secs: i64) -> Self {
+        self.table_secs = secs.clamp(60, 3600);
         self
     }
     /// Logs a failed step as `house step=<step> deal=<id> error=<code>` and passes the result on.
@@ -604,7 +617,7 @@ impl Seller {
                     _ => None,
                 })
                 .ok_or(Error::Invalid)?
-                .min(now.saturating_add(300));
+                .min(now.saturating_add(self.table_secs));
             self.pipeline
                 .wallet
                 .ledger

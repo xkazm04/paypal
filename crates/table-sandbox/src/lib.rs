@@ -36,6 +36,9 @@ pub const HOUSE_PAYEE: &str = "house-seller";
 pub const HOUSE_ASK: i64 = 32_900;
 pub const HOUSE_FLOOR: i64 = 23_900;
 pub const HOUSE_ROUNDS: u8 = 6;
+/// How long each table stays open: long enough for a deliberate agent app to haggle six rounds
+/// (the hosted house gives a buyer five minutes).
+pub const TABLE_SECS: i64 = 15 * 60;
 /// The owner's signed rule for the buyer's agent, in cents. Rule 4's band must hold the house's
 /// opening listing for its table to be joined at all, so the band is the outer fence: no offer
 /// above its ceiling is ever signed, in at most six offers (a buyer's floor is only where the
@@ -300,7 +303,8 @@ impl World {
             }),
             "house seller",
         )?
-        .with_log(Arc::new(Quiet));
+        .with_log(Arc::new(Quiet))
+        .with_table_secs(TABLE_SECS);
         let house = house_seller::start(seller);
         let house_routes = house_seller::router(store, house.handle.clone());
 

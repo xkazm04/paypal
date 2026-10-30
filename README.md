@@ -77,7 +77,7 @@ present in the sandbox. Then try to break it:
 Through all of it the page reads **PayPal asked: 0**: the wallet's PayPal client is wired to a
 recorder that counts every request it would send, and sends none. The wallet's own whole-ledger
 safety check (audit chain, authorities, refusals) sits beside it. **Open a fresh table** starts over
-with a new house seller (a house table lasts five minutes). Stop with Ctrl+C for a summary.
+with a new house seller (each table stays open fifteen minutes). Stop with Ctrl+C for a summary.
 
 What is real: the wallet actor, its loopback MCP server and run gate, the money pipeline and its
 mandate checks, the signed rules, the hash-chained audit log, the house seller (its own deployed
