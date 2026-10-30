@@ -9,7 +9,7 @@
 // reduced motion all agree. Reduced motion steps from beat to beat with no slide, lunge or burst; the
 // timeline names the beat it is on, the steps list is always there, and the one caption line is read
 // out as each beat lands.
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { usePrefersReducedMotion } from '../../../../../lib/hooks';
 import { TABLES_WATCH as W } from '../../../../../lib/words';
 import { Btn } from '../../../../../shared/ui';
@@ -230,11 +230,12 @@ function lastRefusal(h: Haggle): { price: number | null; clause: number | null }
   return null;
 }
 
-/** The element's width in pixels, kept current as it resizes (0 until measured). */
+/** The element's width in pixels, kept current as it resizes (0 until measured). The ref is stable, so
+ *  the observer is made once per element, not once per frame. */
 function useWidth(): [(el: HTMLDivElement | null) => void, number] {
   const [w, setW] = useState(0);
   const obs = useRef<ResizeObserver | null>(null);
-  const ref = (el: HTMLDivElement | null) => {
+  const ref = useCallback((el: HTMLDivElement | null) => {
     obs.current?.disconnect();
     obs.current = null;
     if (!el) return;
@@ -242,6 +243,6 @@ function useWidth(): [(el: HTMLDivElement | null) => void, number] {
     if (typeof ResizeObserver === 'undefined') return;
     obs.current = new ResizeObserver((entries) => { const e = entries[0]; if (e) setW(e.contentRect.width); });
     obs.current.observe(el);
-  };
+  }, []);
   return [ref, w];
 }
