@@ -35,11 +35,13 @@ impl Client {
         self.rpc("tools/call", json!({"name":tool,"arguments":arguments}))
             .await
     }
+    /// The table as the wallet projects it; nothing when the read was refused.
     async fn table(&mut self) -> Option<Value> {
-        self.call("table_view", json!({}))
-            .await?
-            .get("structuredContent")
-            .cloned()
+        let result = self.call("table_view", json!({})).await?;
+        if result["isError"] != false {
+            return None;
+        }
+        result.get("structuredContent").cloned()
     }
     /// Reads the table about once a second until `ready` holds (the house answers through the
     /// relay pump), for at most a minute.

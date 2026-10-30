@@ -65,6 +65,21 @@ impl Slot {
         .await
         .ok()
     }
+    /// Waits until the slot no longer holds `run` (it ended, or another run took the slot), or
+    /// `within` passes. Returns whether it is gone.
+    pub async fn gone(&self, run: RunId, within: Duration) -> bool {
+        tokio::time::timeout(within, async {
+            loop {
+                let changed = self.changed.notified();
+                if self.live().is_none_or(|live| live.run != run) {
+                    return;
+                }
+                changed.await;
+            }
+        })
+        .await
+        .is_ok()
+    }
     /// Asks the live run to end now (the engine returns clean; the wallet records the run's end).
     pub fn end(&self, run: RunId) {
         if let Some(live) = self.live().filter(|live| live.run == run) {
@@ -186,6 +201,7 @@ mod tests {
         assert_eq!(live.run, run);
         assert!(live.fresh());
         slot.end(run);
+        assert!(slot.gone(run, Duration::from_secs(2)).await);
         assert!(matches!(task.await.unwrap(), Ok(TerminalVerdict::Clean)));
         assert!(slot.live().is_none());
     }

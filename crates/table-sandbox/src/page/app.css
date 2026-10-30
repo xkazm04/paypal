@@ -128,8 +128,8 @@ h2 { font-size: 15px; margin: 0; }
 .verdict { font-weight: 750; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; min-width: 78px; color: var(--muted); }
 .call.refused .verdict { color: var(--no); font-size: 14px; }
 .call.answered .verdict { color: var(--ok); }
-.tool { font-family: ui-monospace, Consolas, monospace; }
-.args { color: var(--gold); font-family: ui-monospace, Consolas, monospace; }
+.tool { font-family: ui-monospace, Consolas, monospace; unicode-bidi: isolate; }
+.args { color: var(--gold); font-family: ui-monospace, Consolas, monospace; unicode-bidi: isolate; }
 .call.refused .args { font-size: 16px; font-weight: 700; }
 .time { margin-left: auto; color: var(--faint); font-size: 12px; }
 .rule-line { margin-top: 4px; }

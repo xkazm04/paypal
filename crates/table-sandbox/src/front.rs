@@ -12,7 +12,7 @@ use crate::{BootError, Recorders, World};
 use axum::{
     Json, Router,
     body::Bytes,
-    extract::{Query, State},
+    extract::{DefaultBodyLimit, Query, State},
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
     routing::{get, post},
@@ -36,6 +36,8 @@ const FACTS_TTL: Duration = Duration::from_millis(1500);
 /// The wallet's own record, as last read: its whole-ledger safety check and its newest audit rows.
 #[derive(Debug, Clone, Default)]
 struct Facts {
+    /// The table these were read from; never reused for another.
+    table: u32,
     read: Option<Instant>,
     safety: Option<SafetyRecord>,
     audit: Vec<table_client::AuditRow>,
@@ -51,10 +53,10 @@ pub struct App {
     pub journal: Journal,
     /// One run start at a time.
     starting: tokio::sync::Mutex<()>,
-    /// The run the front last carried calls under, and the deal's transcript head when it began.
-    /// A run is one turn, as the desktop arms its negotiator once per peer message: when the
-    /// table moves, the next call goes under a new run (and a new call budget).
-    turn: std::sync::Mutex<Option<(table_core::RunId, table_core::H256)>>,
+    /// The run the front last carried calls under: one turn, as the desktop arms its negotiator
+    /// once per peer message. When the table moves, the next call goes under a new run (and a new
+    /// call budget); a turn whose budget is spent is not renewed until it does.
+    turn: std::sync::Mutex<Option<Turn>>,
     /// Read-only calls not yet printed (folded into one terminal line).
     folded: std::sync::Mutex<Option<(String, u32)>>,
     /// One fresh table at a time.
@@ -76,6 +78,22 @@ impl std::fmt::Debug for App {
             .finish_non_exhaustive()
     }
 }
+/// One turn: its run, the deal's transcript head when the run began, and whether the wallet's
+/// call budget for it is spent.
+#[derive(Debug, Clone, Copy)]
+struct Turn {
+    run: table_core::RunId,
+    head: table_core::H256,
+    spent: bool,
+}
+/// Why a call was not carried.
+#[derive(Debug)]
+enum Carry {
+    /// The table changed while the call waited: carry it again on the live one.
+    Stale,
+    /// Told to the agent as a JSON-RPC error.
+    Fail(String),
+}
 fn main_window() -> Caller {
     Caller {
         label: "main".into(),
@@ -87,11 +105,31 @@ fn unix_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
 }
-/// Agent-supplied text bound for a terminal: no control characters (no escape sequences), short.
+/// Characters that change how the text around them reads without showing themselves: bidi
+/// overrides and isolates, zero-width marks, the BOM.
+fn invisible(c: char) -> bool {
+    matches!(
+        c,
+        '\u{061C}'
+            | '\u{200B}'..='\u{200F}'
+            | '\u{202A}'..='\u{202E}'
+            | '\u{2060}'..='\u{206F}'
+            | '\u{FEFF}'
+            | '\u{FFF9}'..='\u{FFFB}'
+    )
+}
+/// Agent-supplied text bound for a terminal: no control or invisible characters (no escape
+/// sequences, no reordering), short.
 pub fn printable(text: &str, max: usize) -> String {
     let mut out: String = text
         .chars()
-        .map(|c| if c.is_control() { '?' } else { c })
+        .map(|c| {
+            if c.is_control() || invisible(c) {
+                '?'
+            } else {
+                c
+            }
+        })
         .take(max)
         .collect();
     if text.chars().count() > max {
@@ -143,6 +181,8 @@ impl App {
             .route("/api/journal", get(journal))
             .route("/api/fresh", post(fresh))
             .route("/api/proof", get(proof))
+            // The wallet's own MCP server takes at most this much; nothing larger is kept.
+            .layer(DefaultBodyLimit::max(64 * 1024))
             .with_state(self)
     }
     fn hosts(&self) -> [String; 3] {
@@ -181,36 +221,68 @@ impl App {
         }
         None
     }
+    /// Records the turn `live` begins, with the deal's head now that its run is running.
+    fn begin_turn(&self, world: &World, live: &Live) {
+        if let (Ok(mut turn), Some(deal)) = (self.turn.lock(), world.deal()) {
+            *turn = Some(Turn {
+                run: live.run,
+                head: deal.transcript_head,
+                spent: false,
+            });
+        }
+    }
     /// The live run's grant, starting a run (as the console's "Start agent" does) when none is
-    /// live or the live one is near its end.
-    async fn ensure_run(&self, world: &World) -> Result<Arc<Live>, String> {
+    /// live, the table has moved since it began, or it is near its end.
+    async fn ensure_run(&self, world: &Arc<World>) -> Result<Arc<Live>, Carry> {
         let _one = self.starting.lock().await;
+        // A fresh table may have replaced this one while the call waited for the lock.
+        if !self.world().is_some_and(|live| Arc::ptr_eq(&live, world)) {
+            return Err(Carry::Stale);
+        }
         let head = world.deal().map(|d| d.transcript_head);
         if let Some(live) = world.slot.live() {
-            let moved = self.turn.lock().is_ok_and(|mut turn| match *turn {
-                Some((run, began)) if run == live.run => Some(began) != head,
-                _ => {
-                    *turn = head.map(|head| (live.run, head));
-                    false
-                }
-            });
-            if live.fresh() && !moved {
+            let (moved, spent) = match self.turn.lock() {
+                Ok(mut turn) => match turn.as_ref() {
+                    Some(t) if t.run == live.run => (Some(t.head) != head, t.spent),
+                    _ => {
+                        *turn = head.map(|head| Turn {
+                            run: live.run,
+                            head,
+                            spent: false,
+                        });
+                        (false, false)
+                    }
+                },
+                Err(_) => (false, false),
+            };
+            // A spent turn keeps its run (the wallet answers the budget refusal) until it ends.
+            if !moved && (live.fresh() || spent) {
                 return self
                     .running(world, live)
                     .await
-                    .ok_or_else(|| "The agent's run did not start".to_owned());
+                    .ok_or_else(|| Carry::Fail("The agent's run did not start".into()));
             }
             world.slot.end(live.run);
-            let _ = world
-                .slot
-                .next(Some(live.run), Duration::from_secs(2))
-                .await;
+            let _ = world.slot.gone(live.run, Duration::from_secs(2)).await;
+        }
+        let spent = self
+            .turn
+            .lock()
+            .ok()
+            .and_then(|turn| *turn)
+            .is_some_and(|t| t.spent && Some(t.head) == head);
+        if spent {
+            return Err(Carry::Fail(format!(
+                "This turn's {} calls are spent. The wallet stops a looping agent until the other side moves.",
+                table_mcp::CALL_BUDGET
+            )));
         }
         let mut last = String::from("The wallet started no run");
         for _ in 0..40 {
             if let Some(live) = world.slot.live().filter(|l| l.fresh())
                 && let Some(live) = self.running(world, live).await
             {
+                self.begin_turn(world, &live);
                 return Ok(live);
             }
             match world
@@ -227,9 +299,7 @@ impl App {
                         .filter(|l| l.run == snapshot.run)
                         && let Some(live) = self.running(world, live).await
                     {
-                        if let (Ok(mut turn), Some(head)) = (self.turn.lock(), head) {
-                            *turn = Some((live.run, head));
-                        }
+                        self.begin_turn(world, &live);
                         return Ok(live);
                     }
                 }
@@ -238,26 +308,36 @@ impl App {
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
-        Err(last)
+        Err(Carry::Fail(last))
     }
-    /// Carries one JSON-RPC body to the wallet's MCP server under the live grant.
-    async fn forward(&self, body: &Bytes) -> Result<(u16, Bytes), String> {
-        let mut world = self
-            .world()
-            .ok_or_else(|| "The sandbox is closing".to_owned())?;
-        // An agent that comes back to a closed table (expired, withdrawn) gets a fresh one.
-        if world.deal().is_some_and(|d| d.state.terminal())
-            && self
-                .fresh("the last table closed with no money moved")
-                .await
-                .is_ok()
-        {
-            world = self
+    /// Carries one JSON-RPC body to the live table's wallet, returning the table it went to.
+    async fn forward(&self, body: &Bytes) -> Result<(u16, Bytes, u32), (String, u32)> {
+        let mut seen = 0;
+        for _ in 0..4 {
+            let world = self
                 .world()
-                .ok_or_else(|| "The sandbox is closing".to_owned())?;
+                .ok_or_else(|| ("The sandbox is closing".to_owned(), seen))?;
+            seen = world.number;
+            // An agent that comes back to a closed table (expired, withdrawn) gets a fresh one.
+            if world.deal().is_some_and(|d| d.state.terminal()) {
+                let _ = self
+                    .fresh(world.number, "the last table closed with no money moved")
+                    .await;
+                continue;
+            }
+            match self.carry(&world, body).await {
+                Ok((status, bytes)) => return Ok((status, bytes, world.number)),
+                Err(Carry::Stale) => {}
+                Err(Carry::Fail(message)) => return Err((message, world.number)),
+            }
         }
+        Err(("The table kept changing; call again".into(), seen))
+    }
+    /// One table's leg: the wallet's MCP server under the live grant, renewing a lapsed session
+    /// once.
+    async fn carry(&self, world: &Arc<World>, body: &Bytes) -> Result<(u16, Bytes), Carry> {
         for attempt in 0..2 {
-            let live = self.ensure_run(&world).await?;
+            let live = self.ensure_run(world).await?;
             let answer = self
                 .http
                 .post(&live.url)
@@ -267,26 +347,36 @@ impl App {
                 .body(body.to_vec())
                 .send()
                 .await
-                .map_err(|_| "The wallet's MCP server did not answer".to_owned())?;
-            let status = answer.status().as_u16();
-            // The session lapsed between the check and the call: renew once.
-            if status == 401 && attempt == 0 {
-                world.slot.end(live.run);
-                let _ = world
-                    .slot
-                    .next(Some(live.run), Duration::from_secs(2))
-                    .await;
-                continue;
+                .map_err(|_| Carry::Fail("The wallet's MCP server did not answer".into()))?;
+            // The session lapsed between the check and the call: renew it once, and never hand
+            // the agent a bare 401 (a client may read it as a sign-in challenge).
+            if answer.status().as_u16() == 401 {
+                if attempt == 0 {
+                    world.slot.end(live.run);
+                    let _ = world.slot.gone(live.run, Duration::from_secs(2)).await;
+                    continue;
+                }
+                break;
             }
+            let status = answer.status().as_u16();
             let bytes = answer
                 .bytes()
                 .await
-                .map_err(|_| "The wallet's answer was cut off".to_owned())?;
+                .map_err(|_| Carry::Fail("The wallet's answer was cut off".into()))?;
             return Ok((status, bytes));
         }
-        Err("The wallet's MCP session could not be renewed".into())
+        Err(Carry::Fail(
+            "The wallet's MCP session could not be renewed".into(),
+        ))
     }
-    fn record(&self, request: Option<&Value>, status: u16, answer: Option<&Value>, at: u64) {
+    fn record(
+        &self,
+        request: Option<&Value>,
+        status: u16,
+        answer: Option<&Value>,
+        at: u64,
+        table: u32,
+    ) {
         let method = request
             .and_then(|r| r.get("method"))
             .and_then(Value::as_str)
@@ -298,7 +388,17 @@ impl App {
         entry.at = at;
         entry.ms = unix_ms().saturating_sub(at);
         entry.paypal = self.recorders.buyer.asked();
-        entry.table = self.world().map_or(0, |w| w.number);
+        entry.table = table;
+        // The wallet cut this turn off: remember it, so the turn is not renewed on age alone.
+        if entry
+            .detail
+            .as_deref()
+            .is_some_and(|d| d.contains("tool-call budget"))
+            && let Ok(mut turn) = self.turn.lock()
+            && let Some(turn) = turn.as_mut()
+        {
+            turn.spent = true;
+        }
         if entry.tool.as_deref() == Some("table_view")
             && entry.outcome == Outcome::Answered
             && let Some(table) = answer.and_then(|a| a.pointer("/result/structuredContent"))
@@ -349,10 +449,16 @@ impl App {
         }
     }
     /// Opens a fresh table: a new house and a new wallet, the same rules. The old world closes.
-    pub async fn fresh(&self, why: &str) -> Result<u32, BootError> {
+    /// `seen` is the table the caller saw; when another caller already replaced it, nothing more
+    /// opens and the live table's number is returned.
+    pub async fn fresh(&self, seen: u32, why: &str) -> Result<u32, BootError> {
         let _one = self.opening.lock().await;
         let _runs = self.starting.lock().await;
-        let number = self.world().map_or(1, |w| w.number.saturating_add(1));
+        let current = self.world().map_or(0, |w| w.number);
+        if current != seen {
+            return Ok(current);
+        }
+        let number = current.saturating_add(1);
         let next = Arc::new(World::open(number, &self.recorders).await?);
         let old = self
             .world
@@ -360,6 +466,9 @@ impl App {
             .map(|mut held| std::mem::replace(&mut *held, next))
             .map_err(|_| BootError::Step("fresh table"))?;
         old.close().await;
+        if let Ok(mut turn) = self.turn.lock() {
+            *turn = None;
+        }
         self.journal.set_table(None);
         *self.facts.lock().await = Facts::default();
         let entry = self.journal.push(Entry::marker(
@@ -442,9 +551,10 @@ impl App {
     /// The wallet's own record, read through the actor like the console reads it.
     async fn facts(&self, world: &World) -> Facts {
         let mut facts = self.facts.lock().await;
-        if facts.read.is_some_and(|at| at.elapsed() < FACTS_TTL) {
+        if facts.table == world.number && facts.read.is_some_and(|at| at.elapsed() < FACTS_TTL) {
             return facts.clone();
         }
+        facts.table = world.number;
         facts.safety = world
             .actor
             .execute(main_window(), Action::SafetyRecord)
@@ -501,14 +611,7 @@ impl App {
         self.facts(&world).await.safety
     }
     fn counts(&self) -> (usize, usize, usize) {
-        let all = self.journal.all();
-        let calls = all.iter().filter(|e| e.tool.is_some()).count();
-        let refused = all.iter().filter(|e| e.outcome == Outcome::Refused).count();
-        let answered = all
-            .iter()
-            .filter(|e| e.outcome == Outcome::Answered)
-            .count();
-        (calls, answered, refused)
+        self.journal.tally()
     }
     /// The page's facts: the signed rule, the deal, the counters, the wallet's own record.
     pub async fn snapshot(&self) -> Value {
@@ -582,9 +685,9 @@ async fn mcp(State(app): State<Arc<App>>, headers: HeaderMap, body: Bytes) -> Re
     let at = unix_ms();
     let request: Option<Value> = serde_json::from_slice(&body).ok();
     match app.forward(&body).await {
-        Ok((status, bytes)) => {
+        Ok((status, bytes, table)) => {
             let mut answer: Option<Value> = serde_json::from_slice(&bytes).ok();
-            app.record(request.as_ref(), status, answer.as_ref(), at);
+            app.record(request.as_ref(), status, answer.as_ref(), at, table);
             let method = request.as_ref().and_then(|r| r.get("method"));
             let bytes = match answer.as_mut() {
                 Some(answer) if method == Some(&json!("initialize")) => {
@@ -596,14 +699,14 @@ async fn mcp(State(app): State<Arc<App>>, headers: HeaderMap, body: Bytes) -> Re
             let status = StatusCode::from_u16(status).unwrap_or(StatusCode::BAD_GATEWAY);
             (status, [(header::CONTENT_TYPE, "application/json")], bytes).into_response()
         }
-        Err(message) => {
+        Err((message, table)) => {
             let id = request
                 .as_ref()
                 .and_then(|r| r.get("id"))
                 .cloned()
                 .unwrap_or(Value::Null);
             let answer = json!({"jsonrpc":"2.0","id":id,"error":{"code":-32000,"message":message}});
-            app.record(request.as_ref(), 200, Some(&answer), at);
+            app.record(request.as_ref(), 200, Some(&answer), at, table);
             (StatusCode::OK, Json(answer)).into_response()
         }
     }
@@ -663,7 +766,8 @@ async fn fresh(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
     {
         return refused_door();
     }
-    match app.fresh("opened from the live page").await {
+    let seen = app.world().map_or(0, |w| w.number);
+    match app.fresh(seen, "opened from the live page").await {
         Ok(number) => Json(json!({"table_number": number})).into_response(),
         Err(error) => (StatusCode::SERVICE_UNAVAILABLE, error.to_string()).into_response(),
     }
@@ -691,4 +795,19 @@ async fn proof(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
         bytes,
     )
         .into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn terminal_text_carries_no_escapes_or_reordering() {
+        let agent = "pay\u{1b}[2J\u{202E}00.923\u{200B}";
+        let shown = printable(agent, 80);
+        assert!(!shown.contains('\u{1b}'));
+        assert!(!shown.contains('\u{202E}'));
+        assert!(!shown.contains('\u{200B}'));
+        assert_eq!(dollars(24_999), "$249.99");
+    }
 }

@@ -249,7 +249,7 @@ function argsLine(entry) {
 
 function item(entry) {
   const li = document.createElement("li");
-  if (entry.method === "sandbox/table") {
+  if (entry.marker === true) {
     li.className = "call marker";
     li.textContent = entry.rule;
     return li;
