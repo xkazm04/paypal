@@ -91,7 +91,7 @@
       "id": "haggle-open",
       "chapter": "haggle",
       "settleMs": 3000,
-      "line": "Maya's agent wants a refurbished monitor. Her signed rules: three hundred forty, tops. Dan asks three eighty-nine.",
+      "line": "Maya's agent wants a refurbished monitor. Her signed rules: three hundred forty, tops. Dan asks exactly that.",
       "capture": {
         "beat": "haggle-open",
         "targets": [

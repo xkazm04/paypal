@@ -39,7 +39,8 @@ describe('mock fair-price certificate (parity with the wallet)', () => {
     const main = mockBackend('main');
     const open = await main.invoke('deal_evidence', { deal_id: fakeUlid('D-0193') });
     expect(open.fair_price).toMatchObject({ state: 'rechecked', committed: false, prices: 13 });
-    expect(open.fair_price?.percentile).toBeGreaterThan(50);
+    // $329 against the recorded market (p25 $300, median $330, p75 $360): just under the middle
+    expect(open.fair_price?.percentile).toBeLessThan(50);
     const agreed = await main.invoke('deal_evidence', { deal_id: fakeUlid('D-0189') });
     expect(agreed.fair_price).toMatchObject({ state: 'rechecked', committed: true });
     // The receipt Maya keeps: $212.00 among 13 market prices, worked out again.

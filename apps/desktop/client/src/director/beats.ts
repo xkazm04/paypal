@@ -7,6 +7,7 @@
 // pays: the approval window only opens, and whatever happens there is the viewer's own click.
 import type { Action } from './actions';
 import { HAGGLE, HOLD, MISMATCH, helpers as h } from './helpers';
+import { capUsd, HAGGLE_FIGS as F } from './recorded';
 
 export type ChapterId = 'intro' | 'shop' | 'haggle' | 'silence' | 'mismatch' | 'closed' | 'end';
 export type Focus = 'desk' | 'main' | 'tumbler' | 'approval';
@@ -69,7 +70,7 @@ export const BEATS: readonly Beat[] = [
   },
   {
     id: 'shop-prices', chapter: 'shop', at: 18, focus: 'main',
-    caption: 'Dan asks $389. The house seller is already down to $334, the lowest price so far.',
+    caption: `Dan asks ${capUsd(F.danAsks)}. The house seller is already down to ${capUsd(F.houseNow)}, the lowest price so far.`,
     do: [{ do: 'main', open: true, route: SHOP }],
   },
   {
@@ -79,7 +80,7 @@ export const BEATS: readonly Beat[] = [
   },
   {
     id: 'haggle-open', chapter: 'haggle', at: 32, focus: 'main',
-    caption: 'Her agent wants a refurbished 27-inch monitor. Her signed rules: at most $340, six offers. Dan asks $389. Her agent offers $290.',
+    caption: `Her agent wants a refurbished 27-inch monitor. Her signed rules: at most $340, six offers. Dan asks ${capUsd(F.danAsks)}. Her agent offers ${capUsd(F.herFirst)}.`,
     do: [{ do: 'main', open: true, route: '#d=D-0193' }],
   },
   {
@@ -89,12 +90,12 @@ export const BEATS: readonly Beat[] = [
   },
   {
     id: 'haggle-close', chapter: 'haggle', at: 48, focus: 'main',
-    caption: 'Her agent climbs to $327, one offer left.',
+    caption: `Her agent climbs to ${capUsd(F.herLast)}, one offer left.`,
     do: [{ do: 'rewind', deal: HAGGLE, upTo: HER_LAST }],
   },
   {
     id: 'haggle-gate', chapter: 'haggle', at: 54, focus: 'desk',
-    caption: 'Dan counters at $329. Her rules say: above $250, ask me. So the agent stops, and the Tumbler lights up gold.',
+    caption: `Dan counters at ${capUsd(F.danLast)}. Her rules say: above $250, ask me. So the agent stops, and the Tumbler lights up gold.`,
     do: [{ do: 'rewind', deal: HAGGLE, upTo: ALL_STEPS }],
   },
   {

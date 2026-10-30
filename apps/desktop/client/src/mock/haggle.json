@@ -1,17 +1,11 @@
 {
   "currency": "USD",
-  "how": "The shipped practice agent against the house seller's concession rule, through the wallet's MCP door and mandate check. Re-record with TABLE_HAGGLE_RECORD=1 cargo test -p table-runtime recorded_haggle.",
+  "how": "The shipped practice agent through the wallet's MCP door and mandate check. Re-record with TABLE_HAGGLE_RECORD=1 cargo test -p table-runtime --lib recorded_haggles.",
   "item": "monitor",
   "market": {
     "median": 33000,
     "p25": 30000,
     "p75": 36000
-  },
-  "outcome": {
-    "decided_by": "owner",
-    "paypal_calls": 0,
-    "price": 32400,
-    "state": "AGREED"
   },
   "recorded_by": "crates/table-runtime/src/haggle_record_tests.rs",
   "rules": {
@@ -20,74 +14,166 @@
     "floor": null,
     "max_offers": 6
   },
-  "schema": 1,
-  "seller": {
-    "ask": 34000,
-    "floor": 31600,
-    "rounds": 6,
-    "who": "house"
-  },
-  "steps": [
-    {
-      "act": "listing",
-      "by": "seller",
-      "price": 34000
+  "schema": 2,
+  "tables": {
+    "dan": {
+      "outcome": {
+        "paypal_calls": 0,
+        "price": 32900,
+        "state": "NEGOTIATING",
+        "waiting_for": "owner"
+      },
+      "seller": {
+        "ask": 34000,
+        "counters": [
+          33900,
+          33600,
+          33400,
+          33300,
+          32900
+        ],
+        "rule": "given"
+      },
+      "steps": [
+        {
+          "act": "listing",
+          "by": "seller",
+          "price": 34000
+        },
+        {
+          "act": "offer",
+          "by": "agent",
+          "price": 30000
+        },
+        {
+          "act": "counter",
+          "by": "seller",
+          "price": 33900
+        },
+        {
+          "act": "offer",
+          "by": "agent",
+          "price": 30600
+        },
+        {
+          "act": "counter",
+          "by": "seller",
+          "price": 33600
+        },
+        {
+          "act": "offer",
+          "by": "agent",
+          "price": 31200
+        },
+        {
+          "act": "counter",
+          "by": "seller",
+          "price": 33400
+        },
+        {
+          "act": "offer",
+          "by": "agent",
+          "price": 31800
+        },
+        {
+          "act": "counter",
+          "by": "seller",
+          "price": 33300
+        },
+        {
+          "act": "offer",
+          "by": "agent",
+          "price": 32400
+        },
+        {
+          "act": "counter",
+          "by": "seller",
+          "price": 32900
+        },
+        {
+          "act": "refused",
+          "by": "agent",
+          "clause": 6,
+          "price": 32900
+        }
+      ]
     },
-    {
-      "act": "offer",
-      "by": "agent",
-      "price": 30000
-    },
-    {
-      "act": "counter",
-      "by": "seller",
-      "price": 33600
-    },
-    {
-      "act": "offer",
-      "by": "agent",
-      "price": 30600
-    },
-    {
-      "act": "counter",
-      "by": "seller",
-      "price": 33200
-    },
-    {
-      "act": "offer",
-      "by": "agent",
-      "price": 31200
-    },
-    {
-      "act": "counter",
-      "by": "seller",
-      "price": 32800
-    },
-    {
-      "act": "offer",
-      "by": "agent",
-      "price": 31800
-    },
-    {
-      "act": "counter",
-      "by": "seller",
-      "price": 32400
-    },
-    {
-      "act": "refused",
-      "by": "agent",
-      "clause": 6,
-      "price": 32400
-    },
-    {
-      "act": "accept",
-      "by": "owner",
-      "price": 32400
-    },
-    {
-      "act": "accept",
-      "by": "seller",
-      "price": 32400
+    "house": {
+      "outcome": {
+        "decided_by": "owner",
+        "paypal_calls": 0,
+        "price": 32400,
+        "state": "AGREED"
+      },
+      "seller": {
+        "ask": 34000,
+        "floor": 31600,
+        "rounds": 6,
+        "rule": "house"
+      },
+      "steps": [
+        {
+          "act": "listing",
+          "by": "seller",
+          "price": 34000
+        },
+        {
+          "act": "offer",
+          "by": "agent",
+          "price": 30000
+        },
+        {
+          "act": "counter",
+          "by": "seller",
+          "price": 33600
+        },
+        {
+          "act": "offer",
+          "by": "agent",
+          "price": 30600
+        },
+        {
+          "act": "counter",
+          "by": "seller",
+          "price": 33200
+        },
+        {
+          "act": "offer",
+          "by": "agent",
+          "price": 31200
+        },
+        {
+          "act": "counter",
+          "by": "seller",
+          "price": 32800
+        },
+        {
+          "act": "offer",
+          "by": "agent",
+          "price": 31800
+        },
+        {
+          "act": "counter",
+          "by": "seller",
+          "price": 32400
+        },
+        {
+          "act": "refused",
+          "by": "agent",
+          "clause": 6,
+          "price": 32400
+        },
+        {
+          "act": "accept",
+          "by": "owner",
+          "price": 32400
+        },
+        {
+          "act": "accept",
+          "by": "seller",
+          "price": 32400
+        }
+      ]
     }
-  ]
+  }
 }

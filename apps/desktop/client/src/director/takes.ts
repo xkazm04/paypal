@@ -18,6 +18,7 @@ import { nowUnix } from '../lib/format';
 import { laneSteps, tickTone, weekBounds } from '../windows/main/logic';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
+import { HAGGLE_FIGS as F } from './recorded';
 
 export type FrameName = 'main' | 'tumbler' | 'approval';
 
@@ -101,8 +102,8 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
     { deal: HOUSE_TABLE, state: 'NEGOTIATING' },
   ],
   'shop-prices': [
-    { in: 'main', text: '$389.00' },
-    { in: 'main', text: '$334.00' },
+    { in: 'main', text: usdText(F.danAsks) },
+    { in: 'main', text: usdText(F.houseNow) },
     { in: 'main', text: 'lowest so far' },
     NO_PAY_IN_MAIN,
     { deal: HOUSE_TABLE, state: 'NEGOTIATING' },
@@ -120,19 +121,19 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   ],
   'haggle-open': [
     { in: 'main', text: 'Refurbished 27-inch 4K monitor' },
-    { in: 'main', text: '$389.00' },
-    { in: 'main', text: '$290.00' },
+    { in: 'main', text: usdText(F.danAsks) },
+    { in: 'main', text: usdText(F.herFirst) },
   ],
   'haggle-trade': [
     { in: 'main', text: 'Refurbished 27-inch 4K monitor' },
     // halfway: her latest offer and the price range it stays inside (the deal page's facts)
-    { in: 'main', text: '$314.00' },
+    { in: 'main', text: usdText(F.herMid) },
     { in: 'main', text: 'Most you’ll pay $340.00' },
     { in: 'main', text: 'Offers used 3 of 6' },
-    { in: 'main', text: '$327.00', absent: true },
+    { in: 'main', text: usdText(F.herLast), absent: true },
   ],
   'haggle-close': [
-    { in: 'main', text: '$327.00' },
+    { in: 'main', text: usdText(F.herLast) },
     { in: 'main', text: 'Accept Dan’s $329.00?', absent: true },
   ],
   'haggle-gate': [
