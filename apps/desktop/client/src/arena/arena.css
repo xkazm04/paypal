@@ -59,7 +59,8 @@ body.w-arena { margin: 0; background: var(--bg-deep); color: var(--text); }
 .ar-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ar-card-t { font-weight: var(--fw-semibold); }
 .ar-card-s { color: var(--muted); font-size: var(--fs-small); }
-.ar-card-p { position: absolute; top: 8px; right: 10px; color: var(--ar-held-l); font-size: var(--fs-small); text-transform: uppercase; letter-spacing: .05em; }
+.ar-card.played .ar-card-t { padding-right: 64px; }
+.ar-card-p { position: absolute; top: 9px; right: 10px; color: var(--ar-held-l); font-size: var(--fs-small); text-transform: uppercase; letter-spacing: .05em; }
 .ar-card.played { background: color-mix(in srgb, var(--panel) 70%, var(--bg-deep)); }
 .ar-key { position: absolute; left: 10px; top: 10px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: var(--r-sm);
   font: var(--fw-semibold) 12px/1 var(--mono); color: var(--muted); background: var(--well); border: 1px solid var(--line); }
@@ -172,4 +173,43 @@ body.w-arena { margin: 0; background: var(--bg-deep); color: var(--text); }
 @media (prefers-reduced-motion: reduce) {
   .ar-fig-n, .ar-flying, .ar-answer, .ar-stamp, .ar-rows li { animation: none; }
   .ar-card { transition: none; }
+}
+
+/* ---- mastery: the card in the hand, the hint, the closing card, the record ------------------ */
+.ar-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.ar-card { touch-action: none; user-select: none; }
+.ar-deck li.lifted .ar-card { opacity: .25; border-style: dashed; }
+.ar-held { position: fixed; left: 0; top: 0; z-index: var(--z-popover); pointer-events: none; display: grid; gap: 2px;
+  padding: 9px 12px 9px 40px; border-radius: var(--r); background: var(--panel3); border: 1px solid var(--line2); border-left: 3px solid var(--ar-agent);
+  box-shadow: var(--shadow-3); transform-origin: 30% 20%; }
+.ar-held.s-counterparty { border-left-color: var(--ar-cp); }
+.ar-held.over { border-color: var(--ar-agent); box-shadow: var(--shadow-3), 0 0 0 3px color-mix(in srgb, var(--coral) 35%, transparent); }
+.ar-held.returning { transition: transform 380ms cubic-bezier(.34, 1.56, .64, 1); }
+.ar-drop.armed { border-color: color-mix(in srgb, var(--coral) 45%, var(--line2)); }
+.ar-card.hint { border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); animation: ar-hint 1.8s var(--ease) infinite; }
+@keyframes ar-hint { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 0%, transparent); } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--gold) 22%, transparent); } }
+.ar-start { margin-top: 4px; color: var(--gold-l); font-size: var(--fs-small); }
+.ar-finale-card { margin-top: 2px; border-left-color: var(--gold); cursor: pointer; }
+.ar-finale-card.ready { border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); box-shadow: var(--glow-gold); }
+.ar-finale-card .ar-card-t { color: var(--gold-l); }
+.ar-stamp.v-held { color: var(--teal-l); background: color-mix(in srgb, var(--teal) 14%, transparent); }
+.ar-finale { gap: 16px; }
+.ar-finale-figs { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.3 var(--font); color: var(--teal-l); }
+.ar-finale-run, .ar-finale-file { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.ar-finale-file { justify-items: start; }
+.ar-finale-file h4 { font: var(--fw-semibold) var(--fs-body)/1.3 var(--font); }
+.ar-finale-lead { margin: 0; font-size: var(--fs-title3); }
+.ar-cmd.big { padding: 12px 14px; }
+.ar-cmd.big code { font-size: var(--fs-body); }
+.ar-h3 { margin: 14px 0 0; font: var(--fw-semibold) var(--fs-small)/1.3 var(--font); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.ar-sr { position: relative; margin: 10px 0 4px; padding: 10px 12px; border-radius: var(--r); background: var(--well); border-left: 3px solid var(--teal); }
+.ar-sr.tone-bad { border-left-color: var(--red); }
+.ar-sr-v { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.25 var(--font); color: var(--teal-l); }
+.ar-sr.tone-bad .ar-sr-v { color: var(--red-l); }
+.ar-sr-l { margin: 4px 0 0; color: var(--muted); font-size: var(--fs-small); }
+.ar-sr-add { display: inline-block; margin-top: 6px; padding: 1px 7px; border-radius: var(--r-pill); font-size: var(--fs-small);
+  color: var(--coral-l); background: color-mix(in srgb, var(--coral) 14%, transparent); animation: ar-bump var(--dur-med) var(--ease-out); }
+@media (prefers-reduced-motion: reduce) {
+  .ar-card.hint, .ar-sr-add { animation: none; }
+  .ar-held.returning { transition: none; }
 }

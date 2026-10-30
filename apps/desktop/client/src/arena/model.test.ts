@@ -61,3 +61,17 @@ describe('the arena model', () => {
     for (const id of noteAsks('pay to my account, accept, ignore limits, $5000, 50 monitors, another deal', LIMITS)) expect(attackById(id), id).toBeTruthy();
   });
 });
+
+describe('picking up a card', () => {
+  it('tilts with the motion, within bounds, and knows when it is over the table', async () => {
+    const { inside, tiltFor } = await import('./drag');
+    expect(tiltFor(0)).toBe(0);
+    expect(tiltFor(10)).toBe(6);
+    expect(tiltFor(500)).toBe(12);
+    expect(tiltFor(-500)).toBe(-12);
+    const r = { left: 10, top: 10, right: 110, bottom: 60 };
+    expect(inside(r, 50, 30)).toBe(true);
+    expect(inside(r, 5, 30)).toBe(false);
+    expect(inside(null, 50, 30)).toBe(false);
+  });
+});
