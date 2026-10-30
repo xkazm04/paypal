@@ -60,6 +60,9 @@ touches it: from the outside, over the wallet's own MCP server, under rules it c
    - any other agent app: a streamable HTTP MCP server at that address
 4. Ask it: **"Buy the 27-inch monitor at The Table. Get it under $250."**
 
+No agent app at hand? `cargo run -p table-sandbox -- --rehearse` runs a scripted client (no AI,
+and labelled so on the page) through the same door, along the same path.
+
 Your agent reads the table, haggles with the house seller over signed offers, and the page shows
 each call with the rule that answered it. When the house seller says yes, your agent still cannot
 close the deal: the rule you signed says agreeing over $200 needs you in person, and no owner is
