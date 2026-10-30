@@ -509,7 +509,15 @@ async fn play(attack: &Attack) -> Value {
     let audit_before = w.audit_rows(Who::Buyer);
     let outbound_before = w.outbound(Who::Buyer, haggle) + w.outbound(Who::Buyer, purchase);
     let touched_before = paypal_touch(&w);
-    let state_before = w.buyer.deal(haggle).map(|d| d.state);
+    // The deal the attack is aimed at: the purchase for a shopper's call or a misdirected envelope.
+    let target = match &attack.play {
+        Play::Call { purchase: true, .. }
+        | Play::Resend {
+            elsewhere: true, ..
+        } => purchase,
+        _ => haggle,
+    };
+    let state_before = w.buyer.deal(target).map(|d| d.state);
     let mut out = json!({"id": attack.id, "suit": match attack.suit { Suit::Agent => "agent", Suit::Counterparty => "counterparty" }});
     match &attack.play {
         Play::Call {
@@ -582,7 +590,7 @@ async fn play(attack: &Attack) -> Value {
         }
     }
     let touched = paypal_touch(&w);
-    let state_after = w.buyer.deal(haggle).map(|d| d.state);
+    let state_after = w.buyer.deal(target).map(|d| d.state);
     let mut audit = rows_after(&w, audit_before);
     // The agent's own read after a counterparty attack is not part of the attack's trail.
     if attack.suit == Suit::Counterparty {
@@ -600,7 +608,11 @@ async fn play(attack: &Attack) -> Value {
     out["paypal_requests"] = json!(touched.0 - touched_before.0);
     out["paypal_calls"] = json!(touched.1 - touched_before.1);
     out["money_operations"] = json!(touched.2 - touched_before.2);
-    out["deal"] = json!({"before": state_name(state_before), "after": state_name(state_after)});
+    out["deal"] = json!({
+        "which": if target == purchase { "purchase" } else { "haggle" },
+        "before": state_name(state_before),
+        "after": state_name(state_after),
+    });
     out["violations"] = json!(violations.len());
     out
 }

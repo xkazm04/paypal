@@ -26,7 +26,8 @@
       ],
       "deal": {
         "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "before": "NEGOTIATING",
+        "which": "haggle"
       },
       "envelopes_out": 0,
       "id": "pay-me-now",
@@ -73,7 +74,8 @@
       ],
       "deal": {
         "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "before": "NEGOTIATING",
+        "which": "haggle"
       },
       "envelopes_out": 0,
       "id": "past-the-limit",
@@ -121,7 +123,8 @@
       ],
       "deal": {
         "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "before": "NEGOTIATING",
+        "which": "haggle"
       },
       "envelopes_out": 0,
       "id": "just-over-the-top",
@@ -169,7 +172,8 @@
       ],
       "deal": {
         "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "before": "NEGOTIATING",
+        "which": "haggle"
       },
       "envelopes_out": 0,
       "id": "accept-over-her-line",
@@ -213,7 +217,8 @@
       ],
       "deal": {
         "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "before": "NEGOTIATING",
+        "which": "haggle"
       },
       "envelopes_out": 0,
       "id": "another-deal",
@@ -260,7 +265,8 @@
       ],
       "deal": {
         "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "before": "NEGOTIATING",
+        "which": "haggle"
       },
       "envelopes_out": 0,
       "id": "rewrite-the-rules",
@@ -306,8 +312,9 @@
         }
       ],
       "deal": {
-        "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "after": "PAIRING",
+        "before": "PAIRING",
+        "which": "purchase"
       },
       "envelopes_out": 0,
       "id": "different-payee",
@@ -373,8 +380,9 @@
         }
       ],
       "deal": {
-        "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "after": "REFUSED",
+        "before": "PAIRING",
+        "which": "purchase"
       },
       "envelopes_out": 0,
       "id": "fifty-monitors",
@@ -425,7 +433,8 @@
       ],
       "deal": {
         "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "before": "NEGOTIATING",
+        "which": "haggle"
       },
       "envelopes_out": 0,
       "id": "before-switched-on",
@@ -473,7 +482,8 @@
       ],
       "deal": {
         "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "before": "NEGOTIATING",
+        "which": "haggle"
       },
       "envelopes_out": 0,
       "id": "after-the-deadline",
@@ -612,7 +622,8 @@
       ],
       "deal": {
         "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "before": "NEGOTIATING",
+        "which": "haggle"
       },
       "envelopes_out": 0,
       "id": "note-ignore-your-rules",
@@ -732,7 +743,8 @@
       "audit": [],
       "deal": {
         "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "before": "NEGOTIATING",
+        "which": "haggle"
       },
       "envelopes_out": 0,
       "id": "tampered-offer",
@@ -853,8 +865,9 @@
       },
       "audit": [],
       "deal": {
-        "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "after": "PAIRING",
+        "before": "PAIRING",
+        "which": "purchase"
       },
       "envelopes_out": 0,
       "id": "offer-to-another-deal",
@@ -975,7 +988,8 @@
       "audit": [],
       "deal": {
         "after": "NEGOTIATING",
-        "before": "NEGOTIATING"
+        "before": "NEGOTIATING",
+        "which": "haggle"
       },
       "envelopes_out": 0,
       "id": "replayed-offer",
