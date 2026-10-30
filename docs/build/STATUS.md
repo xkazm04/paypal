@@ -2777,6 +2777,11 @@ Each table's proof file (`deal_export_proof`) is verified on the page and at exi
 - **table-runtime** gains a `sandbox` feature (`src/sandbox.rs`): pin an in-process house's release,
   build the house request, pair + confirm + sign + join through the dispatcher's own functions, seat
   an engine. Rust-only; no IPC command, no authority-table row, no money path.
+- **house-seller** gains `Seller::with_table_secs` (one minute to one hour; `TABLE_SECS = 300`, the
+  deployed default, is unchanged). The sandbox opens tables for fifteen minutes: a live agent app
+  session took four minutes for six rounds.
+- **Review:** an independent read-only review found eight defects in the front, journal and
+  rehearsal (none bypassed the wallet or leaked the grant); all fixed in ed67470.
 - **Deviation from the brief:** the system clock, not a fixed clock (the relay's settled-route
   cadence, deadlines and the house's 300 s table need time to move).
 - **Rule numbers** (`lib.rs`): band ceiling $340 (rule 4 must hold the house's $329 listing for the
