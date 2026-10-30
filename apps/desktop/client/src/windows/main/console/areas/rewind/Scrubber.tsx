@@ -11,12 +11,14 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type Keyboard
 import type { Deal } from '@bindings/Deal';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { Reach } from '../../../../../lib/say/draft';
+import { formatMinor } from '../../../../../lib/format';
+import type { Peek } from '../../../../../lib/say/join';
 import { REWIND_AHEAD, REWIND_BAR, REWIND_HUB, REWIND_THIS_WEEK, REWIND_TRUNCATED } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { weekLabel } from '../../../home/model';
 import { endingCtx, isRefusal, laneSteps, narrate, stepTime, stepUnder, TICK_WORD, tickTone, weekFraction, type TickTone } from '../../../logic';
 import type { RewindState } from './clock';
-import { futureSaid, ruleLine, type FutureTick, type Headline } from './future';
+import { futureSaid, plainMoney, ruleLine, type FutureTick, type Headline } from './future';
 import { TickMark } from './TickMark';
 
 const LEGEND: readonly TickTone[] = ['owner', 'rule', 'buyer', 'default', 'refused'];
@@ -35,6 +37,8 @@ export type Ahead = {
   ticks: FutureTick[] | null;
   headline: Headline;
   reach: Reach | null;
+  /** Each table open now for the item the sentence was tied to, and where its latest price lands against what was said. */
+  peeks: Peek[];
   /** The deal's short title for a step ahead (the title the wallet shows, never a counterparty's own text). */
   titleOf: (dealId: string, fallback: string) => string;
 };
@@ -172,6 +176,7 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
           <b>{ahead.headline.lead}:</b> <span>{ahead.headline.rest}</span>
         </p>
       ) : null}
+      {r.ahead && ahead?.reach && ahead.peeks.length ? <Peeks reach={ahead.reach} peeks={ahead.peeks} onOpenDeal={onOpenDeal} /> : null}
       <div className="rw-track" ref={track} role="slider" tabIndex={0} aria-label={REWIND_BAR.playhead}
         aria-valuemin={r.start} aria-valuemax={r.limit} aria-valuenow={Math.round(r.t)}
         aria-valuetext={`${stepTime(r.t)}${isAhead ? ` · ${REWIND_AHEAD.forecastWord}` : ''}`}
@@ -226,6 +231,30 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
       </div>
       {r.truncated ? <p className="dim">{REWIND_TRUNCATED}</p> : null}
       {r.error ? <WalletNotice error={r.error} what={REWIND_BAR.failed} /> : null}
+    </div>
+  );
+}
+
+/** The tables open now for the item just said, each at its latest price against the two numbers the owner gave. A preview
+ *  of their numbers ("if the price stays"), not the wallet's check. */
+function Peeks({ reach, peeks, onOpenDeal }: { reach: Reach; peeks: Peek[]; onOpenDeal: (id: string) => void }) {
+  const w = REWIND_AHEAD.peek;
+  return (
+    <div className="rw-peeks" role="group" aria-label={w.label(reach.item ?? '')}>
+      <p className="rw-peekh">{w.label(reach.item ?? '')}<span> · {w.note}</span></p>
+      <ul>
+        {peeks.map((p) => {
+          const price = plainMoney(formatMinor(p.price, p.currency));
+          const said = p.verdict === 'alone' ? w.alone(price) : p.verdict === 'asks' ? w.asks(price, plainMoney(formatMinor(reach.ask, reach.currency))) : w.over(price, plainMoney(formatMinor(reach.ceiling ?? 0, reach.currency)));
+          return (
+            <li key={p.id} className={`pk-${p.verdict}`}>
+              <button type="button" onClick={() => onOpenDeal(p.id)} title={w.open}>
+                <b>{p.who ?? p.title}</b><span>{said}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

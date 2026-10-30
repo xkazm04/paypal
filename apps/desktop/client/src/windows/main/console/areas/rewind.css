@@ -181,6 +181,19 @@
 @keyframes rw-cross { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 70%, transparent); } 60% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--gold) 0%, transparent); } 100% { box-shadow: 0 0 8px color-mix(in srgb, var(--gold) 60%, transparent); } }
 @keyframes rw-glow { from { background: color-mix(in srgb, var(--gold) 16%, transparent); } to { background: transparent; } }
 
+/* the tables open now for the item just said, each against the two numbers the owner gave */
+.ar-rewind .rw-host .rw-peeks { display: flex; flex-direction: column; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); margin: var(--sp-1) 0 var(--sp-2); border-left: 2px solid var(--teal); background: color-mix(in srgb, var(--teal) 5%, transparent); }
+.ar-rewind .rw-host .rw-peekh { margin: 0; color: var(--text); font-weight: var(--fw-semibold); }
+.ar-rewind .rw-host .rw-peekh span { color: var(--dim); font-weight: var(--fw-regular); }
+.ar-rewind .rw-host .rw-peeks ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ar-rewind .rw-host .rw-peeks button { display: flex; gap: var(--sp-3); align-items: baseline; width: 100%; padding: 3px 0; text-align: left; font: inherit; color: var(--muted); background: none; border: 0; cursor: pointer; }
+.ar-rewind .rw-host .rw-peeks button b { flex: none; min-width: 7rem; color: var(--text); font-weight: var(--fw-semibold); }
+.ar-rewind .rw-host .rw-peeks button:hover span { color: var(--text); }
+.ar-rewind .rw-host .rw-peeks button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ar-rewind .rw-host .pk-alone button span { color: var(--teal-l); }
+.ar-rewind .rw-host .pk-asks button span { color: var(--gold-l); }
+.ar-rewind .rw-host .pk-over button span { color: var(--red-l); }
+
 /* the hub past the line */
 .ar-rewind .rw-host .rw-walkline { color: var(--text); }
 .ar-rewind .rw-host .rw-walkline b { color: var(--gold-l); font-weight: var(--fw-semibold); }

@@ -125,6 +125,15 @@ export const REWIND_AHEAD = {
     unread: 'The forecast can’t be read right now, so nothing here is promised.',
     open: 'Open deal ›',
   },
+  /** The tables open now for the item just said, each against the two numbers the owner gave. */
+  peek: {
+    label: (item: string): string => (item ? `Your open tables for the ${item}, at their latest price` : 'Your open tables for it, at their latest price'),
+    note: 'if the price stays',
+    alone: (price: string): string => `${price} · your agent could agree to this on its own`,
+    asks: (price: string, ask: string): string => `${price} · above ${ask}, so your agent would stop and ask you`,
+    over: (price: string, most: string): string => `${price} · over your most of ${most}, so your agent would not agree`,
+    open: 'Open this deal',
+  },
   beyond: 'beyond the forecast',
   tickNow: 'Runs the next time The Table checks',
   tickIf: 'Only if the buyer approves on PayPal',

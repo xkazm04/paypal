@@ -27,6 +27,9 @@ export type SayCtx = {
   payees: readonly string[];
   /** The house seller's payee names, when it is connected: all a rule for the house's table may pay. */
   housePayees?: readonly string[];
+  /** The items the owner's deals already name (the reference the wallet knows it by, and the title it shows): what
+   *  "a monitor" is tied to when exactly one of them fits, and asked about when several do. */
+  items?: ReadonlyArray<{ ref: string; title: string; /** A table for it is open now. */ open?: boolean }>;
 };
 
 export type Slot = 'job' | 'item' | 'ceiling' | 'ask' | 'offers' | 'ends' | 'dayTotal' | 'dayDeals' | 'who' | 'payees' | 'currency' | 'leftover';
@@ -36,6 +39,10 @@ export type Facts = {
   job: 'buy' | null;
   /** The one item, as said ("27 inch monitor"); null for supplies or no item. */
   item: string | null;
+  /** The wallet's own reference for the item when the words matched one of the owner's items (SayCtx.items), else null. */
+  itemRef: string | null;
+  /** The title the wallet shows for that item. */
+  itemTitle: string | null;
   /** "buy supplies": a purchase with no single item (the word as said, or null). */
   anything: string | null;
   currency: Currency;
@@ -243,7 +250,7 @@ function amountSymbol(text: string): Currency | null {
 
 /** Read one sentence. `answers` carries what the owner answered or edited since. */
 export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading {
-  const empty: Facts = { job: null, item: null, anything: null, currency: 'USD', ceiling: null, ask: null, offers: null, ends: null, dayTotal: null, dayDeals: null, who: 'paired' };
+  const empty: Facts = { job: null, item: null, itemRef: null, itemTitle: null, anything: null, currency: 'USD', ceiling: null, ask: null, offers: null, ends: null, dayTotal: null, dayDeals: null, who: 'paired' };
   const facts: Facts = { ...empty };
   const from: Partial<Record<Slot, From>> = {};
   const heard: Partial<Record<Slot, string>> = {};
@@ -470,6 +477,7 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
 
   // ---- the owner's own answers and edits win over every reading
   applyAnswers(facts, from, heard, questions, unsure, answers, ctx);
+  tieItem(facts, ctx, answers, ask);
 
   // one question where a said value contradicts another: asking above the most is never asked
   if (facts.ask !== null && facts.ceiling !== null && facts.ask >= facts.ceiling && facts.ask > 0 && !answers['ask-over']) {
@@ -493,6 +501,48 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
   const answeredLeave = (p: string): boolean => answers[`leave:${p}`] === 'leave';
   const leftover = stray.filter((p) => !answeredLeave(p));
   return { text, facts, from, heard, questions, unsure, leftover, selling };
+}
+
+// ---- tying "a monitor" to the item the wallet already knows ---------------------------------------------
+
+const STOPWORDS = new Set(['a', 'an', 'the']);
+const stem = (w: string): string => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w);
+const wordsOf = (t: string): string[] => t.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map(stem);
+
+/** The owner's items the said words fit: the one with exactly that reference, else those that carry every said word in
+ *  their title or reference, preferring the ones that end the same way ("monitor", not "monitor arm"). */
+export function matchItems<T extends { ref: string; title: string }>(said: string, items: ReadonlyArray<T>): T[] {
+  const want = wordsOf(said).filter((w) => !STOPWORDS.has(w));
+  if (!want.length) return [];
+  const asRef = want.join('-');
+  const exact = items.filter((i) => i.ref.toLowerCase() === asRef || i.ref.toLowerCase() === said.trim().toLowerCase().replace(/\s+/g, '-'));
+  if (exact.length) return exact.slice(0, 1);
+  const hits = items.filter((i) => { const have = new Set([...wordsOf(i.title), ...wordsOf(i.ref)]); return want.every((w) => have.has(w)); });
+  if (hits.length <= 1) return hits;
+  const last = want[want.length - 1];
+  const ends = hits.filter((i) => wordsOf(i.title).at(-1) === last);
+  return ends.length ? ends : hits;
+}
+
+/** After the answers: tie the said item to one of the owner's items (one fit), or ask which (several), never choosing. */
+function tieItem(facts: Facts, ctx: SayCtx, answers: Answers, ask: (q: Question) => void): void {
+  if (!facts.item) return;
+  const picked = answers['item-which'];
+  // A pick is trusted as the reference it names (the owner chose it from the list the wallet showed).
+  if (picked && picked !== 'other') {
+    const known = ctx.items?.find((i) => i.ref === picked);
+    facts.itemRef = picked;
+    facts.itemTitle = known?.title ?? null;
+    return;
+  }
+  if (picked === 'other' || !ctx.items?.length) return;
+  // Tables open now come first: they are the likeliest thing meant.
+  const fits = matchItems(facts.item, ctx.items).sort((a, b) => Number(b.open ?? false) - Number(a.open ?? false));
+  const [only] = fits;
+  if (fits.length === 1 && only) { facts.itemRef = only.ref; facts.itemTitle = only.title; return; }
+  if (fits.length > 1) {
+    ask({ id: 'item-which', slot: 'item', text: SAY_Q.itemWhich(facts.item), answer: { kind: 'choice', choices: [...fits.slice(0, 4).map((i) => ({ value: i.ref, label: i.title })), { value: 'other', label: SAY_Q.itemOther }] } });
+  }
 }
 
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);

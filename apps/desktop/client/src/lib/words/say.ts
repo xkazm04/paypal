@@ -122,6 +122,8 @@ export const SAY_Q = {
   ceilingAsk: 'What’s the most you’ll pay?',
   ceilingFor: (item: string): string => `What’s the most you’ll pay for the ${item}?`,
   item: 'Which item should your agent haggle for?',
+  itemWhich: (said: string): string => `Which ${said} do you mean? These are the ones you already deal in.`,
+  itemOther: 'Something else',
   itemLabel: 'Item',
   job: 'I couldn’t tell what your agent should do. Should it buy for you?',
   jobBuy: 'Yes, buy for me',

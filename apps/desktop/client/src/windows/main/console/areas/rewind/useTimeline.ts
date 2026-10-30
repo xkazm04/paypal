@@ -3,9 +3,11 @@
 // World (AttentionSnapshot.forecast: no read of its own), the deal titles, and the rules the owner just said.
 import { useEffect, useMemo, useRef } from 'react';
 import type { Deal } from '@bindings/Deal';
-import { useNow, usePrefersReducedMotion } from '../../../../../lib/hooks';
+import { OPEN_TABLE } from '@bindings/dealStates';
+import { useNow, usePrefersReducedMotion, useQuery } from '../../../../../lib/hooks';
+import { peekTables, type OpenTable } from '../../../../../lib/say/join';
 import type { Reach } from '../../../../../lib/say/draft';
-import { REWIND_AHEAD } from '../../../../../lib/words';
+import { houseWords, REWIND_AHEAD } from '../../../../../lib/words';
 import { shortTitle } from '../../../home/model';
 import { useAttention, useWorldSelector, type World } from '../../../world';
 import { useRewind, type RewindState } from './clock';
@@ -44,6 +46,16 @@ export function useTimeline(reach: Reach | null, sentence: string | null = null)
     const id = requestAnimationFrame(() => glide(goal));
     return () => cancelAnimationFrame(id);
   }, [sentence, until, glide, seek]);
+  // The tables open now for the item the sentence was tied to, and where each one's latest price lands against it.
+  const cps = useQuery('counterparty_list', null, { refreshOn: ['settings:changed', 'deal:changed'] });
+  const tables = useMemo<OpenTable[]>(() => {
+    const who = new Map((cps.data ?? []).map((c) => [c.key_id, (c.house ? houseWords(c.display_name) : c.display_name).split(/\s+·\s+/)[0] ?? c.display_name] as const));
+    return (deals ?? []).filter((d) => d.side === 'buyer' && OPEN_TABLE.has(d.state)).map((d) => ({
+      id: d.id, ref: d.terms.item_ref, title: shortTitle(display(d).title), who: who.get(d.counterparty) ?? null,
+      price: d.terms.unit_price.minor * d.terms.qty, currency: d.terms.currency,
+    }));
+  }, [deals, display, cps.data]);
+  const peeks = useMemo(() => peekTables(reach, tables), [reach, tables]);
   const labelOf = useMemo<Labeller>(() => {
     const by = new Map((deals ?? []).map((d) => [d.id, d] as const));
     return (id: string): { deal: Deal; label: string; title: string } | null => {
@@ -55,8 +67,8 @@ export function useTimeline(reach: Reach | null, sentence: string | null = null)
   }, [deals, display]);
   const headline = useMemo(() => (forecast === undefined ? { ...headlineOf(null), rest: REWIND_AHEAD.reading } : headlineOf(forecast)), [forecast]);
   const ahead = useMemo<Ahead>(() => ({
-    ticks, headline, reach,
+    ticks, headline, reach, peeks,
     titleOf: (id, fallback) => labelOf(id)?.title ?? fallback,
-  }), [ticks, headline, reach, labelOf]);
+  }), [ticks, headline, reach, peeks, labelOf]);
   return { r, labelOf, ahead };
 }

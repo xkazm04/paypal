@@ -52,10 +52,10 @@ export function chipsOf(r: Reading, ctx: SayCtx): Chip[] {
     add({ key: 'job', slot: 'job', state: 'unsure', label: SAY_CHIP.job, value: '—', says: SAY_SAYS.job, heard: null, question: q('job'), edit: null, editValue: '', rule: 'roles' });
   }
   if (f.item || f.anything || q('item')) {
-    const what = f.item ?? f.anything ?? '';
+    const what = f.itemTitle ?? f.item ?? f.anything ?? '';
     add({
       key: 'item', slot: 'item', state: state('item'), label: SAY_CHIP.item, value: what || '—',
-      says: f.item ? SAY_SAYS.itemOne(f.item) : f.anything ? SAY_SAYS.itemAny(f.anything) : SAY_SAYS.itemOne('…'),
+      says: f.item ? SAY_SAYS.itemOne(f.itemTitle ?? f.item) : f.anything ? SAY_SAYS.itemAny(f.anything) : SAY_SAYS.itemOne('…'),
       heard: r.heard.item ?? null, question: q('item'), edit: 'text', editValue: what, rule: f.item ? 'band' : 'per_deal',
     });
   }
@@ -164,7 +164,9 @@ export function rulesOf(r: Reading, ctx: SayCtx): RulesDraft | null {
   ];
   if (f.ceiling !== null) clauses.push({ type: 'per_deal', kind: haggle ? 'haggle' : 'purchase', max_amount: money(f.ceiling), categories: haggle ? ['office'] : ['office', 'parts'] });
   if (haggle) {
-    clauses.push({ type: 'band', item_refs: [itemRef(f.item ?? '')].filter(Boolean), floor: null, ceiling: f.ceiling === null ? null : money(f.ceiling), max_rounds: f.offers ?? 6, deadline: expires });
+    // An item the owner has not yet picked between (r.unsure) is left out: the editor shows it missing.
+    const refs = r.unsure.has('item') ? [] : [f.itemRef ?? itemRef(f.item ?? '')].filter(Boolean);
+    clauses.push({ type: 'band', item_refs: refs, floor: null, ceiling: f.ceiling === null ? null : money(f.ceiling), max_rounds: f.offers ?? 6, deadline: expires });
   }
   if (f.dayTotal !== null) clauses.push({ type: 'velocity', max_deals_day: f.dayDeals ?? 2, max_total_day: money(f.dayTotal) });
   clauses.push({ type: 'human_present_over', amount: money(f.ask ?? 0) });
@@ -184,8 +186,12 @@ export type Reach = {
   perDay: number | null;
   /** When the rules end. */
   until: number;
-  /** The item, as said. */
+  /** The item, as said (or its title when it was tied to one of the owner's items). */
   item: string | null;
+  /** The wallet's reference for that item when it was tied to one, else null: what an open deal's item is compared with. */
+  itemRef: string | null;
+  /** Above this an agent stops and asks (the threshold as said, 0 = every time). */
+  ask: number;
 };
 
 /** The numbers the timeline draws for a reading; null while the sentence is no rule yet (a rule that names no
@@ -195,5 +201,5 @@ export function reachOf(f: Facts, ends: number | null): Reach | null {
   const ceiling = f.ceiling;
   const ask = f.ask ?? 0;
   const alone = Math.min(ask, ceiling);
-  return { currency: f.currency, alone, ceiling, perDay: f.dayTotal, until: ends ?? 0, item: f.item ?? f.anything };
+  return { currency: f.currency, alone, ceiling, perDay: f.dayTotal, until: ends ?? 0, item: f.itemTitle ?? f.item ?? f.anything, itemRef: f.itemRef, ask };
 }

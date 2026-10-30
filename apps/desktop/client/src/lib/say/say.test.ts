@@ -423,3 +423,48 @@ describe('whatever is typed, it never throws and never signs', () => {
     }
   });
 });
+
+describe('tying "a monitor" to the items the owner already deals in', () => {
+  const items = [
+    { ref: 'monitor-27-4k', title: '27-inch 4K monitor', open: true },
+    { ref: 'monitor-24-ips', title: '24-inch IPS monitor', open: true },
+    { ref: 'monitor-arm', title: 'Single monitor arm', open: false },
+    { ref: 'standing-desk', title: 'Standing desk', open: false },
+  ];
+  const withItems = (text: string, answers: Answers = {}) => read(text, { ...ctx(), items }, answers);
+
+  it('one fit is tied to it without asking', () => {
+    const r = withItems('Haggle for a 27 inch monitor up to $340');
+    expect(r.facts).toMatchObject({ item: '27 inch monitor', itemRef: 'monitor-27-4k', itemTitle: '27-inch 4K monitor' });
+    expect(r.questions).toEqual([]);
+    expect(withItems('Buy a standing desk up to $500').facts.itemRef).toBe('standing-desk');
+  });
+  it('several fits are asked about, the ones with an open table first, and the item is left out until answered', () => {
+    const r = withItems('Haggle for a monitor up to $340');
+    expect(r.facts.itemRef).toBeNull();
+    const q = r.questions.find((x) => x.id === 'item-which');
+    expect(q?.slot).toBe('item');
+    expect(q?.answer.kind === 'choice' && q.answer.choices.map((c) => c.value)).toEqual(['monitor-27-4k', 'monitor-24-ips', 'other']);
+    expect(r.unsure.has('item')).toBe(true);
+  });
+  it('an answer ties it, or keeps the words as they were said', () => {
+    const tied = withItems('Haggle for a monitor up to $340', { 'item-which': 'monitor-24-ips' });
+    expect(tied.facts).toMatchObject({ itemRef: 'monitor-24-ips', itemTitle: '24-inch IPS monitor' });
+    expect(tied.questions).toEqual([]);
+    const other = withItems('Haggle for a monitor up to $340', { 'item-which': 'other' });
+    expect(other.facts.itemRef).toBeNull();
+    expect(other.facts.item).toBe('monitor');
+    expect(other.questions).toEqual([]);
+  });
+  it('an item nobody has dealt in stays the words as said', () => {
+    const r = withItems('Haggle for a keyboard up to $90');
+    expect(r.facts).toMatchObject({ item: 'keyboard', itemRef: null });
+    expect(r.questions).toEqual([]);
+  });
+  it('a typed reference ties exactly', () => {
+    expect(withItems('Haggle for monitor-27-4k up to $340').facts.itemRef).toBe('monitor-27-4k');
+  });
+  it('without items it reads as before', () => {
+    expect(say('Haggle for a monitor up to $340').questions).toEqual([]);
+  });
+});

@@ -16,7 +16,7 @@ import { clockOffset } from '../lib/clock';
 import { clockLabel, nowUnix } from '../lib/format';
 import { rulesOf } from '../lib/say/draft';
 import { read } from '../lib/say/read';
-import { saySet } from '../lib/say/store';
+import { saySetAll } from '../lib/say/store';
 import { useNow, usePrefersReducedMotion } from '../lib/hooks';
 import { APPROVAL_FRAME } from '../lib/words';
 import { applyTheme, getTheme, setTheme, type Theme } from '../lib/theme';
@@ -262,10 +262,10 @@ export function Director({ story }: { story: Story }) {
       payeesRef.current = { all: names(list), house: names(list.filter((c) => c.house)) };
     }).catch(() => { /* no list: the payees stay for the owner to choose, as in the app */ });
   }, [core]);
-  const rulesUrl = useCallback((sentence: string): string => {
+  const rulesUrl = useCallback((sentence: string, answers: Record<string, string> = {}): string => {
     const at = nowUnix();
     const ctx = { now: at, offsetMin: -new Date(at * 1000).getTimezoneOffset(), payees: payeesRef.current.all, housePayees: payeesRef.current.house };
-    const rules = rulesOf(read(sentence, ctx), ctx);
+    const rules = rulesOf(read(sentence, ctx, answers), ctx);
     return rules ? urls.ownerRules({ type: 'rules', ...rules }) : urls.owner;
   }, [urls]);
   const stage = useMemo<Stage>(() => ({
@@ -282,11 +282,11 @@ export function Director({ story }: { story: Story }) {
       if (id) setFrames((f) => ({ ...f, approvalSrc: urls.approval(id), approvalKey: f.approvalKey + 1 }));
       setApprovalOpen(!!id);
     },
-    owner: (rules) => {
-      setFrames((f) => ({ ...f, approvalSrc: rules ? rulesUrl(rules) : urls.owner, approvalKey: f.approvalKey + 1 }));
+    owner: (rules, answers) => {
+      setFrames((f) => ({ ...f, approvalSrc: rules ? rulesUrl(rules, answers) : urls.owner, approvalKey: f.approvalKey + 1 }));
       setApprovalOpen(true);
     },
-    say: (text) => saySet(text),
+    say: (text, answers) => saySetAll(text, answers ?? {}),
   }), [world, navigateMain, urls, rulesUrl]);
 
   // A framed window may move focus into itself when the story drives it (a card opening, a route).
@@ -372,13 +372,13 @@ export function Director({ story }: { story: Story }) {
     // First run: each window's tour as the earlier beats pointed it, before the frames load.
     if (story.firstRun) placeTours(sc.tour);
     // The sentence as the earlier beats left it, before the frames load and read it back.
-    saySet(sc.say);
+    saySetAll(sc.say.text, sc.say.answers);
     const approvalId = sc.approval ? world.deal(sc.approval)?.deal.id ?? null : null;
     setMainOpen(sc.main.open);
     setApprovalOpen(!!approvalId || sc.owner);
     const epoch = ++epochRef.current;
     pending.current = { epoch, n: target, scene: sc, loaded: new Set() };
-    setFrames((f) => ({ epoch, mainSrc: urls.main(sc.main.route), approvalSrc: sc.owner ? (sc.ownerRules ? rulesUrl(sc.ownerRules) : urls.owner) : urls.approval(approvalId), approvalKey: f.approvalKey + 1 }));
+    setFrames((f) => ({ epoch, mainSrc: urls.main(sc.main.route), approvalSrc: sc.owner ? (sc.ownerRules ? rulesUrl(sc.ownerRules.text, sc.ownerRules.answers) : urls.owner) : urls.approval(approvalId), approvalKey: f.approvalKey + 1 }));
     indexRef.current = target - 1;
     setIndex(target - 1);
     tRef.current = BEATS[target]?.at ?? 0;

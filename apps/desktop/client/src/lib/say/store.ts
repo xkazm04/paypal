@@ -54,6 +54,13 @@ export function saySet(text: string): void {
   emit();
 }
 
+/** A sentence together with answers already given (the director's way of showing a question answered). */
+export function saySetAll(text: string, answers: Answers): void {
+  state = text ? { text, answers: { ...answers } } : EMPTY;
+  save(state);
+  emit();
+}
+
 /** An answer to a question, or an edit of a chip (read.ts: a question id, or a slot name). */
 export function sayAnswer(id: string, value: string): void {
   state = { ...state, answers: { ...state.answers, [id]: value } };
