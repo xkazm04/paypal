@@ -75,7 +75,7 @@ export function Corridor({ haggle, who, autoplay = true, big = false, compact = 
   // refusal at her limit is the wall itself. The agent lunges at the gate and bounces off it.
   const youPrice = f.trail.you[f.trail.you.length - 1] ?? null;
   const themPrice = f.trail.them[f.trail.them.length - 1] ?? null;
-  const refused = f.refusal ?? (f.owner > 0 && !f.snap ? lastRefusal(haggle) : null);
+  const refused = f.refusal ?? (f.owner !== null ? lastRefusal(haggle) : null);
   const burst = f.snap && !reduced ? f.snap.p : 0;
   const pulse = (since: number | null) => (since === null || reduced ? 0 : clamp01(since / PULSE_MS));
   const met = f.snap?.p === 1;
@@ -132,8 +132,10 @@ export function Corridor({ haggle, who, autoplay = true, big = false, compact = 
           </div>
         ) : null}
         {call !== null ? (
-          <div className={`hc-call${call < track.lo ? ' off' : ''}`} style={{ ...(buyer ? { left: pct(x(call)), right: 0 } : { left: 0, right: pct(1 - x(call)) }), clipPath: `inset(0 ${((1 - drawn) * 100).toFixed(1)}% 0 0)` }}>
-            <span>{buyer ? W.yourCall(m(call)) : W.yourCallBelow(m(call))}</span>
+          // Her call is above the line on either side of the table: the wallet asks her whenever the
+          // amount is over it (mandate.rs, clause 6), buying or selling.
+          <div className={`hc-call${call < track.lo ? ' off' : ''}`} style={{ left: pct(x(call)), right: 0, clipPath: `inset(0 ${((1 - drawn) * 100).toFixed(1)}% 0 0)` }}>
+            <span>{W.yourCall(m(call))}</span>
           </div>
         ) : null}
         <div className="hc-rail" />
@@ -152,8 +154,8 @@ export function Corridor({ haggle, who, autoplay = true, big = false, compact = 
         {gateF !== null ? (
           <div className="hc-gate" style={{ left: pct(gateF), '--flash': flash.toFixed(3), '--impact': impact.toFixed(3) } as CSSProperties}>
             {impact > 0 && impact < 1 ? <span className="hc-shock" /> : null}
-            <span className="hc-gate-tag">{f.owner > 0 ? W.yourCallTag : W.refusedTag}</span>
-            {f.owner > 0 ? <span className="hc-hold" style={{ '--hold': f.owner.toFixed(3) } as CSSProperties} /> : null}
+            <span className="hc-gate-tag">{f.owner !== null ? W.yourCallTag : W.refusedTag}</span>
+            {f.owner !== null ? <span className="hc-hold" style={{ '--hold': f.owner.toFixed(3) } as CSSProperties} /> : null}
           </div>
         ) : null}
 
@@ -167,7 +169,10 @@ export function Corridor({ haggle, who, autoplay = true, big = false, compact = 
         ) : null}
       </div>
 
-      <p className={`hc-caption${f.refusal || f.owner > 0 ? ' gold' : ''}`} aria-live={compact ? undefined : 'polite'} aria-atomic={compact ? undefined : true}>{caption ?? ' '}</p>
+      <p className={`hc-caption${f.refusal || f.owner !== null ? ' gold' : ''}`}>{caption ?? ' '}</p>
+      {/* Read out when it settles (paused, scrubbed, or at the end), not every beat while it plays:
+          a screen reader would fall behind the motion. The steps list holds every line. */}
+      {compact ? null : <p className="sr-only" aria-live="polite" aria-atomic="true">{clock.playing ? '' : caption ?? ''}</p>}
 
       {compact ? null : <>
       <div className="hc-time">

@@ -283,7 +283,8 @@ export function buildMockState(now: number): MockState {
   const cents = (minor: number): Money => ({ minor, currency: USD });
   const recMarket: [number, number, number] = [RECORDED.dan.market.p25 / 100, RECORDED.dan.market.median / 100, RECORDED.dan.market.p75 / 100];
   const transcriptOf = (steps: readonly RecordedStep[], at: (i: number) => number): TranscriptStep[] =>
-    steps.map((s, i) => ({ seq: i + 1, by: s.by === 'seller' ? 'them' : 'you', typ: s.act.toUpperCase() as TranscriptStep['typ'], price: cents(s.price), at: at(i), verified: true }));
+    // As the ledger projects it (display.rs): an ACCEPT names no price; it accepts the offer on the table.
+    steps.map((s, i) => ({ seq: i + 1, by: s.by === 'seller' ? 'them' : 'you', typ: s.act.toUpperCase() as TranscriptStep['typ'], price: s.act === 'accept' ? null : cents(s.price), at: at(i), verified: true }));
   const bandOf = (rec: RecordedHaggle, offers: number): DealDisplay['band'] =>
     ({ floor: rec.rules.floor === null ? null : cents(rec.rules.floor), ceiling: cents(rec.rules.ceiling), max_rounds: rec.rules.max_offers, rounds_used: offers });
   // Dan's table: his counters come down to the price the agent would take, and the wallet stops it

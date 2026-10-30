@@ -340,7 +340,6 @@ export const TABLES_WATCH = {
   market: 'Typical price',
   marketRange: (lo: string, hi: string): string => `Typical price ${lo}–${hi}`,
   yourCall: (v: string): string => `Your call above ${v}`,
-  yourCallBelow: (v: string): string => `Your call below ${v}`,
   them: (who: string): string => who,
   you: 'Your agent',
   apart: 'apart',

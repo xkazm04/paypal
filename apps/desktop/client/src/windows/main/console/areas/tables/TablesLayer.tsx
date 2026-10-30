@@ -28,7 +28,7 @@ import { EMPTY_TABLE, roomLine, TableDetail, type StepHandlers, type TableState 
 import { NeedCard } from './Need';
 import { SplitView, TheirWords, usePick } from './parts';
 import { canShopAround, liveGroups, ShopAroundButton, ShopView } from './Shop';
-import { watchTable } from '../../../modules/tables/watchPick';
+import { watchTable, worthWatching } from '../../../modules/tables/watchPick';
 import { WatchView } from './Watch';
 
 const selModuleOf = (w: World) => w.moduleOfDeal;
@@ -196,7 +196,7 @@ export function TablesLayer({ nav }: LayerProps) {
           <StateChip deal={d} />
           <Amount money={dealTotal(d)} tone={amountTone(d)} />
           <span className="ui-spacer" />
-          <Btn sm kind="plain" onClick={() => { watchTable(d.id); route.open('watch'); }} title={TABLES_WATCH.watchItTitle}>{TABLES_WATCH.watchIt}</Btn>
+          {worthWatching(d, disp.band) ? <Btn sm kind="plain" onClick={() => { watchTable(d.id); route.open('watch'); }} title={TABLES_WATCH.watchItTitle}>{TABLES_WATCH.watchIt}</Btn> : null}
           <Btn sm kind="plain" onClick={() => open(d)} title={TABLES_TRADE.openDealTitle}>{TABLES_TRADE.openDeal}</Btn>
         </header>
         {withNeed && need ? <NeedCard deal={d} disp={disp} need={need} who={who.short} onDeal={() => open(d)} onToast={say} /> : null}

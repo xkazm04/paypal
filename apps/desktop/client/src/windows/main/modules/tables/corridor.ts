@@ -55,60 +55,71 @@ type Inputs = {
   gate?: { clause: number | null; price: number } | null;
 };
 
-/** The beats of a table| null;
-};
+/** How far a counterparty's signed clock may run ahead of the wallet's (an envelope's `iat` is the
+ *  sender's; the wallet's own steps and its history share one clock). */
+const SKEW_SECS = 300;
 
-/** The beats of a table, in the order they happened. Transcript prices and the history's typed
- *  steps share the wallet's clock; at the same second a signed message comes before a refusal. */
+/** The beats of a table, in the order they happened. The transcript stays in the ledger's order (it
+ *  is never re-sorted by its `at`, which for their steps is their clock). A refusal from the history
+ *  falls before the first of our own steps signed after it, or the first of theirs signed well after
+ *  it. Only the refusals the corridor draws are taken: her ask-me rule stopping the agent's yes
+ *  (clause 6) and her limit (clause 4); a group closing a table, a wallet-limit stop or a missing
+ *  tool are other stories, and repeated refusals at one point are one beat. An ACCEPT carries no
+ *  price in the ledger: it accepts the offer on the table, the latest price either side named. */
 export function haggleOf(i: Inputs): Haggle {
-  const steps = [...i.transcript].sort((a, b) => a.at - b.at || a.seq - b.seq);
+  const steps = i.transcript;
   const history = [...(i.history ?? [])].sort((a, b) => a.at - b.at || a.seq - b.seq);
   const ownerSaidYes = history.some((h) => h.kind === 'owner_accepted');
-  type Timed = { at: number; order: number; beat: Beat | null; step?: TranscriptStep };
-  const timed: Timed[] = [];
-  let sawOurs = false;
-  for (const s of steps) {
-    const price = s.price?.minor ?? null;
-    if ((s.typ === 'LISTING' || s.typ === 'OFFER' || s.typ === 'COUNTER') && price !== null) {
-      const first = s.by === 'you' && !sawOurs;
-      if (s.by === 'you') sawOurs = true;
-      timed.push({ at: s.at, order: 0, beat: { kind: 'price', by: s.by, price, first } });
-    } else if (s.typ === 'ACCEPT' && price !== null) {
-      timed.push({ at: s.at, order: 0, beat: s.by === 'you' && ownerSaidYes ? { kind: 'owner', price } : { kind: 'accept', by: s.by, price } });
-    } else if (s.typ === 'WITHDRAW') {
-      timed.push({ at: s.at, order: 0, beat: { kind: 'withdrawn', by: s.by } });
-    }
-  }
+  const slotOf = (at: number): number => {
+    const k = steps.findIndex((s) => (s.by === 'you' && s.at > at) || (s.by === 'them' && s.at > at + SKEW_SECS));
+    return k < 0 ? steps.length : k;
+  };
+  const refusalsAt = new Map<number, number | null>();
   for (const h of history) {
-    if (h.kind !== 'intent_refused') continue;
-    const clause = h.authority.type === 'signed_rule' ? h.authority.clause : null;
-    timed.push({ at: h.at, order: 1, beat: { kind: 'refused', price: null, clause } });
+    if (h.kind !== 'intent_refused' || h.authority.type !== 'signed_rule') continue;
+    const clause = h.authority.clause;
+    if (clause !== 6 && clause !== 4) continue;
+    const slot = slotOf(h.at);
+    if (!refusalsAt.has(slot)) refusalsAt.set(slot, clause);
   }
-  timed.sort((a, b) => a.at - b.at || a.order - b.order);
   const beats: Beat[] = [];
   let theirs: number | null = null;
+  let onTable: number | null = null;
+  let sawOurs = false;
+  let ended = false;
   let accepts = { you: null as number | null, them: null as number | null };
-  for (const t of timed) {
-    const b = t.beat;
-    if (!b) continue;
-    if (b.kind === 'price' && b.by === 'them') theirs = b.price;
-    if (b.kind === 'refused') {
-      // An ask-me refusal stops our agent's yes to their latest price; a band refusal is at the wall.
-      beats.push(b.clause === 6 && theirs !== null ? { ...b, price: theirs } : b);
-      continue;
+  const refuse = (slot: number) => {
+    const clause = refusalsAt.get(slot);
+    if (clause === undefined || ended || beats[beats.length - 1]?.kind === 'refused') return;
+    // An ask-me refusal stops the agent's yes to their latest price; a limit refusal is at the wall.
+    beats.push({ kind: 'refused', price: clause === 6 ? theirs : null, clause });
+  };
+  steps.forEach((s, k) => {
+    refuse(k);
+    const price = s.price?.minor ?? null;
+    if ((s.typ === 'LISTING' || s.typ === 'OFFER' || s.typ === 'COUNTER') && price !== null) {
+      beats.push({ kind: 'price', by: s.by, price, first: s.by === 'you' && !sawOurs });
+      if (s.by === 'you') sawOurs = true;
+      else theirs = price;
+      onTable = price;
+    } else if (s.typ === 'ACCEPT' && onTable !== null) {
+      const b: Beat = s.by === 'you' && ownerSaidYes ? { kind: 'owner', price: onTable } : { kind: 'accept', by: s.by, price: onTable };
+      accepts = { ...accepts, [s.by]: onTable };
+      const agreed = accepts.you !== null && accepts.you === accepts.them;
+      // Their accept that closes the deal is the snap itself; the owner's yes keeps its own beat.
+      if (!(agreed && s.by === 'them')) beats.push(b);
+      if (agreed && accepts.you !== null) {
+        beats.push({ kind: 'agreed', price: accepts.you, byOwner: ownerSaidYes });
+        accepts = { you: null, them: null };
+        ended = true;
+      }
+    } else if (s.typ === 'WITHDRAW') {
+      beats.push({ kind: 'withdrawn', by: s.by });
+      ended = true;
     }
-    if (b.kind === 'owner') accepts = { ...accepts, you: b.price };
-    if (b.kind === 'accept') accepts = { ...accepts, [b.by]: b.price };
-    const agreed = accepts.you !== null && accepts.you === accepts.them;
-    // Their accept that closes the deal is the snap itself; the owner's yes keeps its own beat.
-    if (!(agreed && b.kind === 'accept' && b.by === 'them')) beats.push(b);
-    if (agreed && accepts.you !== null) {
-      beats.push({ kind: 'agreed', price: accepts.you, byOwner: ownerSaidYes });
-      accepts = { you: null, them: null };
-    }
-  }
-  const last = beats[beats.length - 1];
-  if (i.gate && last?.kind !== 'refused' && !beats.some((b) => b.kind === 'agreed' || b.kind === 'withdrawn')) {
+  });
+  refuse(steps.length);
+  if (i.gate && !ended && beats[beats.length - 1]?.kind !== 'refused') {
     beats.push({ kind: 'refused', price: i.gate.clause === 6 ? i.gate.price : null, clause: i.gate.clause });
   }
   return {
@@ -170,8 +181,8 @@ export type Frame = {
   refusal: { price: number | null; clause: number | null; p: number } | null;
   /** 0..1 as the deal snaps shut at `price`. */
   snap: { price: number; p: number; byOwner: boolean } | null;
-  /** The owner's yes: 0..1 while the hold ring fills. */
-  owner: number;
+  /** The owner's yes: 0..1 while the hold ring fills, during her beat only (null before and after). */
+  owner: number | null;
   /** Prices apart, as drawn (null until both sides have one). */
   gap: number | null;
   /** Our signed offers so far. */
@@ -189,7 +200,7 @@ export function frameAt(pb: Playbook, t: number): Frame {
   let current = -1;
   let refusal: Frame['refusal'] = null;
   let snap: Frame['snap'] = null;
-  let owner = 0;
+  let owner: number | null = null;
   let offers = 0;
   for (const c of pb.cues) {
     if (t < c.at) break;
@@ -204,7 +215,7 @@ export function frameAt(pb: Playbook, t: number): Frame {
       if (b.by === 'you') offers += 1;
     }
     refusal = b.kind === 'refused' ? { price: b.price, clause: b.clause, p: clamp01(local / c.hold) } : null;
-    if (b.kind === 'owner') owner = clamp01(local / (c.hold * 0.8));
+    owner = b.kind === 'owner' ? clamp01(local / (c.hold * 0.8)) : null;
     if (b.kind === 'agreed') snap = { price: b.price, p: clamp01(local / 520), byOwner: b.byOwner };
   }
   const at = (w: Who): number | null => {

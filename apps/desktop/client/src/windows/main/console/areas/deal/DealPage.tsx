@@ -29,7 +29,7 @@ import { Btn, Chip, Hint, Kv, Popover, Silence } from '../../../../../shared/ui'
 import { actingRun, heldRefs, lastFinishedRun, latestText, mayWithdraw, mirrorStrip, readClauses, stepWords, timelineRows } from '../../../deal/model';
 import { acceptedAtFloorLine, dealAnswer, ruleChecks, rulesBadge, standingFacts } from '../../../deal/story';
 import { canStartAgent, isLive, isTerminal, pairingFact } from '../../../logic';
-import { watchTable } from '../../../modules/tables/watchPick';
+import { watchTable, worthWatching } from '../../../modules/tables/watchPick';
 import { useCpLookup, useToast } from '../../../ui';
 import { useDeals, useNeedOf, useRuns, useSettings, useWorldSelector, type World } from '../../../world';
 import { useSheetView, type LayerNav } from '../../layers';
@@ -168,7 +168,7 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
       sub={<span className={`dv-answer tone-${answer.tone}`}><b>{answer.title}</b>{answer.sub ? <> {answer.sub}</> : null}</span>}
       aside={<Summary deal={deal} strip={strip} deadline={deadline} check={check} />}
       action={<PageActions deal={deal} label={disp.label} entryAgent={entry?.agent ?? null} needs={!!need} onSheet={setSheet}
-        onWatch={deal.kind === 'haggle' && (tr.data?.length ?? 0) >= 2 ? () => { watchTable(deal.id); nav.go({ level: 'module', module: 'tables', view: 'watch' }); } : null} />}
+        onWatch={worthWatching(deal, disp.band) ? () => { watchTable(deal.id); nav.go({ level: 'module', module: 'tables', view: 'watch' }); } : null} />}
       lead={(
         <div className="dv-lead">
           {disp.fallback ? <Hint>{DEAL_ACT.fallback}</Hint> : null}

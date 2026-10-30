@@ -154,3 +154,53 @@ describe('spread', () => {
     expect(spread(0.5, 0.5, 0, 30)).toEqual([0.5, 0.5]);
   });
 });
+
+describe('real ledger shapes (review findings)', () => {
+  it('an ACCEPT carries no price in the ledger: it accepts the price on the table, and both accepts snap shut', () => {
+    const h = haggleOf({
+      currency: 'USD', side: 'buyer',
+      transcript: [step(1, 'them', 'LISTING', 34000, 10), step(1, 'you', 'OFFER', 30000, 20), step(2, 'them', 'COUNTER', 32400, 30), step(2, 'you', 'ACCEPT', null, 700), step(3, 'them', 'ACCEPT', null, 720)],
+      history: [hist(32, 'intent_refused', { type: 'signed_rule', clause: 6 }), hist(700, 'owner_accepted', { type: 'owner' })],
+    });
+    expect(h.beats.slice(-3)).toEqual([
+      { kind: 'refused', price: 32400, clause: 6 },
+      { kind: 'owner', price: 32400 },
+      { kind: 'agreed', price: 32400, byOwner: true },
+    ]);
+  });
+  it('draws only her ask-me and limit refusals, once per point: a group close or a missing tool is another story', () => {
+    const h = haggleOf({
+      currency: 'USD', side: 'buyer',
+      transcript: [step(1, 'them', 'LISTING', 34000, 10), step(1, 'you', 'OFFER', 30000, 20), step(2, 'them', 'COUNTER', 32900, 30)],
+      history: [
+        hist(31, 'intent_refused', { type: 'signed_rule', clause: 6 }), hist(33, 'intent_refused', { type: 'signed_rule', clause: 6 }),
+        hist(40, 'intent_refused', { type: 'signed_rule', clause: null }),
+      ],
+    });
+    expect(h.beats.filter((b) => b.kind === 'refused')).toEqual([{ kind: 'refused', price: 32900, clause: 6 }]);
+  });
+  it('their signed clock may run ahead: a refusal still follows the counter it stopped, and the ledger order is kept', () => {
+    const h = haggleOf({
+      currency: 'USD', side: 'buyer',
+      // their counter is stamped 90 s ahead of the wallet's clock; the refusal is the wallet's at 1000
+      transcript: [step(1, 'them', 'LISTING', 34000, 900), step(1, 'you', 'OFFER', 30000, 950), step(2, 'them', 'COUNTER', 32900, 1090)],
+      history: [hist(1000, 'intent_refused', { type: 'signed_rule', clause: 6 })],
+      gate: { clause: 6, price: 32900 },
+    });
+    expect(h.beats.map((b) => b.kind)).toEqual(['price', 'price', 'price', 'refused']);
+    expect(h.beats[3]).toEqual({ kind: 'refused', price: 32900, clause: 6 });
+  });
+  it('the owner’s hold ring belongs to her beat only: a withdrawal after it shows no gate', () => {
+    const h: Haggle = {
+      currency: 'USD', side: 'buyer', ceiling: 34000, floor: null, askAbove: 25000, maxOffers: 6, market: null,
+      beats: [
+        { kind: 'price', by: 'them', price: 34000, first: false }, { kind: 'price', by: 'you', price: 30000, first: true },
+        { kind: 'refused', price: 34000, clause: 6 }, { kind: 'owner', price: 34000 }, { kind: 'withdrawn', by: 'them' },
+      ],
+    };
+    const pb = playbook(h);
+    const owner = pb.cues[3]!;
+    expect(frameAt(pb, owner.at).owner).toBe(0);
+    expect(frameAt(pb, pb.total).owner).toBeNull();
+  });
+});

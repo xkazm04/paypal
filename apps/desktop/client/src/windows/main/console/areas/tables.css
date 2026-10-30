@@ -172,7 +172,6 @@
 .hc-call span { position: absolute; top: 7px; left: 0; font-size: var(--fs-small); color: var(--gold-l); white-space: nowrap; }
 .hc-call.off { left: 0 !important; }
 .hc-call.off span::before { content: "\2190  "; }
-.hc.seller .hc-call span { left: auto; right: 0; }
 .hc-wall { --drawn: 1; position: absolute; top: -6%; bottom: -6%; width: 4px; transform: translateX(-50%); }
 /* the bar itself rises from the rail as the walls draw in; its label stays put */
 .hc-wall::before { content: ""; position: absolute; inset: 0; border-radius: 2px; transform: scaleY(var(--drawn)); transform-origin: 50% 61%;

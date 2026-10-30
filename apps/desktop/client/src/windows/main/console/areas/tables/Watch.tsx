@@ -12,7 +12,7 @@ import { useQuery } from '../../../../../lib/hooks';
 import { TABLES_WATCH as W } from '../../../../../lib/words';
 import { isLive } from '../../../logic';
 import { haggleOf, watchable, type Haggle } from '../../../modules/tables/corridor';
-import { takeWatched } from '../../../modules/tables/watchPick';
+import { takeWatched, worthWatching } from '../../../modules/tables/watchPick';
 import type { World } from '../../../world';
 import { ListEngine } from '../../ListEngine';
 import { StateChip, WhoChip } from '../../rows';
@@ -26,7 +26,7 @@ export function watchOrder(deals: readonly Deal[], display: World['display']): D
   const rounds = (d: Deal) => display(d).band?.rounds_used ?? 0;
   const done = (d: Deal) => AGREED_OR_LATER.has(d.state);
   return deals
-    .filter((d) => d.kind === 'haggle' && rounds(d) > 0)
+    .filter((d) => worthWatching(d, display(d).band))
     .sort((a, b) => Number(done(b)) - Number(done(a)) || (done(a) ? rounds(b) - rounds(a) : 0) || (b.updated_at ?? 0) - (a.updated_at ?? 0) || a.id.localeCompare(b.id));
 }
 
