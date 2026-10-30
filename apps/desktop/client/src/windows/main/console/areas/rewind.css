@@ -38,6 +38,9 @@
 }
 /* the narration (it sat in the dial's hub before) */
 .ar-rewind .rw-host .rw-stage { display: grid; place-items: center; min-height: 10rem; padding: var(--sp-2) 0 var(--sp-4); }
+/* with a future side the track is the picture: the stage above it keeps to what it says, so the track shows on a short window */
+.ar-rewind .rw-host:has(.has-ahead) .rw-stage { min-height: 6.5rem; padding-bottom: var(--sp-2); }
+.ar-rewind .rw-host:has(.has-ahead) .hc { gap: var(--sp-1); }
 .ar-rewind .rw-host .hc { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--sp-2); width: min(100%, 46rem); container-type: inline-size; }
 .ar-rewind .rw-host .h-eyebrow { font: var(--fw-medium) var(--fs-small)/1.3 var(--label); font-stretch: var(--label-stretch); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
 .ar-rewind .rw-host .h-week { color: var(--muted); }
