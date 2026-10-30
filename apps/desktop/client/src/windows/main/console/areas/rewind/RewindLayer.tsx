@@ -4,32 +4,32 @@
 // by who decided, the scrubber with the hub (play, week back and forth, drag, day anchors, ticks
 // that open their deal), and the tape: every step of the week newest first, windowed, searchable
 // and filtered by who decided; a step opens its deal. `rewindAt` opens it at a moment (an "away"
-// line). Read-only: nothing here moves money.
+// line). The scrubber runs on past the gold "now" line into the forecast's next 72 hours, and shows what
+// the rules the owner just said (the Say it panel above it) would allow there. Read-only: nothing here
+// moves money.
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import type { Deal } from '@bindings/Deal';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { formatCount } from '../../../../../lib/data/counts';
-import { useNow, usePrefersReducedMotion } from '../../../../../lib/hooks';
+import { reachOf } from '../../../../../lib/say/draft';
+import { useSayReading } from '../../../setup/useSay';
+import { SayIt } from '../../../setup/SayIt';
 import { lazyPart } from '../../../../../lib/lazy';
 import {
   LAYER_LOADING, REWIND_ANSWER, REWIND_BAR, REWIND_CARD, REWIND_KICKER, REWIND_TAPE, REWIND_THIS_WEEK, REWIND_TRUNCATED,
 } from '../../../../../lib/words';
-import { shortTitle, weekLabel } from '../../../home/model';
+import { weekLabel } from '../../../home/model';
 import { endingCtx, isMoneyCall, isRefusal, laneSteps, narrate, stepTime, tickTone, type TickTone } from '../../../logic';
-import { useWorldSelector, type World } from '../../../world';
 import type { LayerProps } from '../../layers';
 import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
 import { fitHeight, PlaceFrame, type LensCard } from '../settings/frame';
 import { Reveal, Skeleton } from '../../stagger';
-import { useRewind, type RewindState } from './clock';
+import type { RewindState } from './clock';
+import { useTimeline } from './useTimeline';
 import type { Labeller } from './Scrubber';
 import { TickMark } from './TickMark';
 
 const RewindBar = lazyPart(() => import('./Scrubber').then((m) => m.RewindBar));
 const RewindHub = lazyPart(() => import('./Scrubber').then((m) => m.RewindHub));
-
-const sel = (w: World) => ({ deals: w.deals.data, display: w.display });
-const same = (a: ReturnType<typeof sel>, b: ReturnType<typeof sel>) => a.deals === b.deals && a.display === b.display;
 
 /** One step of the tape: the step, its deal's title and its narration, built once per read. */
 type TapeRow = { key: string; s: HistoryStep; tone: TickTone | null; title: string; said: string };
@@ -46,19 +46,9 @@ const SORTS: readonly ListSort<TapeRow>[] = [
 ];
 
 export function RewindLayer({ nav, state }: LayerProps) {
-  const reduced = usePrefersReducedMotion();
-  const now = useNow();
-  const r = useRewind(true, now, reduced);
-  const { deals, display } = useWorldSelector(sel, same);
-  const labelOf = useMemo<Labeller>(() => {
-    const by = new Map((deals ?? []).map((d) => [d.id, d] as const));
-    return (id: string): { deal: Deal; label: string; title: string } | null => {
-      const d = by.get(id);
-      if (!d) return null;
-      const disp = display(d);
-      return { deal: d, label: disp.label, title: shortTitle(disp.title) };
-    };
-  }, [deals, display]);
+  const said = useSayReading();
+  const reach = useMemo(() => (said.reading ? reachOf(said.reading.facts, said.reading.facts.ends) : null), [said.reading]);
+  const { r, labelOf, ahead } = useTimeline(reach);
 
   // Opening at a moment: step back to that week, then seek (the old "See it on the Rewind").
   const [want, setWant] = useState<number | null>(state.rewindAt);
@@ -91,15 +81,18 @@ export function RewindLayer({ nav, state }: LayerProps) {
       answer={answer} sub={r.truncated && !r.loading ? REWIND_TRUNCATED : REWIND_ANSWER.sub} cards={cards}
       lead={(
         // The hub and the scrubber are the page's picture (its heaviest part): they take the last turn,
-        // the tape (the list) comes before them (stagger.tsx).
+        // the tape (the list) comes before them (stagger.tsx). Above them, the sentence that draws on them.
+        <>
+        <SayIt compact />
         <Reveal wave={3} sizeKey="rewind:hub" skeleton={<Skeleton className="rw-host" h="23rem" />}>
           <div className="rw-host">
             <Suspense fallback={<p className="layer-loading" role="status">{LAYER_LOADING}</p>}>
-              <div className="rw-stage"><RewindHub r={r} labelOf={labelOf} onOpenDeal={nav.deal} /></div>
-              <RewindBar r={r} labelOf={labelOf} onOpenDeal={nav.deal} onExit={nav.back} />
+              <div className="rw-stage"><RewindHub r={r} labelOf={labelOf} onOpenDeal={nav.deal} ahead={ahead} /></div>
+              <RewindBar r={r} labelOf={labelOf} onOpenDeal={nav.deal} onExit={nav.back} ahead={ahead} />
             </Suspense>
           </div>
         </Reveal>
+        </>
       )}>
       <section className="rw-tape" aria-label={REWIND_TAPE.title} style={{ height: `calc(${fitHeight(tape.length, 62, '70vh')} + 2rem)` }}>
         <h2 className="cs-h3">{REWIND_TAPE.title}</h2>

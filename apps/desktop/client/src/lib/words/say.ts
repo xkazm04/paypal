@@ -7,6 +7,11 @@
 export const SAY = {
   kicker: 'Say it',
   title: 'Say what your agent may do',
+  titleShort: 'Say a rule, then see it below',
+  plain: 'In plain words:',
+  whoHouse: 'The house seller',
+  whoPaired: 'Wallets I’ve connected',
+  whenExample: 'Friday 5pm',
   sub: 'One sentence is enough. Your wallet reads it with a fixed word list: no AI, nothing is signed, and you can change every part.',
   label: 'Your sentence',
   placeholder: 'Haggle for a monitor, up to $340, ask me above $320, six offers, until Friday',
@@ -80,6 +85,7 @@ export const SAY_CHIP = {
   whoPaired: 'wallets you’ve connected',
   whoHouse: 'the house seller',
   payeesNone: 'you choose',
+  payeesN: (n: number): string => (n === 1 ? '1 wallet you’ve connected' : `${n} wallets you’ve connected`),
 } as const;
 
 export const SAY_SAYS = {

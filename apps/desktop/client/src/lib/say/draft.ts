@@ -98,10 +98,10 @@ export function chipsOf(r: Reading, ctx: SayCtx): Chip[] {
       says: f.who === 'house' ? SAY_SAYS.whoHouse : SAY_SAYS.whoPaired, heard: r.heard.who ?? null, question: null,
       edit: 'who', editValue: f.who, rule: 'counterparties',
     });
-    const names = ctx.payees.join(', ');
+    const list = payeesFor(f, ctx);
     add({
-      key: 'payees', slot: 'payees', state: ctx.payees.length ? 'filled' : 'open', label: SAY_CHIP.payees, value: names || SAY_CHIP.payeesNone,
-      says: names ? SAY_SAYS.payees(names) : SAY_SAYS.payeesNone, heard: null, question: null, edit: null, editValue: '', rule: 'payees',
+      key: 'payees', slot: 'payees', state: list.length ? 'filled' : 'open', label: SAY_CHIP.payees, value: list.length ? SAY_CHIP.payeesN(list.length) : SAY_CHIP.payeesNone,
+      says: list.length ? SAY_SAYS.payees(list.join(', ')) : SAY_SAYS.payeesNone, heard: null, question: null, edit: null, editValue: '', rule: 'payees',
     });
   }
   // questions with no chip of their own: a currency, a lone amount, selling, an unreadable length
@@ -118,6 +118,18 @@ export function chipsOf(r: Reading, ctx: SayCtx): Chip[] {
     });
   }
   return out;
+}
+
+/** Who the rules let agents pay on their own: for the house seller's table only the house's payee, otherwise the
+ *  declared payees of the wallets already connected (as the ready-made rules do). Empty = the owner chooses. */
+export function payeesFor(f: Pick<Facts, 'who'>, ctx: Pick<SayCtx, 'payees' | 'housePayees'>): readonly string[] {
+  return f.who === 'house' ? (ctx.housePayees ?? []) : ctx.payees;
+}
+
+/** The core of the reading in one paragraph: what the rules allow, in plain words. */
+export function plainWords(chips: readonly Chip[]): string {
+  const core: Slot[] = ['item', 'ceiling', 'ask', 'offers', 'ends'];
+  return core.flatMap((s) => chips.filter((c) => c.slot === s && c.state !== 'unsure' && c.says)).map((c) => c.says).join(' ');
 }
 
 /** "340" or "340.50": the text an amount edit starts from. */
@@ -156,7 +168,7 @@ export function rulesOf(r: Reading, ctx: SayCtx): RulesDraft | null {
   }
   if (f.dayTotal !== null) clauses.push({ type: 'velocity', max_deals_day: f.dayDeals ?? 2, max_total_day: money(f.dayTotal) });
   clauses.push({ type: 'human_present_over', amount: money(f.ask ?? 0) });
-  clauses.push({ type: 'payees', payees: [...ctx.payees] });
+  clauses.push({ type: 'payees', payees: [...payeesFor(f, ctx)] });
   return { agent: 'negotiator', not_before: ctx.now, expires, clauses };
 }
 

@@ -85,6 +85,63 @@ export const CHART_WORDS = {
   thisDeal: (v: string): string => `this deal ${v}`,
 } as const;
 
+/** The right of the gold "now" line (the walk-away forecast, drawn as dashed ticks on the same timeline). Money
+ *  arrives formatted; the forecast never has a line that sends money out, so "leaves" is only ever $0 here. */
+export const REWIND_AHEAD = {
+  /** The track's name for a screen reader, and the line above it. */
+  label: 'The week behind you and the next 72 hours',
+  nowFlag: 'Now',
+  nowAt: (t: string): string => `Now · ${t}`,
+  /** The headline over the timeline: counts only what the forecast states. */
+  walkAway: 'If you walk away',
+  unknown: 'can’t be forecast right now',
+  reading: 'is being read…',
+  leaves: (out: string): string => `${out} leaves.`,
+  holds: (n: number): string => (n === 1 ? '1 hold ends on its own.' : `${n} holds end on their own.`),
+  comesIn: (sure: string): string => `${sure} comes in.`,
+  comesInIf: (upTo: string): string => `Up to ${upTo} comes in only if a buyer approves.`,
+  nothing: 'Nothing is scheduled.',
+  /** One step ahead, in plain words: `title` is the deal's short title, `amt` the formatted amount. */
+  said: {
+    lapse: (title: string): string => `${title} lapses · nothing is paid`,
+    expire: (title: string): string => `${title} payment request expires · nothing is paid`,
+    auto_void: (title: string, amt: string): string => `${title} · the ${amt} hold ends on its own`,
+    unconfirm: (title: string): string => `${title} ends as not confirmed by PayPal · nothing is paid`,
+    create_order: (title: string): string => `${title} · the payment request goes to the buyer`,
+    authorize: (title: string, amt: string): string => `${title} · ${amt} is put on hold for you`,
+    capture: (title: string, amt: string): string => `${title} · ${amt} is collected for you`,
+  },
+  /** Who acts at that step, in the legend's words. */
+  who: { default: 'Safe default', rule: 'Your signed rule', buyer: 'The buyer already approved', maybe: 'Only if the buyer approves' },
+  whoShort: { default: 'Safe default', rule: 'Your rule', buyer: 'Buyer approved', maybe: 'If the buyer approves' },
+  noMoney: 'no money moves',
+  legend: 'Dashed ticks are forecast, not recorded',
+  forecastWord: 'forecast',
+  hub: {
+    eyebrow: (t: string): string => `If nothing changes · ${t}`,
+    nothingYet: 'Nothing is scheduled up to here',
+    nothingAll: 'Nothing is scheduled. If you do nothing, nothing happens.',
+    count: (n: number, until: string): string => (n === 0 ? 'Nothing scheduled in the next 72 hours' : `${n} ${n === 1 ? 'step' : 'steps'} ahead · forecast to ${until}`),
+    unread: 'The forecast can’t be read right now, so nothing here is promised.',
+    open: 'Open deal ›',
+  },
+  beyond: 'beyond the forecast',
+  tickNow: 'Runs the next time The Table checks',
+  tickIf: 'Only if the buyer approves on PayPal',
+  jumpNow: 'Move the playhead to now',
+  /** What the rules the owner said would allow, said under the headline. `until` is when the rules end. */
+  rule: {
+    asks: (until: string): string => `With these rules your agent asks you before every payment, until ${until}.`,
+    alone: (amt: string, until: string): string => `With these rules your agent can agree up to ${amt} on its own, until ${until}. Above that it asks you.`,
+    perDay: (amt: string): string => `Most ${amt} a day.`,
+    ends: (until: string): string => `Your new rules end · ${until}`,
+    endsTitle: (until: string): string => `The rules you said end ${until}. After that your agent can do nothing.`,
+    reach: (amt: string): string => `Your agent may agree up to ${amt} alone`,
+    reachAsks: 'Your agent asks you every time',
+    label: 'What the rules you said would allow',
+  },
+} as const;
+
 /** The tape: every step of the week, newest first. */
 export const REWIND_TAPE = {
   title: 'Every step, newest first',

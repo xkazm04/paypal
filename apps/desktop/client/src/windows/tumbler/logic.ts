@@ -578,7 +578,7 @@ function perCurrency(sums: Map<Currency, number>): string | null {
   const parts = [...sums].filter(([, v]) => v !== 0).map(([c, v]) => formatMinor(v, c));
   return parts.length ? parts.join(' + ') : null;
 }
-function walkWhat(l: ForecastRow): string {
+export function walkWhat(l: ForecastRow): string {
   const amt = formatMinor(l.amount_minor, l.currency);
   switch (l.action) {
     case 'lapse': return `${l.label} lapses, nothing is paid`;
@@ -590,12 +590,12 @@ function walkWhat(l: ForecastRow): string {
     case 'capture': return `${l.label} ${amt} collected`;
   }
 }
-function walkWho(l: ForecastRow): WalkLine['who'] {
+export function walkWho(l: ForecastRow): WalkLine['who'] {
   if (l.authority === 'safe_default') return 'safe default';
   if (l.authority === 'seller_mandate' && l.trigger !== 'buyer_approves') return 'the buyer already approved';
   return 'your rule';
 }
-function walkWhen(l: ForecastRow): string {
+export function walkWhen(l: ForecastRow): string {
   if (l.trigger === 'buyer_approves') return 'If the buyer approves';
   if (l.trigger === 'next_tick' || l.at === null) return 'Now';
   return clockLabel(l.at);

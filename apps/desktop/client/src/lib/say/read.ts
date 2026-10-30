@@ -25,6 +25,8 @@ export type SayCtx = {
   offsetMin: number;
   /** Payee names of the wallets already connected (templates.ts connectedPayees). */
   payees: readonly string[];
+  /** The house seller's payee names, when it is connected: all a rule for the house's table may pay. */
+  housePayees?: readonly string[];
 };
 
 export type Slot = 'job' | 'item' | 'ceiling' | 'ask' | 'offers' | 'ends' | 'dayTotal' | 'dayDeals' | 'who' | 'payees' | 'currency' | 'leftover';

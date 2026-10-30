@@ -1,0 +1,78 @@
+/* "Say it" (setup/SayIt.tsx): one sentence in, chips out, then the timeline. Tokens only; text never below
+   --fs-small; motion only through the --dur-* / --ease tokens and off under reduced motion. A part the
+   wallet read is solid, a part it filled in is quiet, a part it is not sure of is dashed and asks. */
+.say { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; padding: var(--sp-4) var(--sp-5); margin: 0 0 var(--sp-4); border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--panel) 62%, transparent); box-shadow: 0 0 0 1px var(--line); }
+.say .say-h { display: flex; flex-direction: column; gap: var(--sp-1); }
+.say .say-h .kicker { margin: 0; }
+.say .say-title { margin: 0; font: var(--fw-display) var(--fs-title1)/1.25 var(--display); color: var(--text); }
+.say .say-sub { margin: 0; color: var(--muted); max-width: 52rem; line-height: 1.45; }
+.say .say-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* on the Rewind, above the timeline: the kicker and the title share a line */
+.say.compact { gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-3); }
+.say.compact .say-h { flex-direction: row; align-items: baseline; gap: var(--sp-3); }
+.say.compact .say-title { font-size: var(--fs-title3); }
+
+.say .say-form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.say .say-input { flex: 1 1 22rem; min-width: 0; height: 40px; padding: 0 var(--sp-3); font-size: var(--fs-title3); }
+.say .say-mic svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.say .say-mic.on { border-color: var(--gold); color: var(--gold-l); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent); }
+.say .say-note { margin: 0; color: var(--dim); font-size: var(--fs-small); line-height: 1.4; }
+.say .say-listen { color: var(--gold-l); }
+
+/* try saying */
+.say .say-try { display: flex; flex-direction: column; gap: var(--sp-2); }
+.say .say-tryh { margin: 0; color: var(--muted); font-weight: var(--fw-semibold); }
+.say .say-try ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.say .say-tryline { display: block; width: 100%; text-align: left; padding: var(--sp-2) var(--sp-3); font: inherit; color: var(--text); cursor: pointer;
+  background: none; border: 1px solid var(--line); border-left: 2px solid var(--line2); border-radius: var(--r-tight); }
+.say .say-tryline:hover { background: var(--hover); border-left-color: var(--gold); }
+.say .say-tryline:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+/* the reading */
+.say .say-read { display: flex; flex-direction: column; gap: var(--sp-2); }
+.say .say-readas { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-3); margin: 0; }
+.say .say-readas b { font-weight: var(--fw-semibold); }
+.say .say-ai { color: var(--dim); font-size: var(--fs-small); }
+.say .say-left { margin-left: auto; color: var(--teal-l); font-size: var(--fs-small); font-weight: var(--fw-semibold); }
+.say .say-left.q { color: var(--gold-l); }
+.say .say-none { margin: 0; color: var(--muted); }
+
+/* the chips: a label and a value in one pill; said = solid, filled in = quiet, unknown = dashed */
+.say .say-pills { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.say .say-pill { animation: say-in var(--dur-slow) var(--ease) both; animation-delay: calc(var(--i, 0) * 90ms); }
+@keyframes say-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.say .say-pillbody { display: inline-flex; align-items: baseline; gap: var(--sp-2); min-height: var(--target); padding: 3px var(--sp-3); font: inherit; color: var(--text); text-align: left;
+  background: color-mix(in srgb, var(--gold) 9%, transparent); border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line2)); border-radius: var(--r-pill); }
+button.say-pillbody { cursor: pointer; }
+button.say-pillbody:hover { border-color: var(--gold); }
+button.say-pillbody:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.say .say-pill.on .say-pillbody { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 18%, transparent); }
+.say .say-label { color: var(--muted); font-size: var(--fs-small); font-weight: var(--fw-medium); white-space: nowrap; }
+.say .say-value { font-weight: var(--fw-semibold); max-width: 20rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.say .s-filled .say-pillbody { background: none; border-color: var(--line2); }
+.say .s-filled .say-value { color: var(--muted); font-weight: var(--fw-medium); }
+.say .s-open .say-pillbody, .say .s-unsure .say-pillbody { background: none; border: 1px dashed var(--dim); }
+.say .s-open .say-value, .say .s-unsure .say-value { color: var(--muted); font-weight: var(--fw-medium); }
+.say .s-unsure .say-pillbody { border-color: var(--gold); }
+.say .say-pillsep { color: var(--dim); font-size: var(--fs-small); text-transform: uppercase; letter-spacing: var(--track-label); margin: 0 var(--sp-1) 0 var(--sp-3); }
+
+/* a pill's one sentence, the words it came from, its edit */
+.say .say-detail { display: flex; flex-direction: column; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); border-left: 2px solid var(--gold); background: color-mix(in srgb, var(--gold) 5%, transparent); max-width: 52rem; }
+.say .say-says { margin: 0; line-height: 1.45; }
+.say .say-heard { margin: 0; color: var(--dim); font-size: var(--fs-small); }
+.say .say-plain { margin: 0; color: var(--muted); line-height: 1.5; max-width: 56rem; }
+.say .say-plain b { color: var(--text); font-weight: var(--fw-semibold); }
+
+/* the one question, and an edit in place */
+.say .say-q { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border: 1px dashed var(--gold); border-radius: var(--r-tight); max-width: 46rem; }
+.say .say-qt { margin: 0; line-height: 1.4; }
+.say .say-qa { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.say .say-qin { width: 12rem; }
+.say .say-edit { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-1); }
+.say .say-radio { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: var(--target); cursor: pointer; }
+.say .say-bad { color: var(--red-l); font-size: var(--fs-small); }
+
+.say .say-act { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); padding-top: var(--sp-1); }
+
+@media (prefers-reduced-motion: reduce) { .say .say-pill { animation: none; } }
