@@ -63,6 +63,15 @@ export const PROOF_CHECKER = {
   keyCopy: 'Copy the key',
   keyCopied: 'Copied',
 
+  howHead: 'How this works',
+  how: [
+    'Your browser reads the file and does every check itself, with its own signature and hash functions. Nothing is sent anywhere.',
+    'The checks are the wallet’s own, one for one: the same file gets the same lines, in the same words, as the wallet’s offline checker gives it.',
+    'That is tested, not claimed: on real signed deals, on files the wallet wrote, and on hundreds of edits made to them.',
+  ],
+  copy: 'Copy the report',
+  copied: 'Report copied',
+  noCopy: 'Copying isn’t available here',
   limitsHead: 'What this can’t show',
   limits: [
     'Whether newer records were removed from the end of the wallet’s record.',

@@ -191,3 +191,19 @@ describe('the buyer’s file and the other side', () => {
     await waitFor(() => expect(container.querySelector('.pk-sides .pk-refused')?.textContent).toMatch(/not a proof file/), TIMEOUT);
   });
 });
+
+describe('the report as text', () => {
+  it('copies one line per check with the checker’s own line under it, and says where it was made', async () => {
+    const written: string[] = [];
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t: string) => { written.push(t); } } });
+    mount();
+    await checked();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy the report' }));
+    await screen.findByText('Report copied', {}, TIMEOUT);
+    const text = written[0] ?? '';
+    expect(text).toContain('Every check that applies passed');
+    expect(text).toMatch(/✓ The owner signed the rules this deal ran under\.\n {4}mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2/);
+    expect(text).toMatch(/– A payment the wallet checked again with PayPal was never sent a second time\.\n {4}not checked: no money step/);
+    expect(text).toContain('Checked in the browser, not by the wallet.');
+  });
+});

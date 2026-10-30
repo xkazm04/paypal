@@ -108,6 +108,7 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
   // Once a file has been checked it can be broken, and stays breakable while it is checked again.
   const [hasChecked, setHasChecked] = useState(false);
   const [mode, setMode] = useState<'break' | 'edit'>(startEditing ? 'edit' : 'break');
+  const [copied, setCopied] = useState<'ok' | 'no' | null>(null);
   /** The editor's text as last checked, so a change the program makes is not checked twice. */
   const checkedText = useRef(draft);
   /** Where to put the cursor once the editor shows the new text. */
@@ -267,6 +268,15 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
     row?.querySelector('summary')?.focus({ preventScroll: true });
   };
   const fileName = by === 'none' ? file.name : file.name.replace(/(\.tableproof)?$/, '-tampered.tableproof');
+  const verdictWord = bad.length > 0 ? W.failed : state.verified === true ? PROOF_ALL_THAT_APPLY : PROOF_SOME_UNCHECKED;
+  const copyReport = async () => {
+    try {
+      await navigator.clipboard.writeText(reportText(fileName, state.lines, verdictWord));
+      setCopied('ok');
+    } catch {
+      setCopied('no');
+    }
+  };
 
   return (
     <div className={`pk${over ? ' over' : ''}`} onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={(e) => { if (e.currentTarget === e.target) setOver(false); }} onDrop={onDrop}>
@@ -295,6 +305,12 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
                 {caughtBy.map((cid) => <Chip key={cid} tone="red" onClick={() => goTo(cid)} title={PROOF_CHECKS[cid]}>{PROOF_SHORT[cid] ?? cid}</Chip>)}
               </p>
             ) : null}
+            {state.phase === 'done' && state.refused === null ? (
+              <p className="pk-copy">
+                <Btn sm kind="plain" onClick={() => void copyReport()}>{W.copy}</Btn>{' '}
+                <span role="status" aria-live="polite">{copied === 'ok' ? W.copied : copied === 'no' ? W.noCopy : ''}</span>
+              </p>
+            ) : null}
           </div>
           <ol className="pk-list">
             {CHECK_IDS.map((cid, i) => (
@@ -304,6 +320,8 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
           {state.facts && !state.facts.signatures ? <p className="pk-refused" role="alert">{W.noSignatures}</p> : null}
           {state.refused ? <p className="pk-refused" role="alert">{state.refused}</p> : null}
           {readError ? <p className="pk-refused" role="alert">{readError}</p> : null}
+          <H className="pk-h pk-sub">{W.howHead}</H>
+          <ul className="pk-how">{W.how.map((t) => <li key={t}>{t}</li>)}</ul>
           <H className="pk-h pk-sub">{W.limitsHead}</H>
           <ul className="pk-limits">{W.limits.map((t) => <li key={t}>{t}</li>)}</ul>
         </section>
@@ -427,6 +445,13 @@ function changed(before: unknown, after: unknown): string {
 }
 
 // ---- the verdict, the lines, what the file says -----------------------------------------------
+
+/** The report as plain text, to paste somewhere: one line per check, the checker's own line under each. */
+export function reportText(name: string, lines: ReadonlyArray<CheckLine | null>, verdict: string): string {
+  const mark = (l: CheckLine): string => (kindOf(l) === 'ok' ? '✓' : kindOf(l) === 'bad' ? '✗' : '–');
+  const body = lines.flatMap((l) => (l ? [`${mark(l)} ${PROOF_CHECKS[l.id] ?? l.id}\n    ${l.detail}`] : []));
+  return [name, verdict, '', ...body, '', 'Checked in the browser, not by the wallet. Compare the owner key with the one the owner shows you.'].join('\n');
+}
 
 function Verdict({ state, made, bad, dashed, caught, onRun }: { state: RunState; made: number; bad: number; dashed: number; caught: string[]; onRun: () => void }) {
   const running = state.phase === 'running';
