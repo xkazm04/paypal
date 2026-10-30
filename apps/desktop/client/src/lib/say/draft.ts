@@ -151,9 +151,18 @@ export function itemRef(item: string): string {
  * is not sure, or that nobody can know yet, is left out or left empty for the editor to show; a said or a
  * safely filled part is carried exactly. The rules start now and end when the sentence said they end.
  */
+/** Words that say what NOT to do. One the reader could not apply is never waved through: rules would then allow what the sentence forbade. */
+const NEGATION = /\b(?:not|never|don't|dont|do not|no|without|except|unless|stop)\b/i;
+
+/** Why a reading cannot be handed over yet, or null: the currency is not settled, or a "not" / "never" / "don't" was left unread. */
+export function blockedBy(r: Reading): 'currency' | 'negation' | null {
+  if (r.unsure.has('currency')) return 'currency';
+  return r.leftover.some((w) => NEGATION.test(w)) ? 'negation' : null;
+}
+
 export function rulesOf(r: Reading, ctx: SayCtx, focus?: number): RulesDraft | null {
   const f = r.facts;
-  if (f.job !== 'buy' || r.selling) return null;
+  if (f.job !== 'buy' || r.selling || blockedBy(r)) return null;
   const cur = f.currency;
   const money = (minor: number) => ({ minor, currency: cur });
   const haggle = f.item !== null;

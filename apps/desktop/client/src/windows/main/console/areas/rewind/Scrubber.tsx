@@ -67,7 +67,7 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
   const track = useRef<HTMLDivElement>(null);
   const drag = useRef(false);
   // The track shows the whole week, or (the current week only) the last day and the 72 hours ahead, in more room.
-  // A sentence was just read: the track zooms in on the days its rules cover (one tap goes back to the week).
+  // A sentence just read zooms it in on the days its rules cover (one tap goes back to the week).
   const said = !!ahead?.reach;
   const [zoom, setZoom] = useState(said);
   const zoomed = zoom && r.ahead;

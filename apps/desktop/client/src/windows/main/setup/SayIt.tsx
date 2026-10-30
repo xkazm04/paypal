@@ -7,7 +7,7 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type F
 import { useMutation } from '../../../lib/hooks';
 import { parseMoneyText } from '../../../lib/format';
 import { CLAUSE_NUMBER } from '../../../lib/mandateRules';
-import { plainWords, reachOf, rulesOf, type Chip } from '../../../lib/say/draft';
+import { blockedBy, plainWords, reachOf, rulesOf, type Chip } from '../../../lib/say/draft';
 import { readEnds, type Question, type SayCtx } from '../../../lib/say/read';
 import { canReadAloud, listen, readAloud, speechSupport, type Listening } from '../../../lib/say/speech';
 import { sayAnswer, saySet, sayClear } from '../../../lib/say/store';
@@ -95,6 +95,7 @@ export function SayPanel({ said, className, compact = false, stepGold = true, ti
   };
 
   const reach = useMemo(() => (reading ? reachOf(reading.facts, reading.facts.ends) : null), [reading]);
+  const blocked = reading ? blockedBy(reading) : null;
   const none = reading !== null && !chips.length;
   const theirs = chips.filter((c) => c.state === 'said' || c.state === 'unsure');
   const ours = chips.filter((c) => c.state === 'filled' || c.state === 'open');
@@ -159,7 +160,7 @@ export function SayPanel({ said, className, compact = false, stepGold = true, ti
         <Btn kind={stepGold ? 'gold' : 'default'} locked={locked} disabled={!rules || open.pending} onClick={() => void review()} title={SAY.reviewTitle}>
           {open.pending ? SAY.opening : SAY.review} ↗
         </Btn>
-        <span className="say-note">{opened ? SAY.opened : rules && asking.length ? SAY.readyOpen : SAY.reviewNote}</span>
+        <span className="say-note">{opened ? SAY.opened : blocked === 'negation' ? SAY.blockedNegation : blocked === 'currency' ? SAY.blockedCurrency : rules && asking.length ? SAY.readyOpen : SAY.reviewNote}</span>
       </div>
       {open.error ? <WalletNotice error={open.error} what={NOTICE_WHAT.approval} /> : null}
       {timeline ? <SayTimeline reach={reach} sentence={reach ? text : null} /> : null}

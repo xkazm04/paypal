@@ -59,6 +59,8 @@ export const SAY = {
   leaveOut: 'Leave it out',
   stillOpen: (n: number): string => (n === 1 ? 'One question left' : `${n} questions left`),
   ready: 'Ready to review',
+  blockedNegation: 'Part of your sentence has a “not”, “never” or “don’t” that I couldn’t apply. Leave that part out, or set the rules yourself in the form.',
+  blockedCurrency: 'Pick the currency first.',
   readyOpen: 'You can review now; what’s left you set in the form.',
   summaryNone: 'Say a rule above and it appears here.',
   tryLines: [
@@ -115,6 +117,7 @@ export const SAY_SAYS = {
 export const SAY_Q = {
   tooLong: (n: number): string => `That is longer than ${n} characters. Say it in a shorter sentence, or set the rules yourself.`,
   currency: 'You used more than one currency. Which one are the rules in?',
+  currencyOther: (said: string): string => `I read dollars, euros and pounds from a sentence, not “${said}”. Which one are the rules in?`,
   ceilingWhich: 'You gave more than one most-you’ll-pay. Which one?',
   askWhich: 'You gave more than one amount to ask you above. Which one?',
   dayTotalWhich: 'You gave more than one daily limit. Which one?',
