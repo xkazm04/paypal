@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import { useQuery } from '../../../../../lib/hooks';
-import { headlineWords, LATEST_OF, OPEN_THE_DEAL, TABLES, TABLES_TRADE, TABLES_VIEWS, tablesClip, tablesItem, tablesShortWho } from '../../../../../lib/words';
+import { headlineWords, LATEST_OF, OPEN_THE_DEAL, TABLES, TABLES_TRADE, TABLES_VIEWS, TABLES_WATCH, tablesClip, tablesItem, tablesShortWho } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, useLayer, useToast } from '../../../../../shared/ui';
 import { silenceParts, shortTitle } from '../../../home/model';
@@ -28,6 +28,7 @@ import { EMPTY_TABLE, roomLine, TableDetail, type StepHandlers, type TableState 
 import { NeedCard } from './Need';
 import { SplitView, TheirWords, usePick } from './parts';
 import { canShopAround, liveGroups, ShopAroundButton, ShopView } from './Shop';
+import { watchTable, WatchView } from './Watch';
 
 const selModuleOf = (w: World) => w.moduleOfDeal;
 const selDisplay = (w: World) => w.display;
@@ -194,6 +195,7 @@ export function TablesLayer({ nav }: LayerProps) {
           <StateChip deal={d} />
           <Amount money={dealTotal(d)} tone={amountTone(d)} />
           <span className="ui-spacer" />
+          <Btn sm kind="plain" onClick={() => { watchTable(d.id); route.open('watch'); }} title={TABLES_WATCH.watchItTitle}>{TABLES_WATCH.watchIt}</Btn>
           <Btn sm kind="plain" onClick={() => open(d)} title={TABLES_TRADE.openDealTitle}>{TABLES_TRADE.openDeal}</Btn>
         </header>
         {withNeed && need ? <NeedCard deal={d} disp={disp} need={need} who={who.short} onDeal={() => open(d)} onToast={say} /> : null}
@@ -226,7 +228,7 @@ export function TablesLayer({ nav }: LayerProps) {
 
   return (
     <ModuleLayer module="tables" kicker={TABLES.kicker} answer={answer} sub={sub} yourCall={yourCall} latest={latest}
-      action={<Btn onClick={() => nav.place('pairing')} title={TABLES.openTableTitle}>{TABLES.openTable}</Btn>}
+      action={<><Btn onClick={() => route.open('watch')} title={TABLES_WATCH.watchAllTitle}>{TABLES_WATCH.watchAll}</Btn><Btn onClick={() => nav.place('pairing')} title={TABLES.openTableTitle}>{TABLES.openTable}</Btn></>}
       cards={cards}
       explain={{ summary: TABLES.whyTitle, body: <ol className="tr-steps">{TABLES.why.map((s) => <li key={s}>{s}</li>)}</ol> }}
       views={{
@@ -245,6 +247,10 @@ export function TablesLayer({ nav }: LayerProps) {
               <ShopView groups={groupList} deals={deals} display={display} />
             </>
           ),
+        },
+        watch: {
+          title: TABLES_VIEWS.watch, sub: TABLES_WATCH.sub,
+          render: () => <WatchView deals={deals} display={display} needOf={needOf} who={c.who} />,
         },
         closed: {
           title: TABLES_VIEWS.closed, sub: closed.length ? TABLES.endedSub(closed.length) : undefined,

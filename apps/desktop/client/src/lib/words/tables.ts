@@ -45,7 +45,7 @@ export const TABLES_TRADE = {
 } as const;
 
 /** The detail views of the Tables layer (keys are the `v=` of old links; labels are the crumbs). */
-export const TABLES_VIEWS = { need: 'Needs you', tables: 'Open tables', ladder: 'Price ladder', shop: 'Shop around', closed: 'Ended' } as const;
+export const TABLES_VIEWS = { need: 'Needs you', tables: 'Open tables', ladder: 'Price ladder', shop: 'Shop around', closed: 'Ended', watch: 'Watch the haggle' } as const;
 
 export const TABLES = {
   /** The pure model's sentences (modules/tables/ladder.ts): the what-changes sheet, the stand line, the range edits.
@@ -307,4 +307,65 @@ export const TABLES = {
   shopDone: (item: string, sellers: string): string => `Shopping around for ${item} with ${sellers}. The first to agree wins.`,
   shopWhat: 'Shop around',
   groupsWhat: 'Shopping around',
+} as const;
+
+/** "Watch the haggle": a table's signed offers replayed as two pucks closing inside the owner's walls
+ *  (console/areas/tables/Corridor.tsx; the beats come from modules/tables/corridor.ts). Figures
+ *  arrive formatted; "who" is the other side's short name. */
+export const TABLES_WATCH = {
+  cardValue: (from: string, to: string): string => `${from} → ${to}`,
+  cardNote: 'Every offer, replayed',
+  cardNone: 'No haggle to watch yet',
+  sub: 'Every price here was signed by the agent that made it. Your limits are the walls.',
+  list: 'Haggles',
+  empty: 'No haggle has any offers yet.',
+  watchIt: 'Watch it',
+  watchItTitle: 'Replay this haggle: every signed offer, and where your rules stepped in',
+  play: 'Play',
+  replay: 'Watch again',
+  pause: 'Pause',
+  skip: 'Show the end',
+  speed: 'Speed',
+  playTitle: 'Replay the haggle from its first offer',
+  // the walls and the lane
+  most: 'Most you pay',
+  least: 'Least you accept',
+  market: 'Typical price',
+  marketRange: (lo: string, hi: string): string => `Typical price ${lo}–${hi}`,
+  yourCall: (v: string): string => `Your call above ${v}`,
+  yourCallBelow: (v: string): string => `Your call below ${v}`,
+  them: (who: string): string => who,
+  you: 'Your agent',
+  apart: 'apart',
+  met: 'met',
+  offersLeft: (used: number, max: number): string => `Offer ${used} of ${max}`,
+  // one line per beat, read out as it lands
+  lists: (who: string, p: string): string => `${who} lists it at ${p}.`,
+  opens: (p: string): string => `Your agent opens at ${p}.`,
+  ourUp: (p: string): string => `Your agent comes up to ${p}.`,
+  ourDown: (p: string): string => `Your agent comes down to ${p}.`,
+  theirDown: (who: string, p: string): string => `${who} comes down to ${p}.`,
+  theirUp: (who: string, p: string): string => `${who} comes up to ${p}.`,
+  theirOffer: (who: string, p: string): string => `${who} offers ${p}.`,
+  refusedYes: (p: string, line: string): string => `Your agent says yes to ${p}. Above ${line} that’s your call, so the wallet refuses: not the agent.`,
+  refusedYesNoLine: (p: string): string => `Your agent says yes to ${p}. Your rules make that your call, so the wallet refuses: not the agent.`,
+  refusedWall: (wall: string): string => `Your agent reaches past ${wall}. The wallet refuses: not the agent.`,
+  refusedOther: 'Your agent tries a step your rules don’t allow. The wallet refuses: not the agent.',
+  refusedTag: 'Wallet refused',
+  yourCallTag: 'Your call',
+  ownerYes: (p: string): string => `You say yes to ${p}, in the approval window.`,
+  theyAccept: (who: string, p: string): string => `${who} accepts ${p}.`,
+  agentAccepts: (p: string): string => `Your agent accepts ${p}, inside your rules.`,
+  agreed: (p: string): string => `Agreed at ${p}.`,
+  agreedByYou: 'You decided. Nothing is paid until you approve it at PayPal.',
+  agreedByRule: 'Your rule let your agent agree. Nothing is paid until PayPal is asked.',
+  withdrawnYou: 'Your agent walked away. No money moved.',
+  withdrawnThem: (who: string): string => `${who} walked away. No money moved.`,
+  waiting: (who: string): string => `Waiting for ${who}’s next move.`,
+  waitingYou: 'Waiting for you.',
+  stepsTitle: 'Every step',
+  reading: 'Reading the haggle…',
+  watchAll: 'Watch the haggle',
+  watchAllTitle: 'Replay a haggle: every signed offer, and where your rules stepped in',
+  srSummary: (n: number): string => `${n} steps. Each one is listed below as it plays.`,
 } as const;
