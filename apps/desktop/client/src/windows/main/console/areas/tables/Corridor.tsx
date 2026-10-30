@@ -72,19 +72,25 @@ export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle
   const youPrice = f.trail.you[f.trail.you.length - 1] ?? null;
   const themPrice = f.trail.them[f.trail.them.length - 1] ?? null;
   const refused = f.refusal ?? (f.owner > 0 && !f.snap ? lastRefusal(haggle) : null);
-  const gateAt = refused ? (refused.price !== null && youPrice !== null ? (refused.price + youPrice) / 2 : wall) : null;
-  const lungeP = f.refusal && !reduced ? lunge(f.refusal.p) : 0;
-  const youX = f.you !== null && gateAt !== null ? f.you + (gateAt - f.you) * lungeP * 0.82 : f.you;
-  // the gate flares as the agent hits it, then settles to a steady gold
-  const flash = f.refusal && !reduced ? (f.refusal.p < 0.16 ? 0.35 * (f.refusal.p / 0.16) : Math.max(0, 1 - (f.refusal.p - 0.16) * 2.6)) : 0;
   const burst = f.snap && !reduced ? f.snap.p : 0;
   const pulse = (since: number | null) => (since === null || reduced ? 0 : clamp01(since / PULSE_MS));
-
   const met = f.snap?.p === 1;
+
   // Close pucks are drawn apart (more so with a gate between them); the snap brings them together.
-  const [youF, themF] = youX !== null && f.them !== null && !f.snap
-    ? spread(x(youX), x(f.them), widthPx, gateAt !== null ? 40 : 28)
-    : [youX !== null ? x(youX) : null, f.them !== null ? x(f.them) : null];
+  const [restF, themF] = f.you !== null && f.them !== null && !f.snap
+    ? spread(x(f.you), x(f.them), widthPx, refused ? 40 : 28)
+    : [f.you !== null ? x(f.you) : null, f.them !== null ? x(f.them) : null];
+  // A refused yes stands midway between the two pucks as drawn; a refusal at her limit is the wall.
+  const gateF = refused ? (refused.price !== null && restF !== null && themF !== null ? (restF + themF) / 2 : wall !== null ? x(wall) : null) : null;
+  // The lunge is drawn on screen, after the spread: the agent's puck travels to the gate's face.
+  const p = f.refusal && !reduced ? f.refusal.p : null;
+  const travel = gateF !== null && restF !== null && widthPx > 0 ? ((gateF - restF) * widthPx - Math.sign(gateF - restF) * 15) / widthPx : 0;
+  const youF = restF !== null && p !== null ? restF + travel * lunge(p) : restF;
+  // the impact: the gate flares, a ring runs off it, the puck squashes and the track shakes once
+  const impact = p !== null ? clamp01((p - 0.16) / 0.24) : 0;
+  const flash = p !== null ? (p < 0.16 ? 0.35 * (p / 0.16) : Math.max(0, 1 - (p - 0.16) * 2.6)) : 0;
+  const squash = p !== null ? Math.max(0, 1 - Math.abs(p - 0.16) / 0.05) : 0;
+  const shake = impact > 0 && impact < 1 ? Math.sin(impact * Math.PI * 9) * 4 * (1 - impact) : 0;
 
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     const to = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? stepTo(pb, clock.t, 1)
@@ -111,7 +117,7 @@ export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle
         </div>
       </div>
 
-      <div className="hc-track" aria-hidden="true" ref={trackRef}>
+      <div className="hc-track" aria-hidden="true" ref={trackRef} style={shake ? { transform: `translateX(${shake.toFixed(2)}px)` } : undefined}>
         {haggle.market ? (
           <div className="hc-lane" style={{ left: pct(x(haggle.market.p25)), width: pct(x(haggle.market.p75) - x(haggle.market.p25)) }}>
             <span className="hc-median" style={{ left: pct((x(haggle.market.median) - x(haggle.market.p25)) / Math.max(1e-9, x(haggle.market.p75) - x(haggle.market.p25))) }} />
@@ -136,15 +142,16 @@ export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle
           <span key={`${side}${i}`} className={`hc-dot ${side}`} style={{ left: pct(x(p)), opacity: 0.25 + 0.55 * ((i + 1) / all.length) }} />
         )))}
 
-        {gateAt !== null ? (
-          <div className="hc-gate" style={{ left: pct(x(gateAt)), '--flash': flash.toFixed(3) } as CSSProperties}>
+        {gateF !== null ? (
+          <div className="hc-gate" style={{ left: pct(gateF), '--flash': flash.toFixed(3), '--impact': impact.toFixed(3) } as CSSProperties}>
+            {impact > 0 && impact < 1 ? <span className="hc-shock" /> : null}
             <span className="hc-gate-tag">{f.owner > 0 ? W.yourCallTag : W.refusedTag}</span>
             {f.owner > 0 ? <span className="hc-hold" style={{ '--hold': f.owner.toFixed(3) } as CSSProperties} /> : null}
           </div>
         ) : null}
 
         {themF !== null && themPrice !== null ? <Puck side="them" x={themF} label={m(f.snap ? f.snap.price : themPrice)} hide={met} pulse={pulse(f.since.them)} /> : null}
-        {youF !== null && youPrice !== null ? <Puck side="you" x={youF} label={m(f.snap ? f.snap.price : youPrice)} hide={met} pulse={pulse(f.since.you)} /> : null}
+        {youF !== null && youPrice !== null ? <Puck side="you" x={youF} label={m(f.snap ? f.snap.price : youPrice)} hide={met} pulse={pulse(f.since.you)} squash={squash} /> : null}
         {f.snap ? (
           <div className={`hc-deal${met ? ' on' : ''}`} style={{ left: pct(x(f.snap.price)), '--burst': burst.toFixed(3) } as CSSProperties}>
             <span className="hc-burst" />
@@ -180,9 +187,9 @@ export function Corridor({ haggle, who, autoplay = true, big = false }: { haggle
   );
 }
 
-function Puck({ side, x, label, hide, pulse }: { side: 'you' | 'them'; x: number; label: string; hide: boolean; pulse: number }) {
+function Puck({ side, x, label, hide, pulse, squash = 0 }: { side: 'you' | 'them'; x: number; label: string; hide: boolean; pulse: number; squash?: number }) {
   return (
-    <div className={`hc-puck ${side}${hide ? ' gone' : ''}`} style={{ left: pct(x), '--pulse': pulse.toFixed(3) } as CSSProperties}>
+    <div className={`hc-puck ${side}${hide ? ' gone' : ''}`} style={{ left: pct(x), '--pulse': pulse.toFixed(3), '--squash': squash.toFixed(3) } as CSSProperties}>
       {pulse > 0 && pulse < 1 ? <span className="hc-ring" /> : null}
       <span className="hc-puck-tag num">{label}</span>
     </div>
