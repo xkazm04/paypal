@@ -47,6 +47,7 @@ import { RESCUE_NO_RULES, RESCUE_SENT_SILENCE, RESCUE_SILENCE, RESCUE_WATCH_FULL
 import type { RescueWatchView } from '@bindings/RescueWatchView';
 import { invoiceText, leverOf, maskEmail, proposeDiscount, RESCUE_WATCH_MAX, RESCUE_WATCH_READS_DAY, validEmail, validSubscriptionId } from './rescue';
 import { AUTHORITY, AUTHORITY_MANIFEST, EVENT_AUDIENCE, type CommandAuthority } from '@bindings/authority';
+import { SAMPLE_DEAL_ID, SAMPLE_DEAL_LABEL } from '../lib/proof/sampleId';
 import { LADDER } from '@bindings/ladder';
 import { buildFirstRunState, firstRunPreview, PRACTICE_TERMS, scalePreview, withFirstRun, worldKeys } from './firstRun';
 import { buildScaleState } from './scale';
@@ -150,7 +151,34 @@ function fail(code: WalletError['code'], message: string): never {
 
 /** How a mock window opens another page (lib/runtime.ts passes one in demo mode, so the sample
  *  approval opens in the main window's demo sheet instead of a window). Default: window.open. */
-export type MockOptions = { open?: (page: string, name: string, features?: string) => void };
+export type MockOptions = {
+  open?: (page: string, name: string, features?: string) => void;
+  /** How a saved file reaches the person (default: the browser downloads it). */
+  save?: (name: string, text: string) => void;
+  /** How the person picks a file to check (default: the browser's file picker); null = cancelled. */
+  pick?: () => Promise<File | null>;
+};
+
+/** Hands a text file to the person as a download. */
+function downloadFile(name: string, text: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+/** The browser's file picker, as a promise; resolves null when the person cancels. */
+function pickFile(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.tableproof,.json,application/json';
+    input.addEventListener('change', () => resolve(input.files?.[0] ?? null), { once: true });
+    input.addEventListener('cancel', () => resolve(null), { once: true });
+    input.click();
+  });
+}
 
 export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBackend {
   // ?first_run=1: a brand-new wallet in a world of its own (src/mock/firstRun.ts).
@@ -602,7 +630,9 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     else window.open(url, name, features);
   }
 
-  const handlers: { [K in CommandName]: (args: ArgsOf<K>, opts?: InvokeOptions) => ResultOf<K> } = {
+  // Every command answers at once, except the two that wait on the person's file (saving and picking one).
+  type Answer<K extends CommandName> = K extends 'deal_export_proof' | 'proof_check' ? Promise<ResultOf<K>> : ResultOf<K>;
+  const handlers: { [K in CommandName]: (args: ArgsOf<K>, opts?: InvokeOptions) => Answer<K> } = {
     get_settings: () => ({ ...state.settings, house_connected: state.counterparties.some((c) => c.house), locked: isLocked(), authority_manifest: AUTHORITY_MANIFEST }),
     list_deals: () => state.deals.map((d) => d.deal),
     get_deal: ({ deal_id }) => find(deal_id).deal,
@@ -611,10 +641,27 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       const d = find(deal_id);
       return { ...d.evidence, fair_price: fairPriceOf(d.deal.state, d.deal.market, d.deal.terms.unit_price) };
     },
-    // A browser preview has no ledger or agent key to sign with: say so instead of faking a file.
-    deal_export_proof: ({ deal_id }) => { find(deal_id); return fail('UNAVAILABLE', `Proof export needs the native wallet: the bundle is signed by the deal's agent key`); },
-    // Checking a file needs the wallet's own file dialog and checker; the preview has neither.
-    proof_check: () => fail('UNAVAILABLE', 'Checking a proof file needs the desktop app.'),
+    // A browser preview has no ledger or agent key to sign with, so it cannot sign a deal's file of its own:
+    // it hands out the one real signed file it carries (a practice deal made by the test suite), and says
+    // so for every other deal instead of faking one.
+    deal_export_proof: async ({ deal_id }) => {
+      find(deal_id);
+      if (deal_id !== SAMPLE_DEAL_ID) return fail('UNAVAILABLE', `This preview has no keys to sign a proof with. It carries one signed practice deal, ${SAMPLE_DEAL_LABEL}.`);
+      const { SAMPLE_PROOF } = await import('../lib/proof/sample');
+      (opts.save ?? downloadFile)(SAMPLE_PROOF.name, SAMPLE_PROOF.text);
+      return true;
+    },
+    // The file is picked in the browser and checked in the page, by the checker that is the wallet
+    // verifier's twin (lib/proof); the report has the wallet's own shape.
+    proof_check: async () => {
+      const picked = await (opts.pick ?? pickFile)();
+      if (!picked) return null;
+      const { checkProofText, PROOF_FILE_LIMIT, TOO_LARGE } = await import('../lib/proof/verify');
+      if (picked.size > PROOF_FILE_LIMIT) return fail('UNSUPPORTED', TOO_LARGE);
+      const outcome = await checkProofText(await picked.text(), AUTHORITY_MANIFEST);
+      if ('refused' in outcome) return fail('UNSUPPORTED', outcome.refused);
+      return outcome.report as ResultOf<'proof_check'>;
+    },
     deal_reconcile: ({ deal_id }) => {
       const d = find(deal_id);
       if (d.evidence.reconciliation === 'pending_reporting') d.evidence = { ...d.evidence, reconciliation: 'matched' };
@@ -1516,7 +1563,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     async invoke<K extends CommandName>(cmd: K, args: ArgsOf<K>, opts?: InvokeOptions): Promise<ResultOf<K>> {
       await new Promise((r) => setTimeout(r, 40)); // IPC is async; keep the UI honest about it
       gate(cmd, args, opts);
-      const h = handlers[cmd] as (a: ArgsOf<K>, o?: InvokeOptions) => ResultOf<K>;
+      const h = handlers[cmd] as (a: ArgsOf<K>, o?: InvokeOptions) => ResultOf<K> | Promise<ResultOf<K>>;
       return h(args, opts);
     },
     async listen<E extends EventName>(event: E, cb: (payload: PayloadOf<E>) => void) {

@@ -13,7 +13,7 @@ import { clockLabel, formatMoney, nowUnix, shortHash, shortId } from '../../../.
 import { useMutation, useQuery } from '../../../../../lib/hooks';
 import type { DealWatch } from '../../../../../lib/marketWatch';
 import {
-  DEAL_PROOF, DEAL_RECORD, FAIR_PRICE_NAME, fairPriceWords, HOUSE_RECORD_NAME, houseRecordWord, KEPT_FRESH, marketWords, PRICE_CHECKS_USED_UP, priceChecksToday, PROOF_FILE_SHOWS, PROOF_SAVE_WARNING,
+  DEAL_PROOF, DEAL_RECORD, FAIR_PRICE_NAME, PROOF_CHECKER, fairPriceWords, HOUSE_RECORD_NAME, houseRecordWord, KEPT_FRESH, marketWords, PRICE_CHECKS_USED_UP, priceChecksToday, PROOF_FILE_SHOWS, PROOF_SAVE_WARNING,
   STATEMENT_CHECK_NEEDS_KEYS,
 } from '../../../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../../../shared/honesty';
@@ -22,9 +22,13 @@ import { ConvergenceChart, MarketBand, MiniBand } from '../../../charts';
 import '../../../charts.css';
 import { isLive, marketPosition } from '../../../logic';
 import { useToast } from '../../../ui';
+import { ProofCheckSheet } from './ProofCheckSheet';
 import { attestOf, evidenceLabel, heldRefs, reconciliationLabel, shownRefs, statementLabel, stepWords } from '../../../deal/model';
 
-export type EvidenceKind = 'paypal' | 'books' | 'market';
+export type EvidenceKind = 'paypal' | 'books' | 'market' | 'signed';
+
+/** The signed-proof card (browser preview only): the practice deal opens its file, any other deal points to it. */
+export type SignedCard = { sample: boolean; label: string; open: () => void };
 
 type EvState = { data: DealEvidence | undefined; error: WalletError | null };
 
@@ -45,7 +49,7 @@ export function watchWhy(watch: DealWatch | null | undefined, priced: boolean): 
   return priced ? `${KEPT_FRESH}.` : DEAL_PROOF.firstOnWay(KEPT_FRESH);
 }
 
-export function ProofPanel({ deal, ev, band, watch, onOpen }: { deal: Deal; ev: EvState; band: DisplayBand | null; watch?: DealWatch | null; onOpen: (k: EvidenceKind) => void }) {
+export function ProofPanel({ deal, ev, band, watch, onOpen, signed }: { deal: Deal; ev: EvState; band: DisplayBand | null; watch?: DealWatch | null; onOpen: (k: EvidenceKind) => void; signed?: SignedCard | null }) {
   const e = ev.data;
   const evl = e ? evidenceLabel(deal, e.receipt) : null;
   const rec = e ? statementLabel(deal.state, e) : null;
@@ -59,6 +63,19 @@ export function ProofPanel({ deal, ev, band, watch, onOpen }: { deal: Deal; ev: 
   const fair = e?.fair_price ? fairPriceWords(e.fair_price, deal.terms.unit_price) : null;
   return (
     <div className="dv-proof">
+      {signed ? (signed.sample ? (
+        <button type="button" className="dv-pc dv-pc-wide dv-pc-signed" onClick={() => onOpen('signed')}>
+          <span className="k">{PROOF_CHECKER.card.key}</span>
+          <span className="v"><Chip tone="teal">{PROOF_CHECKER.card.value}</Chip></span>
+          <span className="why">{PROOF_CHECKER.card.why}</span>
+        </button>
+      ) : (
+        <div className="dv-pc dv-pc-wide">
+          <span className="k">{PROOF_CHECKER.card.key}</span>
+          <span className="v"><Chip tone="dashed">{PROOF_CHECKER.card.none}</Chip></span>
+          <span className="why">{PROOF_CHECKER.card.noneWhy(signed.label)} <Btn sm kind="plain" onClick={signed.open}>{PROOF_CHECKER.card.open(signed.label)}</Btn></span>
+        </div>
+      )) : null}
       <button type="button" className="dv-pc" onClick={() => onOpen('paypal')}>
         <span className="k">{DEAL_PROOF.has}</span>
         <span className="v">
@@ -131,6 +148,7 @@ export function EvidenceSheet({ kind, deal, ev, band, watch, onFresh, onClose }:
       }}>{rec.pending ? DEAL_PROOF.checking : DEAL_PROOF.checkStatement}</Btn>
   ) : null;
   const done = <Btn kind="primary" onClick={onClose}>{DEAL_PROOF.done}</Btn>;
+  if (kind === 'signed') return <ProofCheckSheet onClose={onClose} />;
   const evidenceKv = e ? (
     <Kv items={[
       [DEAL_PROOF.receipt, <><Chip tone={evidenceLabel(deal, e.receipt).tone}>{evidenceLabel(deal, e.receipt).text}</Chip> {evidenceLabel(deal, e.receipt).why}</>],

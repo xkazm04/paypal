@@ -1,0 +1,7 @@
+/* proof.html: the page around the checker. The checker's own styles are shared/proofcheck. */
+.w-proof { min-height: 100vh; }
+.pf-page { max-width: 76rem; margin: 0 auto; padding: var(--sp-8) var(--sp-6) var(--sp-16); }
+.pf-head { margin-bottom: var(--sp-6); }
+.pf-head .kicker { margin: 0 0 var(--sp-2); }
+.pf-head h1 { margin: 0; font-size: var(--fs-display); }
+.pf-lede { margin: var(--sp-2) 0 0; max-width: 44rem; color: var(--muted); }

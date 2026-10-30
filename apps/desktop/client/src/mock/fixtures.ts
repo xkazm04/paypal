@@ -29,6 +29,7 @@ import type { CounterpartyNote } from '@bindings/CounterpartyNote';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { NotifySuppression } from '@bindings/NotifySuppression';
 import type { RungMark } from '@bindings/RungMark';
+import { SAMPLE_DEAL_ID, SAMPLE_DEAL_LABEL } from '../lib/proof/sampleId';
 import type { CounterpartyDisplay, DealDisplay, TranscriptStep } from '../lib/pending';
 import { fairPriceOf } from '../lib/fairPrice';
 import { MONEY_CHECK_SILENCE, RESCUE_SENT_SILENCE, RESCUE_SILENCE } from '../lib/words';
@@ -194,6 +195,8 @@ export function buildMockState(now: number): MockState {
 
   const add = (o: {
     label: string;
+    /** A deal id the world must carry (the signed practice deal's own); the default is made from the label. */
+    id?: string;
     title: string;
     kind: Deal['kind'];
     side: Deal['side'];
@@ -228,7 +231,7 @@ export function buildMockState(now: number): MockState {
     at?: [number, number];
     attention?: Omit<AttentionItem, 'deal_id' | 'label' | 'amount_minor' | 'currency' | 'mode' | 'deadline' | 'on_silence'> | null;
   }) => {
-    const id = fakeUlid(o.label);
+    const id = o.id ?? fakeUlid(o.label);
     const price = usd(o.price);
     const deal: Deal = {
       id,
@@ -301,6 +304,15 @@ export function buildMockState(now: number): MockState {
   });
   add({ label: 'D-0201', title: 'Refurbished 24-inch IPS monitor', kind: 'haggle', side: 'buyer', cp: KEY.house, item: 'monitor-24-ips', price: 0.01, state: 'PAIRING', mandate: MANDATE_M14, at: [now - 3 * 60, now - 2 * 60], silence: 'the house seller is waking up · nothing is offered yet' });
   add({ label: 'D-0187', title: 'Refurbished 24-inch monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-24-ips', price: 212, state: 'RECEIPTED', mandate: MANDATE_M14, version: 2, market: [199, 207, 221], receipt: 'SELLER_ATTESTED', reconciliation: 'matched', paypal: { order: '5UV28QK1', authorization: '3HF1Z', capture: '8TA0W' }, decided: POLICY6, at: [back(0.9), back(0.82)] });
+  // Maya's shop sold a refurbished monitor to lark's agent after a haggle: the one deal the preview signs. Its
+  // proof file is a real signed file (lib/proof/sample), so the deal page can check it, and break it, in the browser.
+  add({
+    id: SAMPLE_DEAL_ID, label: SAMPLE_DEAL_LABEL, title: 'Refurbished 24-inch monitor · sold', kind: 'haggle', side: 'seller', cp: KEY.lark, item: 'monitor-24-ips', price: 212, state: 'RECEIPTED',
+    mandate: MANDATE_S2, version: 1, receipt: 'PAYPAL_VERIFIED', reconciliation: 'matched', paypal: { order: '5O190127TN364715T', authorization: '8AB21743GP650193R', capture: '3C679366HH908993F' },
+    decided: { type: 'human', at: back(0.56) }, at: [back(0.66), back(0.55)],
+    transcript: ([[1, 'you', 'LISTING', 249], [2, 'them', 'OFFER', 190], [3, 'you', 'COUNTER', 235], [4, 'them', 'COUNTER', 212]] as const)
+      .map(([seq, by, typ, p], i) => ({ seq, by, typ, price: usd(p), at: back(0.66 - i * 0.02), verified: true })),
+  });
   add({ label: 'D-0176', title: 'Refurbished 32-inch 4K monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-32-4k', price: 455, state: 'WITHDRAWN', mandate: MANDATE_M14, version: 2, at: [back(1), back(0.96)] });
 
   add({
@@ -636,7 +648,7 @@ export function buildHistory(now: number): HistoryStep[] {
     on(deal, day, t(8), 'authorized', 'AUTHORIZED', by, call('authorize'));
   };
 
-  const D = (label: string) => fakeUlid(label);
+  const D = (label: string) => (label === SAMPLE_DEAL_LABEL ? SAMPLE_DEAL_ID : fakeUlid(label));
   // Monday: cables paid on the owner's approval; the dock order put on hold; a spare power supply held.
   purchase(D('D-0183'), 0, 9, 5, OWNER);
   on(D('D-0183'), 0, '09:14', 'captured', 'CAPTURED', OWNER, call('capture'));
@@ -688,6 +700,20 @@ export function buildHistory(now: number): HistoryStep[] {
   on(D('D-0185'), 2, '11:05', 'approved_by_buyer', 'APPROVED', NOBODY, call('read_order'));
   on(D('D-0185'), 2, '11:05', 'authorized', 'AUTHORIZED', SHOP, call('authorize'));
   on(D('D-0185'), 2, '11:06', 'captured', 'CAPTURED', SHOP, call('capture'));
+  // Tuesday to Wednesday: the shop's haggled monitor (the signed practice deal): Maya countersigned the order,
+  // the buyer approved at PayPal, her shop rules authorized it, and she captured it once the monitor shipped.
+  on(D(SAMPLE_DEAL_LABEL), 1, '10:00', 'created');
+  on(D(SAMPLE_DEAL_LABEL), 1, '10:02', 'offer_received', 'NEGOTIATING');
+  on(D(SAMPLE_DEAL_LABEL), 1, '10:04', 'offer_sent', null, AGENT);
+  on(D(SAMPLE_DEAL_LABEL), 1, '10:07', 'offer_received');
+  on(D(SAMPLE_DEAL_LABEL), 1, '10:09', 'agreed', 'AGREED', RULE6);
+  on(D(SAMPLE_DEAL_LABEL), 1, '10:12', 'countersigned', null, OWNER);
+  on(D(SAMPLE_DEAL_LABEL), 1, '10:12', 'order_created', 'AWAITING_APPROVAL', OWNER, call('create_order'));
+  on(D(SAMPLE_DEAL_LABEL), 1, '10:13', 'pay_link_sent', null, AGENT);
+  on(D(SAMPLE_DEAL_LABEL), 1, '10:35', 'approved_by_buyer', 'APPROVED', NOBODY, call('read_order'));
+  on(D(SAMPLE_DEAL_LABEL), 1, '10:36', 'authorized', 'AUTHORIZED', SHOP, call('authorize'));
+  on(D(SAMPLE_DEAL_LABEL), 2, '14:10', 'captured', 'CAPTURED', OWNER, call('capture'));
+  on(D(SAMPLE_DEAL_LABEL), 2, '14:11', 'receipted', 'RECEIPTED');
   purchase(D('D-0180'), 2, 15, 10, OWNER);
   // Thursday: the power supply's hold runs out at 72 h and releases itself; you release the
   // duplicate thermal-pads hold yourself; packing supplies are paid on your rule.

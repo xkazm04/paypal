@@ -36,7 +36,7 @@ describe('module mapping', () => {
   });
   it('places the sample week as the design report does', () => {
     const count = (m: string) => deals.filter((d) => moduleOf(d) === m).length;
-    expect([count('tables'), count('spend'), count('counter'), count('book'), count('shield'), count('rescue')]).toEqual([6, 6, 4, 0, 3, 3]); // D-0184 lapsed at its approval (attention-ladder-1); D-0204 the house seller's table in the shop-around group; D-0199 MISMATCH carries a shield HOLD; Q-0207 quote; D-0194 checking with PayPal; D-0182/D-0178 rescues; D-0181 the safe-default release
+    expect([count('tables'), count('spend'), count('counter'), count('book'), count('shield'), count('rescue')]).toEqual([7, 6, 4, 0, 3, 3]); // D-0195 the shop's sold monitor, the one signed practice deal (a seller haggle, so Tables); D-0184 lapsed at its approval (attention-ladder-1); D-0204 the house seller's table in the shop-around group; D-0199 MISMATCH carries a shield HOLD; Q-0207 quote; D-0194 checking with PayPal; D-0182/D-0178 rescues; D-0181 the safe-default release
   });
 });
 
@@ -120,9 +120,9 @@ describe('ledger summary', () => {
   it('sums moved money per side and currency in exact minor units', () => {
     const needs = new Set(world.deals.filter((d) => d.attention).map((d) => d.deal.id));
     const s = summarize(deals, needs);
-    // buyer captured/reconciled: 45 + 38 (D-0187's 212 is only the seller's receipt, so not yet counted); seller captured: 18.50 shop + 9.00 recovered rescue
+    // buyer captured/reconciled: 45 + 38 (D-0187's 212 is only the seller's receipt, so not yet counted); seller captured: 18.50 shop + 9.00 recovered rescue + D-0195's 212.00 (the signed practice deal, collected and PayPal-verified)
     expect(s.out).toEqual([usd(83)]);
-    expect(s.inn).toEqual([usd(27.5)]);
+    expect(s.inn).toEqual([usd(239.5)]);
     // D-0194's collection is being checked with PayPal: its money is still counted where Rust last
     // saw it (held), never as paid.
     expect(s.held.map((d) => d.id).sort()).toEqual([byLabel('D-0190').id, byLabel('D-0198').id, byLabel('D-0194').id].sort());
