@@ -39,7 +39,7 @@ export function Answer({ attack: a, sentNote, noteDealId }: { attack: RecordedAt
       <dl className="ar-why">
         <div><dt>{ARENA_ANSWER.why}</dt><dd>{w?.held}{isRefusal(ans) ? <span className="ar-rule">{ruleName(ans.code, ans.clause)}</span> : null}</dd></div>
         {isRefusal(ans) ? <div><dt>{ARENA_ANSWER.heard}</dt><dd className="ar-heard">“{ans.text}”</dd></div> : null}
-        {!isRefusal(ans) && ans.why ? <div><dt>{ARENA_ANSWER.heard}</dt><dd className="ar-heard">{ARENA_ANSWER.why_kept(ans.why)}</dd></div> : null}
+        {!isRefusal(ans) && ans.why ? <div><dt>{ARENA_ANSWER.walletSaid}</dt><dd className="ar-heard mono">{ARENA_ANSWER.quoted(ans.why)}</dd></div> : null}
       </dl>
       {sentNote !== null ? <NoteAsks asks={asks} /> : null}
       <section className="ar-proof" aria-label={ARENA_ANSWER.record}>

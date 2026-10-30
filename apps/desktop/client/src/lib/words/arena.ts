@@ -191,7 +191,8 @@ export const ARENA_ANSWER = {
   dealState: (which: string, before: string, after: string): string => (before === after ? `The ${which} stayed ${after}.` : `The ${which} went from ${before} to ${after}.`),
   haggle: 'haggle',
   purchase: 'purchase',
-  why_kept: (why: string): string => `The wallet said: ${why}.`,
+  walletSaid: 'What the wallet said',
+  quoted: (why: string): string => `“${why}”`,
   again: 'Play it again',
 } as const;
 
