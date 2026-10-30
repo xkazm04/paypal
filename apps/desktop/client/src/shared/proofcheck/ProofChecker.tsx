@@ -301,6 +301,7 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
               <Row key={cid} rowId={`${id}-row-${cid}`} id={cid} line={state.lines[i] ?? null} before={state.before?.[i] ?? null} current={running && made === i} stale={running && i >= made && state.before !== null} first={i === firstBad} run={state.run} />
             ))}
           </ol>
+          {state.facts && !state.facts.signatures ? <p className="pk-refused" role="alert">{W.noSignatures}</p> : null}
           {state.refused ? <p className="pk-refused" role="alert">{state.refused}</p> : null}
           {readError ? <p className="pk-refused" role="alert">{readError}</p> : null}
           <H className="pk-h pk-sub">{W.limitsHead}</H>
