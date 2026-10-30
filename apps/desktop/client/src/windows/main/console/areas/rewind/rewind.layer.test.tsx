@@ -48,23 +48,36 @@ describe('the Rewind', () => {
     expect(small.layer.querySelector('.pf-sub')?.textContent).toBe(REWIND_ANSWER.sub);
   }, 60_000);
 
-  // The playhead stops at now, so the Mon 12:00 anchor only lands there once Monday noon has passed:
-  // pin the instant (local time, Date only) instead of reading the real clock.
-  it.each(PINNED_INSTANTS)('a day anchor moves the playhead to that day — %s', async (_name, at, pastNoon) => {
+  // The playhead runs on past now into the forecast's 72 hours, so the Mon 12:00 anchor lands there even
+  // when Monday noon has not come yet: pin the instant (local time, Date only) instead of reading the clock.
+  it.each(PINNED_INSTANTS)('a day anchor moves the playhead to that day — %s', async (_name, at) => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(at);
     const r = await renderLayerAtScale({ level: 'rewind' }, 'small');
     // useNow keeps its last tick until the next one: tick it onto the pinned instant.
     await act(async () => { setClockOffset(1); setClockOffset(0); });
     const slider = within(r.layer).getByRole('slider', { name: REWIND_BAR.playhead });
-    const mon = within(r.layer).getByRole('button', { name: REWIND_BAR.days[0] });
-    // The playhead opens at the live end (now); the tick above moved that end, so measure from it.
-    const was = Number(slider.getAttribute('aria-valuemax'));
+    const mon = within(r.layer).getAllByRole('button', { name: REWIND_BAR.days[0] })[0] as HTMLElement;
+    // The playhead opens at now; the track ends 72 hours past it (the forecast's reach).
+    const now = Math.floor(at.getTime() / 1000);
+    expect(Number(slider.getAttribute('aria-valuemax'))).toBe(now + 72 * 3600);
     fireEvent.click(mon);
-    await waitFor(() => expect(Number(slider.getAttribute('aria-valuenow'))).toBeLessThanOrEqual(was));
-    // Monday noon is where the anchor lands; before it the playhead stops at now, the latest moment of the week.
+    // Monday noon is where the anchor lands, before now or after it.
     const noon = Number(slider.getAttribute('aria-valuemin')) + 12 * 3600;
-    expect(Number(slider.getAttribute('aria-valuenow'))).toBe(pastNoon ? noon : Number(slider.getAttribute('aria-valuemax')));
-    expect(Number(slider.getAttribute('aria-valuemax'))).toBe(Math.floor(at.getTime() / 1000));
+    await waitFor(() => expect(Number(slider.getAttribute('aria-valuenow'))).toBe(noon));
+  }, 60_000);
+
+  it('draws the next 72 hours past a gold now line, one dashed tick for each forecast step', async () => {
+    const r = await renderLayerAtScale({ level: 'rewind' }, 'small');
+    await waitFor(() => expect(r.layer.querySelector('.rw-now')).not.toBeNull());
+    const ticks = r.layer.querySelectorAll('.rw-tick.fut');
+    expect(ticks.length).toBeGreaterThan(0);
+    expect(r.layer.querySelector('.rw-walk')?.textContent).toMatch(/^If you walk away: \$0 leaves\./);
+    // Past the line the hub says what the forecast says, and no money moves.
+    const slider = within(r.layer).getByRole('slider', { name: REWIND_BAR.playhead });
+    fireEvent.keyDown(slider, { key: 'ArrowRight' });
+    fireEvent.keyDown(slider, { key: 'ArrowRight' });
+    await waitFor(() => expect(r.layer.querySelector('.rw-ahead-hub')).not.toBeNull());
+    expect(r.layer.querySelector('.rw-ahead-hub')?.textContent).toMatch(/no money moves|Nothing is scheduled/);
   }, 60_000);
 });

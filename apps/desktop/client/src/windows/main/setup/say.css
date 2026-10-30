@@ -15,6 +15,8 @@
 
 .say .say-form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
 .say .say-input { flex: 1 1 22rem; min-width: 0; height: 40px; padding: 0 var(--sp-3); font-size: var(--fs-title3); }
+/* beside the Charter's own list the column is narrow: the sentence takes the whole line, its buttons wrap under it */
+.say:not(.compact) .say-input { flex-basis: 100%; }
 .say .say-mic svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .say .say-mic.on { border-color: var(--gold); color: var(--gold-l); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent); }
 .say .say-note { margin: 0; color: var(--dim); font-size: var(--fs-small); line-height: 1.4; }
@@ -75,4 +77,7 @@ button.say-pillbody:focus-visible { outline: 2px solid var(--focus); outline-off
 
 .say .say-act { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); padding-top: var(--sp-1); }
 
+/* the Charter's copy of the timeline: only the forecast's mark is explained */
+.say .say-tl { margin-top: var(--sp-2); }
+.say .say-tl .rw-legend > span:not(:last-child) { display: none; }
 @media (prefers-reduced-motion: reduce) { .say .say-pill { animation: none; } }

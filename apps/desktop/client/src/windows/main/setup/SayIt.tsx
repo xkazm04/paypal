@@ -6,7 +6,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from 'react';
 import { useMutation } from '../../../lib/hooks';
 import { parseMoneyText } from '../../../lib/format';
-import { plainWords, type Chip } from '../../../lib/say/draft';
+import { plainWords, reachOf, type Chip } from '../../../lib/say/draft';
 import { readEnds, type Question, type SayCtx } from '../../../lib/say/read';
 import { listen, speechSupport, type Listening } from '../../../lib/say/speech';
 import { sayAnswer, saySet, sayClear, sayUnanswer } from '../../../lib/say/store';
@@ -14,11 +14,16 @@ import { NOTICE_WHAT, SAY, SAY_Q } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
 import { Btn, useToast } from '../../../shared/ui';
 import { useLocked } from '../world';
+import { SayTimeline } from './SayTimeline';
 import { useSayReading } from './useSay';
 import './say.css';
 
-export function SayIt({ className, compact = false, stepGold = true }: {
+export function SayIt({ className, compact = false, stepGold = true, timeline = false, onOpened }: {
   className?: string;
+  /** Draw the week and the next 72 hours under the chips (the Charter; the Rewind has its own timeline). */
+  timeline?: boolean;
+  /** The approval window was opened with the rules (the Charter then waits on it). */
+  onOpened?: () => void;
   /** On the Rewind, above the timeline: no explainer, just the sentence, the chips and the button. */
   compact?: boolean;
   /** This is the view's one gold action; false when the view has its own (the Charter's step). */
@@ -64,9 +69,10 @@ export function SayIt({ className, compact = false, stepGold = true }: {
   const review = async () => {
     if (!rules) return;
     const r = await open.run({ deal_id: null, target: 'mandate', draft: { type: 'rules', ...rules } });
-    if (r === null) { toast(SAY.opened, 'gold'); setOpened(true); }
+    if (r === null) { toast(SAY.opened, 'gold'); setOpened(true); onOpened?.(); }
   };
 
+  const reach = useMemo(() => (reading ? reachOf(reading.facts, reading.facts.ends) : null), [reading]);
   const none = reading !== null && !chips.length;
   const theirs = chips.filter((c) => c.state === 'said' || c.state === 'unsure');
   const ours = chips.filter((c) => c.state === 'filled' || c.state === 'open');
@@ -125,6 +131,7 @@ export function SayIt({ className, compact = false, stepGold = true }: {
         <span className="say-note">{opened ? SAY.opened : rules && asking.length ? SAY.readyOpen : SAY.reviewNote}</span>
       </div>
       {open.error ? <WalletNotice error={open.error} what={NOTICE_WHAT.approval} /> : null}
+      {timeline ? <SayTimeline reach={reach} /> : null}
     </section>
   );
 }
