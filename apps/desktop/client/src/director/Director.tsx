@@ -16,6 +16,7 @@ import { clockOffset } from '../lib/clock';
 import { clockLabel } from '../lib/format';
 import { useNow, usePrefersReducedMotion } from '../lib/hooks';
 import { APPROVAL_FRAME } from '../lib/words';
+import { ARENA_LINK, ARENA_LINK_TITLE } from '../lib/words/arena';
 import { applyTheme, getTheme, setTheme, type Theme } from '../lib/theme';
 import { mockBackend } from '../mock/backend';
 import { HAGGLE } from './helpers';
@@ -609,6 +610,7 @@ export function Director({ story }: { story: Story }) {
       <header className="dir-banner" role="note">
         <span className="dir-dot" aria-hidden="true" />
         <span>Browser preview with sample data — not the wallet. No PayPal page is ever shown.</span>
+        {take || film ? null : <a className="dir-arena" href="arena.html" title={ARENA_LINK_TITLE}>{ARENA_LINK}</a>}
       </header>
 
       <main className="dir-stage" ref={stageRef} aria-label="The three windows of The Table, on sample data">

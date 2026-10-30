@@ -157,6 +157,19 @@ export const RULE_NAME: Readonly<Record<string, string>> = {
   unavailable: 'The wallet couldn’t answer',
 };
 
+/** A signed rule refused by its clause (table-core Clause::number): which of Maya's rules held. */
+export const CLAUSE_RULE: Readonly<Record<number, string>> = {
+  1: 'What her agent may do',
+  2: 'Who she deals with',
+  3: 'Her per-deal limit',
+  4: 'Her price range',
+  5: 'Her daily limits',
+  6: 'She decides in person',
+  7: 'Who she pays',
+  8: 'Her rescue limits',
+  9: 'Her market watch',
+};
+
 export const ARENA_ANSWER = {
   empty: 'Pick an attack. The wallet’s answer lands here.',
   why: 'Why it held',
@@ -271,5 +284,8 @@ export const ARENA_WIRE = {
 } as const;
 
 export const ARENA_RESET = 'Start over';
+/** The director's banner link to the arena. */
+export const ARENA_LINK = 'Try to break it ›';
+export const ARENA_LINK_TITLE = 'Play the attacker against Maya’s agent. Every answer is the real wallet’s, recorded.';
 export const ARENA_PREVIEW = 'Preview · recorded answers';
 export const ARENA_BROWSER_ONLY = 'This preview runs in a web browser only.';

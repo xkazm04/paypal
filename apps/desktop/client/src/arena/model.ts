@@ -1,7 +1,7 @@
 // BROWSER PREVIEW ONLY. Break The Table, in pure functions: the deck, what a played attack adds to the
 // counters, the verdict stamp, the audit row as one line, and which recorded attacks a typed seller
 // note asks for. Everything is read from the record (record.ts); nothing here invents an answer.
-import { DEAL_STATE_WORDS } from '../lib/words/arena';
+import { CLAUSE_RULE, DEAL_STATE_WORDS, RULE_NAME } from '../lib/words/arena';
 import { isRefusal, type AuditRecord, type RecordedAttack, type RecordedMoney } from './record';
 
 export type Verdict = 'refused' | 'turnedAway' | 'kept' | 'counted';
@@ -58,6 +58,12 @@ export function auditLine(row: AuditRecord): string {
   if (typeof d.typ === 'string') parts.push(d.typ);
   if (typeof d.from === 'string' && typeof d.to === 'string') parts.push(`${d.from} → ${d.to}`);
   return parts.join(' · ');
+}
+
+/** The rule that held, in Maya's words: a signed rule by its clause when the refusal names one. */
+export function ruleName(code: string, clause: number | null): string {
+  if (code === 'mandate_clause' && clause !== null && CLAUSE_RULE[clause]) return CLAUSE_RULE[clause];
+  return RULE_NAME[code] ?? code;
 }
 
 export const stateWords = (s: string | null): string => (s === null ? '—' : DEAL_STATE_WORDS[s] ?? s.toLowerCase());

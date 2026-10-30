@@ -30,6 +30,8 @@ const LAND_MS = 620;
 /** The film's round (`?auto=1`): card keys, a typed note, then the closing card; one step every `AUTO_MS`. */
 export const AUTO_STEPS: readonly string[] = ['1', '4', 'q', 'note', '8', 'c'];
 const AUTO_MS = 3400;
+/** Milliseconds per character while the film's round types its note. */
+const TYPE_MS = 24;
 
 function world(): MockBackend['world'] | null {
   try {
@@ -128,8 +130,15 @@ export function Arena() {
     const next = () => {
       const step = AUTO_STEPS[i++];
       if (step === undefined) { setAuto(false); return; }
+      if (step === 'note') {
+        // Typed as a viewer would, then sent: the take shows the words going in.
+        const text = ARENA_AUTO.note;
+        for (let k = 1; k <= text.length; k++) steps.push(window.setTimeout(() => setNote(text.slice(0, k)), k * TYPE_MS));
+        steps.push(window.setTimeout(() => sendNote(text), text.length * TYPE_MS + 250));
+        steps.push(window.setTimeout(next, text.length * TYPE_MS + 250 + AUTO_MS));
+        return;
+      }
       if (step === 'c') finale();
-      else if (step === 'note') sendNote(ARENA_AUTO.note);
       else { const a = cardForKey(RECORD.attacks, step); if (a) play(a); }
       steps.push(window.setTimeout(next, AUTO_MS));
     };

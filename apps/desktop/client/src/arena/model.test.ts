@@ -75,3 +75,14 @@ describe('picking up a card', () => {
     expect(inside(null, 50, 30)).toBe(false);
   });
 });
+
+describe('the rule that held', () => {
+  it('names a signed rule by its clause, any other refusal by its code', async () => {
+    const { ruleName } = await import('./model');
+    expect(ruleName('mandate_clause', 3)).toBe('Her per-deal limit');
+    expect(ruleName('outside_band', 4)).toBe('Her price range');
+    expect(ruleName('owner_approval', 6)).toBe('She decides in person');
+    expect(ruleName('tool_absent', null)).toBe('No such tool');
+    expect(ruleName('mandate_clause', null)).toBe('A rule Maya signed');
+  });
+});

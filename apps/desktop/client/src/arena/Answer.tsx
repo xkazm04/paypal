@@ -3,11 +3,11 @@
 // record one level down (the rows it wrote, what was sent beside what PayPal saw, what the agent could
 // still see). And the closing view: every attack held, the command that checks it, the attacks as a file.
 import { useState } from 'react';
-import { ARENA_ANSWER, ARENA_CHECK, ARENA_FINALE, ARENA_NOTE, ARENA_VERDICT, ATTACK_WORDS, RULE_NAME } from '../lib/words/arena';
+import { ARENA_ANSWER, ARENA_CHECK, ARENA_FINALE, ARENA_NOTE, ARENA_VERDICT, ATTACK_WORDS } from '../lib/words/arena';
 import { Quarantine } from '../shared/honesty';
 import { Btn } from '../shared/ui';
 import { NoteChip } from '../windows/main/console/areas/shared/NoteChip';
-import { auditLine, dollars, minorOf, noteAsks, stateWords, verdictOf, type Verdict } from './model';
+import { auditLine, dollars, minorOf, noteAsks, ruleName, stateWords, verdictOf, type Verdict } from './model';
 import { PROOF_FILE_NAME, proofFile } from './proof';
 import { attackById, isRefusal, RECORD, type RecordedAttack } from './record';
 
@@ -36,7 +36,7 @@ export function Answer({ attack: a, sentNote, noteDealId }: { attack: RecordedAt
         </div>
       ) : null}
       <dl className="ar-why">
-        <div><dt>{ARENA_ANSWER.why}</dt><dd>{w?.held}{isRefusal(ans) && RULE_NAME[ans.code] ? <span className="ar-rule">{RULE_NAME[ans.code]}</span> : null}</dd></div>
+        <div><dt>{ARENA_ANSWER.why}</dt><dd>{w?.held}{isRefusal(ans) ? <span className="ar-rule">{ruleName(ans.code, ans.clause)}</span> : null}</dd></div>
         {isRefusal(ans) ? <div><dt>{ARENA_ANSWER.heard}</dt><dd className="ar-heard">“{ans.text}”</dd></div> : null}
         {!isRefusal(ans) && ans.why ? <div><dt>{ARENA_ANSWER.heard}</dt><dd className="ar-heard">{ARENA_ANSWER.why_kept(ans.why)}</dd></div> : null}
       </dl>
@@ -97,7 +97,7 @@ function NoteAsks({ asks }: { asks: string[] }) {
           {asks.map((id) => {
             const a = attackById(id);
             if (!a || !isRefusal(a.answer)) return null;
-            return <li key={id}><b>{ATTACK_WORDS[id]?.title}</b> <span className="ar-stamp sm v-refused">{ARENA_VERDICT.refused}</span> <span className="ar-rule">{RULE_NAME[a.answer.code]}</span></li>;
+            return <li key={id}><b>{ATTACK_WORDS[id]?.title}</b> <span className="ar-stamp sm v-refused">{ARENA_VERDICT.refused}</span> <span className="ar-rule">{ruleName(a.answer.code, a.answer.clause)}</span></li>;
           })}
         </ul>
       )}

@@ -26,6 +26,9 @@ body.w-director { margin: 0; overflow: hidden; background: var(--stage); }
   background: color-mix(in srgb, var(--gold) 13%, var(--stage)); color: var(--gold-l);
   border-bottom: 1px solid color-mix(in srgb, var(--gold) 28%, transparent);
   font: var(--fw-medium) 13px/1.3 var(--font); letter-spacing: .01em; text-align: center; }
+.dir-arena { margin-left: 8px; padding: 1px 9px; border-radius: 999px; color: var(--gold-l); text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
+.dir-arena:hover, .dir-arena:focus-visible { background: color-mix(in srgb, var(--gold) 18%, transparent); }
 .dir-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 22%, transparent); }
 
 /* ---- the stage --------------------------------------------------------------------------- */

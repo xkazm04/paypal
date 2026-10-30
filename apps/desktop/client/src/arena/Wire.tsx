@@ -2,8 +2,8 @@
 // A played attack's pulse runs from the attacker into the rules and stops there; the line to PayPal
 // lights only for the requests the record says reached it (none, in every recorded attack), so the
 // picture can never claim more than the record does.
-import { ARENA_WIRE, RULE_NAME } from '../lib/words/arena';
-import { verdictOf, type Verdict } from './model';
+import { ARENA_WIRE } from '../lib/words/arena';
+import { ruleName, verdictOf, type Verdict } from './model';
 import { isRefusal, type RecordedAttack } from './record';
 
 export type WirePhase = 'idle' | 'travel' | 'hit';
@@ -13,7 +13,7 @@ const WALL_WORDS: Record<Verdict, string> = { refused: ARENA_WIRE.stopped, turne
 export function Wire({ attack, phase, n }: { attack: RecordedAttack | null; phase: WirePhase; n: number }) {
   const v = attack ? verdictOf(attack) : null;
   const reached = attack ? attack.paypal_requests : 0;
-  const code = attack && isRefusal(attack.answer) ? attack.answer.code : null;
+  const rule = attack && isRefusal(attack.answer) ? ruleName(attack.answer.code, attack.answer.clause) : null;
   return (
     <div key={n} className={`ar-wire p-${phase}${attack ? ` s-${attack.suit}` : ''}${v ? ` v-${v}` : ''}${reached ? ' reached' : ''}`} role="img"
       aria-label={attack ? `${ARENA_WIRE.label}: ${WALL_WORDS[v ?? 'refused']}, ${ARENA_WIRE.paypal} ${ARENA_WIRE.requests(reached)}` : `${ARENA_WIRE.label}: ${ARENA_WIRE.idle}`}>
@@ -25,7 +25,7 @@ export function Wire({ attack, phase, n }: { attack: RecordedAttack | null; phas
       <div className="ar-node wall">
         <span className="ar-wall" />
         <span className="ar-node-l">{ARENA_WIRE.wall}</span>
-        <span className="ar-wall-v">{attack && phase === 'hit' ? (code ? RULE_NAME[code] ?? WALL_WORDS[v ?? 'refused'] : WALL_WORDS[v ?? 'refused']) : ' '}</span>
+        <span className="ar-wall-v">{attack && phase === 'hit' ? (rule ?? WALL_WORDS[v ?? 'refused']) : ' '}</span>
       </div>
       <div className="ar-seg b"><span className="ar-seg-l num">{ARENA_WIRE.requests(reached)}</span></div>
       <div className="ar-node paypal">
