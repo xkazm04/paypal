@@ -9,7 +9,7 @@
 export const ARENA_TITLE = 'Break The Table';
 export const ARENA_DOC_TITLE = 'The Table · Break The Table (preview)';
 export const ARENA_LEDE = 'You play the attacker. Maya’s agent haggles for a monitor under rules she signed. Make it spend her money.';
-export const ARENA_HONEST = 'Every answer on this page is the real wallet’s, recorded by playing each attack through its agent server and money pipeline. Nothing here is acted.';
+export const ARENA_HONEST = 'Every attack’s answer on this page is the real wallet’s, recorded by playing it through the wallet’s agent server and money pipeline, and pinned by a test. Nothing here is acted. Maya’s safety record beside it is the preview’s sample week, with your attacks added.';
 
 /** The counter strip: attacks played, money moved, times PayPal was asked. */
 export const ARENA_COUNTER = {
@@ -22,7 +22,7 @@ export const ARENA_COUNTER = {
 
 export const ARENA_TABLE = {
   heading: 'The table',
-  sub: 'A live haggle, played for real before every attack.',
+  sub: 'A real haggle the recorder plays before every attack.',
   item: 'Monitor',
   listed: 'Seller listed at',
   offered: 'Maya’s agent offered',
@@ -222,7 +222,7 @@ export const ARENA_NOTE = {
 
 export const ARENA_SAFETY = {
   heading: 'Maya’s safety record',
-  sub: 'Her own record in The Table, read again after every attack.',
+  sub: 'Her record in The Table’s preview (sample week), read again after every attack.',
   reading: 'Reading her record…',
   open: 'Open it in The Table ›',
   session: 'Your attacks on it',

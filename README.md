@@ -33,7 +33,9 @@ for browser preview. On top of that, these moonshot themes are built:
 - **For Maya and for judges:** a first-run path to a first safe deal (the wallet's charter), two design
   polish passes, a WCAG 2.2 AA keyboard and screen-reader pass, the console main window (one decision
   centre with nested layers, below), and a no-install director that plays "Maya's week" across
-  all three windows (below), with a rig for repeatable video takes.
+  all three windows (below), with a rig for repeatable video takes; and **Break The Table**, a page
+  where anyone plays the attacker against the owner's agent and every answer is the real wallet's,
+  recorded through its agent server and money pipeline and pinned by a test (below).
 
 Not yet verified: an interactive run inside the native Windows shell (several shell edits are
 compiled only on Windows), live PayPal sandbox checks and engine spikes (native engines stay gated
