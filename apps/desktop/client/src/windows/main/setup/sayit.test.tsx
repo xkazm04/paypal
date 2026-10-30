@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApprovalOpenArgs } from '@bindings/ApprovalOpenArgs';
 import type { Backend } from '../../../lib/contract';
 import { sayClear } from '../../../lib/say/store';
-import { SAY } from '../../../lib/words';
+import { SAY, SAY_Q } from '../../../lib/words';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 import { ToastProvider } from '../ui';
 import { WorldProvider } from '../world';
@@ -175,6 +175,34 @@ describe('Say it on the Charter', () => {
     expect((btn as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: SAY.clear }));
     await waitFor(() => expect(screen.queryByRole('button', { name: new RegExp(SAY.review) })).toBeNull());
+  });
+
+  it('a sentence it cannot read keeps the examples in reach, so there is a way on', async () => {
+    await say('asdf qwerty lorem ipsum');
+    expect(await screen.findByText(SAY.nothing)).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: SAY.tryLines[0] }).length).toBeGreaterThan(0);
+  });
+
+  it('a “never” it could not apply is said as such: no plain-words promise, the cost of leaving it out, the button held and the note shown', async () => {
+    await say('Never buy anything on Sundays');
+    const btn = await screen.findByRole('button', { name: new RegExp(SAY.review) });
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+    expect(document.querySelector('.say-plain')?.textContent).toContain(SAY.plainBlocked);
+    expect(document.querySelector('.say-plain')?.textContent).not.toMatch(/It buys/);
+    expect(document.querySelector('.say-note.warn')?.textContent).toBe(SAY.blockedNegation);
+    expect(screen.getByText(/I can’t apply “never”/).textContent).toMatch(/may allow what you meant to rule out/);
+  });
+
+  it('the amount it asks for says what a good answer looks like', async () => {
+    await say('Haggle for a keyboard for 3 days');
+    const q = await screen.findByRole('textbox', { name: SAY_Q.ceilingLabel });
+    expect(q.getAttribute('placeholder')).toBe(SAY.amountExample);
+  });
+
+  it('the chips are two labelled rows: what you said, then what was filled in', async () => {
+    await say(MAYA);
+    const seps = [...document.querySelectorAll('.say-pillsep')].map((e) => e.textContent);
+    expect(seps).toEqual([SAY.said, SAY.filled]);
   });
 });
 

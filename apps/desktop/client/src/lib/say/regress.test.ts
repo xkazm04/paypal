@@ -93,6 +93,15 @@ describe('when it ends', () => {
     expect(ends('until november twenty first')).toBe(at(2026, 11, 21, 18));
     expect(ends('until november first')).toBe(at(2026, 11, 1, 18));
   });
+  it('days end on the hour, never past what was said; hours are kept to the minute', () => {
+    const c = ctx(at(2026, 10, 28, 9, 7));
+    const e = (t: string) => say(`${H}${t}`, {}, c).facts.ends;
+    expect(e('for 3 days')).toBe(at(2026, 10, 31, 9, 0));
+    expect(e('for a week')).toBe(at(2026, 11, 4, 9, 0));
+    expect(e('for 2 hours')).toBe(at(2026, 10, 28, 11, 7));
+    // not said at all: a week, on the hour
+    expect(say('Haggle for a monitor up to $340', {}, c).facts.ends).toBe(at(2026, 11, 4, 9, 0));
+  });
   it('"not before friday" is not an end', () => {
     const r = say(`${H}not before friday`);
     expect(r.from.ends).not.toBe('said');

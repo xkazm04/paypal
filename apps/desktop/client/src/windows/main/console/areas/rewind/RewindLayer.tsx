@@ -14,6 +14,7 @@ import { usePrefersReducedMotion } from '../../../../../lib/hooks';
 import { reachOf } from '../../../../../lib/say/draft';
 import { useSayReading } from '../../../setup/useSay';
 import { SayPanel } from '../../../setup/SayIt';
+import { bringIn } from '../../../setup/bringIn';
 import { lazyPart } from '../../../../../lib/lazy';
 import {
   LAYER_LOADING, REWIND_ANSWER, REWIND_BAR, REWIND_CARD, REWIND_KICKER, REWIND_TAPE, REWIND_THIS_WEEK, REWIND_TRUNCATED,
@@ -56,7 +57,7 @@ export function RewindLayer({ nav, state }: LayerProps) {
   const sentence = reach ? said.text : null;
   useEffect(() => {
     if (!sentence) return;
-    const id = setTimeout(() => picture.current?.scrollIntoView?.({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' }), 900);
+    const id = setTimeout(() => bringIn(picture.current, picture.current?.closest<HTMLElement>('.ar-rewind')?.querySelector<HTMLElement>('.say-readas') ?? null, reduced), 900);
     return () => clearTimeout(id);
   }, [sentence, reduced]);
 

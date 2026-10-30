@@ -14,7 +14,7 @@ export const SAY = {
   whenExample: 'Friday 5pm',
   sub: 'One sentence is enough. Your wallet reads it with a fixed word list: no AI, nothing is signed, and you can change every part.',
   label: 'Your sentence',
-  placeholder: 'Haggle for a monitor, up to $340, ask me above $320, six offers, until Friday',
+  placeholder: 'Type a rule, like: haggle for a monitor up to $340, for 3 days',
   read: 'Read it',
   clear: 'Clear',
   clearTitle: 'Clear the sentence and start again',
@@ -26,15 +26,18 @@ export const SAY = {
   readAs: 'I read this as',
   noAi: 'Read by your wallet · no AI involved',
   said: 'You said',
-  filled: 'I filled in',
+  filled: 'I filled in (change any)',
   filledNote: 'You didn’t say these, so I used safe ones. Change any of them.',
   open: 'You choose',
   openNote: 'You choose this when you review.',
   unsure: 'Not sure',
   unsureOne: 'One question',
   leftNote: 'Not part of the rules until you answer.',
-  nothing: 'I couldn’t find a rule in that. Try one of these.',
-  tryTitle: 'Try saying',
+  nothing: 'I couldn’t read a rule in that yet. Try one of these.',
+  plainBlocked: 'I can’t turn this into rules yet, so there is nothing to read back.',
+  amountExample: 'e.g. 45',
+  countExample: 'e.g. 6',
+  tryTitle: 'Try saying · tap one to read it',
   tryLabel: 'Sentences that always read',
   speak: 'Say it',
   speakTitle: 'Speak your sentence. It is typed into the box for you to check, and read like anything you type.',
@@ -64,7 +67,7 @@ export const SAY = {
   readyOpen: 'You can review now; what’s left you set in the form.',
   summaryNone: 'Say a rule above and it appears here.',
   tryLines: [
-    'Haggle for a monitor, up to $340, ask me above $320, six offers, until Friday',
+    'Haggle for a monitor, up to $340, ask me above $320, six offers, for 3 days',
     'Buy supplies up to $100 each, $150 a day, ask me above $50, for a week',
     'Haggle for a standing desk up to $600 and ask me before paying, for 3 days',
     'Get a laptop stand for no more than $80 from the house seller until tomorrow 5pm',
@@ -92,7 +95,7 @@ export const SAY_CHIP = {
   whoPaired: 'wallets you’ve connected',
   whoHouse: 'the house seller',
   payeesNone: 'you choose',
-  payeesN: (n: number): string => (n === 1 ? '1 wallet you’ve connected' : `${n} wallets you’ve connected`),
+  payeesN: (n: number): string => (n === 1 ? '1 wallet' : `${n} wallets`),
 } as const;
 
 export const SAY_SAYS = {
@@ -150,6 +153,8 @@ export const SAY_Q = {
   askEvery: 'Ask me every time',
   askKeep: (most: string): string => `Never ask, up to ${most}`,
   leftover: (what: string): string => `I didn’t understand “${what}”. It stays out of the rules.`,
+  /** A "not" / "never" that could not be applied: leaving it out would allow what it forbade, so say that. */
+  leftoverNot: (what: string): string => `I can’t apply “${what}”. If you leave it out, the rules may allow what you meant to rule out.`,
 } as const;
 
 /** The Tumbler's all-clear ticker: the same walk-away headline the timeline shows, on one line. */

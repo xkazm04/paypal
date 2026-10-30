@@ -663,6 +663,14 @@ export function stepTime(unix: number): string {
   return `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
+/** Like stepTime, with the date once it is more than three days from `now`: "Fri 6 Nov 13:00" (a weekday alone reads as this week). */
+export function stepTimeFar(unix: number, now: number): string {
+  if (unix - now <= 3 * 86_400) return stepTime(unix);
+  const d = new Date(unix * 1000);
+  const day = `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${d.getDate()} ${d.toLocaleDateString('en-GB', { month: 'short' })}`;
+  return `${day} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
 /** One step in plain words, without its time: who did what to which deal, and what PayPal saw.
  *  `title` is the deal's short title; `side` adjusts paying vs collecting. Never a clause number. */
 export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side; unshown?: boolean; unread?: boolean }): string {

@@ -22,6 +22,8 @@
 .say .say-mic.on { animation: say-listen 1.4s var(--ease) infinite; }
 @keyframes say-listen { 0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 28%, transparent); } 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--gold) 6%, transparent); } }
 .say .say-note { margin: 0; color: var(--dim); font-size: var(--fs-small); line-height: 1.4; }
+/* a hand-over that is held back says so where the eye is, not in the grey */
+.say .say-note.warn { color: var(--gold-l); font-size: var(--fs-body); max-width: 40rem; }
 .say .say-listen { color: var(--gold-l); }
 
 /* try saying */
@@ -30,6 +32,7 @@
 .say .say-try ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
 .say .say-tryline { display: block; width: 100%; text-align: left; padding: var(--sp-2) var(--sp-3); font: inherit; color: var(--text); cursor: pointer;
   background: none; border: 1px solid var(--line); border-left: 2px solid var(--line2); border-radius: var(--r-tight); }
+.say .say-tryline::before { content: "▸"; margin-right: var(--sp-2); color: var(--gold); }
 .say .say-tryline:hover { background: var(--hover); border-left-color: var(--gold); }
 .say .say-tryline:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
@@ -60,7 +63,9 @@ button.say-pillbody:focus-visible { outline: 2px solid var(--focus); outline-off
 .say .s-open .say-pillbody, .say .s-unsure .say-pillbody { background: none; border: 1px dashed var(--dim); }
 .say .s-open .say-value, .say .s-unsure .say-value { color: var(--muted); font-weight: var(--fw-medium); }
 .say .s-unsure .say-pillbody { border-color: var(--gold); }
-.say .say-pillsep { color: var(--dim); font-size: var(--fs-small); text-transform: uppercase; letter-spacing: var(--track-label); margin: 0 var(--sp-1) 0 var(--sp-3); }
+/* the two groups of chips are two labelled rows: what you said, then what was filled in */
+.say .say-pillsep { flex: 0 0 100%; color: var(--dim); font-size: var(--fs-small); text-transform: uppercase; letter-spacing: var(--track-label); margin: var(--sp-1) 0 0; }
+.say .say-pillsep:first-child { margin-top: 0; }
 
 /* a pill's one sentence, the words it came from, its edit */
 .say .say-detail { display: flex; flex-direction: column; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); border-left: 2px solid var(--gold); background: color-mix(in srgb, var(--gold) 5%, transparent); max-width: 52rem; }

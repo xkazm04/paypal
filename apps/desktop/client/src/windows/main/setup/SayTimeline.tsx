@@ -7,6 +7,7 @@ import { lazyPart } from '../../../lib/lazy';
 import type { Reach } from '../../../lib/say/draft';
 import { LAYER_LOADING } from '../../../lib/words';
 import { useLayerNavIfAny } from '../console/layers';
+import { bringIn } from './bringIn';
 import { useTimeline } from '../console/areas/rewind/useTimeline';
 import '../console/areas/rewind.css';
 
@@ -21,7 +22,7 @@ export function SayTimeline({ reach, sentence }: { reach: Reach | null; sentence
   const reduced = usePrefersReducedMotion();
   useEffect(() => {
     if (!sentence) return;
-    const id = setTimeout(() => box.current?.scrollIntoView?.({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' }), 900);
+    const id = setTimeout(() => bringIn(box.current, box.current?.closest<HTMLElement>('.say')?.querySelector<HTMLElement>('.say-readas') ?? null, reduced), 900);
     return () => clearTimeout(id);
   }, [sentence, reduced]);
   return (

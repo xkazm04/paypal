@@ -14,7 +14,7 @@ shows, and Rust re-checks and the owner signs there.
 - **The Say it panel**, on the Charter's rules line (the gold action of that line) and, compact, above
   the Rewind's timeline. A sentence box, a microphone (only where the browser has a recogniser) and
   "Read it". Four "Try saying" lines show what always reads.
-- **Chips.** What the owner said is solid (Item, Most you'll pay, Ask you above, Offers, Ends). What it
+- **Chips**, in two labelled rows: "You said" and "I filled in (change any)". What the owner said is solid (Item, Most you'll pay, Ask you above, Offers, Ends). What it
   filled in is quiet and marked ("I filled in": a day's limits, who it deals with). What only the owner
   can choose is dashed ("May pay: you choose"). A part it is not sure of is dashed and asks one
   question. Each chip is editable in place, opens a one-sentence "what it allows" and "Change it in the
@@ -57,7 +57,12 @@ shows, and Rust re-checks and the owner signs there.
 
 - A part it is not sure of is a **question** (one per part, answered by a tap or a typed word) and stays out of the draft.
 - Words it did not understand are shown as "Not read" chips with "Leave it out"; **a "not", "never" or "don't" that was not applied
-  blocks Review rules until the owner leaves it out** (rules would otherwise allow what the sentence forbade).
+  blocks Review rules until the owner leaves it out** (rules would otherwise allow what the sentence forbade). While it is blocked the
+  plain-words line says it cannot turn the sentence into rules (it never describes a rule the sentence forbade), the question says what leaving
+  the word out costs, and the note beside the held button is set in the gold text, not the grey.
+- A sentence it reads nothing of keeps the examples in reach. The question for a missing amount shows what an answer looks like.
+- "For 3 days", "for a week" and no end at all end **on the hour, never past what was said** (13:07 + 3 days = 13:00); hours keep their minute.
+  The rule-end flag adds the date once it is more than three days off ("Fri 6 Nov 13:00"), so a week from now never reads as today.
 - A number followed by a unit ("up to 6 haggles", "under 27 inches") is never money; a currency it does not read ("340 CAD") is asked
   (dollars, euros or pounds) and the hand-over waits; a date just past, a bare hour ("friday at 9") and a year more than a year away
   are asked, never moved on a guess; an item that fits several of the owner's items is asked about ("Which monitor?").
@@ -83,7 +88,7 @@ shows, and Rust re-checks and the owner signs there.
 | Panel | `windows/main/setup/SayIt.tsx`, `SayTimeline.tsx`, `useSay.ts`, `say.css` |
 | Timeline | `windows/main/console/areas/rewind/` (`clock.ts`, `future.ts`, `Scrubber.tsx`, `useTimeline.ts`), `rewind.css` |
 | Hand-off | `crates/table-client/src/approval.rs`, `crates/table-runtime/src/configuration.rs`, `windows/approval/MandateEditor.tsx` (`seedRules`), `mandateDraft.ts` (`draftFromRules`) |
-| Director | `director/sayStory.ts` (`?story=say`) |
+| Director | `director/sayStory.ts` (`?story=say`; its `look` action only scrolls the framed window to the part a caption is about) |
 
 ## Tests
 

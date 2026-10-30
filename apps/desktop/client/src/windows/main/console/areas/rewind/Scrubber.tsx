@@ -16,7 +16,7 @@ import type { Peek } from '../../../../../lib/say/join';
 import { REWIND_AHEAD, REWIND_BAR, REWIND_HUB, REWIND_THIS_WEEK, REWIND_TRUNCATED } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { weekLabel } from '../../../home/model';
-import { endingCtx, isRefusal, laneSteps, narrate, stepTime, stepUnder, TICK_WORD, tickTone, weekFraction, type TickTone } from '../../../logic';
+import { endingCtx, isRefusal, laneSteps, narrate, stepTime, stepTimeFar, stepUnder, TICK_WORD, tickTone, weekFraction, type TickTone } from '../../../logic';
 import type { RewindState } from './clock';
 import { futureSaid, plainMoney, ruleLine, type FutureTick, type Headline } from './future';
 import { TickMark } from './TickMark';
@@ -214,7 +214,7 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { drag.current = false; }} onKeyDown={onKey}>
         <div className="rw-flags" aria-hidden="true">
           {r.ahead ? <span className={`rw-flag now${nowF < 0.14 ? ' start' : ''}`} style={{ left: `${nowF * 100}%` } as CSSProperties}>{nowWord}</span> : null}
-          {ruleEndF !== null && ahead?.reach ? <span className={`rw-flag rule${ruleBeyond ? ' beyond' : ''}${ruleEndF > 0.72 ? ' edge' : ''}`} style={{ left: `${ruleEndF * 100}%` } as CSSProperties}>{REWIND_AHEAD.rule.ends(stepTime(ahead.reach.until))}</span> : null}
+          {ruleEndF !== null && ahead?.reach ? <span className={`rw-flag rule${ruleBeyond ? ' beyond' : ''}${ruleEndF > 0.72 ? ' edge' : ''}`} style={{ left: `${ruleEndF * 100}%` } as CSSProperties}>{REWIND_AHEAD.rule.ends(stepTimeFar(ahead.reach.until, r.now))}</span> : null}
         </div>
         <div className="rw-groove">
           {days.map((d) => <span key={d.at0} className="rw-day" style={{ left: `${d.edge * 100}%` } as CSSProperties} />)}
@@ -343,7 +343,7 @@ function AheadHub({ r, ahead, onOpenDeal }: { r: RewindState; ahead: Ahead; onOp
             <button type="button" className="hm-back rw-open" onClick={(e) => { e.stopPropagation(); onOpenDeal(under.line.deal_id); }}>{REWIND_AHEAD.hub.open}</button>
           </>
         ) : <div className="rw-meta">{ticks.length ? REWIND_AHEAD.hub.nothingYet : REWIND_AHEAD.hub.nothingAll}</div>}
-      {ahead.reach ? <div className="rw-ruleline">{ruleLine(ahead.reach, until ? stepTime(until) : '—')}</div> : null}
+      {ahead.reach ? <div className="rw-ruleline">{ruleLine(ahead.reach, until ? stepTimeFar(until, r.now) : '—')}</div> : null}
       <div className="h-week rw-count">{ticks === null ? '' : REWIND_AHEAD.hub.count(ticks.length, stepTime(r.limit))}</div>
     </div>
   );

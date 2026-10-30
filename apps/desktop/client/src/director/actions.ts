@@ -49,9 +49,14 @@ export type Action =
   /** A sentence is said in The Table's Say it box (typed for the viewer: the wallet reads it, nothing
    *  is signed; '' clears it). Presentation only. */
   | { do: 'say'; text: string; answers?: Record<string, string> }
+  /** Presentation only: The Table's scrolled to the part of the Rewind the caption is about (nothing is pressed). */
+  | { do: 'look'; at: LookAt }
   /** Presentation only: a window's onboarding tour shows this stop (null: the tour is put away).
    *  It points; it never presses Next, Back or Skip inside a window. */
   | { do: 'tour'; win: TourWindow; at: TourStopId | null };
+
+/** Where the camera looks in The Table's Rewind: the Say it box, the chips it read, the timeline, the open tables. */
+export type LookAt = 'say' | 'chips' | 'track' | 'tables';
 
 export type ActionKind = Action['do'];
 
@@ -71,6 +76,8 @@ export interface Stage {
   owner?(rules?: string, answers?: Record<string, string>): void;
   /** Say a sentence in The Table's Say it box. A stage without a main window leaves it out. */
   say?(text: string, answers?: Record<string, string>): void;
+  /** Scroll The Table's Rewind to a part of it. A stage without a main window leaves it out. */
+  look?(at: LookAt): void;
 }
 
 const dealId = (w: MockWorld, label: string): string | null => w.deal(label)?.deal.id ?? null;
@@ -164,6 +171,9 @@ export function runAction(stage: Stage, a: Action): void {
       return;
     case 'say':
       stage.say?.(a.text, a.answers);
+      return;
+    case 'look':
+      stage.look?.(a.at);
       return;
     case 'tour':
       pointTour(a.win, a.at);

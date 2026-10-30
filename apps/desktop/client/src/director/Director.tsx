@@ -22,7 +22,7 @@ import { APPROVAL_FRAME } from '../lib/words';
 import { applyTheme, getTheme, setTheme, type Theme } from '../lib/theme';
 import { mockBackend } from '../mock/backend';
 import { HAGGLE } from './helpers';
-import { applyWorld, foldScene, INITIAL_SCENE, placeTours, runActions, WORLD_ACTIONS, type Scene, type Stage } from './actions';
+import { applyWorld, foldScene, INITIAL_SCENE, placeTours, runActions, WORLD_ACTIONS, type LookAt, type Scene, type Stage } from './actions';
 import type { Beat, Focus } from './beats';
 import { frameUrls, type Story } from './stories';
 import { charterSteps, checkBeat, deskTransform, expectedDeals, filmTarget, haggleRecord, pressFor, readChapterRecord, recordShownOnStage, selectChapter, stageRect, storyStartOn, syncShade, takePlan, wholeTake, type ChapterTake, type FrameName, type PxRect, type Seen, type TakePlan } from './takes';
@@ -287,6 +287,13 @@ export function Director({ story }: { story: Story }) {
       setApprovalOpen(true);
     },
     say: (text, answers) => saySetAll(text, answers ?? {}),
+    // after the chips have landed and the page has found its own place (SayPanel / bringIn: 900 ms), the camera goes where the caption points
+    look: (at) => {
+      const sel: Record<LookAt, string> = { say: '.say-h', chips: '.say-readas', track: '.rw-bar', tables: '.rw-peeks' };
+      window.setTimeout(() => {
+        try { mainRef.current?.contentDocument?.querySelector<HTMLElement>(sel[at])?.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch { /* the frame is between documents; the next beat looks again */ }
+      }, 1500);
+    },
   }), [world, navigateMain, urls, rulesUrl]);
 
   // A framed window may move focus into itself when the story drives it (a card opening, a route).

@@ -37,32 +37,32 @@ export const SAY_BEATS: readonly Beat<SayChapterId>[] = [
   {
     id: 'say-type', chapter: 'say', at: 6, focus: 'main',
     caption: 'She types one sentence. She could say it into the microphone instead. Her wallet reads it with a fixed word list: no AI is involved, and nothing is signed.',
-    do: [{ do: 'say', text: SAY_SENTENCE }],
+    do: [{ do: 'say', text: SAY_SENTENCE }, { do: 'look', at: 'say' }],
   },
   {
     id: 'say-pick', chapter: 'say', at: 16, focus: 'main',
     caption: 'Two monitors are open on her tables, so it asks which one she means. She taps the 27-inch 4K. Five parts she said stand out; what she left out is filled in safely, and marked.',
-    do: [{ do: 'say', text: SAY_SENTENCE, answers: { ...SAY_PICK } }],
+    do: [{ do: 'say', text: SAY_SENTENCE, answers: { ...SAY_PICK } }, { do: 'look', at: 'chips' }],
   },
   {
     id: 'see-ahead', chapter: 'see', at: 27, focus: 'main',
     caption: 'Below, the week behind her and the next three days. Past the gold Now line, dashed ticks show what happens if she walks away: nothing leaves, and two holds end on their own.',
-    do: [],
+    do: [{ do: 'look', at: 'track' }],
   },
   {
     id: 'see-tables', chapter: 'see', at: 38, focus: 'main',
     caption: 'Her two open tables for that monitor, against her own numbers: the house seller at $312 is inside what her agent may do alone, and Dan at $329 is above $320, so it would stop and ask her.',
-    do: [],
+    do: [{ do: 'look', at: 'tables' }],
   },
   {
     id: 'see-rule', chapter: 'see', at: 49, focus: 'main',
     caption: 'Her new rule is drawn on the same hours. Until it ends, her agent could agree on its own up to $320. Above that, it asks her.',
-    do: [],
+    do: [{ do: 'look', at: 'track' }],
   },
   {
     id: 'ask-partial', chapter: 'ask', at: 58, focus: 'main',
     caption: 'Say less, and it asks one question instead of guessing. The most she will pay stays a dashed, open part, and it is left out of the rules.',
-    do: [{ do: 'say', text: SAY_PARTIAL, answers: { ...SAY_PICK } }],
+    do: [{ do: 'say', text: SAY_PARTIAL, answers: { ...SAY_PICK } }, { do: 'look', at: 'chips' }],
   },
   {
     id: 'ask-done', chapter: 'ask', at: 69, focus: 'main',

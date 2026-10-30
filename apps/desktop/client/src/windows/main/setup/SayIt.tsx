@@ -7,7 +7,7 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type F
 import { useMutation } from '../../../lib/hooks';
 import { parseMoneyText } from '../../../lib/format';
 import { CLAUSE_NUMBER } from '../../../lib/mandateRules';
-import { blockedBy, plainWords, reachOf, rulesOf, type Chip } from '../../../lib/say/draft';
+import { blockedBy, isNegation, plainWords, reachOf, rulesOf, type Chip } from '../../../lib/say/draft';
 import { readEnds, type Question, type SayCtx } from '../../../lib/say/read';
 import { canReadAloud, listen, readAloud, speechSupport, type Listening } from '../../../lib/say/speech';
 import { sayAnswer, saySet, sayClear } from '../../../lib/say/store';
@@ -84,7 +84,8 @@ export function SayPanel({ said, className, compact = false, stepGold = true, ti
     if (asking.length < was.current) readAs.current?.focus({ preventScroll: true });
     was.current = asking.length;
   }, [asking.length]);
-  const sentence = useMemo(() => plainWords(chips), [chips]);
+  const blocked = reading ? blockedBy(reading) : null;
+  const sentence = useMemo(() => (blocked ? '' : plainWords(chips)), [chips, blocked]);
   // `focus`: a rule (its kind) of the form the approval window should open at, from "Change it in the form" on a part.
   const review = async (focus?: Chip['rule']) => {
     if (!rules) return;
@@ -95,8 +96,8 @@ export function SayPanel({ said, className, compact = false, stepGold = true, ti
   };
 
   const reach = useMemo(() => (reading ? reachOf(reading.facts, reading.facts.ends) : null), [reading]);
-  const blocked = reading ? blockedBy(reading) : null;
-  const none = reading !== null && !chips.length;
+  // nothing the owner said was read as a rule: leftovers alone are not a reading, so the examples stay in reach
+  const none = reading !== null && !chips.some((c) => c.state === 'said');
   const theirs = chips.filter((c) => c.state === 'said' || c.state === 'unsure');
   const ours = chips.filter((c) => c.state === 'filled' || c.state === 'open');
   const detail = chips.find((c) => c.key === picked && c.state !== 'unsure') ?? null;
@@ -136,13 +137,14 @@ export function SayPanel({ said, className, compact = false, stepGold = true, ti
           </p>
           {none ? <p className="say-none">{SAY.nothing}</p> : null}
           <ul className="say-pills" key={text} aria-label={SAY.readAs}>
+            {theirs.length ? <li className="say-pillsep" aria-hidden="true">{SAY.said}</li> : null}
             {theirs.map((c, i) => <Pill key={c.key} c={c} i={i} on={picked === c.key} onPick={() => setPicked(picked === c.key ? null : c.key)} />)}
             {ours.length ? <li className="say-pillsep" aria-hidden="true">{SAY.filled}</li> : null}
             {ours.map((c, i) => <Pill key={c.key} c={c} i={theirs.length + i} on={picked === c.key} onPick={() => setPicked(picked === c.key ? null : c.key)} />)}
           </ul>
           {detail ? <Detail c={detail} ctx={ctx} currency={reading.facts.currency} onDone={() => setPicked(null)} onForm={rules ? () => void review(detail.rule ?? undefined) : null} /> : null}
           {asking.map((c) => (c.question ? <Ask key={c.key} c={c} q={c.question} ctx={ctx} /> : null))}
-          {sentence ? (
+          {blocked ? <p className="say-plain"><b>{SAY.plain}</b> {SAY.plainBlocked}</p> : sentence ? (
             <p className="say-plain"><b>{SAY.plain}</b> {sentence}
               {canRead ? (
                 <button type="button" className="say-aloud" aria-pressed={!!aloud} title={SAY.readBackTitle}
@@ -152,7 +154,7 @@ export function SayPanel({ said, className, compact = false, stepGold = true, ti
               ) : null}
             </p>
           ) : null}
-          {none ? <TryList onPick={tryLine} /> : null}
+          {none ? <TryList onPick={tryLine} few={compact} /> : null}
         </div>
       )}
 
@@ -161,7 +163,7 @@ export function SayPanel({ said, className, compact = false, stepGold = true, ti
         <Btn kind={stepGold ? 'gold' : 'default'} locked={locked} disabled={!rules || open.pending} onClick={() => void review()} title={SAY.reviewTitle}>
           {open.pending ? SAY.opening : SAY.review} ↗
         </Btn>
-        <span className="say-note">{opened ? SAY.opened : blocked === 'negation' ? SAY.blockedNegation : blocked === 'currency' ? SAY.blockedCurrency : rules && asking.length ? SAY.readyOpen : SAY.reviewNote}</span>
+        <span className={`say-note${blocked ? ' warn' : ''}`} role={blocked ? 'status' : undefined}>{opened ? SAY.opened : blocked === 'negation' ? SAY.blockedNegation : blocked === 'currency' ? SAY.blockedCurrency : rules && asking.length ? SAY.readyOpen : SAY.reviewNote}</span>
       </div>
       ) : null}
       {open.error ? <WalletNotice error={open.error} what={NOTICE_WHAT.approval} /> : null}
@@ -218,7 +220,7 @@ function Ask({ c, q, ctx }: { c: Chip; q: Question; ctx: SayCtx }) {
   const [bad, setBad] = useState<string | null>(null);
   const a = q.answer;
   const leaving = q.id.startsWith('leave:');
-  const text = leaving ? SAY_Q.leftover(c.value) : q.text;
+  const text = leaving ? (isNegation(c.value) ? SAY_Q.leftoverNot(c.value) : SAY_Q.leftover(c.value)) : q.text;
   const currency = 'USD';
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -237,7 +239,8 @@ function Ask({ c, q, ctx }: { c: Chip; q: Question; ctx: SayCtx }) {
         </div>
       ) : (
         <form className="say-qa" onSubmit={submit}>
-          <input className="ui-field say-qin" value={typed} onChange={(e) => { setTyped(e.target.value); setBad(null); }} aria-label={a.label} aria-invalid={bad !== null} inputMode={a.kind === 'amount' ? 'decimal' : 'text'} />
+          <input className="ui-field say-qin" value={typed} onChange={(e) => { setTyped(e.target.value); setBad(null); }} aria-label={a.label} aria-invalid={bad !== null} inputMode={a.kind === 'amount' ? 'decimal' : 'text'}
+            placeholder={a.kind === 'amount' ? (q.slot === 'offers' ? SAY.countExample : SAY.amountExample) : q.id === 'ends' ? SAY.whenExample : undefined} />
           <Btn type="submit" sm disabled={!typed.trim()}>{SAY.apply}</Btn>
           {bad ? <span className="say-bad" role="alert">{bad}</span> : null}
         </form>

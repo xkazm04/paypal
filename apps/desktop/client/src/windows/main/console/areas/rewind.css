@@ -126,7 +126,7 @@
 .ar-rewind .rw-host .rw-open { font-weight: var(--fw-semibold); color: var(--teal-l); }
 
 
-@media (max-width: 1240px) { .ar-rewind .rw-host .rw-legend > span:nth-child(n+4) { display: none; } }
+@media (max-width: 1240px) { .ar-rewind .rw-host .rw-legend > span:nth-child(n+4):not(:last-child) { display: none; } }
 @media (prefers-reduced-motion: reduce) {
   .ar-rewind .rw-host .rw-bar { animation: none; }
   .ar-rewind .rw-host .rw-tick { transition: none; }

@@ -18,6 +18,9 @@ import { SAY_Q } from '../words';
 export const MAX_SAY = 400;
 const DAY = 86_400;
 
+/** A span of days ends on the hour, never past what was said: "for a week" at 13:07 ends 13:00, not at an arbitrary minute. */
+const floorHour = (t: number, ctx: SayCtx): number => Math.floor((t - ctx.offsetMin * 60) / 3600) * 3600 + ctx.offsetMin * 60;
+
 export type SayCtx = {
   /** Unix seconds: the one client clock (lib/clock.ts), injected so tests and the director can move it. */
   now: number;
@@ -374,7 +377,7 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
   for (const { m, heard: h } of relWords) {
     const n = m[1] === 'a' || m[1] === 'an' ? 1 : Number(m[1]);
     const unit = (m[2] ?? '').startsWith('h') ? 3600 : (m[2] ?? '').startsWith('w') ? 7 * DAY : DAY;
-    endsHits.push({ at: ctx.now + n * unit, heard: h });
+    endsHits.push({ at: n * unit >= DAY ? floorHour(ctx.now + n * unit, ctx) : ctx.now + n * unit, heard: h });
   }
   const dateWords = take(work, new RegExp(String.raw`(?<!\b(?:not|no) )\b(?:until|till|by|before|through|ending|ends?)\s+(?:the\s+)?(?:(\d{1,2})(?:st|nd|rd|th)?(?:\s+of)?\s+${MONTH}|${MONTH}\s+(\d{1,2})(?:st|nd|rd|th)?)(?:,?\s+(20\d{2})\b)?(?:\s+(?:at\s+|by\s+)?${TIME})?`, 'g'));
   for (const { m, heard: h } of dateWords) {
@@ -588,7 +591,7 @@ export function read(text: string, ctx: SayCtx, answers: Answers = {}): Reading 
   // ---- safe defaults for what was not said (never for what is unsure)
   const fill = <K extends keyof Facts>(slot: Slot, key: K, v: Facts[K]) => { if (facts[key] === null && !unsure.has(slot)) { facts[key] = v; from[slot] = 'filled'; } };
   fill('offers', 'offers', 6);
-  fill('ends', 'ends', ctx.now + 7 * DAY);
+  fill('ends', 'ends', floorHour(ctx.now + 7 * DAY, ctx));
   fill('ask', 'ask', 0);
   fill('dayDeals', 'dayDeals', facts.item ? 2 : 3);
   if (facts.ceiling !== null) fill('dayTotal', 'dayTotal', facts.ceiling);

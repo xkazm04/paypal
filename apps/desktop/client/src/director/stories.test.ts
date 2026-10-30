@@ -179,8 +179,8 @@ describe('the Say it story', () => {
     }
   });
 
-  it('only says a sentence, routes the window and opens the approval window: no world, money or lock action', () => {
-    const allowed: readonly ActionKind[] = ['main', 'approval', 'owner', 'say'];
+  it('only says a sentence, points the camera, routes the window and opens the approval window: no world, money or lock action', () => {
+    const allowed: readonly ActionKind[] = ['main', 'approval', 'owner', 'say', 'look'];
     for (const b of SAY_BEATS) for (const a of b.do) {
       expect(allowed, `${b.id} → ${a.do}`).toContain(a.do);
       if (a.do === 'approval') expect(a.deal, b.id).toBeNull();
@@ -198,7 +198,8 @@ describe('the Say it story', () => {
     const full = read(SAY_SENTENCE, ctx);
     for (const k of ['item', 'ceiling', 'ask', 'offers', 'ends'] as const) expect(full.from[k], k).toBe('said');
     expect(full.questions).toEqual([]);
-    expect(full.facts.ends).toBe(NOW + 3 * 86400);
+    // "for 3 days" ends on the hour, never past what was said: 14:02 + 3 days is 14:00
+    expect(full.facts.ends).toBe(Math.floor((NOW + 3 * 86400) / 3600) * 3600);
     expect(rulesOf(full, ctx)?.clauses.find((c) => c.type === 'human_present_over')).toMatchObject({ amount: { minor: 32000 } });
     const part = read(SAY_PARTIAL, ctx);
     expect(part.questions.map((q) => q.id)).toEqual(['ceiling']);

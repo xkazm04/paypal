@@ -22,7 +22,8 @@ Three stories, chosen with `?story=` (`stories.ts`):
   guessing; Review rules opens the approval window with the rules filled in. 9 beats, 83 s, on Maya's
   sample week. `{ do: 'say', text }` types the sentence for the viewer (the window keeps it in its own
   storage and the frames follow), and `{ do: 'owner', rules }` opens the approval window's editor on the
-  rules that sentence reads to, as Review rules does. The sentence ends "for 3 days", so it means the
+  rules that sentence reads to, as Review rules does. `{ do: 'look', at }` only scrolls the framed window to the part the
+  caption is about (the Say it box, the chips, the track, the open tables); it presses nothing. The sentence ends "for 3 days", so it means the
   same on any day. It never signs: nothing in a beat can.
 - **First run** (`?story=first-run`; `firstRunStory.ts`): the onboarding on a brand-new wallet,
   94 s. Every frame and the page's own mock core open in the `?first_run=1` world (the page adds
