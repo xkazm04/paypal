@@ -3,13 +3,18 @@
    row parts (rows.tsx). Tokens only; text never below --fs-small; motion only through the tokens.
    An area's own styles live in console/areas/<area>.css, never here. */
 
-/* ---- a layer loading its code: three quiet bars that appear only after a beat ------------------- */
-.cs-skel { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-2) 0; animation: cs-skel-in var(--dur-med) var(--ease) var(--dur-slow) both; }
+/* ---- a layer loading its code: the header band only, and only after a beat ---------------------------
+   A placeholder is invisible for the first PLACEHOLDER_DELAY (CSS animation-delay with fill-mode both: no
+   timer), so a chunk that is already warm or lands fast paints none of it. It stands for the header
+   band (kicker + title), never a body silhouette. Under reduced motion / calm the FADE shortens to
+   nothing but the DELAY stays (dropping the animation would make the reduced-motion user see it first). */
+:root { --placeholder-delay: 140ms; }
+.cs-skel { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-2) 0; animation: cs-skel-in var(--dur-med) var(--ease) var(--placeholder-delay) both; }
 .cs-skel span { display: block; height: var(--sp-3); border-radius: var(--r-tight); background: color-mix(in srgb, var(--line2) 60%, transparent); }
-.cs-skel .b1 { width: 18%; } .cs-skel .b2 { width: 52%; height: var(--sp-8); } .cs-skel .b3 { width: 38%; }
+.cs-skel .b1 { width: 18%; } .cs-skel .b2 { width: 52%; height: var(--sp-8); } .cs-skel .b3 { display: none; }
 @keyframes cs-skel-in { from { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .cs-skel { animation: none; } }
-:root.calm .cs-skel { animation: none; }
+@media (prefers-reduced-motion: reduce) { .cs-skel, .stg-skel { animation-duration: 1ms; } }
+:root.calm .cs-skel, :root.calm .stg-skel { animation-duration: 1ms; }
 
 /* ---- the staggered reveal (console/stagger.tsx) ------------------------------------------------
    A Reveal's wrapper is no box of its own (display: contents), so the frame's flex gaps and grids are
@@ -20,7 +25,7 @@
 @keyframes stg-in { from { opacity: 0; transform: translateY(4px); } }
 .stg-room { overflow: hidden; flex: none; }
 .stg-room > .stg-skel { height: 100%; }
-.stg-skel { pointer-events: none; }
+.stg-skel { pointer-events: none; animation: cs-skel-in var(--dur-med) var(--ease) var(--placeholder-delay) both; }
 .stg-skel .stg-b { display: block; border-radius: var(--r-card); background: color-mix(in srgb, var(--line2) 55%, transparent); }
 .stg-skel.ui-sumcard, .stg-skel .ui-sumcard { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--mc, var(--steel)) 40%, transparent); }
 .stg-skel .stg-b.ui-sumcard { background: color-mix(in srgb, var(--panel) 70%, transparent); }
@@ -28,11 +33,7 @@
 .stg-skel.ml-explain, .stg-skel.pf-explain { height: var(--row); }
 .stg-skel.ml-explain .stg-b, .stg-skel.pf-explain .stg-b { width: 14rem; height: 100%; }
 .stg-skel.ml-art { aspect-ratio: 4 / 3; }
-@media (prefers-reduced-motion: no-preference) {
-  :root:not(.calm) .stg-skel .stg-b { background-image: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--text) 5%, transparent) 50%, transparent 100%);
-    background-size: 200% 100%; background-repeat: no-repeat; animation: stg-shimmer calc(var(--dur-sheet) * 3) var(--ease-linear) infinite; }
-}
-@keyframes stg-shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+/* no pulse, no shimmer: a placeholder is a still, quiet block. */
 @media (prefers-reduced-motion: reduce) { .stg[data-stg="in"] > * { animation: none; } }
 :root.calm .stg[data-stg="in"] > * { animation: none; }
 

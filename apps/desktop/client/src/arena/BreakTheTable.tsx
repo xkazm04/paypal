@@ -37,6 +37,9 @@ import { Gauntlet } from './Gauntlet';
 import { Wire } from './Wire';
 import '../windows/main/console/areas/tables.css';
 import './arena.css';
+// The console's reveal sequence (everything opens at once where there is no <Stagger>: the standalone
+// page, tests): the frame, the deck and the table take wave 0, the proof check and the gauntlet follow.
+import { Reveal, Skeleton } from '../windows/main/console/stagger';
 
 /** Maya's monitor haggle with Dan in the sample week (D-0193): the very table the recorder replays from the
  *  engine's recording before every attack, so a played refusal and a typed note land on it. */
@@ -282,8 +285,8 @@ export function BreakTheTable({ host, onOpenSafety }: { host: ArenaHost; /** The
         <aside className="ar-side" aria-label={ARENA_SAFETY.heading}>
           {liveState.status === 'live' ? <LivePanel state={liveState} /> : null}
           <SafetyPanel key={session} plays={plays} onOpen={onOpenSafety} />
-          <CheckIt />
-          {view.kind === 'finale' ? null : <Gauntlet compact />}
+          <Reveal wave={2} sizeKey="arena:check" skeleton={<Skeleton h="9rem" />}><CheckIt /></Reveal>
+          {view.kind === 'finale' ? null : <Reveal wave={3} sizeKey="arena:gauntlet" skeleton={<Skeleton h="12rem" />}><Gauntlet compact /></Reveal>}
           {auto ? <Btn sm onClick={() => setAuto(false)}>{ARENA_AUTO.stop}</Btn> : null}
           {plays.length ? <Btn sm onClick={reset}>{ARENA_RESET}</Btn> : null}
         </aside>

@@ -66,7 +66,7 @@ export function SidesCard({ mine, candidates, own, headingLevel }: { mine: Side 
         ))}
         <Btn sm onClick={() => input.current?.click()}>{W.sides.open}</Btn>
         {source ? <Btn sm kind="plain" onClick={() => setSource(null)}>{W.sides.remove}</Btn> : null}
-        <input ref={input} type="file" accept=".tableproof,.json,application/json" className="sr-only" tabIndex={-1} aria-hidden="true"
+        <input ref={input} type="file" accept=".tableproof,.json,application/json" className="sr-only" tabIndex={-1} aria-hidden="true" aria-label={W.sides.open}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void pick(f); e.target.value = ''; }} />
       </div>
       <p className="ui-hint">{W.sides.drop}</p>

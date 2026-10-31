@@ -188,6 +188,13 @@ export function inDesktopApp(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
+/** The browser-preview pages (the scenario director) are reachable: a browser only, never the desktop
+ *  shell (its CSP has frame-src 'none' and it has no such window), and only in a build that carries
+ *  them (vite dev, or `pnpm build:director`; vite.config.ts defines VITE_PREVIEW_PAGES). */
+export function previewPagesAvailable(): boolean {
+  return !inDesktopApp() && import.meta.env.VITE_PREVIEW_PAGES === '1';
+}
+
 /** This page's demo, for the footer's switcher: whether it runs in the desktop app, and the world
  *  it shows (null = the live wallet). A browser page is always on a world, from its address. */
 export function demoNow(): { native: boolean; state: DemoState | null } {

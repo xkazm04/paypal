@@ -68,21 +68,15 @@ body.w-main { --cs-bar: 3.25rem; --sheet-top: var(--cs-bar); }
 .cs-presence b { color: color-mix(in srgb, var(--seal, var(--steel)) 70%, var(--text)); font-weight: var(--fw-semibold); }
 @media (max-width: 1100px) { .cs-presence { display: none; } }
 
-/* layers: a layer moves in from its direction; calm motion and reduced motion only crossfade */
+/* layers: the layer root is the content viewport and NEVER fades, moves or scales (a fade from opacity 0
+   after the old layer is gone is the blink: one frame of bare surface, then a dim ramp). It is on screen,
+   whole, on the frame it commits; life comes from its parts arriving one after another (stagger.tsx
+   Reveal, a one-shot cascade) and the frame (bar, tabs, surface) never takes part. data-dir stays as
+   an attribute (tests, the focus logic read it); nothing animates on it. */
 .cs-layer { position: relative; display: flex; flex-direction: column; flex: 1 0 auto; min-width: 0; }
 .cs-layer[data-level="home"], .cs-layer[data-level="waiting"] { flex: 1 1 0; min-height: 0; }
 .cs-layer > .cs-charter { flex: 1 0 auto; }
 .cs-layer[data-level="home"]:has(> .cs-charter) { flex: 1 0 auto; min-height: 100%; }
-.cs-layer[data-dir="into"] { animation: cs-into var(--dur-sheet) var(--ease-out) both; }
-.cs-layer[data-dir="out"] { animation: cs-out var(--dur-slow) var(--ease-out) both; }
-.cs-layer[data-dir="swap"] { animation: cs-fade var(--dur-med) var(--ease) both; }
-@keyframes cs-into { from { opacity: 0; transform: translate3d(0, -1rem, 0) scale(.988); } }
-@keyframes cs-out { from { opacity: 0; transform: translate3d(0, .8rem, 0); } }
-@keyframes cs-fade { from { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .cs-layer[data-dir] { animation-name: cs-fade !important; animation-duration: var(--dur-med) !important; animation-timing-function: linear !important; }
-}
-:root.calm .cs-layer[data-dir] { animation-name: cs-fade !important; animation-duration: var(--dur-med) !important; animation-timing-function: linear !important; }
 
 /* amounts in the console's own lines take the line's size (the legacy .amt is a table cell's) */
 .cs-centre .amt, .cs-waiting .amt { font-size: inherit; font-weight: inherit; text-align: inherit; }

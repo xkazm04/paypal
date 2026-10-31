@@ -5,7 +5,7 @@
 import { ARENA_PLACE } from './arena';
 
 /** The places (the same keys as `PLACES` in windows/main/logic.ts; checked there by type). */
-type Place = 'rules' | 'limits' | 'connections' | 'pairing' | 'settings' | 'safety' | 'try';
+type Place = 'rules' | 'limits' | 'connections' | 'pairing' | 'settings' | 'safety' | 'try' | 'proof' | 'director';
 
 /** The owner's places, as their layer heading, crumb and Find row name them. */
 export const PLACE_NAME: Readonly<Record<Place, string>> = {
@@ -16,6 +16,8 @@ export const PLACE_NAME: Readonly<Record<Place, string>> = {
   settings: 'Settings',
   safety: 'Your safety record',
   try: ARENA_PLACE.title,
+  proof: 'Check a proof',
+  director: 'Maya’s week',
 };
 /** One line under each place's name in Find. */
 export const PLACE_FIND_SUB: Readonly<Record<Place, string>> = {
@@ -26,6 +28,8 @@ export const PLACE_FIND_SUB: Readonly<Record<Place, string>> = {
   settings: 'agent app, pause agents, PayPal key, lock',
   safety: 'every money step and who decided it · check again',
   try: ARENA_PLACE.find,
+  proof: 'drop a deal’s signed proof file, see whether it holds, then try to break it',
+  director: 'watch Maya’s week play across the three windows · browser preview only',
 };
 
 /** The wallet limits layer (old content until WP3 rebuilds it). */

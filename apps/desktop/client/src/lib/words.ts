@@ -915,14 +915,19 @@ export const CENTRE_TITLE = 'What needs you';
 export const WAITING_TITLE = 'Everything waiting';
 export const REWIND_TITLE = 'Rewind';
 /** The places in the top bar. */
-export const PLACE = { rewind: 'Rewind', rules: 'Rules', connections: 'Connections', settings: 'Settings', find: 'Find' } as const;
+export const PLACE = { rewind: 'Rewind', rules: 'Rules', connections: 'Connections', settings: 'Settings', find: 'Find', try: 'Break it', proof: 'Proof', director: 'Preview' } as const;
 export const PLACE_TITLE = {
   rewind: 'Replay the week: who decided each payment',
   rules: 'What your agents may do, and the limits you signed',
   connections: 'Connect with another wallet, or open the house seller',
   settings: 'Agent app, safety checks and PayPal',
   find: 'Find a deal, a person or a place (/ or Ctrl K)',
+  try: 'Play the attacker against a recorded table',
+  proof: 'Check a deal’s signed proof file, and try to break it',
+  director: 'Watch Maya’s week play across the three windows (browser preview)',
 } as const;
+/** The director place: its frame's accessible name, and the line shown where it cannot run. */
+export const DIRECTOR_PLACE = { frame: 'The scenario director: Maya’s week on sample data', loading: 'Setting the stage…', shellOnly: 'This preview runs in a web browser only.', title: 'Maya’s week' } as const;
 /** The brand button: back to the decision centre. */
 export const BRAND_NAME = 'The Table';
 export const BRAND_TITLE = 'The Table: back to what needs you';

@@ -127,6 +127,8 @@ export const LAYER_ROUTES: Readonly<Record<LayerId, LayerTarget>> = {
   settings: { level: 'place', place: 'settings' },
   safety: { level: 'place', place: 'safety' },
   try: { level: 'place', place: 'try' },
+  proof: { level: 'place', place: 'proof' },
+  director: { level: 'place', place: 'director' },
 };
 
 /** LAYER_ROUTES as [layer id, target] rows, for `it.each`. */

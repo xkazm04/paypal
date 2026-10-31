@@ -385,7 +385,7 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
             <div className="pk-acts">
               <Btn sm onClick={save}>{W.save}</Btn>
               <Btn sm onClick={() => input.current?.click()}>{W.open}</Btn>
-              <input ref={input} type="file" accept=".tableproof,.json,application/json" className="sr-only" tabIndex={-1} aria-hidden="true"
+              <input ref={input} type="file" accept=".tableproof,.json,application/json" className="sr-only" tabIndex={-1} aria-hidden="true" aria-label={W.open}
                 onChange={(e) => { const picked = e.target.files?.[0]; if (picked) void load(picked); e.target.value = ''; }} />
             </div>
             <p className="ui-hint">{W.dropHint}</p>

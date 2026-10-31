@@ -486,3 +486,20 @@ describe('the owner places are layers (WP2.5)', () => {
     await waitFor(() => expect(layer()?.dataset.layer).toBe('deal'));
   }, 30_000);
 });
+
+describe('the preview tabs stay mounted once opened', () => {
+  it('Proof is a top-bar tab; leaving it hides it without unmounting, and coming back finds it as it was', async () => {
+    await open('/index.html#p=proof');
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('proof'), { timeout: 8000 });
+    const proof = layer() as HTMLElement;
+    expect(document.getElementById('cs-place-proof')?.getAttribute('aria-current')).toBe('page');
+    expect(document.getElementById('cs-place-director')).not.toBeNull();
+    fireEvent.click(document.getElementById('cs-place-settings') as HTMLElement);
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('settings'), { timeout: 8000 });
+    expect(proof.isConnected).toBe(true);
+    expect(proof.hidden).toBe(true);
+    fireEvent.click(document.getElementById('cs-place-proof') as HTMLElement);
+    await waitFor(() => expect(proof.hidden).toBe(false), { timeout: 8000 });
+    expect(layer()).toBe(proof);
+  }, 30_000);
+});

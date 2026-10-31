@@ -368,3 +368,23 @@ describe('one word per authority: the answer line and "Who decided" agree', () =
     expect(decidedBy({ decided_by: by }).text.toLowerCase().startsWith(whoDecided(auth).toLowerCase())).toBe(true);
   });
 });
+
+describe('the preview tabs (try, proof, director) are places of the main window', () => {
+  it('round-trip through the hash like every other place', () => {
+    for (const place of ['try', 'proof', 'director'] as const) {
+      const route = { level: 'place', place } as const;
+      expect(formatHash(route)).toBe(`#p=${place}`);
+      expect(parseHash(`#p=${place}`).route).toEqual(route);
+    }
+  });
+  it('keep the director out of the desktop shell: its link parses as the centre there', () => {
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    try {
+      expect(parseHash('#p=director').route).toEqual({ level: 'home' });
+      expect(parseHash('#p=proof').route).toEqual({ level: 'place', place: 'proof' });
+      expect(parseHash('#p=try').route).toEqual({ level: 'place', place: 'try' });
+    } finally {
+      delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+    }
+  });
+});

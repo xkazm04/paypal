@@ -108,6 +108,7 @@ export class RevealScheduler {
   /** A deferred part mounted; `show` is called (in a synchronous commit) when its turn comes. */
   register(wave: Wave, priority: number, show: () => void, open: boolean): () => void {
     const t: Ticket = { wave, priority, seq: this.seq++, open: open || this.opensNow(wave), show };
+    if (!t.open) this.complete = false;
     this.tickets.add(t);
     if (!t.open && this.live && !this.cancelSlot) this.schedule(this.gapFor(wave));
     return () => { this.tickets.delete(t); };
@@ -195,7 +196,11 @@ export class RevealScheduler {
     else { this.markThrough((rest.wave - 1) as Wave); this.schedule(this.gapFor(rest.wave)); }
   }
 
+  /** Every wave has opened (the layer is fully shown). */
+  complete = false;
+
   private markThrough(w: Wave): void {
+    if (w >= 3) this.complete = true;
     for (const x of WAVES) if (x <= w) this.mark(x);
   }
 
@@ -224,16 +229,24 @@ export function StaggerProvider({ children }: { children: ReactNode }) {
   return <RegistryContext.Provider value={reg}>{children}</RegistryContext.Provider>;
 }
 
+/** Layers whose sequence has run to its end once in this session: a return to one paints whole on its
+ *  first frame (data on screen is sacred; a cascade is one-shot, never replayed on a revisit). */
+const seen = new Set<string>();
+/** Test hook. */
+export function forgetSeen(): void { seen.clear(); }
+
 /** One layer's reveal sequence (LayerHost mounts one per sheet). `clock` is for tests. */
-export function Stagger({ children, clock }: { children: ReactNode; clock?: Clock }) {
+export function Stagger({ children, clock, active = true, warmKey }: { children: ReactNode; clock?: Clock; /** A kept-alive layer behind another: its sequence is paused (cancelled) and starts again where it stood. */ active?: boolean; /** Names this layer's sheet: once it has fully revealed, its next mount opens every wave at once. */ warmKey?: string }) {
   const reg = useContext(RegistryContext);
   const calm = useCalm();
-  const [s] = useState(() => new RevealScheduler(clock ?? defaultClock, { instant: off || isCalm() }));
+  const [s] = useState(() => new RevealScheduler(clock ?? defaultClock, { instant: off || isCalm() || (!!warmKey && seen.has(warmKey)) }));
+  useEffect(() => () => { if (warmKey && s.complete) seen.add(warmKey); }, [s, warmKey]);
   useEffect(() => {
+    if (!active) return;
     reg?.activate(s);
     s.start();
     return () => { s.cancel(); reg?.release(s); };
-  }, [s, reg]);
+  }, [s, reg, active]);
   useEffect(() => { if (calm) s.openAll(); }, [calm, s]);
   return <SchedulerContext.Provider value={s}>{children}</SchedulerContext.Provider>;
 }

@@ -12,6 +12,7 @@ import {
 } from '../../../lib/words';
 import { stateLabel } from '../logic';
 import { noMatch } from '../paletteCopy';
+import { previewPagesAvailable } from '../../../lib/preview';
 import { useCpLookup } from '../ui';
 import { useWorldSelector, type World } from '../world';
 import { demoFindItems } from './DemoSwitch';
@@ -33,6 +34,8 @@ const PLACES: readonly FindItem[] = [
   { key: 'p-setup', group: 'places', title: SETUP_PAGE_TITLE, sub: FIND_PLACE_SUB.setup, target: { kind: 'setup', step: 'keys' } },
   { key: 's-safety', group: 'places', title: PLACE_NAME.safety, sub: PLACE_FIND_SUB.safety, target: { kind: 'route', route: { level: 'place', place: 'safety' } } },
   { key: 's-try', group: 'places', title: PLACE_NAME.try, sub: PLACE_FIND_SUB.try, target: { kind: 'route', route: { level: 'place', place: 'try' } } },
+  { key: 's-proof', group: 'places', title: PLACE_NAME.proof, sub: PLACE_FIND_SUB.proof, target: { kind: 'route', route: { level: 'place', place: 'proof' } } },
+  ...(previewPagesAvailable() ? [{ key: 's-director', group: 'places', title: PLACE_NAME.director, sub: PLACE_FIND_SUB.director, target: { kind: 'route', route: { level: 'place', place: 'director' } } } satisfies FindItem] : []),
   { key: 's-quit', group: 'places', title: FIND_QUIT_TITLE, sub: FIND_PLACE_SUB.quit, target: { kind: 'quit' } },
 ];
 
