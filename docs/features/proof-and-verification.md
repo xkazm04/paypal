@@ -146,6 +146,47 @@ inside the app, on the owner's own ledger, as "Your safety record".
    refusal codes into your_rules, scam_check, out_of_turn, not_allowed, unusable and older (a row
    with no code). At most `SAFETY_VIOLATIONS` (50) findings are sent. It writes no row and makes no
    call. The client (`windows/main/safety/model.ts`) only puts the numbers into sentences.
+10. **In the browser, with nothing installed.** `apps/desktop/client/src/lib/proof/` is a TypeScript
+    twin of the verifier: all sixteen checks, under the same ids and with the same wording, on
+    WebCrypto's Ed25519 (held to `verify_strict`: a malleated signature and a small-order key are
+    refused), SHA-256 and RFC 8785 canonical bytes. It reads a file as strictly as Rust does (a file
+    that does not read is "not a proof file"). All sixteen checks are worked out there, the house seller's signed record
+    included (a browser that cannot check Ed25519 says so on every signature line instead of guessing).
+    It is held to the Rust verifier on the practice deals and on eight proof files the wallet's own runtime
+    wrote (`src/lib/proof/real/`, with `real.json`, the verifier's word on each). Where it shows:
+    - **`proof.html`**, a static page with no wallet and no backend: drop a `.tableproof`, or use a
+      practice deal; the lines tick one by one, then the person breaks the file (a ready-made break, or
+      typing over the file's text, checked as they type) and sees which lines turn red, the first
+      marked. Links made for showing it: `?check=1`, `?break=price`, `?edit=1`.
+    - **The deal page and the Book**, in the browser preview only (the shell keeps file bytes away from
+      the page, so inside the app the native "Check a proof file" is unchanged).
+    - **Two sides.** A deal has two files, one from each wallet. The checker takes the other side's file
+      and compares the deal, the signed messages' end, the price, the payment and the owner keys each file
+      names ("Provable by both sides").
+    - **The recorded deals** the checker offers to try are files the wallet itself exported in recorder
+      runs: the house haggle's agreed deal (`sample/d-0205.tableproof`, table-runtime's haggle recorder)
+      and Break The Table's refused attacks (`sample/arena-<attack>.tableproof`, the arena recorder).
+      `sample/recorded.json` is the verifier's word on each; `parity.test.ts` holds the browser checker to
+      it, and each verifies with `cargo run -p table-verify --bin table-verify -- <file>`. Signatures and
+      nonces differ every run, so a recorder keeps a file while it verifies and, masked, says what the
+      wallet says today (`crates/table-app/tests/recorded/mod.rs`). `TABLE_RECORD=arena|haggle|proofs|all`
+      (comma lists allowed; `TABLE_ARENA_RECORD=1` and `TABLE_HAGGLE_RECORD=1` still work) makes the named
+      recorders rewrite instead of failing on drift. `node scripts/record.mjs` runs all three in order
+      (arena, haggle, proofs, each with its own `TABLE_RECORD`), and runs arena and proofs again when the
+      haggle step changed `haggle.json`, which the arena replays; a second run changes nothing.
+    - **The practice deals** stay as the parity oracles (tests only, never shown): real signed files made by
+      `crates/table-client/src/sample_proof.rs` (`cfg(test)` or the `samples` feature, never in a shipped
+      build; `cargo run -p table-client --features samples --bin sample-proof`): fixed seeds, ids and times, signed with the
+      wallet's own types and checked by `check_proof_file`. There are three: the shop's monitor sale, the
+      same sale from the buyer's side (the buyer's owner accepted the last counter in their own signature),
+      and a busier deal (a shop-around group, a released safety hold, a market price, a lost answer read
+      back). `parity.json` holds the wallet verifier's report for each and for tampered copies (each a
+      few JSON edits); the client's `parity.test.ts` requires the browser checker's report to equal it,
+      line for line and word for word, and the tamper buttons' edits to equal Rust's. A Rust test fails when the
+      committed files go stale.
+    - The preview carries one signed deal in its world (D-0205, the recorded house haggle, under the deal id
+      its file carries); `deal_export_proof` hands out that file, and says so for every other deal instead
+      of faking one.
 
 ## Safety properties
 
@@ -163,6 +204,8 @@ inside the app, on the owner's own ledger, as "Your safety record".
 | The safety record never shows a partial count over a broken chain | runtime `safety_record` returns `intact: false` with no counts |
 | The safety record is read-only and carries no counterparty text | main-only read; findings name steps, rules and paths; no note needles |
 | A forged market certificate is caught | `market` check, also in `VERIFIER_CHECKS` |
+| The browser checker never disagrees with the wallet's verifier | client `parity.test.ts` against Rust's `parity.json`; Rust `the_files_the_client_reads_are_current` |
+| A line that checked nothing is never a tick | the checker shows "nothing to check" and "not checked" as dashed lines, never passed |
 
 ## Where it lives
 
@@ -178,6 +221,8 @@ inside the app, on the owner's own ledger, as "Your safety record".
 | IPC glue | `crates/table-client/src/lib.rs` | `check_proof_file`, `PROOF_FILE_LIMIT`, `ProofReport`, `ProofCheckLine` |
 | Client | `windows/main/console/areas/deal/Evidence.tsx`, `windows/main/modules/book/ProofCheck.tsx`, `shared/ownerKey.tsx`, `lib/words.ts` | Save signed proof, Check a proof file, owner key |
 | Client | `windows/main/safety/model.ts`, `windows/main/console/areas/safety/SafetyLayer.tsx`, `windows/main/console/areas/safety.css`; `mock/safety.ts` | `safetyWords`, `scopeWords`, `authorityParts`, `SafetyLayer` |
+| Browser checker | `apps/desktop/client/src/lib/proof/` (`checks.ts` is the sixteen checks), `shared/proofcheck/`, `proof.html` | `checkProofText`, `prepareProof`, `ProofChecker`, `SidesCard`, `compareSides` |
+| Practice deals | `crates/table-client/src/sample_proof.rs`, `apps/desktop/client/src/lib/proof/sample/` | `sample_bundle`, `busy_bundle`, `buyer_bundle`, bin `sample-proof` |
 | CI | `.github/workflows/ci.yml` | safety dossier steps |
 
 IPC commands (from `crates/table-client/src/authority_table.rs`):
@@ -191,6 +236,9 @@ IPC commands (from `crates/table-client/src/authority_table.rs`):
 | `owner_facts` (carries `owner_key_id`) | main, approval | read | runtime |
 
 ## Tests that pin it
+
+- `crates/table-client/src/sample_proof.rs`: each practice deal verifies and its dashed lines are exactly the ones it has nothing for; each tamper turns exactly the named checks red; the committed files are current.
+- `apps/desktop/client/src/lib/proof/parity.test.ts`: the browser checker's report equals the wallet verifier's for every practice deal and tampered copy; `real.test.ts`: and for eight files the runtime wrote (the house seller's record kept, and found shortened); `primitives.test.ts`: canonical JSON, base64url, Ed25519 strictness, the editor's text; `text.test.ts`: what the wallet's reader refuses in a file's text (a key written twice, `2.0` for a whole number, a byte-order mark, nesting 128 deep) and a plain `JSON.parse` would take, each pinned to what `table-verify` says of the same edit; `sides.test.ts`: the two files of one sale agree and a change shows on its line; `shared/proofcheck/ProofChecker.test.tsx`: the checker as a person meets it.
 
 - `crates/table-runtime/src/proof_tests.rs`:
   `a_v2_proof_shows_the_checklist_behind_each_owner_decision_and_one_request_per_step`.

@@ -69,6 +69,8 @@ no payment was attempted. Read the table again, then act on the code:
 - `shield_hold`: the scam shield paused this deal for your owner. Stop.
 - `table_closed`: the deal is past bargaining. Stop.
 - `paused`, `run_ended`, `session_not_enabled`: your session is over or paused. Stop.
+- `call_budget`: this turn's tool calls are used up. Stop calling tools and finish with what
+  you have.
 - `tool_absent`, `malformed_call`, `invalid_request`, `out_of_scope`: fix the call using the
   tool list and the table; never invent tools.
 - `market_unavailable`: counter from the band alone.

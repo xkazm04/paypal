@@ -12,6 +12,7 @@
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": false,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true,
     "noEmit": true,
     "types": ["vite/client", "node"],

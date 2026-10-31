@@ -49,6 +49,32 @@ bound to the Rust-composed checklist), the price-range change sheet
 Rules are edited and signed there too, including "Keep prices fresh"
 (`windows/approval/owner/WhoWhat.tsx`).
 
+**Watch the haggle** (`console/areas/tables/Watch.tsx`, `Corridor.tsx`; model
+`windows/main/modules/tables/corridor.ts`): any table's signed offers replayed as two pucks on a
+price rail between the owner's walls. The most she pays is a hard wall, the market's typical range a
+shaded lane, and "your call above $250" a gold edge. Where the wallet refused the agent's yes (a
+clause-6 `intent_refused` step in the deal's history, or a live table's gate), a gold gate drops
+between the agent and the price it tried. The agent lunges at it and bounces off, and the caption
+says "the wallet refuses: not the agent". The owner's own yes fills a hold ring, and the deal snaps
+shut only when both sides have accepted. It opens from the layer header (Watch the haggle), from
+each table pane and from a haggle's deal page (Watch it). The decision centre shows the same
+corridor, compact and decorative, above a haggle decision. A timeline scrubs it (the arrow keys step
+beat by beat), and reduced motion steps from beat to beat without sliding. Only landed, signed prices
+are ever shown as figures. It reads only `deal_transcript`, `deal_history`, the signed band, the
+deal's market record, `mandate_list` and attention, and moves nothing.
+
+**The demo's haggle prices come from the engine.** `crates/table-runtime/src/haggle_record_tests.rs`
+plays the shipped practice agent through the wallet's MCP door and mandate check: against the house
+seller's own rule (`Policy::decide_on_schedule`) to the owner's accept and the agreement, and against
+Dan's given counters to the refusal that waits for Maya. It writes
+`apps/desktop/client/src/mock/haggle.json`, and fails when the file drifts
+(`TABLE_RECORD=haggle` re-records it; `TABLE_HAGGLE_RECORD=1` still works). The browser preview's D-0193,
+D-0204 and D-0205, the director's captions (`director/recorded.ts`), the films' narration
+(`director/filmPrices.test.ts`, per beat: a figure only on the beat whose table shows it) and Break The
+Table (its recorder replays Dan's table, D-0193, before every attack) are all checked against it. The
+house table's agreed deal, as the wallet exports it, is the proof checker's recorded sample
+`lib/proof/sample/d-0205.tableproof`.
+
 ## How it works
 
 ```mermaid
@@ -206,6 +232,11 @@ IPC commands (rows in `crates/table-client/src/authority_table.rs`):
 
 ## Tests that pin it
 
+- `the_recorded_haggles_are_what_the_engine_signs` (`crates/table-runtime/src/haggle_record_tests.rs`):
+  the demo's haggle prices, refusals and decisions, re-run through the engine and compared with
+  `haggle.json`
+- `corridor.test.ts` (the preview's recorded table read back through the wallet's queries equals
+  `haggle.json`), `watch.test.tsx`, `director/filmPrices.test.ts`
 - `seller_policy_concedes_from_ask_toward_floor_and_never_below`,
   `buyer_opens_low_concedes_to_target_and_never_exceeds_ceiling`
   (`crates/table-core/src/negotiation.rs`)

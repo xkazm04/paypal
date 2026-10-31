@@ -35,7 +35,7 @@ const MandateEditor = lazyPart(() => import('./MandateEditor').then((m) => m.Man
 const RescueReplay = lazyPart(() => import('./owner/RescueReplay').then((m) => m.RescueReplay));
 const RescueWatch = lazyPart(() => import('./owner/RescueWatch').then((m) => m.RescueWatch));
 
-const ENGINE_NAME = { 'claude-code': 'claude-code', 'codex-cli': 'codex-cli', scripted: 'practice agent' } as const;
+const ENGINE_NAME = { 'claude-code': 'claude-code', 'codex-cli': 'codex-cli', scripted: 'practice agent', outside: 'an agent app outside the wallet' } as const;
 const HOUSE_TEXT: Record<HouseState, string> = {
   unavailable: 'not included in this version',
   idle: 'wakes up when you join its table',
@@ -78,6 +78,9 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   // once, pre-filled with a floor draft when one came along.
   const handoff = useHandoff();
   const floorSeed = handoff?.draft?.type === 'floor' ? handoff.draft : null;
+  // The rules said in a sentence start ONE editor session: once it is closed or signed, a later new set starts blank.
+  const [seedSpent, setSeedSpent] = useState(false);
+  const rulesSeed = !seedSpent && handoff?.draft?.type === 'rules' ? handoff.draft : null;
   const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
   // The wallet limits and today's meters (envelope_get): limits and numbers only.
   const limits = useQuery('envelope_get', null, { refreshOn: ['settings:changed'] });
@@ -151,10 +154,12 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
         mode={st?.mode}
         entries={list}
         seedFloor={floorSeed}
+        seedRules={rulesSeed}
         selected={editing.sel}
         onSelect={(sel) => setEditing({ sel })}
-        onClose={() => setEditing(null)}
+        onClose={() => { setSeedSpent(true); setEditing(null); }}
         onSigned={(m) => {
+          setSeedSpent(true);
           void mandates.refetch().then(() => setEditing({ sel: m.payload.id }));
           void s.refreshSettings();
         }}

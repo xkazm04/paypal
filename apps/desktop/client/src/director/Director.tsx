@@ -13,13 +13,17 @@
 // (the haggle's figures, the shop-around group, the week's deadlines, who decided each money step).
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { clockOffset } from '../lib/clock';
-import { clockLabel } from '../lib/format';
+import { clockLabel, nowUnix } from '../lib/format';
+import { rulesOf } from '../lib/say/draft';
+import { read } from '../lib/say/read';
+import { saySetAll } from '../lib/say/store';
 import { useNow, usePrefersReducedMotion } from '../lib/hooks';
 import { APPROVAL_FRAME } from '../lib/words';
+import { ARENA_LINK, ARENA_LINK_TITLE } from '../lib/words/arena';
 import { applyTheme, getTheme, setTheme, type Theme } from '../lib/theme';
 import { mockBackend } from '../mock/backend';
 import { HAGGLE } from './helpers';
-import { applyWorld, foldScene, INITIAL_SCENE, placeTours, runActions, WORLD_ACTIONS, type Scene, type Stage } from './actions';
+import { applyWorld, foldScene, INITIAL_SCENE, placeTours, runActions, WORLD_ACTIONS, type LookAt, type Scene, type Stage } from './actions';
 import type { Beat, Focus } from './beats';
 import { frameUrls, type Story } from './stories';
 import { charterSteps, checkBeat, deskTransform, expectedDeals, filmTarget, haggleRecord, pressFor, readChapterRecord, recordShownOnStage, selectChapter, stageRect, storyStartOn, syncShade, takePlan, wholeTake, type ChapterTake, type FrameName, type PxRect, type Seen, type TakePlan } from './takes';
@@ -251,6 +255,20 @@ export function Director({ story }: { story: Story }) {
       /* the frame is between documents; the next beat routes it again */
     }
   }, []);
+  // Review rules on a sentence: the same reading the Say it box does, handed to the approval window's editor.
+  const payeesRef = useRef<{ all: string[]; house: string[] }>({ all: [], house: [] });
+  useEffect(() => {
+    void core.invoke('counterparty_list', null).then((list) => {
+      const names = (l: typeof list) => [...new Set(l.map((c) => c.declared_payee).filter((p): p is string => !!p))];
+      payeesRef.current = { all: names(list), house: names(list.filter((c) => c.house)) };
+    }).catch(() => { /* no list: the payees stay for the owner to choose, as in the app */ });
+  }, [core]);
+  const rulesUrl = useCallback((sentence: string, answers: Record<string, string> = {}): string => {
+    const at = nowUnix();
+    const ctx = { now: at, offsetMin: -new Date(at * 1000).getTimezoneOffset(), payees: payeesRef.current.all, housePayees: payeesRef.current.house };
+    const rules = rulesOf(read(sentence, ctx, answers), ctx);
+    return rules ? urls.ownerRules({ type: 'rules', ...rules }) : urls.owner;
+  }, [urls]);
   const stage = useMemo<Stage>(() => ({
     world,
     form: (f) => {
@@ -265,11 +283,19 @@ export function Director({ story }: { story: Story }) {
       if (id) setFrames((f) => ({ ...f, approvalSrc: urls.approval(id), approvalKey: f.approvalKey + 1 }));
       setApprovalOpen(!!id);
     },
-    owner: () => {
-      setFrames((f) => ({ ...f, approvalSrc: urls.owner, approvalKey: f.approvalKey + 1 }));
+    owner: (rules, answers) => {
+      setFrames((f) => ({ ...f, approvalSrc: rules ? rulesUrl(rules, answers) : urls.owner, approvalKey: f.approvalKey + 1 }));
       setApprovalOpen(true);
     },
-  }), [world, navigateMain, urls]);
+    say: (text, answers) => saySetAll(text, answers ?? {}),
+    // after the chips have landed and the page has found its own place (SayPanel / bringIn: 900 ms), the camera goes where the caption points
+    look: (at) => {
+      const sel: Record<LookAt, string> = { say: '.say-h', chips: '.say-readas', track: '.rw-bar', tables: '.rw-peeks' };
+      window.setTimeout(() => {
+        try { mainRef.current?.contentDocument?.querySelector<HTMLElement>(sel[at])?.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch { /* the frame is between documents; the next beat looks again */ }
+      }, 1500);
+    },
+  }), [world, navigateMain, urls, rulesUrl]);
 
   // A framed window may move focus into itself when the story drives it (a card opening, a route).
   // Unless the viewer is working in that frame, give the keyboard back to the director.
@@ -353,17 +379,19 @@ export function Director({ story }: { story: Story }) {
     const sc = BEATS.slice(0, target).reduce((s, b) => foldScene(s, b.do), INITIAL_SCENE);
     // First run: each window's tour as the earlier beats pointed it, before the frames load.
     if (story.firstRun) placeTours(sc.tour);
+    // The sentence as the earlier beats left it, before the frames load and read it back.
+    saySetAll(sc.say.text, sc.say.answers);
     const approvalId = sc.approval ? world.deal(sc.approval)?.deal.id ?? null : null;
     setMainOpen(sc.main.open);
     setApprovalOpen(!!approvalId || sc.owner);
     const epoch = ++epochRef.current;
     pending.current = { epoch, n: target, scene: sc, loaded: new Set() };
-    setFrames((f) => ({ epoch, mainSrc: urls.main(sc.main.route), approvalSrc: sc.owner ? urls.owner : urls.approval(approvalId), approvalKey: f.approvalKey + 1 }));
+    setFrames((f) => ({ epoch, mainSrc: urls.main(sc.main.route), approvalSrc: sc.owner ? (sc.ownerRules ? rulesUrl(sc.ownerRules.text, sc.ownerRules.answers) : urls.owner) : urls.approval(approvalId), approvalKey: f.approvalKey + 1 }));
     indexRef.current = target - 1;
     setIndex(target - 1);
     tRef.current = BEATS[target]?.at ?? 0;
     setT(tRef.current);
-  }, [world, BEATS, urls, story.firstRun]);
+  }, [world, BEATS, urls, story.firstRun, rulesUrl]);
 
   const frameLoaded = useCallback((which: 'main' | 'tumbler' | 'approval', epoch: number) => {
     const p = pending.current;
@@ -609,6 +637,7 @@ export function Director({ story }: { story: Story }) {
       <header className="dir-banner" role="note">
         <span className="dir-dot" aria-hidden="true" />
         <span>Browser preview with sample data — not the wallet. No PayPal page is ever shown.</span>
+        {take || film ? null : <a className="dir-arena" href="arena.html" title={ARENA_LINK_TITLE}>{ARENA_LINK}</a>}
       </header>
 
       <main className="dir-stage" ref={stageRef} aria-label="The three windows of The Table, on sample data">

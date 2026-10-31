@@ -16,6 +16,8 @@ with `index.html`, `tumbler.html` or `approval.html`): the real window on sample
 "Preview · sample data" badge. The Tumbler is drawn inside a labelled preview stage (a stylised
 desktop with the puck in a corner and controls that simulate what the wallet core would emit).
 
+**The proof checker** (`/proof.html`, a static page with no wallet and no backend; also the Book's "Check a proof file" and the recorded house haggle's deal page, D-0205, Proof, in the preview): a deal's signed proof file checked in the page, then broken on purpose. It is not part of the director's story (those beats are the film's). See [proof-and-verification.md](./proof-and-verification.md), step 10.
+
 **The director** (`/director.html`, or a static `dist` build served from anywhere):
 - A stage with the three windows framed at their native sizes (The Table 1280 × 800, the approval
   window 744 × 660, the Tumbler in a corner), dark or light following the theme switch (all three windows follow
@@ -161,6 +163,10 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
 10. **Build.** `vite.config.ts` has four inputs (`main`, `tumbler`, `approval`, `director`); no shell
    window points at `director`. The shell's CSP allows only `'self'` scripts and styles and no
    frames, so every page ships as bundled files.
+
+   `director.html?story=say` plays a third, "Say it, then see it" (`director/sayStory.ts`, 9 beats, about 95 s, on Maya's sample week): one sentence in
+   The Table's Say it box (`{ do: 'say', text, answers? }`), the Rewind's timeline past a gold Now line, a question it asks instead of guessing, and Review
+   rules opening the approval window on the rules it read (`{ do: 'owner', rules }`). Nothing in a beat can sign.
 
 ## Safety properties
 

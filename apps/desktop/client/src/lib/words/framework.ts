@@ -1,9 +1,11 @@
 // Words of the console's layer framework (rebuild WP2.5): the owner's places as layers, the module
 // layer chrome, the list engine and the shared row parts. Re-exported from lib/words.ts. This file
 // imports nothing from lib/words.ts (it is re-exported from there; a cycle would read consts
-// before they exist).
+// before they exist). Break The Table's place takes its name from its own words (lib/words/arena.ts).
+import { ARENA_PLACE } from './arena';
+
 /** The places (the same keys as `PLACES` in windows/main/logic.ts; checked there by type). */
-type Place = 'rules' | 'limits' | 'connections' | 'pairing' | 'settings' | 'safety';
+type Place = 'rules' | 'limits' | 'connections' | 'pairing' | 'settings' | 'safety' | 'try';
 
 /** The owner's places, as their layer heading, crumb and Find row name them. */
 export const PLACE_NAME: Readonly<Record<Place, string>> = {
@@ -13,6 +15,7 @@ export const PLACE_NAME: Readonly<Record<Place, string>> = {
   pairing: 'Connect a wallet',
   settings: 'Settings',
   safety: 'Your safety record',
+  try: ARENA_PLACE.title,
 };
 /** One line under each place's name in Find. */
 export const PLACE_FIND_SUB: Readonly<Record<Place, string>> = {
@@ -22,6 +25,7 @@ export const PLACE_FIND_SUB: Readonly<Record<Place, string>> = {
   pairing: 'connect with another wallet or the house seller',
   settings: 'agent app, pause agents, PayPal key, lock',
   safety: 'every money step and who decided it · check again',
+  try: ARENA_PLACE.find,
 };
 
 /** The wallet limits layer (old content until WP3 rebuilds it). */
@@ -172,7 +176,9 @@ export const SHORTCUT_GROUPS: readonly { title: string; keys: readonly (readonly
   ] },
   { title: 'Rewind', keys: [
     [['Space'], 'Play or pause the week'],
-    [['←', '→'], 'Move the playhead an hour (Shift: a day)'],
+    [['←', '→'], 'Move the playhead to the previous or next step, recorded or forecast (Shift: a day, Alt: an hour)'],
+    [['N'], 'Move the playhead to now'],
+    [['Home', 'End'], 'Start of the week, or the end of the forecast'],
   ] },
   { title: 'Tables', keys: [
     [['↑', '↓'], 'Move your price limit (Shift: 5 steps, Page Up/Down: 10)'],

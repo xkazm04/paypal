@@ -13,6 +13,8 @@ mod forecast_tests;
 mod groups_tests;
 #[path = "h5_tests.rs"]
 mod h5_tests;
+#[path = "haggle_record_tests.rs"]
+mod haggle_record_tests;
 #[path = "history_tests.rs"]
 mod history_tests;
 #[path = "ladder_tests.rs"]

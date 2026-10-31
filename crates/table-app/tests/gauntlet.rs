@@ -23,6 +23,12 @@
 //! `TABLE_GAUNTLET_SESSIONS=<n>` runs n seeds of the same list; `TABLE_GAUNTLET_SEED=<n or 0xhex>`
 //! replays one session. A failure prints the seed and every move of the failing session.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+// Break The Table: the arena's recorder plays named attacks through this harness and pins what the
+// wallet answered in the browser preview's fixture (tests/gauntlet/arena.rs).
+#[path = "gauntlet/arena.rs"]
+mod arena;
+// The fixture recorders' shared switch (`TABLE_RECORD`) and the rule a recorded proof bundle is kept by.
+mod recorded;
 mod support;
 use async_trait::async_trait;
 use axum::{
@@ -617,11 +623,15 @@ struct Stats {
     final_states: BTreeMap<String, u64>,
     rejected_envelopes: u64,
     notes: u64,
+    /// Agent calls after which PayPal had a new request or the wallet a new stored call (each is
+    /// also a fault that fails the session).
+    reached_paypal: u64,
 }
 impl Stats {
     fn merge(&mut self, other: Self) {
         self.sessions += other.sessions;
         self.agent_calls += other.agent_calls;
+        self.reached_paypal += other.reached_paypal;
         self.rejected_envelopes += other.rejected_envelopes;
         self.notes += other.notes;
         for (k, v) in other.moves {
@@ -861,6 +871,8 @@ struct World {
     pending: Vec<(Who, String)>,
     /// Every agent call and the audit rows it wrote.
     calls: Vec<Called>,
+    /// The last agent call's whole tool result (the arena records what the agent heard).
+    last_answer: Value,
     log: Vec<String>,
     faults: Vec<String>,
     stats: Stats,
@@ -984,6 +996,7 @@ impl World {
             relayed: [0; 2],
             pending: Vec::new(),
             calls: Vec::new(),
+            last_answer: Value::Null,
             log: Vec::new(),
             faults: Vec::new(),
             stats: Stats {
@@ -1091,12 +1104,14 @@ impl World {
         let bytes = to_bytes(response.into_body(), 1 << 20).await.unwrap();
         let answer: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
         let result = answer["result"].clone();
+        self.last_answer = result.clone();
         if !result.is_object() {
             self.faults
                 .push(format!("an agent call got no tool result: {answer}"));
             return None;
         }
         if self.paypal_rows() != rows_before || self.paypal_requests() != requests_before {
+            self.stats.reached_paypal += 1;
             self.faults
                 .push(format!("an agent call reached PayPal: {call}"));
         }
@@ -1205,6 +1220,10 @@ impl World {
             self.tag,
             self.notes.len()
         );
+        self.note_with(from, text);
+    }
+    /// [`World::note`] with the text given (the arena's recorded notes).
+    fn note_with(&mut self, from: Who, text: String) {
         self.notes.push(text.clone());
         self.stats.notes += 1;
         let now = self.now();

@@ -344,9 +344,9 @@ export type SetupStep = (typeof SETUP_STEPS)[number];
 /** Where a deal page was opened from (its parent in the stack): a module, or one of its detail views. */
 export type DealFrom = { module: Module; view?: string };
 /** The owner's places, each a layer of the console (rebuild WP2.5; they were sheets before):
- *  agent rules and the wallet limits under them, connections and the pairing desk, settings, and
- *  the safety record. */
-export const PLACES = ['rules', 'limits', 'connections', 'pairing', 'settings', 'safety'] as const;
+ *  agent rules and the wallet limits under them, connections and the pairing desk, settings, the
+ *  safety record, and Break The Table beside it ("Try to break it", src/arena). */
+export const PLACES = ['rules', 'limits', 'connections', 'pairing', 'settings', 'safety', 'try'] as const;
 export type Place = (typeof PLACES)[number];
 /** Where a place was opened from, when that is not its usual parent: a module page, or Settings. */
 export type PlaceFrom = Module | 'settings';
@@ -466,7 +466,7 @@ export function withoutView(r: Route): Route {
 }
 
 /** A place's usual parent when it was not opened from anywhere in particular (null = the centre). */
-export const PLACE_PARENT: Readonly<Record<Place, Place | null>> = { rules: null, limits: 'rules', connections: null, pairing: 'connections', settings: null, safety: null };
+export const PLACE_PARENT: Readonly<Record<Place, Place | null>> = { rules: null, limits: 'rules', connections: null, pairing: 'connections', settings: null, safety: null, try: null };
 
 /**
  * Where Esc / the back button goes from `route` (overlays are handled before this): a module's
@@ -661,6 +661,14 @@ export function whoDecided(a: HistoryAuthority): string {
 export function stepTime(unix: number): string {
   const d = new Date(unix * 1000);
   return `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
+/** Like stepTime, with the date once it is more than three days from `now`: "Fri 6 Nov 13:00" (a weekday alone reads as this week). */
+export function stepTimeFar(unix: number, now: number): string {
+  if (unix - now <= 3 * 86_400) return stepTime(unix);
+  const d = new Date(unix * 1000);
+  const day = `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${d.getDate()} ${d.toLocaleDateString('en-GB', { month: 'short' })}`;
+  return `${day} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 /** One step in plain words, without its time: who did what to which deal, and what PayPal saw.

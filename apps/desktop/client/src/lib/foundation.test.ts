@@ -3,6 +3,7 @@ import { clockLabel, countdown, countdownWords, formatMinor, shortHash, shortId 
 import { WalletError, toWalletError } from './contract';
 import { mockBackend, resetMockState } from '../mock/backend';
 import { fakeHash, fakeUlid } from '../mock/fixtures';
+import { RECORDED_DEAL_ID as SAMPLE_DEAL_ID } from './proof/sampleId';
 
 describe('money formatting (display only - Rust owns the arithmetic)', () => {
   it('formats exact minor units without float rounding', () => {
@@ -81,10 +82,28 @@ describe('mock backend mirrors the shell gates', () => {
     await expect(approval.invoke('deal_countersign', { deal_id: dealId, attempt: 1, terms_hash: fakeHash('t') }, { token })).rejects.toMatchObject({ code: 'INVALID' });
   });
   it('never fakes a proof export and keeps it out of the Tumbler', async () => {
+    // Only the recorded house haggle (D-0205) has a real signed file; every other deal says so.
     await expect(mockBackend('main').invoke('deal_export_proof', { deal_id: dealId })).rejects.toMatchObject({ code: 'UNAVAILABLE' });
     await expect(mockBackend('tumbler').invoke('deal_export_proof', { deal_id: dealId })).rejects.toMatchObject({ code: 'PERMISSION' });
-    await expect(mockBackend('main').invoke('proof_check', null)).rejects.toMatchObject({ code: 'UNAVAILABLE' });
     await expect(mockBackend('approval').invoke('proof_check', null)).rejects.toMatchObject({ code: 'PERMISSION' });
+  });
+  it('hands out the recorded deal\x27s real signed file, and checks a picked file in the page', async () => {
+    const saved: Array<[string, string]> = [];
+    const picked: Array<File | null> = [];
+    const main = mockBackend('main', { save: (name, text) => saved.push([name, text]), pick: async () => picked.shift() ?? null });
+    await expect(main.invoke('deal_export_proof', { deal_id: SAMPLE_DEAL_ID })).resolves.toBe(true);
+    const [file] = saved;
+    expect(file?.[0]).toBe(`${SAMPLE_DEAL_ID}.tableproof`);
+    // cancelled: nothing to report
+    await expect(main.invoke('proof_check', null)).resolves.toBeNull();
+    picked.push(new File([file?.[1] ?? ''], 'sample.tableproof'));
+    const report = await main.invoke('proof_check', null);
+    expect(report?.verified).toBe(true);
+    expect(report?.deal_id).toBe(SAMPLE_DEAL_ID);
+    expect(report?.same_version).toBe(true);
+    // something that is not a proof file is refused in the wallet's words
+    picked.push(new File(['{}'], 'other.json'));
+    await expect(main.invoke('proof_check', null)).rejects.toMatchObject({ code: 'UNSUPPORTED' });
   });
   it('approves a rescue fix only as Rust does: bound to the checklist, the terms and a waiting fix', async () => {
     const rescue = fakeUlid('D-0188');

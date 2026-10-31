@@ -13,11 +13,13 @@ import type { KeyId } from '@bindings/KeyId';
 import type { StartStepState } from '../lib/firstRun';
 import type { MockBackend } from '../mock/backend';
 import type { MockDeal } from '../mock/fixtures';
-import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, GROUP_CLOSED, GROUP_WINNER, IF_NOTHING, REWIND_ANSWER, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, shoppingFor, stateWord, TABLES, TABLES_VIEWS, tablesItem, tablesShortWho, type StartStepKey, type TourStopId } from '../lib/words';
-import { nowUnix } from '../lib/format';
+import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, GROUP_CLOSED, GROUP_WINNER, IF_NOTHING, REWIND_AHEAD, REWIND_ANSWER, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, SAY, shoppingFor, stateWord, TABLES, TABLES_VIEWS, TABLES_WATCH, tablesItem, tablesShortWho, type StartStepKey, type TourStopId } from '../lib/words';
+import { nowUnix, shortMoney } from '../lib/format';
 import { laneSteps, tickTone, weekBounds } from '../windows/main/logic';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
+import { capUsd as capUsdText, HAGGLE_FIGS as F } from './recorded';
+import { RECORDED } from '../mock/haggle';
 
 export type FrameName = 'main' | 'tumbler' | 'approval';
 
@@ -79,6 +81,16 @@ const CENTRE: readonly Expect[] = [
 ];
 
 /** Each beat's settled end state, from the story tests (story.test.ts) as it shows on screen. */
+/** The Rewind shot of Maya's week (end-rewind), under either film ending. */
+const REWIND_SHOT: readonly Expect[] = [
+  { window: 'main', open: true },
+  // the Rewind reads the week for a few seconds; its figures are only there once it has
+  { in: 'main', text: REWIND_ANSWER.reading, absent: true },
+  { in: 'main', text: REWIND_CARD.owner },
+  { in: 'main', text: REWIND_CARD.default },
+  { deal: HOLD, state: 'AUTO_VOIDED' },
+];
+
 export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   intro: [
     { window: 'main', open: true },
@@ -101,8 +113,8 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
     { deal: HOUSE_TABLE, state: 'NEGOTIATING' },
   ],
   'shop-prices': [
-    { in: 'main', text: '$389.00' },
-    { in: 'main', text: '$334.00' },
+    { in: 'main', text: usdText(F.danAsks) },
+    { in: 'main', text: usdText(F.houseNow) },
     { in: 'main', text: 'lowest so far' },
     NO_PAY_IN_MAIN,
     { deal: HOUSE_TABLE, state: 'NEGOTIATING' },
@@ -120,19 +132,19 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   ],
   'haggle-open': [
     { in: 'main', text: 'Refurbished 27-inch 4K monitor' },
-    { in: 'main', text: '$389.00' },
-    { in: 'main', text: '$290.00' },
+    { in: 'main', text: usdText(F.danAsks) },
+    { in: 'main', text: usdText(F.herFirst) },
   ],
   'haggle-trade': [
     { in: 'main', text: 'Refurbished 27-inch 4K monitor' },
     // halfway: her latest offer and the price range it stays inside (the deal page's facts)
-    { in: 'main', text: '$314.00' },
+    { in: 'main', text: usdText(F.herMid) },
     { in: 'main', text: 'Most you’ll pay $340.00' },
     { in: 'main', text: 'Offers used 3 of 6' },
-    { in: 'main', text: '$327.00', absent: true },
+    { in: 'main', text: usdText(F.herLast), absent: true },
   ],
   'haggle-close': [
-    { in: 'main', text: '$327.00' },
+    { in: 'main', text: usdText(F.herLast) },
     { in: 'main', text: 'Accept Dan’s $329.00?', absent: true },
   ],
   'haggle-gate': [
@@ -247,14 +259,12 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
     NO_PAY_IN_MAIN,
     { deal: HOLD, state: 'AUTO_VOIDED' },
   ],
-  // the Rewind (polish A): the week by who decided, and the tape of every step
+  // the Rewind (polish A): the week by who decided, and the tape of every step. Under the film's default
+  // ending (`film_ending=today`) it is the shot it always was: no Say it panel, no forecast past now.
   'end-rewind': [
-    { window: 'main', open: true },
-    // the Rewind reads the week for a few seconds; its figures are only there once it has
-    { in: 'main', text: REWIND_ANSWER.reading, absent: true },
-    { in: 'main', text: REWIND_CARD.owner },
-    { in: 'main', text: REWIND_CARD.default },
-    { deal: HOLD, state: 'AUTO_VOIDED' },
+    ...REWIND_SHOT,
+    { in: 'main', text: SAY.titleShort, absent: true },
+    { in: 'main', text: REWIND_AHEAD.walkAway, absent: true },
   ],
   'end-safety': [
     { window: 'main', open: true },
@@ -274,6 +284,17 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   ],
 };
 
+/** Maya's week under `film_ending=say` (stories.ts): the same end states, but the Rewind shows the Say it
+ *  panel and runs on past now, and its closing line is the walk-away headline (walkHeadline: "$0 leaves"). */
+export const FILM_SAY_EXPECT: Readonly<Record<string, readonly Expect[]>> = {
+  ...EXPECT,
+  'end-rewind': [
+    ...REWIND_SHOT,
+    { in: 'main', text: SAY.titleShort },
+    { in: 'main', text: new RegExp(`${REWIND_AHEAD.walkAway}: \\$0 leaves\\.`) },
+  ],
+};
+
 /** The four getting-started steps on a brand-new wallet, as a window draws them: PayPal next, the
  *  agent app still to do on the practice agent, nothing done. The Table draws them as lines of its
  *  charter, under the charter's title (`charterSteps`); the Tumbler as a list titled by the four
@@ -286,6 +307,36 @@ const FOUR_STEPS = (f: FrameName): Expect[] => [
   { in: f, step: 'engine', state: 'todo' },
 ];
 const NO_MARK = (f: FrameName): Expect => ({ in: f, tour: null });
+
+/** Each "Watch the haggle" beat's settled end state (watchStory.ts): the figures the replay names are
+ *  the engine's recording's (director/recorded.ts), and no window offers to pay. */
+const houseAgreed = RECORDED.house.outcome.price;
+const houseAskAbove = RECORDED.house.rules.ask_above;
+const usdShort = (minor: number) => shortMoney(minor, 'USD');
+export const WATCH_EXPECT: Readonly<Record<string, readonly Expect[]>> = {
+  'watch-glance': [
+    { window: 'main', open: true },
+    { in: 'main', text: usdText(F.danLast) },
+    NO_PAY_IN_MAIN,
+  ],
+  'watch-gate': [
+    { in: 'main', text: TABLES_WATCH.refusedYes(capUsdText(F.danLast), usdShort(houseAskAbove)) },
+    NO_PAY_IN_MAIN,
+  ],
+  'watch-trade': [
+    { in: 'main', text: TABLES_VIEWS.watch },
+    { in: 'main', text: 'House seller' },
+    NO_PAY_IN_MAIN,
+  ],
+  'watch-refused': [
+    { in: 'main', text: TABLES_WATCH.refusedYes(usdShort(houseAgreed), usdShort(houseAskAbove)) },
+    NO_PAY_IN_MAIN,
+  ],
+  'watch-agreed': [
+    { in: 'main', text: TABLES_WATCH.agreed(usdShort(houseAgreed)) },
+    NO_PAY_IN_MAIN,
+  ],
+};
 
 /** Each First run beat's settled end state (firstRunStory.ts), kept apart from Maya's week's: the
  *  four steps where a window shows them and the stop each window's mark shows. */

@@ -127,6 +127,8 @@ export function useLayerNav(): LayerNav {
   if (!n) throw new Error('useLayerNav outside a console layer');
   return n;
 }
+/** The same, for a part that also renders outside a layer (a test, the first-run Charter): null there. */
+export const useLayerNavIfAny = (): LayerNav | null => useContext(NavContext);
 export const useLayerState = (): LayerState => useContext(StateContext);
 
 /** A calm placeholder while a layer's code loads: two quiet bars that appear only after a beat

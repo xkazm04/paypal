@@ -8,9 +8,9 @@ import type { DealEvidence } from '@bindings/DealEvidence';
 import type { DisplayBand } from '@bindings/DisplayBand';
 import { useQuery } from '../../../../../lib/hooks';
 import { dealWatch } from '../../../../../lib/marketWatch';
-import { EvidenceSheet, ProofPanel, type EvidenceKind } from './Evidence';
+import { EvidenceSheet, ProofPanel, type EvidenceKind, type SignedCard } from './Evidence';
 
-export function ProofView({ deal, band, fresh, onFresh }: { deal: Deal; band: DisplayBand | null; fresh: DealEvidence | null; onFresh: (e: DealEvidence) => void }) {
+export function ProofView({ deal, band, fresh, onFresh, signed }: { deal: Deal; band: DisplayBand | null; fresh: DealEvidence | null; onFresh: (e: DealEvidence) => void; signed?: SignedCard | null }) {
   const evq = useQuery('deal_evidence', { deal_id: deal.id }, { refreshOn: ['deal:changed', 'receipt:created'] });
   // Whether a signed rule keeps this item's typical price fresh (owner facts; unknown = not shown).
   const ownerFacts = useQuery('owner_facts', null, { refreshOn: ['settings:changed', 'deal:changed'] });
@@ -19,7 +19,7 @@ export function ProofView({ deal, band, fresh, onFresh }: { deal: Deal; band: Di
   const ev = { data: fresh ?? evq.data, error: evq.error };
   return (
     <>
-      <ProofPanel deal={deal} ev={ev} band={band} watch={watch} onOpen={setSheet} />
+      <ProofPanel deal={deal} ev={ev} band={band} watch={watch} onOpen={setSheet} signed={signed} />
       {sheet ? (
         <Suspense fallback={null}>
           <EvidenceSheet kind={sheet} deal={deal} ev={ev} band={band} watch={watch} onFresh={onFresh} onClose={() => setSheet(null)} />

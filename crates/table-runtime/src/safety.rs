@@ -127,7 +127,8 @@ pub(crate) const fn family(code: Option<RefusalCode>) -> SafetyRefusalFamily {
             | RefusalCode::TableClosed
             | RefusalCode::Paused
             | RefusalCode::RunEnded
-            | RefusalCode::SessionNotEnabled,
+            | RefusalCode::SessionNotEnabled
+            | RefusalCode::CallBudget,
         ) => SafetyRefusalFamily::OutOfTurn,
         Some(RefusalCode::ToolAbsent | RefusalCode::OutOfScope) => SafetyRefusalFamily::NotAllowed,
         Some(

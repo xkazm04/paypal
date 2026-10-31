@@ -4043,6 +4043,8 @@ dependencies = [
 name = "table-client"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
+ "ed25519-dalek",
  "serde",
  "serde_json",
  "table-app",
@@ -4264,6 +4266,35 @@ dependencies = [
  "tower",
  "ulid",
  "zeroize",
+]
+
+[[package]]
+name = "table-sandbox"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "ed25519-dalek",
+ "getrandom 0.3.4",
+ "house-seller",
+ "rendezvous",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "table-client",
+ "table-core",
+ "table-engine",
+ "table-ledger",
+ "table-market",
+ "table-mcp",
+ "table-paypal",
+ "table-proto",
+ "table-relay",
+ "table-runtime",
+ "table-verify",
+ "tokio",
+ "tower",
+ "ulid",
 ]
 
 [[package]]

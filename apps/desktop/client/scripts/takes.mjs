@@ -56,6 +56,7 @@ function parseArgs(argv) {
       case '--date': o.date = v; break;
       case '--tz': o.tz = v; break;
       case '--story': o.story = v; break;
+      case '--film-ending': o.filmEnding = v; break;
       default: throw new Error(`unknown option: ${a}`);
     }
   }
@@ -63,6 +64,7 @@ function parseArgs(argv) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date)) throw new Error('--date is YYYY-MM-DD');
   if (o.chapter !== undefined && !o.video) throw new Error('--chapter goes with --video');
   if (o.story !== undefined && !/^[a-z0-9-]+$/.test(o.story)) throw new Error('--story is a story id, for example first-run');
+  if (o.filmEnding !== undefined && !['today', 'say'].includes(o.filmEnding)) throw new Error('--film-ending is today or say');
   if (!o.help && !o.check && !o.stills && !o.video) o.help = true;
   return o;
 }
@@ -77,6 +79,8 @@ const USAGE = `takes: stills, video and a rehearsal check of the director (brows
   --chapter <n|id>        with --video: one chapter (2 = the haggle, as the caption rail counts)
   --story <id>            the story to play (default: Maya's week); first-run is the onboarding on
                           a brand-new wallet
+  --film-ending today|say Maya's film ending (default: the story's own, today): today ends on the
+                          Rewind as it always did, say shows Say it and the timeline past now
   --url <base>            a running dev or preview server (default: start vite on --port)
   --port <n>              port for the server this script starts (default 1444)
   --date YYYY-MM-DD       the story's day (default 2026-11-05), --tz <zone> its time zone
@@ -86,7 +90,7 @@ const USAGE = `takes: stills, video and a rehearsal check of the director (brows
 
 
 function directorUrl(base, o, index, play) {
-  const q = new URLSearchParams({ ...(o.story ? { story: o.story } : {}), beat: String(index), play: play ? '1' : '0', take: '1', date: o.date });
+  const q = new URLSearchParams({ ...(o.story ? { story: o.story } : {}), ...(o.filmEnding ? { film_ending: o.filmEnding } : {}), beat: String(index), play: play ? '1' : '0', take: '1', date: o.date });
   return new URL(`director.html?${q}`, base).href;
 }
 

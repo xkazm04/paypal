@@ -23,6 +23,7 @@ import type { ArgsOf, Backend, CommandName, EventName, InvokeOptions, PayloadOf,
 import { WalletError } from '../lib/contract';
 import { clockOffset, setClockOffset, simulateClock } from '../lib/clock';
 import { fairPriceOf } from '../lib/fairPrice';
+import { CLAUSE_NUMBER } from '../lib/mandateRules';
 import { formatMoney, nowUnix } from '../lib/format';
 import { buildMockState, fakeHash, fakeUlid, MOCK_OWNER_KEY_ID, type MockDeal, type MockGroup, type MockState } from './fixtures';
 import { safetyRecordOf } from './safety';
@@ -47,6 +48,8 @@ import { RESCUE_NO_RULES, RESCUE_SENT_SILENCE, RESCUE_SILENCE, RESCUE_WATCH_FULL
 import type { RescueWatchView } from '@bindings/RescueWatchView';
 import { invoiceText, leverOf, maskEmail, proposeDiscount, RESCUE_WATCH_MAX, RESCUE_WATCH_READS_DAY, validEmail, validSubscriptionId } from './rescue';
 import { AUTHORITY, AUTHORITY_MANIFEST, EVENT_AUDIENCE, type CommandAuthority } from '@bindings/authority';
+import { RECORDED_DEAL_ID } from '../lib/proof/sampleId';
+import { RECORDED_LABEL } from './haggle';
 import { LADDER } from '@bindings/ladder';
 import { buildFirstRunState, firstRunPreview, PRACTICE_TERMS, scalePreview, withFirstRun, worldKeys } from './firstRun';
 import { buildScaleState } from './scale';
@@ -60,7 +63,7 @@ type Envelope =
 /** Who is told each event: the Rust authority table's rows (`EVENTS`), generated, never a hand list. */
 const TARGETS: Record<EventName, WindowLabel[]> = EVENT_AUDIENCE;
 
-export const STORE_KEY = 'the-table-mock-state-v21'; // v21: purchase steps on D-0180 and D-0181 are the owner's too; v20: purchase steps on D-0183, D-0186 and D-0190 are the owner's, as Rust refuses a rule for any purchase step; v19: the scale world no longer stops deals with friends & family or the AI second opinion, which the wallet does not run yet (shield-screening rework); v18: fair-price certificates on the sample market records (market-data-2); v17: agents' refused requests in Maya's week (safety record); v16: the attention ladder's recorded rungs and D-0184's lapse that cites them (attention-ladder-1); v15: D-0190's attention names no rule, as Rust does (polish 3); v14: the owner's watched subscriptions (rescue detection); v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
+export const STORE_KEY = 'the-table-mock-state-v23'; // v23: D-0193 and D-0204 re-cut from the engine's recording (mock/haggle.json); v22: D-0205, the house haggle recorded from the engine (mock/haggle.json); v21: purchase steps on D-0180 and D-0181 are the owner's too; v20: purchase steps on D-0183, D-0186 and D-0190 are the owner's, as Rust refuses a rule for any purchase step; v19: the scale world no longer stops deals with friends & family or the AI second opinion, which the wallet does not run yet (shield-screening rework); v18: fair-price certificates on the sample market records (market-data-2); v17: agents' refused requests in Maya's week (safety record); v16: the attention ladder's recorded rungs and D-0184's lapse that cites them (attention-ladder-1); v15: D-0190's attention names no rule, as Rust does (polish 3); v14: the owner's watched subscriptions (rescue detection); v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
 const DEGRADE_KEY = 'the-table-mock-degrade';
 /** What a newly opened or joined table does on silence (Rust composes this line). */
 const TABLE_SILENCE = 'the offer lapses at the deadline, no money moves';
@@ -115,6 +118,13 @@ export interface MockWorld {
   reset(at?: number): void;
   /** Send a Rust-shaped event from this world to its target windows. */
   emit<E extends EventName>(event: E, payload: EventContract[E]): void;
+  /** Break The Table (arena.html): an agent request the wallet refused on a deal, as Rust's history
+   *  projects its recorded `intent.refused` row (a signed rule, its clause when the code names one).
+   *  It moves nothing and calls nothing. */
+  refused(label: string, clause: number | null): void;
+  /** Break The Table: the counterparty's signed NOTE arrives on a deal. Untrusted words, kept for the
+   *  owner and read only through the note chip; never an agent's input. */
+  note(label: string, text: string): void;
 }
 
 export type MockBackend = Backend & { readonly world: MockWorld };
@@ -150,7 +160,34 @@ function fail(code: WalletError['code'], message: string): never {
 
 /** How a mock window opens another page (lib/runtime.ts passes one in demo mode, so the sample
  *  approval opens in the main window's demo sheet instead of a window). Default: window.open. */
-export type MockOptions = { open?: (page: string, name: string, features?: string) => void };
+export type MockOptions = {
+  open?: (page: string, name: string, features?: string) => void;
+  /** How a saved file reaches the person (default: the browser downloads it). */
+  save?: (name: string, text: string) => void;
+  /** How the person picks a file to check (default: the browser's file picker); null = cancelled. */
+  pick?: () => Promise<File | null>;
+};
+
+/** Hands a text file to the person as a download. */
+function downloadFile(name: string, text: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+/** The browser's file picker, as a promise; resolves null when the person cancels. */
+function pickFile(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.tableproof,.json,application/json';
+    input.addEventListener('change', () => resolve(input.files?.[0] ?? null), { once: true });
+    input.addEventListener('cancel', () => resolve(null), { once: true });
+    input.click();
+  });
+}
 
 export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBackend {
   // ?first_run=1: a brand-new wallet in a world of its own (src/mock/firstRun.ts).
@@ -336,6 +373,14 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       case 'lever':
         if (t !== 'deal' || !dealId || find(dealId).deal.kind !== 'rescue') fail('INVALID', 'a lever draft needs a rescue deal');
         return;
+      case 'rules': {
+        // As check_draft: shape only (a mandate target, no deal, one clause of each kind, a start before the end
+        // when an end is carried; absent, the owner sets it in the editor).
+        const numbers = draft.clauses.map((c) => CLAUSE_NUMBER[c.type]);
+        if (t !== 'mandate' || dealId || !draft.clauses.length || draft.clauses.length > 9 || new Set(numbers).size !== numbers.length
+          || draft.not_before < 0 || (draft.expires != null && draft.expires <= draft.not_before) || (draft.focus != null && (draft.focus < 1 || draft.focus > 9))) fail('INVALID', 'the rules draft does not fit');
+        return;
+      }
       case 'table': {
         // As check_draft: owner configuration only, a live paired key, and for the house exactly
         // the table kept when its words were confirmed.
@@ -602,7 +647,9 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     else window.open(url, name, features);
   }
 
-  const handlers: { [K in CommandName]: (args: ArgsOf<K>, opts?: InvokeOptions) => ResultOf<K> } = {
+  // Every command answers at once, except the two that wait on the person's file (saving and picking one).
+  type Answer<K extends CommandName> = K extends 'deal_export_proof' | 'proof_check' ? Promise<ResultOf<K>> : ResultOf<K>;
+  const handlers: { [K in CommandName]: (args: ArgsOf<K>, opts?: InvokeOptions) => Answer<K> } = {
     get_settings: () => ({ ...state.settings, house_connected: state.counterparties.some((c) => c.house), locked: isLocked(), authority_manifest: AUTHORITY_MANIFEST }),
     list_deals: () => state.deals.map((d) => d.deal),
     get_deal: ({ deal_id }) => find(deal_id).deal,
@@ -611,10 +658,30 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       const d = find(deal_id);
       return { ...d.evidence, fair_price: fairPriceOf(d.deal.state, d.deal.market, d.deal.terms.unit_price) };
     },
-    // A browser preview has no ledger or agent key to sign with: say so instead of faking a file.
-    deal_export_proof: ({ deal_id }) => { find(deal_id); return fail('UNAVAILABLE', `Proof export needs the native wallet: the bundle is signed by the deal's agent key`); },
-    // Checking a file needs the wallet's own file dialog and checker; the preview has neither.
-    proof_check: () => fail('UNAVAILABLE', 'Checking a proof file needs the desktop app.'),
+    // A browser preview has no ledger or agent key to sign with, so it cannot sign a deal's file of its own:
+    // it hands out the one real signed file it carries (the recorded house haggle, D-0205, as the wallet
+    // exported it in the haggle recorder's run), and says so for every other deal instead of faking one.
+    deal_export_proof: async ({ deal_id }) => {
+      find(deal_id);
+      if (deal_id !== RECORDED_DEAL_ID) return fail('UNAVAILABLE', `This preview has no keys to sign a proof with. It carries one deal the wallet itself signed, ${RECORDED_LABEL}.`);
+      const { HOUSE_PROOF } = await import('../lib/proof/sample');
+      (opts.save ?? downloadFile)(HOUSE_PROOF.name, HOUSE_PROOF.text);
+      return true;
+    },
+    // The file is picked in the browser and checked in the page, by the checker that is the wallet
+    // verifier's twin (lib/proof); the report has the wallet's own shape.
+    proof_check: async () => {
+      const picked = await (opts.pick ?? pickFile)();
+      if (!picked) return null;
+      const { checkProofText, PROOF_FILE_LIMIT, readProofFile, TOO_LARGE } = await import('../lib/proof/verify');
+      const { NOT_A_PROOF } = await import('../lib/proof/read');
+      if (picked.size > PROOF_FILE_LIMIT) return fail('UNSUPPORTED', TOO_LARGE);
+      const text = await readProofFile(picked);
+      if (text === null) return fail('UNSUPPORTED', NOT_A_PROOF);
+      const outcome = await checkProofText(text, AUTHORITY_MANIFEST);
+      if ('refused' in outcome) return fail('UNSUPPORTED', outcome.refused);
+      return outcome.report as ResultOf<'proof_check'>;
+    },
     deal_reconcile: ({ deal_id }) => {
       const d = find(deal_id);
       if (d.evidence.reconciliation === 'pending_reporting') d.evidence = { ...d.evidence, reconciliation: 'matched' };
@@ -1494,6 +1561,25 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       save();
     },
     emit,
+    refused(l, clause) {
+      const d = byLabel(l) ?? fail('NOT_FOUND', `no deal ${l}`);
+      const now = nowUnix();
+      const audit = state.audit ?? [];
+      state.audit = [...audit, { seq: audit.length + 1, at: now, actor: 'agent', action: 'intent.refused', deal_id: d.deal.id, decided_by: null, from: d.deal.state, to: d.deal.state }];
+      const history = state.history ?? buildMockState(nowUnix()).history ?? [];
+      const seq = history.reduce((m, h) => Math.max(m, h.seq), 0) + 1;
+      state.history = [...history, { at: now, deal_id: d.deal.id, seq, kind: 'intent_refused', state_after: null, authority: { type: 'signed_rule', clause: clause === 0 ? null : clause }, paypal: { type: 'none' } }];
+      save();
+      const s = attention();
+      emit('attention:changed', { ...s, stopped_today: s.stopped_today + 1 });
+    },
+    note(l, text) {
+      const d = byLabel(l) ?? fail('NOT_FOUND', `no deal ${l}`);
+      const seq = d.transcript.reduce((m, t) => Math.max(m, t.seq), 0) + 1;
+      state.notes = { ...(state.notes ?? {}), [d.deal.id]: { deal_id: d.deal.id, seq, text: [...text].slice(0, 280).join(''), at: nowUnix() } };
+      save();
+      emit('deal:changed', { deal: d.deal, mode: d.deal.mode });
+    },
   };
 
   // The approval window gets its summary pushed shortly after it opens, as the shell does.
@@ -1516,7 +1602,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     async invoke<K extends CommandName>(cmd: K, args: ArgsOf<K>, opts?: InvokeOptions): Promise<ResultOf<K>> {
       await new Promise((r) => setTimeout(r, 40)); // IPC is async; keep the UI honest about it
       gate(cmd, args, opts);
-      const h = handlers[cmd] as (a: ArgsOf<K>, o?: InvokeOptions) => ResultOf<K>;
+      const h = handlers[cmd] as (a: ArgsOf<K>, o?: InvokeOptions) => ResultOf<K> | Promise<ResultOf<K>>;
       return h(args, opts);
     },
     async listen<E extends EventName>(event: E, cb: (payload: PayloadOf<E>) => void) {

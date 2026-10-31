@@ -49,6 +49,7 @@ import { focusKeyOf, restoreLayer, type LayerMemory } from './memory';
 import { chainOf, isAncestor, moduleOfRoute, mountKey, parentOf, routeKey, sameLayer, type ChainCtx } from './route';
 import { StaleBanner } from './StaleBanner';
 import { StaggerProvider } from './stagger';
+import { watchTable } from '../modules/tables/watchPick';
 import './console.css';
 import './find.css';
 import './framework.css';
@@ -327,6 +328,7 @@ export function Console() {
       toast(LATER_TOAST, 'info');
     },
     onWaiting: () => go({ level: 'waiting' }), onRewind: () => goRewind(), onBook: () => goModule('book'),
+    onWatch: (id) => { watchTable(id); go({ level: 'module', module: 'tables', view: 'watch' }); },
   }), [queue, cur, presence, goDeal, toast, go, goRewind, goModule]);
   const host = useMemo<CentreHostValue>(() => ({ centre, charterStep, setCharterStep }), [centre, charterStep]);
   const layerState = useMemo<LayerState>(() => ({ rewindAt, pairMode: pairStart, firstRun, presence }), [rewindAt, pairStart, firstRun, presence]);

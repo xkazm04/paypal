@@ -156,7 +156,7 @@ describe('where it stands', () => {
     expect(f.find((x) => x.k === 'Dan’s latest')?.v).toBe('$329.00');
     expect(f.find((x) => x.k === 'Most you’ll pay')?.v).toBe('$340.00');
     expect(f.find((x) => x.k === 'Offers used')?.v).toBe('5 of 6');
-    expect(f.find((x) => x.k === 'This price is')?.v).toBe('a bit above typical');
+    expect(f.find((x) => x.k === 'This price is')?.v).toBe('typical');
   });
   it('shows price and quantity for other kinds, and nothing it cannot know', () => {
     const e = entry('D-0198');
@@ -192,18 +192,18 @@ describe('a buyer’s deal the seller says is paid', () => {
 });
 
 describe('how far their price came down (the haggle’s result, buyer side)', () => {
-  it('reads Dan’s $329 against his own $389 listing, and the room under the $340 most', () => {
+  it('reads Dan’s $329 against his own $340 listing, and the room under the $340 most', () => {
     const e = entry('D-0193');
     const f = standingFacts(e.deal, e.display.band, last('D-0193'), 'Dan', null, e.transcript);
-    expect(f.find((x) => x.k === 'Dan’s price is down')).toEqual({ k: 'Dan’s price is down', v: '$60.00 from $389.00 (15.42%)', tone: 'ok' });
+    expect(f.find((x) => x.k === 'Dan’s price is down')).toEqual({ k: 'Dan’s price is down', v: '$11.00 from $340.00 (3.23%)', tone: 'ok' });
     expect(f.find((x) => x.k === 'Room under your most')?.v).toBe('$11.00');
     // The old facts keep their place in front.
     expect(f.slice(0, 3).map((x) => x.k)).toEqual(['Dan’s latest', 'Most you’ll pay', 'Offers used']);
   });
   it('compares their latest price, never your own bid', () => {
     const steps = entry('D-0193').transcript;
-    expect(askingDrop(steps)).toMatchObject({ listing: { minor: 38900 }, theirs: { minor: 32900 }, off: { minor: 6000 }, bp: 1542 });
-    // Your own last offer ($327) is not their price.
+    expect(askingDrop(steps)).toMatchObject({ listing: { minor: 34000 }, theirs: { minor: 32900 }, off: { minor: 1100 } });
+    // Your own last offer ($324) is not their price.
     expect(askingDrop(steps.filter((s) => s.seq !== 11))?.theirs.minor).toBe(33300);
   });
   it('claims nothing it cannot back: unchecked signatures, no move, no listing, another currency', () => {
@@ -212,7 +212,7 @@ describe('how far their price came down (the haggle’s result, buyer side)', ()
     expect(askingDrop(steps.map((s) => (s.seq === 11 ? { ...s, verified: false } : s)))).toBeNull();
     expect(askingDrop(steps.filter((s) => s.typ !== 'LISTING'))).toBeNull();
     expect(askingDrop(steps.filter((s) => s.seq <= 2))).toBeNull();
-    expect(askingDrop(steps.map((s) => (s.seq === 11 ? { ...s, price: { minor: 38900, currency: 'USD' as const } } : s)))).toBeNull();
+    expect(askingDrop(steps.map((s) => (s.seq === 11 ? { ...s, price: { minor: 34000, currency: 'USD' as const } } : s)))).toBeNull();
     expect(askingDrop(steps.map((s) => (s.seq === 11 ? { ...s, price: { minor: 32900, currency: 'EUR' as const } } : s)))).toBeNull();
   });
   it('is buyer side only and needs the conversation', () => {

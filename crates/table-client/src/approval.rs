@@ -58,7 +58,29 @@ pub enum ApprovalDraft {
         counterparty: table_core::KeyId,
         house: Option<HouseTableDraft>,
     },
+    /// A whole set of rules the owner said in one sentence in Main (the deterministic reader in
+    /// the client's lib/say; no model). The approval window's editor opens on them, filled in.
+    /// Shape only: nothing is signed here, `validate()` runs when the owner signs, and the owner may
+    /// change any part first. A part the reader was not sure of is left out for the editor to show
+    /// as missing. Target: mandate, no deal.
+    Rules {
+        agent: crate::AgentSlot,
+        not_before: i64,
+        /// When the rules end. Absent: the sentence did not settle it (the reader asked and had no
+        /// answer), and the owner sets it in the editor; the draft never carries an end nobody said.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        expires: Option<i64>,
+        clauses: Vec<table_core::Clause>,
+        /// The rule (its number, 1 to 9) the editor scrolls to and marks: "Change it in the form" on a
+        /// part of the sentence. Absent: the editor opens at the top.
+        #[serde(default)]
+        #[ts(optional = nullable)]
+        focus: Option<u8>,
+    },
 }
+/// The most clauses a rules draft may carry: one of each kind (Clause::number is 1 to 9).
+pub const MAX_RULES_DRAFT_CLAUSES: usize = 9;
 /// The house's practice table as pairing_join returned it (`PairingWords.house_table`), carried in
 /// a draft. The same fields as the signed table; never trusted, re-checked by Rust.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

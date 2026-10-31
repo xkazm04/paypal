@@ -42,7 +42,8 @@ describe('authority table (browser mock)', () => {
     const windowFor = (label: WindowLabel, locked: boolean) => {
       const page = label === 'approval' ? `/approval.html?deal=${selected}` : `/${label === 'main' ? 'index' : label}.html?x=1`;
       history.replaceState(null, '', `${page}${locked ? '&locked=1' : ''}`);
-      return mockBackend(label);
+      // The gate is judged, not the file picker: a command that waits on the person's file gets a cancelled pick.
+      return mockBackend(label, { pick: async () => null, save: () => undefined });
     };
     // Built as each window would be (URL params at load). Main and the Tumbler hold no selection,
     // so they serve every command; an approval window is rebuilt per command (a replayed renewal

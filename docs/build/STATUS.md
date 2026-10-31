@@ -2749,3 +2749,218 @@ Client gates in the worktree: tsc clean; vitest 211 files / 2022 tests passed (a
 agent-negotiation-run value-2 (ask a07e05ac): the owner chose "Keep as is, explain in UI". The seller's practice agent still accepts the first offer at or above its floor (`Policy::decide`, unchanged). The seller's own deal page now says so when its agent accepted exactly at the signed floor (`acceptedAtFloorLine` in `windows/main/deal/story.ts`, words `DEAL_AT_FLOOR`). Seller side only; the floor never reaches a buyer or counterparty view. Commit: 753cb28 (words only; no money logic, Rust, bindings or mock changed). tsc and vitest were not run (no client node_modules in the worktree).
 
 agent-negotiation-run value-2 follow-up (K-1): the at-floor line now compares the deal's agreed unit price (`terms.unit_price`) with the signed floor, because the signed ACCEPT carries no price (`display.rs:118`, `mock/backend.ts:952`), so the 753cb28 check never matched in the real app. Client words only; no Rust, mock or signed content changed. Commit: this commit. tsc and vitest were not run (no client node_modules in the worktree). Open: `mock/fixtures.ts:315` still carries a priced ACCEPT that disagrees with the Rust shape.
+
+## Break The Table: the judge plays the attacker (2026-10-30, hackathon killer-1030 e1)
+
+A browser-preview page (`apps/desktop/client/arena.html`, built by `build:director`, never in the
+release bundle or the shell) where anyone plays the attacker against Maya's agent and sees the real
+wallet's answers. Nothing on it is acted:
+
+- **Recorder and drift test** (`crates/table-app/tests/gauntlet/arena.rs`, included from
+  `tests/gauntlet.rs` with `#[path]` so it reuses the gauntlet's harness unchanged: the in-process MCP
+  router, the pipeline over the recording PayPal transport, the relay, the verdict predicate). Two
+  wallets on Maya's numbers (offers 250-340, no deal over 400, in person over 330, six offers) play a
+  real haggle (listing 389, offer 290, counter 335); then 14 named attacks land on it: 10 agent tool
+  calls (tool_absent, mandate_clause 3 twice, outside_band, owner_approval 6, out_of_scope,
+  invalid_request twice, session_not_enabled, deadline_passed) and 4 counterparty envelopes (a note
+  kept but never in the agent's table, an altered offer and a misdirected one turned away, a replay
+  counted once). Each record: what was sent, the tool result, the audit rows from the verified export,
+  PayPal requests at the transport, stored calls, money operations, the targeted deal's state and the
+  whole-ledger predicate. The test asserts every expectation itself, then compares with the pinned
+  `apps/desktop/client/src/arena/arena.json` (hashes and signatures scrubbed); `TABLE_ARENA_RECORD=1`
+  rewrites it. Gauntlet changes: a `last_answer` field and `note_with` (a note with given text).
+- **Page** (`src/arena/`, words `lib/words/arena.ts`): the deck in two suits plus a closing card,
+  pointer drag with spring-back, keys 1-0 / Q-R / C, the wire (attacker -> the wallet's rules ->
+  PayPal, lit only for requests the record shows), the answer (plain words first, the wallet's own
+  record one level down), Maya's safety record read again after every attack, a typed seller note
+  shown only through `NoteChip` and mapped (keywords, no model) onto the recorded attacks it asks
+  for, a downloadable file of the played attacks, `?auto=1` for a film take.
+- **Mock**: `MockWorld.refused` (an `intent_refused` history step, as Rust's history projects the
+  row) and `MockWorld.note` (the seller's note behind `counterparty_note`), so the console's safety
+  record and note chip in the shared preview world reflect what was played.
+- Deviation: the page shows refusal codes, audit actions and tool names, which the UX guide keeps off
+  the owner's screens. The arena is a proof surface for doubters, not an owner screen; they appear
+  only under "The wallet's own record", below the plain-words answer. The mock's safety record still
+  folds refusal families into two (it has no code per history step), unlike Rust's `family()`.
+- Gates: client typecheck, vitest, build; cargo fmt, clippy `-D warnings`, test --workspace.
+
+## Watch the haggle, drawn by the real engine (hackathon killer-1030 e4, 2026-10-30)
+
+Branch `hackathon/killer-1030/e4`. Closes the sequencing doc's R1 (agent-negotiation-run C4): the
+film's and the preview's haggle prices now come from the engine.
+
+- **Recorder and drift test** (`crates/table-runtime/src/haggle_record_tests.rs`, test-only): the
+  shipped practice agent plays two tables through the wallet's in-process MCP router, mandate check,
+  clause-6 refusal audit row and attention gate. The house seller answers on its own rule (ask $340,
+  floor $316, six rounds; `Policy::decide_on_schedule`, its round counted as `hosted.rs` counts it),
+  and the run goes on through the owner's `OwnerAccept` and the house's accept to AGREED at $324. Dan's
+  counters are given (the golden run of 614ed59), up to the refusal of the agent's yes to $329. Zero
+  PayPal calls in both. It writes `apps/desktop/client/src/mock/haggle.json` under
+  `TABLE_HAGGLE_RECORD=1`, and otherwise fails on any drift (it compares parsed JSON, so line endings
+  don't matter). The house seller's service itself (relay, PayPal) is not started; its decision rule is
+  called directly. Its demo band is a choice, not a deployed mandate.
+- **Preview re-cut**: D-0193 (Dan), D-0204 (the house, three offers in) and the new D-0205 (the house,
+  agreed yesterday and receipted; the PayPal steps after the haggle are sample history) are built
+  from the recording, on its market (p25 $300 / median $330 / p75 $360). The director's captions and
+  rehearsal checks read `director/recorded.ts`. The films' narration says $340 and $332 where it said
+  $389 and $334, and `director/filmPrices.test.ts` fails on any spoken price the engine never signed.
+- **Watch the haggle** (Tables layer view, Watch it on table panes and haggle deal pages, a compact
+  glance in the decision centre): see `docs/features/tables-haggling.md`. No IPC command, binding,
+  capability or authority row was added; it reads existing queries only.
+
+Gates on the branch: client typecheck clean, vitest 214 files / 2042 tests, build clean; cargo fmt
+clean, clippy (workspace, all targets, -D warnings) and `cargo test --workspace` (see the hackathon log
+for the final run).
+
+## Proof checker in the browser (2026-10-30, hackathon branch)
+
+`table-verify`'s sixteen checks, run in a browser with nothing installed (`apps/desktop/client/src/lib/proof/`,
+`shared/proofcheck/`, `proof.html`), with a tamper control and a two-sided comparison; see
+[proof-and-verification.md](../features/proof-and-verification.md) step 10.
+- **No new IPC command** (`deal_export_proof` and `proof_check` already had rows); the mock answers them: the first downloads the
+  one signed practice deal (`D-0195`, added to Maya's mock world) and refuses every other deal in plain words, the second picks a
+  file in the browser and checks it in the page. The permissions fingerprint did not change.
+- **Practice deals**: `table_client::sample_proof` (three deals), bin `sample-proof`. The files and `parity.json` are committed
+  under `apps/desktop/client/src/lib/proof/sample/`; `cargo test -p table-client` fails when they are stale.
+- **Dependencies**: no new npm package. `table-client` now depends on `ed25519-dalek` and `base64`, both already in the workspace
+  (they sign the practice deals and read their messages).
+- **All sixteen checks are worked out in the browser**, the house seller's signed record included. Held to the Rust verifier on the
+  practice deals and on eight proof files the wallet's own runtime wrote (`src/lib/proof/real/`, `real.json` from
+  `cargo run -p table-client --bin real-proofs`); a Rust test fails if the verifier's word on one of them changes.
+- **Existing tests moved with the added mock deal** (each commented): module count (Tables 6 to 7), the ledger's money in (27.50 to
+  239.50), the Rewind's history, the film record's paid steps.
+
+## table-sandbox: hand your own agent a wallet it can't misuse (2026-10-30, hackathon/killer-1030/e3)
+
+A new crate and bin, `crates/table-sandbox` (`cargo run -p table-sandbox`), serving
+`http://127.0.0.1:1443/` (live page) and `/mcp` (streamable HTTP). It boots the wallet actor the
+way `native.rs` does and calls `spawn_networked`, with in-memory edges: SQLite ledger and vault in
+memory, both PayPal clients on a recording transport that counts and refuses (nothing leaves the
+process; throwaway credentials minted per boot), the house seller (`services/house-seller`:
+`Seller::new`, `start`, its deployed `router`) in process as the counterparty, reached through the
+wallet's own relay pump over an in-process `RelayApi`. An owner rule is signed at boot by a
+throwaway owner key; `OsReauth` always refuses (no owner is present). Market prices are a labelled
+sample (`market::SampleMarket` behind `MarketApi`), fetched by the wallet's own market watch (T15)
+under the rule's clause 9 (a throwaway market key is stored because the watch runs only with one).
+Each table's proof file (`deal_export_proof`) is verified on the page and at exit by `table-verify`.
+
+- **No new grant path.** The wallet's MCP server executes intents only for a run the runtime
+  started (`ActorBridge` needs a `RunId`; `agent_gate` checks the run). The outside agent has its
+  own engine id, `EngineId::Outside` (serialized `outside`; refused by `argv`, `resolve_command`
+  and `NativeEngine`, and never listed by `engine_info`, so `engine_select` refuses it from any
+  window). The sandbox seats `engine::OutsideAgent` there: the wallet starts it with `agent_start`,
+  hands it the run's grant, and it launches nothing. `run.start` rows say `outside` with the
+  buyer-haggler playbook. The front forwards each JSON-RPC body unchanged
+  to the wallet's loopback MCP server under that grant and journals what answered. The front's door:
+  loopback Host for its port, no `Origin` (browsers refused). claude-code and codex-cli stay gated.
+- **One turn per run.** A run ends itself at 100 s (inside `SESSION_SECS`), and the front starts a
+  new one when the deal's transcript head moves, as the desktop arms its negotiator once per peer
+  message. The 64-call budget therefore cuts off only an agent looping within one turn.
+- **table-runtime** gains a `sandbox` feature (`src/sandbox.rs`): pin an in-process house's release,
+  build the house request, pair + confirm + sign + join through the dispatcher's own functions, seat
+  an engine. Rust-only; no IPC command, no authority-table row, no money path.
+- **house-seller** gains `Seller::with_table_secs` (one minute to one hour; `TABLE_SECS = 300`, the
+  deployed default, is unchanged). The sandbox opens tables for fifteen minutes: a live agent app
+  session took four minutes for six rounds.
+- **Review:** an independent read-only review found eight defects in the front, journal and
+  rehearsal (none bypassed the wallet or leaked the grant); all fixed in ed67470.
+- **Deviation from the brief:** the system clock, not a fixed clock (the relay's settled-route
+  cadence, deadlines and the house's 300 s table need time to move).
+- **Rule numbers** (`lib.rs`): band ceiling $340 (rule 4 must hold the house's $329 listing for the
+  table to be joined), in-person line $200 (rule 6, under the house's $239 floor, so any agreement
+  waits for the owner), per deal $400 (rule 3). A buyer's band floor is where the agent starts, not
+  a fence.
+- **Dependencies:** none new to the workspace. `table-sandbox` uses existing packages (axum, reqwest,
+  tokio, tower as a normal dependency for in-process requests, ed25519-dalek, getrandom, ulid).
+- **Validated:** `cargo test -p table-sandbox` (smoke over loopback HTTP: refused at rule 4 naming
+  the bound, refused at rule 6, `pay_now` absent, PayPal asked 0 by both wallets, a fresh table, a
+  clean whole-ledger safety record); the official MCP TypeScript SDK client (1.20.2,
+  StreamableHTTPClientTransport) connects and calls tools; one live claude-code session (`claude -p`,
+  smallest model, strict MCP config) haggled $100 -> $249.99 in six offers, the house seller accepted,
+  and the agent's accept was refused at rule 6. UNVERIFIED: a live codex-cli session (its config keys
+  are from `.research/landscape-and-stack.md` [S]).
+- **Gates (2026-10-30 12:35):** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --
+  -D warnings`, `cargo test --workspace --no-fail-fast` (exit 0), `cargo deny check` (advisories,
+  bans, licenses, sources ok); client `pnpm typecheck`, `pnpm test` (211 files / 2029 tests),
+  `pnpm build`. The one client change: `OwnerConfig.tsx` names the new engine id.
+
+## Say it, then see it (2026-10-30, hackathon branch killer-1030/e5)
+
+Docs: [features/say-it.md](../features/say-it.md). One sentence ("Haggle for a monitor, up to $340, ask me above $320, six
+offers, until Friday") is read by a fixed grammar (`lib/say`, no model) into editable chips, handed to the approval
+window as a typed `ApprovalDraft::Rules` (shape-checked in Rust, signed only there), and shown on the Rewind's timeline,
+which now runs past a gold Now line into the forecast's 72 hours.
+
+- Built: the reader (95 phrasings, fuzz), chips (said / filled in / open / unsure with one question), item tie-in to the
+  owner's own items, the typed draft, the hand-off (+ `focus` to a rule), the timeline past now (ticks one per forecast
+  line, headline from the Tumbler's `walkAway()`, the rules' reach, open tables against the owner's numbers, zoom, keys,
+  snap, hold on Now), speech input and read-back behind feature checks, the Tumbler's all-clear ticker, the director
+  story `?story=say`.
+- Deviations: the Rewind's playhead used to stop at now; it now runs 72 h past it (the day-anchor test was re-pinned and
+  a test for the dashed ticks added). `walkWhat/walkWho/walkWhen` in `windows/tumbler/logic.ts` are exported.
+  `ApprovalDraft` has a fourth variant, `Rules`; bindings regenerated; no authority row changed (no new command).
+- UNVERIFIED / not done: selling by sentence; "start tomorrow"; what a draft would have done last week (the what-if is
+  approval-window-only); a real microphone and the browser's speech service; the native shell has never been run
+  interactively. The "if the price stays" lines compare an open table's latest price with the owner's two numbers; they
+  are a preview, not the wallet's check.
+
+## One recorded truth (spark fusion-killer-1030, WP1, 2026-10-31)
+
+Every figure the arena, the preview's tables, the proof samples and the films show now comes from one
+recording, `apps/desktop/client/src/mock/haggle.json` (table-runtime's haggle recorder).
+- **Arena on the recorded table.** The arena recorder (`crates/table-app/tests/gauntlet/arena.rs`) no
+  longer plays its own haggle (389/290/335 on 250-340, per deal 400, in person over 330): it reads
+  `haggle.json` and replays Dan's table (listing 340, offers 300-324, counters 339-329) through both
+  agents' MCP doors, on the recording's rules (ceiling 340, no floor, per deal 340, ask above 250, six
+  offers; the same numbers as Maya's mandate M-14, held equal by `mock/haggle.test.ts`) and market (comparables 300/300/330/360/360), and asserts the agent's `table_view` equals the
+  recorded steps. The accept attack is the recorded refusal (clause 6 at $329). The preview's D-0193
+  (named once, `DAN_LABEL` in `mock/haggle.ts`) is that table: its transcript and now its history,
+  recorded refusal included, are built from the recording, and the arena's refusals and notes land on it.
+  Dan's table rather than the house's: see the WP1 report (one story with D-0193 and the film's gate).
+- **One switch.** `TABLE_RECORD=arena|haggle|proofs|all` (comma lists allowed; `TABLE_ARENA_RECORD=1`
+  and `TABLE_HAGGLE_RECORD=1` still work), shared helper `crates/table-app/tests/recorded/mod.rs`. A
+  recorder rewrites only when selected; otherwise it fails on drift. Recorded `.tableproof` files are
+  kept while they verify and, masked (signatures, hashes, keys, ids, nonces), match today's export, so
+  a second recording changes nothing. `node scripts/record.mjs` runs arena, haggle, then proofs (and
+  arena and proofs again if the haggle step changed `haggle.json`). With per deal 340 equal to her top
+  price, the arena's "just over the top" bid is refused by the per-deal clause (3), which the wallet
+  checks before the price range (4); the haggle's offers and refusal did not change.
+- **Proof samples from the recordings.** `lib/proof/sample/arena-<attack>.tableproof` (each refused
+  attack's deal, ten files) and `d-0205.tableproof` (the house table, agreed); `sample/recorded.json` is
+  the verifier's word on each (`proofs` recorder), and `parity.test.ts` holds the browser checker to it.
+  The checker's offered deals are now these recordings; the three `sample_proof` practice deals stay as
+  parity oracles only (`lib/proof/practice.ts`, tests).
+- **D-0195 removed** (the typed sold monitor, its history and mandate S-4): Tables 8 to 7, money in
+  239.50 to 27.50. The preview hands out D-0205's recorded file instead (D-0205 carries its file's id).
+- **`sample_proof` out of the shipped crate**: `cfg(any(test, feature = "samples"))`; the bins
+  `sample-proof`, `real-proofs`, `fuzz-proofs` need `--features samples`. `cargo tree -p table-desktop
+  -e features` names no `samples`; `cargo build -p table-desktop` does not compile `sample_proof.rs`.
+- **Arena fixes**: the two "why it held" lines now say what the wallet recorded; the note and replay
+  expectations are real (`Expect::NoteKept`: one envelope kept, one `envelope.accepted` NOTE row;
+  `Expect::CountedOnce`: no envelope added, no row); the gauntlet summary's PayPal-reaching calls and
+  violations, and the totals, are measured. Card words take their figures from the record.
+- **Films**: `filmPrices.test.ts` now checks per beat: a figure only on a beat whose table (cut where the
+  director has rewound it) shows it, or its signed limits. The mismatch beats' D-0199 is still a typed
+  sample deal, not a recording.
+
+## Say it, then see it, in the film and the arena (spark fusion-killer-1030, WP4, 2026-10-31)
+
+- **An unsure end stays unset.** `ApprovalDraft::Rules.expires` is now optional (`Option<i64>`, the key omitted
+  when absent; bindings `expires?: number`). Absent means "the owner sets it in the editor": `rulesOf` no longer
+  sends now + 7 days when the reader asked about the end, the item band's end follows it (`UNSET_DEADLINE`, 0),
+  and the editor shows the end as "not set yet", says "Choose when the rules end" and holds Review & sign.
+  Rust's shape check needs a start before the end only when an end is carried (`configuration.rs`; tests in
+  `table-client/src/lib.rs` and `table-runtime/src/client_tests.rs`). No authority row changed: the
+  permissions fingerprint (`PINNED_MANIFEST`) did not move.
+- **The film switch.** Maya's story has `filmEnding: 'today' | 'say'` (default `today`; `?film_ending=` on the
+  director wins; `--film-ending` on `takes.mjs` and `film-capture.mjs`). Under `today` the main frame carries
+  `?film_ending=today` and its Rewind leaves out the Say it box and the forecast past now (the playhead stops at
+  now, as before e5); under `say` both show and the `end-rewind` caption closes on "If you walk away: $0 leaves."
+  The app itself (no such address; never in the desktop shell) always shows both. How to switch:
+  `film/hero/README.md`.
+- **The arena speaks the rules.** The "Try to break it" table's signed-rules panel adds the one sentence
+  "Say it" would read into them ("Haggle for a monitor, up to $340, ask me above $250, 6 offers"), generated
+  from the record by `lib/say/sentence.ts` and round-trip tested (`sentence.test.ts`, `Arena.test.tsx`). The
+  reader also fills in a day's limit that the signed rules do not have (marked as filled in).
+- **Wall clock.** e5's two clock-bound tests are pinned to a Wednesday 10:00 (`sayit.test.tsx`, the whole
+  "Say it on the Charter" block; `rewind.layer.test.tsx`, "says what happens first").

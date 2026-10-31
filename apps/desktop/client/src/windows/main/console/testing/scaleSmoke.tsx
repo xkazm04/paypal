@@ -126,6 +126,7 @@ export const LAYER_ROUTES: Readonly<Record<LayerId, LayerTarget>> = {
   pairing: { level: 'place', place: 'pairing' },
   settings: { level: 'place', place: 'settings' },
   safety: { level: 'place', place: 'safety' },
+  try: { level: 'place', place: 'try' },
 };
 
 /** LAYER_ROUTES as [layer id, target] rows, for `it.each`. */
@@ -134,13 +135,15 @@ export const layerRoutes = (): Array<[LayerId, LayerTarget]> => Object.entries(L
 /** The error capture of the last run, until the next run starts. */
 let releaseErrors: (() => void) | null = null;
 
-/** Renders the main window at `route` (or a raw hash) on the `scale` world (null: Maya's own preview wallet, the fixtures) and waits for its layer. */
-export async function renderLayerAtScale(route: LayerTarget, scale: Scale | null, o: { timeout?: number } = {}): Promise<LayerRun> {
+/** Renders the main window at `route` (or a raw hash) on the `scale` world (null: Maya's own preview wallet, the fixtures) and waits for its layer.
+ *  `o.search`: more of the page's address (`film_ending=today`), after the scale. */
+export async function renderLayerAtScale(route: LayerTarget, scale: Scale | null, o: { timeout?: number; search?: string } = {}): Promise<LayerRun> {
   sizeElements();
   cleanup();
   localStorage.clear();
   sessionStorage.clear();
-  const q = scale ? `?scale=${scale}` : '';
+  const params = [scale ? `scale=${scale}` : '', o.search ?? ''].filter(Boolean).join('&');
+  const q = params ? `?${params}` : '';
   history.replaceState(null, '', `/index.html${q}`);
   resetMockState();
   const real = mockBackend('main');

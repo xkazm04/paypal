@@ -4,6 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SafetyRecord } from '@bindings/SafetyRecord';
 import { mockBackend, resetMockState } from '../../../mock/backend';
+import { RECORDED } from '../../../mock/haggle';
 import { isMoneyCall } from '../logic';
 import { authorityParts, FAMILY_WORDS, safetyWords, scopeWords, VIOLATION_WORDS } from './model';
 
@@ -122,9 +123,19 @@ describe('the mock’s safety record', () => {
     expect(m.safe_default).toBe(money.filter((s) => s.authority.type === 'safe_default').length);
     expect(m.safe_default_voids).toBe(m.safe_default);
     expect(m.shop_rules).toBe(money.filter((s) => s.authority.type === 'seller_mandate').length);
-    // The GPU request, two pushes past the most you'll pay, two reaches for a tool agents never have.
-    expect(r.refusals).toBe(5);
-    expect(r.refusal_families).toEqual([{ family: 'your_rules', count: 3 }, { family: 'not_allowed', count: 2 }]);
+    // Every refusal the week's history holds, counted from that history (the query), never a typed
+    // figure: a refused agent request, or a deal the wallet refused under a signed rule. A refusal
+    // under a numbered rule she signed is one of "your rules"; the rest were never allowed at all.
+    const refused = steps.filter((s) => s.kind === 'intent_refused' || (s.kind === 'refused' && s.authority.type === 'signed_rule'));
+    const yours = refused.filter((s) => s.authority.type === 'signed_rule' && (s.kind === 'refused' || s.authority.clause != null));
+    expect(refused.length).toBeGreaterThan(0);
+    expect(r.refusals).toBe(refused.length);
+    expect(r.refusal_families).toEqual([{ family: 'your_rules', count: yours.length }, { family: 'not_allowed', count: refused.length - yours.length }].filter((f) => f.count > 0));
+    // Among them, the recorded tables' yeses over the ask-me line (mock/haggle.json: the house's D-0205
+    // and Dan's D-0193), counted from the recording.
+    const recorded = [RECORDED.house, RECORDED.dan].flatMap((t) => t.steps).filter((s) => s.act === 'refused').length;
+    expect(recorded).toBeGreaterThan(0);
+    expect(yours.filter((s) => s.authority.type === 'signed_rule' && s.authority.clause === 6).length).toBeGreaterThanOrEqual(recorded);
     expect(r.refused_deals).toBe(deals.filter((d) => d.state === 'REFUSED').length);
     expect(r.refused_deal_calls).toBe(0);
     // Every refused step has no PayPal call.

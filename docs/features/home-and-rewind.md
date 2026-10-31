@@ -220,3 +220,16 @@ IPC commands (from `authority_table.rs`):
 - [Preview and director](./preview-and-director.md) - the sample week the Rewind shows in a browser.
 - Design: [`../design/the-table.html`](../design/the-table.html) §10 (surfaces), [`../design/window-duality.md`](../design/window-duality.md);
   build log: [`../build/STATUS.md`](../build/STATUS.md) (T4, T6, "While you were away").
+
+## The Rewind runs past now (Say it, then see it)
+
+In the current week the Rewind's track no longer stops at "now": a gold **Now** line divides the week as it
+happened (solid ticks, who decided) from the next 72 hours, drawn as dashed ticks, one per line of the
+walk-away forecast (`AttentionSnapshot.forecast`, the same lines the Tumbler summarises; the timeline never
+merges, drops or invents one). The headline over it is the Tumbler's own `walkAway()` in words ("If you walk
+away: $0 leaves. 2 holds end on their own."); an unreadable forecast is dashed, never zero. The playhead may go
+to 72 hours past now, play stops on Now for a beat, the arrow keys go event by event (Shift a day, Alt an hour,
+N back to Now), a released drag snaps to an event, and a **Next 72 h** scale zooms in. A past week ends where
+it always did. With a sentence said in the Say it panel, the same hours also show where the new rules end and
+how far an agent could go alone, and each table open for the item the sentence names against the owner's own
+numbers. See [Say it, then see it](say-it.md).

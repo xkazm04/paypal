@@ -24,6 +24,8 @@ pub mod reauth;
 mod relay;
 mod rescue;
 mod safety;
+#[cfg(feature = "sandbox")]
+mod sandbox;
 mod scheduler;
 mod service;
 mod simulate;

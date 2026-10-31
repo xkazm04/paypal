@@ -1440,5 +1440,6 @@ async fn a_looping_session_is_budgeted_and_its_refusals_stop_growing_the_audit_l
     let rows = audits() - before;
     assert!(rows <= CALL_BUDGET as u64 + 1, "{rows} audit rows");
     assert!(last.to_string().contains("budget"), "{last}");
+    assert_eq!(last["structuredContent"]["code"], "call_budget", "{last}");
     shared.lock().unwrap().ledger.verify_audit().unwrap();
 }

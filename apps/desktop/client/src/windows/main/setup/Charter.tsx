@@ -28,6 +28,7 @@ import { Handoff } from './common';
 import { PairingDesk } from '../console/areas/connections/PairingDesk';
 import { switchDemo } from '../console/DemoSwitch';
 import type { PairMode } from './pairing';
+import { SayIt } from './SayIt';
 import { useStart } from './start';
 import './charter.css';
 
@@ -133,7 +134,8 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
     body = (
       <>
         {notDone ? <div className="ch-wait notdone" role="status"><b>{SETUP_NOT_DONE.title}</b><span>{SETUP_NOT_DONE.text}</span></div> : null}
-        <div className="cs-acts">{open(notDone ? SETUP_WAITING.reopen : copy.act, 'gold')}</div>
+        {/* On the rules line "Say it" below holds the gold action; this one is the way to do it all by hand. */}
+        <div className="cs-acts">{open(notDone ? SETUP_WAITING.reopen : copy.act, step === 'rules' ? 'default' : 'gold')}</div>
       </>
     );
   }
@@ -163,6 +165,7 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
               </div>
               {seal ? <div className="ch-seal">{seal}</div> : null}
             </div>
+            {step === 'rules' && !all ? <SayIt className="ch-sayit" timeline stepGold={!isDone} onOpened={opening} /> : null}
             {step !== 'practice' ? (
               <section className={`ch-preview${isDone ? ' done' : ''}`} aria-label={isDone ? charterReads(numeral) : charterPreview(numeral)}>
                 <h2 className="cs-h3">{isDone ? charterReads(numeral) : charterPreview(numeral)}</h2>

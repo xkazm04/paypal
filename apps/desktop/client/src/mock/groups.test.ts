@@ -28,7 +28,8 @@ describe('mock shop-around groups (parity with the wallet)', () => {
     expect(rest).toEqual([]);
     expect(g!.winner).toBeNull();
     expect(g!.item_ref).toBe('monitor-27-4k');
-    expect(g!.tables.map((t) => [t.deal_id, t.seller_price?.minor, t.our_price?.minor])).toEqual([[DAN, 32900, 32700], [HOUSE, 33400, 31200]]);
+    // the engine's recorded runs (mock/haggle.json): Dan at his last counter, the house three offers in
+    expect(g!.tables.map((t) => [t.deal_id, t.seller_price?.minor, t.our_price?.minor])).toEqual([[DAN, 32900, 32400], [HOUSE, 33200, 31200]]);
     await expect(at('/tumbler.html', 'tumbler').invoke('deal_groups', null)).rejects.toMatchObject({ code: 'PERMISSION' });
     await expect(at(`/approval.html?deal=${DAN}`, 'approval').invoke('deal_group_open', { deal_ids: [DAN, HOUSE] })).rejects.toMatchObject({ code: 'PERMISSION' });
   });

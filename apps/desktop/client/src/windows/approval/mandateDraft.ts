@@ -126,27 +126,51 @@ function firstCurrency(clauses: Clause[]): Currency {
  *  reported it (MandateListEntry.agent), the agent slot it is bound to. */
 export function draftFrom(m: OpenMandate & { agent?: AgentSlot }, now: number): MandateDraft {
   const cur = firstCurrency(m.payload.clauses);
-  const money = (minor: number | undefined) => (minor === undefined ? '' : minorToInput(minor, cur));
   return {
     id: m.payload.id,
     agent: m.agent ?? 'negotiator',
     currency: cur,
     notBefore: toLocalInput(Math.max(now, m.payload.not_before)),
     expires: toLocalInput(m.payload.expires),
-    clauses: m.payload.clauses.map((c): ClauseDraft => {
-      switch (c.type) {
-        case 'roles': return { type: 'roles', roles: [...c.roles] };
-        case 'counterparties': return { type: 'counterparties', rule: c.rule.type, keys: c.rule.type === 'pinned' ? c.rule.keys.join(', ') : '' };
-        case 'per_deal': return { type: 'per_deal', kind: c.kind, max: money(c.max_amount.minor), categories: [...c.categories] };
-        case 'band': return { type: 'band', items: c.item_refs.join(', '), floor: money(c.floor?.minor), ceiling: money(c.ceiling?.minor), rounds: String(c.max_rounds), deadline: toLocalInput(c.deadline) };
-        case 'velocity': return { type: 'velocity', deals: String(c.max_deals_day), total: money(c.max_total_day.minor) };
-        case 'human_present_over': return { type: 'human_present_over', amount: money(c.amount.minor) };
-        case 'payees': return { type: 'payees', payees: c.payees.join(', ') };
-        case 'lever': return { type: 'lever', percent: bpToPercent(c.max_discount_bp), max: money(c.max_discount.minor) };
-        case 'market_watch': return { type: 'market_watch', items: c.items.map((i) => ({ item: i.item_ref, product: i.product_id })), checks: String(c.max_refreshes_day) };
-      }
+    clauses: m.payload.clauses.map((c) => clauseDraft(c, cur)),
+  };
+}
+
+/** A typed rule set carried from The Table (approval_open's `rules` draft: what the owner said in one
+ *  sentence) as a new draft in the editor's own strings. It starts no earlier than the editor opened.
+ *  Nothing in it is signed; the editor checks it like anything the owner types. An end the sentence did
+ *  not settle is absent: the end stays empty (not set), and so does the item band's end that follows it,
+ *  so the editor asks for it and nothing is signable until the owner picks one. */
+export function draftFromRules(seed: { agent: AgentSlot; not_before: number; expires?: number | null; clauses: Clause[] }, now: number): MandateDraft {
+  const cur = firstCurrency(seed.clauses);
+  const ended = seed.expires != null;
+  return {
+    id: null,
+    agent: seed.agent,
+    currency: cur,
+    notBefore: toLocalInput(Math.max(now, seed.not_before)),
+    expires: ended ? toLocalInput(seed.expires as number) : '',
+    clauses: seed.clauses.map((c) => {
+      const d = clauseDraft(c, cur);
+      return d.type === 'band' && !ended ? { ...d, deadline: '' } : d;
     }),
   };
+}
+
+/** One signed or carried clause as the editor's typed strings. */
+function clauseDraft(c: Clause, cur: Currency): ClauseDraft {
+  const money = (minor: number | undefined) => (minor === undefined ? '' : minorToInput(minor, cur));
+  switch (c.type) {
+    case 'roles': return { type: 'roles', roles: [...c.roles] };
+    case 'counterparties': return { type: 'counterparties', rule: c.rule.type, keys: c.rule.type === 'pinned' ? c.rule.keys.join(', ') : '' };
+    case 'per_deal': return { type: 'per_deal', kind: c.kind, max: money(c.max_amount.minor), categories: [...c.categories] };
+    case 'band': return { type: 'band', items: c.item_refs.join(', '), floor: money(c.floor?.minor), ceiling: money(c.ceiling?.minor), rounds: String(c.max_rounds), deadline: toLocalInput(c.deadline) };
+    case 'velocity': return { type: 'velocity', deals: String(c.max_deals_day), total: money(c.max_total_day.minor) };
+    case 'human_present_over': return { type: 'human_present_over', amount: money(c.amount.minor) };
+    case 'payees': return { type: 'payees', payees: c.payees.join(', ') };
+    case 'lever': return { type: 'lever', percent: bpToPercent(c.max_discount_bp), max: money(c.max_discount.minor) };
+    case 'market_watch': return { type: 'market_watch', items: c.items.map((i) => ({ item: i.item_ref, product: i.product_id })), checks: String(c.max_refreshes_day) };
+  }
 }
 
 export const splitList = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);

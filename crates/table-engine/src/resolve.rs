@@ -34,7 +34,7 @@ pub fn resolve_command(id: EngineId, paths: &[PathBuf]) -> Result<Executable, Er
     let (name, script) = match id {
         EngineId::ClaudeCode => ("claude", "node_modules/@anthropic-ai/claude-code/cli.js"),
         EngineId::CodexCli => ("codex", "node_modules/@openai/codex/bin/codex.js"),
-        EngineId::Scripted => return Err(Error::Invalid),
+        EngineId::Scripted | EngineId::Outside => return Err(Error::Invalid),
     };
     for dir in paths {
         let direct = dir.join(if cfg!(windows) {

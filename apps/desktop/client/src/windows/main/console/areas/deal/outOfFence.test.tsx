@@ -18,7 +18,10 @@ async function refusedDeal(w: Backend) {
   for (const d of await w.invoke('list_deals', null)) {
     if (d.paypal.order || d.paypal.authorization || d.paypal.capture || d.paypal.subscription) continue;
     const { steps } = await w.invoke('deal_history', { deal_id: d.id });
-    if (steps.some((s) => s.kind === 'intent_refused')) return { id: d.id, steps };
+    // A refused yes the wallet put in front of the owner (her ask-me rule, clause 6, on an open table such as
+    // Dan's D-0193) rightly shows her own review button: that deal is not one whose refusal ended the step.
+    const handedToOwner = d.state === 'NEGOTIATING' && steps.some((s) => s.kind === 'intent_refused' && s.authority.type === 'signed_rule' && s.authority.clause === 6);
+    if (!handedToOwner && steps.some((s) => s.kind === 'intent_refused')) return { id: d.id, steps };
   }
   throw new Error('the preview wallet has no refused agent step');
 }

@@ -38,4 +38,6 @@ refused it, and a fixed sentence. Nothing moved.
 - `outside_band`, `rounds_exhausted`, `deadline_passed`, `not_your_turn`, `table_closed`,
   `group_closed`, `shield_hold`, `market_unavailable`: these concern bargaining, not you. Stop.
 - `paused`, `run_ended`, `session_not_enabled`: your session is over or paused. Stop.
+- `call_budget`: this turn's tool calls are used up. Stop calling tools and finish with what
+  you have.
 - `unavailable`: the wallet could not answer. Stop.
