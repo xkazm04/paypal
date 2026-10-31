@@ -2964,3 +2964,7 @@ recording, `apps/desktop/client/src/mock/haggle.json` (table-runtime's haggle re
   reader also fills in a day's limit that the signed rules do not have (marked as filled in).
 - **Wall clock.** e5's two clock-bound tests are pinned to a Wednesday 10:00 (`sayit.test.tsx`, the whole
   "Say it on the Charter" block; `rewind.layer.test.tsx`, "says what happens first").
+
+## Delta publication scan (2026-10-31; docs/security/scan-2026-10-31-delta.md)
+
+- **20ad784a..c98151a6** (121 commits, the hackathon fusion and the 10-30 follow-ups), report-only: 0 open publication blockers. L-1 (Low): the sandbox page and banner name the vendor CLIs; L-2 (Info): the desktop's "Try to break it" place probes the sandbox port, which the CSP blocks; L-3 (Info): any local process can drive the sandbox's negotiator, by design. K-1 and K-2 are closed. The 194 gitleaks hits are signed envelopes in the proof samples, whose practice keys derive from public labels or a public seed; no private key is in any file. `cargo deny` ok, `pnpm audit` clean, no new third-party crate.
