@@ -469,6 +469,31 @@ mod tests {
         }
     }
     #[test]
+    fn a_screen_edge_tab_docks_flush_against_that_edge_at_100_125_150_percent() {
+        for scale in [1.0, 1.25, 1.5] {
+            let work = rect(0.0, 0.0, 1920.0 * scale, 1040.0 * scale)
+                .logical(scale)
+                .unwrap();
+            for (x, class, edge) in [
+                (10.0, Snap::ScreenLeft, work.x),
+                (1920.0 - 98.0, Snap::ScreenRight, work.x + work.width),
+            ] {
+                let anchor = rect(x * scale, 300.0 * scale, 88.0 * scale, 88.0 * scale)
+                    .logical(scale)
+                    .unwrap();
+                let snapped = snap(anchor, work, None).unwrap();
+                assert_eq!((snapped.class, snapped.form), (class, Form::Tab));
+                let tab = place(snapped.anchor, work, snapped.form).unwrap().rect;
+                let touching = if class == Snap::ScreenLeft {
+                    tab.x
+                } else {
+                    tab.x + tab.width
+                };
+                assert_eq!(touching, edge, "{class:?} at {scale}: {tab:?}");
+            }
+        }
+    }
+    #[test]
     fn invalid_geometry_never_panics_and_small_work_area_clamps() {
         assert!(rect(0.0, 0.0, 100.0, 100.0).logical(0.0).is_err());
         assert!(
