@@ -2964,3 +2964,28 @@ recording, `apps/desktop/client/src/mock/haggle.json` (table-runtime's haggle re
   reader also fills in a day's limit that the signed rules do not have (marked as filled in).
 - **Wall clock.** e5's two clock-bound tests are pinned to a Wednesday 10:00 (`sayit.test.tsx`, the whole
   "Say it on the Charter" block; `rewind.layer.test.tsx`, "says what happens first").
+
+## The film capturable (spark follow-up fu1, 2026-10-31, branch fix/film-capturable)
+
+- **Maya's `end-proof` beat** failed on main and before the fusion ("The Table should show 'decided by
+  the deadline'"). Root cause: 3519c8d3 (2026-10-22, parity lens) gave each authority one word
+  (`AUTHORITY_WORD` in `windows/main/logic.ts`), so the deal page's answer line for a deadline's safe
+  default reads "decided by the safe default"; the beat's EXPECT kept the retired words. Not the clock:
+  the dock is `AUTO_VOIDED` with `decided_by: safe_default` at that beat on any day (the beat's other
+  checks passed). The EXPECT now reads the words from `decidedBy` (`DECIDED_BY_DEADLINE`, `takes.ts`), adds
+  "decided by you" as absent, and `story.test.ts` ties the world's dock to the page's answer line.
+- **Live mode is quiet where it cannot apply** (`src/arena/live.ts`, `liveReach.ts`): no probe in the
+  desktop app or under the director (framed, `?take=`, `frame=director`, `auto=1`: `underDirector` in
+  `lib/preview.ts`); on a plain page one probe on mount, then on focus or "Connect my agent app" (a new
+  control in the arena's side column), every 10 s only while the sandbox answers. `live.ts`'s exports are
+  unchanged.
+- **Try to break it** (`director.html?story=try`, `tryStory.ts`): 5 beats, 35 s; `{ do: 'arena' }` stages
+  recorded attacks (`src/arena/stage.ts`); the no-pay rule exempts only recorded attack cards inside
+  `.arena` (`isArenaAttackCard`). The hero film is unchanged; the splice is in `film/hero/README.md`.
+- **The arena's safety record says whose it is**: "Maya's safety record (sample week)" only on sample data
+  (the browser, a desktop demo), "Your safety record" in the desktop app's live wallet (`Side.tsx`
+  `sampleRecord`, `arenaSafetyWords`).
+- **`useNow` gives a stable snapshot** (`lib/hooks.ts`): with no countdown subscribed, a read of the
+  clock is held until the task ends (or the last countdown leaves), so React's repeated getSnapshot
+  calls in one render agree even across a second boundary. This was the "getSnapshot should be
+  cached" console error that failed a `takes --check` beat at random (`hooks.test.tsx`).

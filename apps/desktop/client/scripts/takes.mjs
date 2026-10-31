@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Repeatable takes of the director (director.html): stills of every beat, a video of the whole story
 // or one chapter, and a rehearsal check that fails loudly on a broken beat. It plays "Maya's week"
-// unless --story names another (--story first-run: the onboarding on a brand-new wallet).
+// unless --story names another: first-run (the onboarding on a brand-new wallet), watch (Watch the
+// haggle), say (Say it, then see it) or try (Try to break it: Break The Table in the console).
 //
 // BROWSER PREVIEW ONLY: it drives the director on the browser mock. It never clicks inside a
 // framed window (the director has no approve or pay action, and neither does this script), never
@@ -77,8 +78,9 @@ const USAGE = `takes: stills, video and a rehearsal check of the director (brows
   --theme dark|light|both theme of The Table and the stage for --stills (default dark)
   --video <file.webm>     the whole story at 1920x1080 in real time (cue sheet: <file>.cues.json)
   --chapter <n|id>        with --video: one chapter (2 = the haggle, as the caption rail counts)
-  --story <id>            the story to play (default: Maya's week); first-run is the onboarding on
-                          a brand-new wallet
+  --story <id>            the story to play (default: Maya's week, maya): first-run is the
+                          onboarding on a brand-new wallet, watch is Watch the haggle, say is Say
+                          it, then see it, try is Try to break it (Break The Table's attacks)
   --film-ending today|say Maya's film ending (default: the story's own, today): today ends on the
                           Rewind as it always did, say shows Say it and the timeline past now
   --url <base>            a running dev or preview server (default: start vite on --port)
