@@ -891,10 +891,10 @@ async fn approval_open_targets_and_drafts_are_checked_prefill_only_and_never_sig
         (Some(ApprovalTarget::Mandate), None, Some(floor))
     );
     // A whole set of rules said in one sentence: kept for the editor, never signed, shape-checked only.
-    let rules = |agent, not_before, expires, clauses: Vec<Clause>| ApprovalDraft::Rules {
+    let rules = |agent, not_before, expires: i64, clauses: Vec<Clause>| ApprovalDraft::Rules {
         agent,
         not_before,
-        expires,
+        expires: Some(expires),
         clauses,
         focus: None,
     };
@@ -917,6 +917,36 @@ async fn approval_open_targets_and_drafts_are_checked_prefill_only_and_never_sig
     assert_eq!(
         (h.target, h.deal_id, h.draft),
         (Some(ApprovalTarget::Mandate), None, Some(sentence.clone()))
+    );
+    // An end the sentence did not settle is absent, never guessed: the owner sets it in the
+    // editor, and the draft is kept as it came (no end filled in on the way).
+    let unended = match sentence.clone() {
+        ApprovalDraft::Rules {
+            agent,
+            not_before,
+            clauses,
+            focus,
+            ..
+        } => ApprovalDraft::Rules {
+            agent,
+            not_before,
+            expires: None,
+            clauses,
+            focus,
+        },
+        other => other,
+    };
+    actor
+        .execute::<()>(
+            caller("main", None),
+            open(None, Some(ApprovalTarget::Mandate), Some(unended.clone())),
+        )
+        .await
+        .unwrap();
+    let h = handoff().await.unwrap();
+    assert_eq!(
+        (h.target, h.deal_id, h.draft),
+        (Some(ApprovalTarget::Mandate), None, Some(unended))
     );
     // Only the mandate page can carry it, never a deal, and never a malformed list.
     let twice = [said.clone(), said.clone()].concat();
@@ -993,7 +1023,7 @@ async fn approval_open_targets_and_drafts_are_checked_prefill_only_and_never_sig
         let focused = ApprovalDraft::Rules {
             agent: AgentSlot::Negotiator,
             not_before: 1_000,
-            expires: 2_000,
+            expires: Some(2_000),
             clauses: said.clone(),
             focus,
         };

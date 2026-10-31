@@ -2942,3 +2942,25 @@ recording, `apps/desktop/client/src/mock/haggle.json` (table-runtime's haggle re
 - **Films**: `filmPrices.test.ts` now checks per beat: a figure only on a beat whose table (cut where the
   director has rewound it) shows it, or its signed limits. The mismatch beats' D-0199 is still a typed
   sample deal, not a recording.
+
+## Say it, then see it, in the film and the arena (spark fusion-killer-1030, WP4, 2026-10-31)
+
+- **An unsure end stays unset.** `ApprovalDraft::Rules.expires` is now optional (`Option<i64>`, the key omitted
+  when absent; bindings `expires?: number`). Absent means "the owner sets it in the editor": `rulesOf` no longer
+  sends now + 7 days when the reader asked about the end, the item band's end follows it (`UNSET_DEADLINE`, 0),
+  and the editor shows the end as "not set yet", says "Choose when the rules end" and holds Review & sign.
+  Rust's shape check needs a start before the end only when an end is carried (`configuration.rs`; tests in
+  `table-client/src/lib.rs` and `table-runtime/src/client_tests.rs`). No authority row changed: the
+  permissions fingerprint (`PINNED_MANIFEST`) did not move.
+- **The film switch.** Maya's story has `filmEnding: 'today' | 'say'` (default `today`; `?film_ending=` on the
+  director wins; `--film-ending` on `takes.mjs` and `film-capture.mjs`). Under `today` the main frame carries
+  `?film_ending=today` and its Rewind leaves out the Say it box and the forecast past now (the playhead stops at
+  now, as before e5); under `say` both show and the `end-rewind` caption closes on "If you walk away: $0 leaves."
+  The app itself (no such address; never in the desktop shell) always shows both. How to switch:
+  `film/hero/README.md`.
+- **The arena speaks the rules.** The "Try to break it" table's signed-rules panel adds the one sentence
+  "Say it" would read into them ("Haggle for a monitor, up to $340, ask me above $250, 6 offers"), generated
+  from the record by `lib/say/sentence.ts` and round-trip tested (`sentence.test.ts`, `Arena.test.tsx`). The
+  reader also fills in a day's limit that the signed rules do not have (marked as filled in).
+- **Wall clock.** e5's two clock-bound tests are pinned to a Wednesday 10:00 (`sayit.test.tsx`, the whole
+  "Say it on the Charter" block; `rewind.layer.test.tsx`, "says what happens first").

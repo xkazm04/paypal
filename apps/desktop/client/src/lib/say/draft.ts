@@ -12,7 +12,6 @@ import type { Currency } from '@bindings/Currency';
 import { SAY_CHIP, SAY_SAYS } from '../words';
 import { currencyText, whenWords, type Facts, type Question, type Reading, type SayCtx, type Slot } from './read';
 
-const DAY = 86_400;
 
 export type ChipState = 'said' | 'filled' | 'open' | 'unsure';
 /** How a chip is edited in place: an amount, a whole number, words, an end (a day and an hour), or a choice of who. */
@@ -139,7 +138,9 @@ export function amountText(minor: number, currency: Currency): string {
 
 // ---- the typed rules ---------------------------------------------------------------------------------
 
-export type RulesDraft = { agent: AgentSlot; not_before: number; expires: number; clauses: Clause[]; /** The rule (1 to 9) the editor scrolls to. */ focus?: number };
+/** `expires` is absent when the sentence did not settle the end (the reader asked and has no answer yet): the
+ *  editor shows the end as not set and asks for it, so no end is ever guessed onto the draft. */
+export type RulesDraft = { agent: AgentSlot; not_before: number; expires?: number; clauses: Clause[]; /** The rule (1 to 9) the editor scrolls to. */ focus?: number };
 
 /** The item as the editor and the wallet name it: lower-case words joined by dashes (Rust's ItemRef charset). */
 export function itemRef(item: string): string {
@@ -163,13 +164,19 @@ export function blockedBy(r: Reading): 'currency' | 'negation' | null {
   return r.leftover.some((w) => NEGATION.test(w)) ? 'negation' : null;
 }
 
+/** The item band's end in a draft whose end is not set: a band clause needs a number, so it carries 0, which
+ *  no one could pick (it is long past), and the editor shows it as not set next to the rules' own end. */
+export const UNSET_DEADLINE = 0;
+
 export function rulesOf(r: Reading, ctx: SayCtx, focus?: number): RulesDraft | null {
   const f = r.facts;
   if (f.job !== 'buy' || r.selling || blockedBy(r)) return null;
   const cur = f.currency;
   const money = (minor: number) => ({ minor, currency: cur });
   const haggle = f.item !== null;
-  const expires = f.ends ?? ctx.now + 7 * DAY;
+  // An end said, or safely filled in (none said: a week), is carried; an end it is not sure of is left
+  // unset, and so is the item band's own end, which follows it (the editor shows both as not set).
+  const expires = f.ends ?? undefined;
   const clauses: Clause[] = [
     { type: 'roles', roles: ['buy'] },
     { type: 'counterparties', rule: { type: f.who } },
@@ -178,12 +185,12 @@ export function rulesOf(r: Reading, ctx: SayCtx, focus?: number): RulesDraft | n
   if (haggle) {
     // An item the owner has not yet picked between (r.unsure) is left out: the editor shows it missing.
     const refs = r.unsure.has('item') ? [] : [f.itemRef ?? itemRef(f.item ?? '')].filter(Boolean);
-    clauses.push({ type: 'band', item_refs: refs, floor: null, ceiling: f.ceiling === null ? null : money(f.ceiling), max_rounds: f.offers ?? 6, deadline: expires });
+    clauses.push({ type: 'band', item_refs: refs, floor: null, ceiling: f.ceiling === null ? null : money(f.ceiling), max_rounds: f.offers ?? 6, deadline: expires ?? UNSET_DEADLINE });
   }
   if (f.dayTotal !== null) clauses.push({ type: 'velocity', max_deals_day: f.dayDeals ?? 2, max_total_day: money(f.dayTotal) });
   clauses.push({ type: 'human_present_over', amount: money(f.ask ?? 0) });
   clauses.push({ type: 'payees', payees: [...payeesFor(f, ctx)] });
-  return { agent: 'negotiator', not_before: ctx.now, expires, clauses, ...(focus ? { focus } : {}) };
+  return { agent: 'negotiator', not_before: ctx.now, ...(expires === undefined ? {} : { expires }), clauses, ...(focus ? { focus } : {}) };
 }
 
 // ---- what the rules reach -----------------------------------------------------------------------------

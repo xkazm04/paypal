@@ -22,8 +22,9 @@ export type Timeline = { r: RewindState; labelOf: Labeller; ahead: Ahead };
 /** The sentence whose consequences already glided in, so coming back to a page does not play it again. */
 let glided: string | null = null;
 
-/** `sentence`: the words the rules came from; a new one glides the playhead from now to where the rules end, once. */
-export function useTimeline(reach: Reach | null, sentence: string | null = null): Timeline {
+/** `sentence`: the words the rules came from; a new one glides the playhead from now to where the rules end, once.
+ *  `future` false: the week ends at now, with no forecast side (the director's `film_ending=today` only). */
+export function useTimeline(reach: Reach | null, sentence: string | null = null, future = true): Timeline {
   const reduced = usePrefersReducedMotion();
   const now = useNow();
   const att = useAttention();
@@ -32,7 +33,7 @@ export function useTimeline(reach: Reach | null, sentence: string | null = null)
   // Still reading the forecast is not "can't forecast": nothing is drawn and nothing is claimed.
   const ticks = useMemo(() => (forecast === undefined ? [] : futureTicks(forecast, now)), [forecast, now]);
   const stops = useMemo(() => (ticks ?? []).map((t) => t.at), [ticks]);
-  const r = useRewind(true, now, reduced, stops);
+  const r = useRewind(true, now, reduced, stops, future);
   const { glide, seek } = r;
   const live = useRef({ now: r.now, limit: r.limit, ahead: r.ahead });
   live.current = { now: r.now, limit: r.limit, ahead: r.ahead };

@@ -540,7 +540,7 @@ mod proof_file_tests {
             panic!("not the rules variant");
         };
         assert_eq!(agent, AgentSlot::Negotiator);
-        assert!(expires > not_before);
+        assert!(expires.is_some_and(|e| e > not_before));
         assert_eq!(clauses.len(), 7);
         assert_eq!(focus, None);
         let with_focus = sent.replacen(r#""type":"rules""#, r#""type":"rules","focus":4"#, 1);
@@ -554,5 +554,28 @@ mod proof_file_tests {
             1,
         );
         assert!(serde_json::from_str::<ApprovalDraft>(&with_extra).is_err());
+    }
+    /// An end the sentence did not settle is not on the wire: the key is absent (never a guessed
+    /// end), it reads as no end, and it is written back without the key.
+    #[test]
+    fn a_rules_draft_without_an_end_omits_the_key() {
+        let sent = r#"{"type":"rules","agent":"negotiator","not_before":1793358240,"clauses":[
+            {"type":"roles","roles":["buy"]},
+            {"type":"payees","payees":[]}]}"#;
+        let draft: ApprovalDraft = serde_json::from_str(sent).unwrap();
+        assert!(matches!(
+            draft,
+            ApprovalDraft::Rules {
+                expires: None,
+                not_before: 1_793_358_240,
+                ..
+            }
+        ));
+        let back = serde_json::to_value(&draft).unwrap();
+        assert!(back.get("expires").is_none());
+        assert_eq!(
+            serde_json::from_value::<ApprovalDraft>(back).unwrap(),
+            draft
+        );
     }
 }

@@ -30,7 +30,7 @@ import { arenaHaggle, hitsWall } from './corridor';
 import { FinaleCard, HeldCard, Suit, type CardHandlers } from './Deck';
 import { useCardDrag } from './drag';
 import { sendLiveNote, useLive, type LiveState } from './live';
-import { ATTACK_WORDS, cardForKey, counters, deck, verdictOf, wholeDollars } from './model';
+import { ATTACK_WORDS, cardForKey, counters, deck, rulesSentence, verdictOf, wholeDollars } from './model';
 import { attackById, isRefusal, RECORD, type RecordedAttack } from './record';
 import { CheckIt, SafetyPanel, type Played } from './Side';
 import { Gauntlet } from './Gauntlet';
@@ -307,6 +307,8 @@ function Figure({ big, small, tone, bump }: { big: string; small: string; tone: 
  *  the rules Maya signed, every figure read from the record. */
 function TableFacts({ haggle, hits }: { haggle: ReturnType<typeof arenaHaggle>; hits: number }) {
   const r = RECORD.rules;
+  // the same rules as the one sentence "Say it" would read into them (generated, never typed)
+  const said = rulesSentence(r);
   return (
     <section className="ar-table" aria-label={ARENA_TABLE.heading}>
       <div className="ar-table-h">
@@ -324,6 +326,7 @@ function TableFacts({ haggle, hits }: { haggle: ReturnType<typeof arenaHaggle>; 
         <li>{ARENA_TABLE.offers(r.offers)}</li>
         <li>{ARENA_TABLE.payee}</li>
       </ul>
+      {said ? <p className="ar-said" title={ARENA_TABLE.saidTitle}><span>{ARENA_TABLE.said}</span> <q>{said}</q></p> : null}
     </section>
   );
 }

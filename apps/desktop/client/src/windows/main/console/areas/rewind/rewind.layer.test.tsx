@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setClockOffset } from '../../../../../lib/clock';
 import { sayClear } from '../../../../../lib/say/store';
 import { REWIND_AHEAD, REWIND_ANSWER, REWIND_BAR, REWIND_TAPE, REWIND_TRUNCATED, SAY } from '../../../../../lib/words';
+import { frameUrls, storyFor } from '../../../../../director/stories';
 import { expectLayerHealthy, renderLayerAtScale } from '../../testing/scaleSmoke';
 
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
@@ -104,8 +105,13 @@ describe('the Rewind', () => {
     expect(slider.getAttribute('aria-valuetext')).toContain(REWIND_AHEAD.forecastWord);
   }, 60_000);
 
+  // Late in the week the mock week's first timed step has passed and the next one is an untimed tick:
+  // pin a Wednesday 10:00 (local time, Date only) instead of reading the clock.
   it('says what happens first if she does nothing, and counts down to it', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 21, 10, 0));
     const r = await renderLayerAtScale({ level: 'rewind' }, null);
+    await act(async () => { setClockOffset(1); setClockOffset(0); });
     const line = await waitFor(() => { const e = r.layer.querySelector('.rw-nextline'); expect(e).not.toBeNull(); return e as HTMLElement; });
     expect(line.textContent).toContain(REWIND_AHEAD.next);
     expect(line.textContent).toMatch(/nothing is paid|hold .* ends on its own|collected|put on hold/);
@@ -168,5 +174,45 @@ describe('the Rewind', () => {
     expect(r.layer.querySelector('.rw-walk')?.textContent).toContain(REWIND_AHEAD.unknown);
     expect(r.layer.querySelector('.rw-walk')?.textContent).not.toMatch(/\$0/);
     expect(r.layer.querySelector('.rw-walk')?.className).toContain('unknown');
+  }, 60_000);
+});
+
+// The director's film switch: Maya's film ends on the Rewind as it always did (`film_ending=today`, the story's
+// default) or on Say it and the timeline past now (`say`). The main frame's address carries it; the app itself
+// has none, and always shows both.
+describe('the film ending', () => {
+  /** The main frame's address for a director page, as the director builds it, opened on the Rewind. */
+  const frameSearch = (directorSearch: string) => new URL(frameUrls(storyFor(directorSearch)).main('#r=rewind'), 'http://preview/').search.slice(1);
+  const drawn = async (search: string) => {
+    const r = await renderLayerAtScale({ level: 'rewind' }, null, { search });
+    await waitFor(() => expect(r.layer.querySelector('.rw-bar')).not.toBeNull());
+    return r.layer;
+  };
+
+  it('Maya’s story with film_ending=today renders the Rewind without the Say box or the forecast past now', async () => {
+    expect(storyFor('').filmEnding).toBe('today');
+    for (const q of ['', '?story=maya', '?film_ending=today']) expect(frameSearch(q), q).toBe('film_ending=today');
+    const layer = await drawn(frameSearch(''));
+    // the week's figures are there, the Say box is not
+    await waitFor(() => expect(layer.querySelector('[data-layer-title]')?.textContent).not.toBe(REWIND_ANSWER.reading));
+    expect(layer.querySelector('.say')).toBeNull();
+    expect(layer.textContent).not.toContain(SAY.titleShort);
+    // no gold now line, no forecast ticks, no walk-away line, and the playhead stops at now
+    expect(layer.querySelector('.rw-now')).toBeNull();
+    expect(layer.querySelectorAll('.rw-tick.fut')).toHaveLength(0);
+    expect(layer.querySelector('.rw-walk')).toBeNull();
+    const slider = within(layer).getByRole('slider', { name: REWIND_BAR.playhead });
+    expect(Number(slider.getAttribute('aria-valuemax'))).toBeLessThanOrEqual(Math.floor(Date.now() / 1000) + 2);
+  }, 60_000);
+
+  it('under film_ending=say, and in the app itself, the Say box and the timeline past now show', async () => {
+    expect(frameSearch('?film_ending=say')).toBe('film_ending=say');
+    for (const search of [frameSearch('?film_ending=say'), '']) {
+      const layer = await drawn(search);
+      await waitFor(() => expect(layer.querySelector('.rw-now')).not.toBeNull());
+      expect(layer.querySelector('.say')).not.toBeNull();
+      expect(layer.querySelector('.rw-walk')?.textContent).toMatch(/^If you walk away: \$0 leaves\./);
+      cleanup();
+    }
   }, 60_000);
 });

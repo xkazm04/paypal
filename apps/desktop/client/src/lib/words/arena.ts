@@ -36,6 +36,8 @@ export const ARENA_TABLE = {
   inPerson: (over: string): string => `Over ${over}, she decides in person`,
   offers: (n: number): string => `${n} offers`,
   payee: 'Pays only the seller she paired with',
+  said: 'Said in one sentence',
+  saidTitle: 'Say it reads this sentence back as exactly these rules',
   drop: 'Drop a card here',
   dropSub: 'or pick one and press Enter',
   landing: 'Playing it against the wallet…',

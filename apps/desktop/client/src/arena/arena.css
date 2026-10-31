@@ -96,6 +96,9 @@
 .ar-steps li.turn { align-content: center; color: var(--gold-l); background: color-mix(in srgb, var(--gold) 12%, transparent); }
 .ar-steps li.turn span { color: inherit; font-size: var(--fs-small); }
 .ar-signed { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; grid-column: 1 / -1; }
+.ar-said { grid-column: 1 / -1; margin: 2px 0 0; font-size: var(--fs-small); color: var(--text); }
+.ar-said span { color: var(--muted); margin-right: 4px; }
+.ar-said q { color: var(--teal-l); }
 .ar-signed li { padding: 3px 9px; border-radius: var(--r-pill); font-size: var(--fs-small); color: var(--teal-l); background: color-mix(in srgb, var(--teal) 12%, transparent); }
 
 /* ---- the drop zone and the answer --------------------------------------------------------- */

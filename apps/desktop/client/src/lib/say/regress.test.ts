@@ -1,7 +1,7 @@
 // Found by an independent red-team of the reader (about 1,100 sentences): each case here was a confident wrong value, a
 // wrong day, or a "not" that was waved through. Every one now reads right, asks, or is shown as not read.
 import { describe, expect, it } from 'vitest';
-import { blockedBy, rulesOf } from './draft';
+import { blockedBy, rulesOf, UNSET_DEADLINE } from './draft';
 import { read, type Answers, type SayCtx } from './read';
 
 const at = (y: number, mo: number, d: number, h = 0, mi = 0): number => Date.UTC(y, mo - 1, d, h, mi) / 1000;
@@ -193,5 +193,33 @@ describe('answers that were not offered change nothing', () => {
   });
   it('an unlisted currency answer', () => {
     expect(say('Haggle for a monitor up to $300', { currency: 'ZZZ' }).facts.currency).toBe('USD');
+  });
+});
+
+// An end it is not sure of reaches the draft as missing, never as a guessed week: the editor shows the end as not set
+// and asks for it. An end that was said, or not said at all (a week, filled in and marked), is carried.
+describe('an unsure end stays unset', () => {
+  const FRI_EVE = at(2026, 10, 30, 17, 40);
+  it('"until friday" on a Friday evening asks, and the draft carries no end', () => {
+    const r = say(`${H}until friday`, {}, ctx(FRI_EVE));
+    expect(r.unsure.has('ends')).toBe(true);
+    const d = rules(`${H}until friday`, {}, ctx(FRI_EVE));
+    expect(d).not.toBeNull();
+    expect(d && 'expires' in d).toBe(false);
+    expect(d?.clauses.find((c) => c.type === 'band')).toMatchObject({ deadline: UNSET_DEADLINE });
+  });
+  it('an end it could not read at all is unset too', () => {
+    const d = rules(`${H}until the cows come home`);
+    expect(d && 'expires' in d).toBe(false);
+  });
+  it('the answer settles it, and the end is carried exactly', () => {
+    const end = at(2026, 10, 30, 18);
+    const d = rules(`${H}until friday`, { 'ends-day': String(end) }, ctx(FRI_EVE));
+    expect(d?.expires).toBe(end);
+    expect(d?.clauses.find((c) => c.type === 'band')).toMatchObject({ deadline: end });
+  });
+  it('an end not said is the week it fills in, carried as before', () => {
+    const d = rules('Haggle for a monitor up to $340');
+    expect(d?.expires).toBe(WED + 7 * 86_400);
   });
 });

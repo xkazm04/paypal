@@ -42,6 +42,26 @@ export function scalePreview(search: string = previewSearch()): ScaleName | null
   }
 }
 
+// `?film_ending=today|say` is the director's film switch (director/stories.ts): Maya's film ends on the
+// Rewind as it always did (`today`: no Say it panel, no forecast past now), or on Say it and the timeline
+// past now (`say`). The director puts it on the main frame's address; a page without it, and the desktop
+// app always, shows the Say it panel and the timeline. It changes what is drawn, never what is read or sent.
+
+export const FILM_ENDING_PARAM = 'film_ending';
+export type FilmEnding = 'today' | 'say';
+export const FILM_ENDINGS: readonly FilmEnding[] = ['today', 'say'];
+
+/** The film ending this page was framed for (`?film_ending=`), or null: the app as it is. */
+export function filmEndingPreview(search: string = previewSearch()): FilmEnding | null {
+  if (inDesktopApp()) return null;
+  try {
+    const v = new URLSearchParams(search).get(FILM_ENDING_PARAM);
+    return v === 'today' || v === 'say' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The storage key and broadcast channel of the world a page belongs to. */
 export function worldKeys(store: string, channel: string, firstRun: boolean, scale: ScaleName | null = null): { store: string; channel: string } {
   if (firstRun) return { store: `${store}:first-run`, channel: `${channel}:first-run` };

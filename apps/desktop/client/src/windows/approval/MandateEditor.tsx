@@ -21,7 +21,7 @@ import type { OpenMandate } from '@bindings/OpenMandate';
 import type { WalletError } from '../../lib/contract';
 import { shortHash, shortId } from '../../lib/format';
 import { useNow, useQuery } from '../../lib/hooks';
-import { kindWord, rulesName, timeLeftWords } from '../../lib/words';
+import { kindWord, rulesName, SAY_EDITOR, timeLeftWords } from '../../lib/words';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Hourglass, Kv, Popover, Seg, Spacer, type IconName } from '../../shared/ui';
 import { bpToPercent, buildMandate, CLAUSE_NUMBER, draftFrom, draftFromRules, fromLocalInput, newDraft, percentDiffers, previewClauses, refusalWords, ruleProblems, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from './mandateDraft';
@@ -265,7 +265,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
     : !base
       ? {
           tone: 'need', icon: 'rules', title: 'New rules: nothing is signed yet, so your agents can’t do anything.',
-          sub: spoken && !drafts[key] ? 'Filled in from what you said. Check each limit, change anything, then review and sign.'
+          sub: spoken && !drafts[key] ? (seedRules?.expires == null ? SAY_EDITOR.subNoEnd : SAY_EDITOR.sub)
             : seeded && !drafts[key] ? `The lowest price for ${seedFloor?.item_ref} is filled in from The Table; check it before you sign.`
             : firstRules && tpl ? `Starting from “${TEMPLATES.find((t) => t.key === tpl)?.name}”. Check each limit, then review and sign.`
               : firstRules ? 'Start from ready-made rules below, or fill in the limits yourself. Then review and sign.' : 'Fill in the limits, then review and sign.',

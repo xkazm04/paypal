@@ -9,7 +9,10 @@ import { setHarnessBackend } from '../windows/main/console/testing/runtime';
 import { BreakTheTable } from './BreakTheTable';
 import { DAN_LABEL } from '../mock/haggle';
 import { ARENA_FINALE, ARENA_LIVE, ARENA_PROOF, ARENA_VERDICT } from '../lib/words/arena';
-import { ATTACK_WORDS } from './model';
+import type { Clause } from '@bindings/Clause';
+import { rulesOf } from '../lib/say/draft';
+import { read } from '../lib/say/read';
+import { ATTACK_WORDS, minorOf, rulesSentence } from './model';
 import { proofFile } from './proof';
 import { RECORD } from './record';
 
@@ -35,6 +38,28 @@ describe('Break The Table', () => {
     expect(counter().getByText('times PayPal was asked')).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /./ }).filter((b) => b.classList.contains('ar-card'))).toHaveLength(RECORD.attacks.length + 1);
     expect(screen.getByText(/Start here/)).toBeTruthy();
+  });
+
+  // The rules panel says Maya's signed rules as the one sentence "Say it" would read into them: generated from the
+  // record (never typed), and reading it back gives the rules the panel lists.
+  it('says the signed rules as one sentence that reads back as the same rules', () => {
+    mountArena();
+    const said = document.querySelector('.ar-table .ar-said q')?.textContent ?? '';
+    expect(said).toBe(rulesSentence());
+    expect(said).toBe('Haggle for a monitor, up to $340, ask me above $250, 6 offers');
+    const ctx = { now: 1_793_000_000, offsetMin: 0, payees: [RECORD.rules.payee] };
+    const reading = read(said, ctx, {});
+    expect(reading.questions).toEqual([]);
+    expect(reading.leftover).toEqual([]);
+    const r = RECORD.rules;
+    const clause = <T extends Clause['type']>(t: T) => rulesOf(reading, ctx)?.clauses.find((c): c is Extract<Clause, { type: T }> => c.type === t);
+    expect(reading.facts.item).toBe(r.item);
+    expect(clause('band')).toMatchObject({ item_refs: [r.item], floor: r.least, ceiling: { minor: minorOf(r.most), currency: 'USD' }, max_rounds: r.offers });
+    expect(clause('per_deal')).toMatchObject({ kind: 'haggle', max_amount: { minor: minorOf(r.per_deal), currency: 'USD' } });
+    expect(clause('human_present_over')).toMatchObject({ amount: { minor: minorOf(r.in_person_over), currency: 'USD' } });
+    // "Pays only the seller she paired with"
+    expect(clause('counterparties')).toEqual({ type: 'counterparties', rule: { type: 'paired' } });
+    expect(clause('payees')).toEqual({ type: 'payees', payees: [r.payee] });
   });
 
   it('plays a card on its key into the recorded refusal, the row it wrote and the counters', async () => {

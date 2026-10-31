@@ -74,6 +74,26 @@ export const SAY = {
   ],
 } as const;
 
+/** Signed rules said back as the one sentence the reader turns into exactly those rules (lib/say/sentence.ts).
+ *  These are the reader's own words: a change here must keep the round trip in sentence.test.ts green. */
+export const SAY_SENTENCE = {
+  haggle: (item: string): string => `Haggle for ${/^[aeiou]/i.test(item) ? 'an' : 'a'} ${item}`,
+  upTo: (most: string): string => `up to ${most}`,
+  askAbove: (over: string): string => `ask me above ${over}`,
+  askAlways: 'ask me before paying',
+  offers: (n: number): string => (n === 1 ? '1 offer' : `${n} offers`),
+  house: 'from the house seller',
+} as const;
+
+/** The approval window's rules editor, opened on rules said in one sentence. */
+export const SAY_EDITOR = {
+  sub: 'Filled in from what you said. Check each limit, change anything, then review and sign.',
+  /** The sentence did not settle when the rules end: the end is not set, and the editor asks for it. */
+  subNoEnd: 'Filled in from what you said. Choose when the rules end, check each limit, then review and sign.',
+  /** The end of the rules (or of an item's price range), while nobody has set it. */
+  endUnset: 'not set yet',
+} as const;
+
 /** The chips: a label (the rule in the owner's words) and the one sentence of what it allows. */
 export const SAY_CHIP = {
   job: 'Job',

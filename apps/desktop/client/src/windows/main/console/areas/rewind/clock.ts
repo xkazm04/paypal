@@ -52,12 +52,14 @@ export type RewindState = {
   shiftWeek: (d: 1 | -1) => void;
 };
 
-/** `stops`: the moments of the forecast's steps, so reduced-motion play and the keys can stop on them too. */
-export function useRewind(on: boolean, now: number, reduced: boolean, stops: readonly number[] = []): RewindState {
+/** `stops`: the moments of the forecast's steps, so reduced-motion play and the keys can stop on them too.
+ *  `future` false: the current week ends at now, as before the forecast (no now line, no 72 hours ahead); the
+ *  director's film switch (`film_ending=today`) only, the app always runs on past now. */
+export function useRewind(on: boolean, now: number, reduced: boolean, stops: readonly number[] = [], future = true): RewindState {
   const [weekBack, setWeekBack] = useState(0);
   const { start, end } = weekBounds(now - weekBack * WEEK);
-  const ahead = weekBack === 0;
-  const limit = ahead ? now + HORIZON_SECS : end;
+  const ahead = future && weekBack === 0;
+  const limit = ahead ? now + HORIZON_SECS : Math.min(now, end);
   const stop = Math.max(end, limit);
   const live0 = Math.min(now, end);
   const q = useQuery('deal_history', { deal_id: null, from: start, to: end }, { enabled: on, refreshOn: ['deal:changed'] });

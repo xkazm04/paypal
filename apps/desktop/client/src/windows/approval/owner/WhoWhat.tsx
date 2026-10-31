@@ -5,7 +5,7 @@ import type { AgentSlot } from '@bindings/AgentSlot';
 import type { Currency } from '@bindings/Currency';
 import type { DealKind } from '@bindings/DealKind';
 import { MAX_MARKET_CHECKS_DAY, MAX_WATCHED_ITEMS } from '../../../lib/marketWatch';
-import { checksADay, houseWords, kindWord } from '../../../lib/words';
+import { checksADay, houseWords, kindWord, SAY_EDITOR } from '../../../lib/words';
 import { Btn, Popover } from '../../../shared/ui';
 import { CATEGORIES, CLAUSE_KINDS, CLAUSE_NUMBER, emptyClause, KINDS, missingKinds, ROLES, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from '../mandateDraft';
 
@@ -88,7 +88,7 @@ export function WhoWhat({ d, setD, now, changed, baseAgent }: { d: MandateDraft;
       </div>
       <div className="ui-group">
         <WRow n="·" label="For which agent" value={d.agent} changed={changed('slot')} onOpen={toggle('slot')} />
-        <WRow n="·" label="In force · currency" value={`${d.notBefore.replace('T', ' ')} → ${d.expires.replace('T', ' ')} · ${d.currency}`} changed={changed('valid')} onOpen={toggle('valid')} />
+        <WRow n="·" label="In force · currency" value={`${d.notBefore.replace('T', ' ')} → ${d.expires ? d.expires.replace('T', ' ') : SAY_EDITOR.endUnset} · ${d.currency}`} changed={changed('valid')} onOpen={toggle('valid')} />
         {d.clauses.map((x, i) =>
           LABEL[x.type] ? <WRow key={`${x.type}-${i}`} n={CLAUSE_NUMBER[x.type]} label={LABEL[x.type]!} value={summary(x)} changed={changed(x.type)} onOpen={toggle(`c${i}`)} /> : null,
         )}

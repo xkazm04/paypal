@@ -66,7 +66,11 @@ pub enum ApprovalDraft {
     Rules {
         agent: crate::AgentSlot,
         not_before: i64,
-        expires: i64,
+        /// When the rules end. Absent: the sentence did not settle it (the reader asked and had no
+        /// answer), and the owner sets it in the editor; the draft never carries an end nobody said.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        expires: Option<i64>,
         clauses: Vec<table_core::Clause>,
         /// The rule (its number, 1 to 9) the editor scrolls to and marks: "Change it in the form" on a
         /// part of the sentence. Absent: the editor opens at the top.

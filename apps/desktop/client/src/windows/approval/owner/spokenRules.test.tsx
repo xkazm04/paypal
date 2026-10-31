@@ -4,6 +4,8 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ApprovalDraft } from '@bindings/ApprovalDraft';
 import { nowUnix } from '../../../lib/format';
+import { SAY_EDITOR } from '../../../lib/words';
+import { buildMandate, draftFromRules } from '../mandateDraft';
 
 const session = { tokenReady: true, pending: null as string | null, unlocking: false, settingsLocked: false, lockedByError: false, call: vi.fn() };
 vi.mock('../session', () => ({ useSession: () => session }));
@@ -45,6 +47,19 @@ describe('rules said in one sentence, in the editor', () => {
     expect(session.call).not.toHaveBeenCalled();
     // the ready-made starting points are not offered over what was said
     expect(screen.queryByText(/Start from ready-made rules/)).toBeNull();
+  });
+
+  it('an end the sentence did not settle is shown as not set, asked for, and nothing can be signed', () => {
+    const { expires: _end, ...unended } = seed();
+    const s = { ...unended, clauses: unended.clauses.map((c) => (c.type === 'band' ? { ...c, deadline: 0 } : c)) };
+    open(s);
+    expect(screen.getByText(SAY_EDITOR.subNoEnd)).toBeTruthy();
+    expect(screen.getByText(new RegExp(`→ ${SAY_EDITOR.endUnset}`))).toBeTruthy();
+    // the end is asked for where the rules are checked, and Review is held until it is chosen
+    expect(document.querySelector('.ow-foot .status')?.textContent).toMatch(/^Fix \d+ fields before signing: .*choose an end date/);
+    expect(buildMandate(draftFromRules(s, now)).ok === false && buildMandate(draftFromRules(s, now))).toMatchObject({ errors: expect.arrayContaining(['end: choose a time']) });
+    expect((screen.getByRole('button', { name: 'Review & sign rules…' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(session.call).not.toHaveBeenCalled();
   });
 
   it('opens at the rule a part pointed at and marks it once', () => {

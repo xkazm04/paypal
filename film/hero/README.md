@@ -43,6 +43,31 @@ node $KIT/tools/render.mjs film/hero --balance sandwich   # -> film/hero/out/the
 node $KIT/tools/narrate.mjs film/hero && node $KIT/tools/music.mjs film/hero
 ```
 
+## The film's ending (`film_ending`, decided by the owner around 9 Nov)
+
+The film's Rewind shot (`proof-rewind`, captured from the director's `end-rewind` beat) has two endings,
+switched by one parameter of Maya's story, `film_ending`:
+
+| Value | What the Rewind shot shows | Caption of `end-rewind` |
+| --- | --- | --- |
+| `today` (default) | the Rewind as it was before "Say it": the week's money steps and who decided them, the playhead stopping at now; no Say it box, no forecast past now | unchanged |
+| `say` | the Say it box above the timeline, and the timeline running on past the gold now line into the next 72 hours; its closing line is the walk-away headline, "If you walk away: $0 leaves." | closes on the same headline |
+
+How to switch it:
+
+- **For one capture or rehearsal** (no code change): add `--film-ending say` (or `today`) to
+  `scripts/film-capture.mjs` or `scripts/takes.mjs`, or open the director at `director.html?film_ending=say`
+  (`director.html?film_ending=today` and plain `director.html` play the default).
+- **To change the default for good**: set `filmEnding: 'say'` on `maya` in
+  `apps/desktop/client/src/director/stories.ts`, then update the `stories.test.ts` cases that pin `today` as
+  the default. If the shot should then show the headline, add `main|.rw-walk` to `proof-rewind`'s capture
+  `targets` in `film.json` and rewrite its `line` (the narration) to end on it.
+
+The switch only changes what the main frame draws (it reaches it as `?film_ending=` on that frame's
+address, read by `filmEndingPreview()` in `src/lib/preview.ts`). The app itself has no such address and
+always shows the Say it box and the timeline past now. The rehearsal checks each ending's own end state
+(`EXPECT` and `FILM_SAY_EXPECT` in `src/director/takes.ts`).
+
 ## Licences
 
 The film tracks no font, audio, image or video file of its own. What a render draws on:

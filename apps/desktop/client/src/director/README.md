@@ -15,6 +15,9 @@ Three stories, chosen with `?story=` (`stories.ts`):
   the haggle, silence, the mismatch, The Table closed, and the ending (the dock's deal, its proof
   from PayPal on `#d=D-0190&dv=proof`: an order and a hold, no payment, no receipt, nothing on the
   statement, "decided by the deadline"; then the Rewind, the safety record and the decision centre).
+  Its ending is switched by `film_ending` (the story's `filmEnding`, default `today`; `?film_ending=say`
+  wins): `today` shows the Rewind as it was before Say it, `say` shows the Say it box and the timeline
+  past now and closes on "If you walk away: $0 leaves." (`film/hero/README.md`).
 - **Say it, then see it** (`?story=say`; `sayStory.ts`): one sentence in The Table's Say it box, read
   with a fixed word list (no AI) into chips; the Rewind's timeline draws the week behind Maya, the gold
   Now line and the next 72 hours (the walk-away forecast as dashed ticks, one per forecast line) and what

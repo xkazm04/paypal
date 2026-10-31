@@ -2,6 +2,7 @@
 // counters, the verdict stamp, the audit row as one line, and which recorded attacks a typed seller
 // note asks for. Everything is read from the record (record.ts); nothing here invents an answer.
 import { attackWords, CLAUSE_RULE, DEAL_STATE_WORDS, RULE_NAME, type ArenaFigures, type AttackWords } from '../lib/words/arena';
+import { sentenceOf } from '../lib/say/sentence';
 import { isRefusal, RECORD, type ArenaRecord, type AuditRecord, type RecordedAttack, type RecordedMoney } from './record';
 
 export type Verdict = 'refused' | 'turnedAway' | 'kept' | 'counted';
@@ -42,6 +43,13 @@ export function dollars(m: RecordedMoney | null | undefined): string {
   return `${sign}$${Math.floor(abs / 100).toLocaleString('en-US')}.${String(abs % 100).padStart(2, '0')}`;
 }
 /** "$340" from a recorded decimal string ("340.00"); cents are kept when they are not zero. */
+/** Maya's signed rules as "Say it" would say them (lib/say/sentence.ts): the one sentence its reader turns back
+ *  into exactly these rules, generated from the record, never typed; null when the rules say what it has no words for. */
+export function rulesSentence(r: ArenaRecord['rules'] = RECORD.rules): string | null {
+  // She deals only with the seller she paired with: the reader's own default ("Wallets I've connected").
+  return sentenceOf({ item: r.item, currency: 'USD', most: minorOf(r.most), least: r.least === null ? null : minorOf(r.least), perDeal: minorOf(r.per_deal), askOver: minorOf(r.in_person_over), offers: r.offers, who: 'paired' });
+}
+
 export function wholeDollars(decimal: string): string {
   const [units = '0', cents = '00'] = decimal.split('.');
   return cents === '00' ? `$${Number(units).toLocaleString('en-US')}` : `$${Number(units).toLocaleString('en-US')}.${cents}`;

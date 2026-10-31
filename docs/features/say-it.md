@@ -56,6 +56,10 @@ shows, and Rust re-checks and the owner signs there.
 ## What it does with what it cannot read
 
 - A part it is not sure of is a **question** (one per part, answered by a tap or a typed word) and stays out of the draft.
+  An end it is not sure of ("until Friday" on a Friday evening) reaches the draft as **missing**, never as a guessed week: the
+  `rules` draft omits `expires` (absent means "the owner sets it in the editor"; Rust's shape check needs a start before the end
+  only when an end is carried), the item band's own end follows it (`UNSET_DEADLINE`, shown as not set), and the editor reads
+  "Choose when the rules end" and holds Review & sign until one is picked.
 - Words it did not understand are shown as "Not read" chips with "Leave it out"; **a "not", "never" or "don't" that was not applied
   blocks Review rules until the owner leaves it out** (rules would otherwise allow what the sentence forbade). While it is blocked the
   plain-words line says it cannot turn the sentence into rules (it never describes a rule the sentence forbade), the question says what leaving

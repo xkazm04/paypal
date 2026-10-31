@@ -5,8 +5,10 @@
 // that open their deal), and the tape: every step of the week newest first, windowed, searchable
 // and filtered by who decided; a step opens its deal. `rewindAt` opens it at a moment (an "away"
 // line). The scrubber runs on past the gold "now" line into the forecast's next 72 hours, and shows what
-// the rules the owner just said (the Say it panel above it) would allow there. Read-only: nothing here
-// moves money.
+// the rules the owner just said (the Say it panel above it) would allow there. In the director's film with
+// `film_ending=today` (lib/preview.ts filmEndingPreview) the Say it panel and the forecast side are left out,
+// so the film's Rewind shot is the one it always was; the app itself always shows them. Read-only: nothing
+// here moves money.
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { formatCount } from '../../../../../lib/data/counts';
@@ -16,6 +18,7 @@ import { useSayReading } from '../../../setup/useSay';
 import { SayPanel } from '../../../setup/SayIt';
 import { bringIn } from '../../../setup/bringIn';
 import { lazyPart } from '../../../../../lib/lazy';
+import { filmEndingPreview } from '../../../../../lib/preview';
 import {
   LAYER_LOADING, REWIND_ANSWER, REWIND_BAR, REWIND_CARD, REWIND_KICKER, REWIND_TAPE, REWIND_THIS_WEEK, REWIND_TRUNCATED,
 } from '../../../../../lib/words';
@@ -49,9 +52,12 @@ const SORTS: readonly ListSort<TapeRow>[] = [
 
 export function RewindLayer({ nav, state }: LayerProps) {
   const reduced = usePrefersReducedMotion();
+  // The director's film switch: under `film_ending=today` no Say it panel and no past-now forecast.
+  const sayIt = filmEndingPreview() !== 'today';
   const said = useSayReading();
-  const reach = useMemo(() => (said.reading ? reachOf(said.reading.facts, said.reading.facts.ends) : null), [said.reading]);
-  const { r, labelOf, ahead } = useTimeline(reach, reach ? said.text : null);
+  const reach = useMemo(() => (sayIt && said.reading ? reachOf(said.reading.facts, said.reading.facts.ends) : null), [said.reading, sayIt]);
+  const { r, labelOf, ahead: forecast } = useTimeline(reach, reach ? said.text : null, sayIt);
+  const ahead = sayIt ? forecast : undefined;
   // A sentence was just read: bring the timeline it draws on into view (the window may be short), once its chips have landed.
   const picture = useRef<HTMLDivElement>(null);
   const sentence = reach ? said.text : null;
@@ -94,7 +100,7 @@ export function RewindLayer({ nav, state }: LayerProps) {
         // The hub and the scrubber are the page's picture (its heaviest part): they take the last turn,
         // the tape (the list) comes before them (stagger.tsx). Above them, the sentence that draws on them.
         <>
-        <SayPanel said={said} compact />
+        {sayIt ? <SayPanel said={said} compact /> : null}
         <Reveal wave={3} sizeKey="rewind:hub" skeleton={<Skeleton className="rw-host" h="23rem" />}>
           <div className="rw-host" ref={picture}>
             <Suspense fallback={<p className="layer-loading" role="status">{LAYER_LOADING}</p>}>

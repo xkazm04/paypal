@@ -10,7 +10,8 @@ import { FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH } from './firstRu
 import { SAY_BEATS, SAY_CHAPTERS, SAY_EXPECT, SAY_LENGTH, SAY_PARTIAL, SAY_SENTENCE } from './sayStory';
 import { read } from '../lib/say/read';
 import { rulesOf } from '../lib/say/draft';
-import { directorSearchFor, frameUrls, STORIES, storyFor } from './stories';
+import { directorSearchFor, frameUrls, STORIES, storyFor, withFilmEnding } from './stories';
+import { EXPECT, FILM_SAY_EXPECT } from './takes';
 
 /** What a First run beat may do: open and close windows, set a Tumbler form, point the tour. */
 const PRESENTATION: readonly ActionKind[] = ['main', 'approval', 'owner', 'form', 'tour'];
@@ -38,8 +39,9 @@ describe('choosing a story', () => {
 
   it('keeps Maya’s frames where they were and puts First run’s in the first-run world', () => {
     const maya = frameUrls(STORIES.maya);
-    expect(maya.main(null)).toBe('index.html');
-    expect(maya.main('#d=D-0193')).toBe('index.html#d=D-0193');
+    // the main frame carries the film's ending (its Rewind draws by it); the other frames do not
+    expect(maya.main(null)).toBe('index.html?film_ending=today');
+    expect(maya.main('#d=D-0193')).toBe('index.html?film_ending=today#d=D-0193');
     expect(maya.tumbler).toBe('tumbler.html?frame=director');
     expect(maya.approval('01ABC')).toBe('approval.html?deal=01ABC&target=deal');
     expect(maya.approval(null)).toBe('about:blank');
@@ -56,9 +58,40 @@ describe('choosing a story', () => {
     // Maya's beats name her deals: a sized sample has none of them, so her page leaves it (#20)
     expect(directorSearchFor(STORIES.maya, '?scale=large&beat=2')).toBe('?beat=2');
     expect(directorSearchFor(STORIES.maya, '?scale=small')).toBe('');
-    expect(frameUrls(STORIES.maya, 'large').main('#d=D-0193')).toBe('index.html#d=D-0193');
+    expect(frameUrls(STORIES.maya, 'large').main('#d=D-0193')).toBe('index.html?film_ending=today#d=D-0193');
     expect(directorSearchFor(STORIES['first-run'], '?story=first-run&beat=2')).toBe('?story=first-run&beat=2&first_run=1');
     expect(directorSearchFor(STORIES['first-run'], '?story=first-run&first_run=1')).toBeNull();
+  });
+});
+
+describe('Maya’s film ending (film_ending)', () => {
+  it('is today by default, from the story definition, and the address picks say', () => {
+    expect(STORIES.maya.filmEnding).toBe('today');
+    for (const q of ['', '?story=maya', '?film_ending=today', '?film_ending=nope', '?film_ending=SAY']) expect(storyFor(q), q).toBe(STORIES.maya);
+    const say = storyFor('?film_ending=say&beat=21');
+    expect(say.id).toBe('maya');
+    expect(say.filmEnding).toBe('say');
+    expect(frameUrls(say).main('#r=rewind')).toBe('index.html?film_ending=say#r=rewind');
+    expect(say.expect).toBe(FILM_SAY_EXPECT);
+    expect(withFilmEnding(say, 'today')).toMatchObject({ filmEnding: 'today', beats: BEATS, expect: EXPECT });
+  });
+
+  it('under say only the Rewind beat changes: its caption closes on the walk-away headline', () => {
+    const say = storyFor('?film_ending=say');
+    expect(say.beats.map((b) => b.id)).toEqual(BEATS.map((b) => b.id));
+    expect(say.beats.map((b) => b.at)).toEqual(BEATS.map((b) => b.at));
+    const changed = say.beats.filter((b, i) => b !== BEATS[i]);
+    expect(changed.map((b) => b.id)).toEqual(['end-rewind']);
+    expect(changed[0]?.caption).toMatch(/If you walk away: \$0 leaves\.$/);
+    expect(Object.keys(say.expect).filter((k) => say.expect[k] !== EXPECT[k])).toEqual(['end-rewind']);
+  });
+
+  it('other stories have no film ending, and the address does not give them one', () => {
+    for (const id of ['first-run', 'watch', 'say'] as const) {
+      expect(STORIES[id].filmEnding).toBeUndefined();
+      expect(storyFor(`?story=${id}&film_ending=say`)).toBe(STORIES[id]);
+      expect(frameUrls(STORIES[id]).main(null)).not.toContain('film_ending');
+    }
   });
 });
 

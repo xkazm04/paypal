@@ -138,16 +138,22 @@ export function draftFrom(m: OpenMandate & { agent?: AgentSlot }, now: number): 
 
 /** A typed rule set carried from The Table (approval_open's `rules` draft: what the owner said in one
  *  sentence) as a new draft in the editor's own strings. It starts no earlier than the editor opened.
- *  Nothing in it is signed; the editor checks it like anything the owner types. */
-export function draftFromRules(seed: { agent: AgentSlot; not_before: number; expires: number; clauses: Clause[] }, now: number): MandateDraft {
+ *  Nothing in it is signed; the editor checks it like anything the owner types. An end the sentence did
+ *  not settle is absent: the end stays empty (not set), and so does the item band's end that follows it,
+ *  so the editor asks for it and nothing is signable until the owner picks one. */
+export function draftFromRules(seed: { agent: AgentSlot; not_before: number; expires?: number | null; clauses: Clause[] }, now: number): MandateDraft {
   const cur = firstCurrency(seed.clauses);
+  const ended = seed.expires != null;
   return {
     id: null,
     agent: seed.agent,
     currency: cur,
     notBefore: toLocalInput(Math.max(now, seed.not_before)),
-    expires: toLocalInput(seed.expires),
-    clauses: seed.clauses.map((c) => clauseDraft(c, cur)),
+    expires: ended ? toLocalInput(seed.expires as number) : '',
+    clauses: seed.clauses.map((c) => {
+      const d = clauseDraft(c, cur);
+      return d.type === 'band' && !ended ? { ...d, deadline: '' } : d;
+    }),
   };
 }
 

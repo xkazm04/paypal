@@ -147,7 +147,8 @@ impl Runtime {
                 ..
             } => {
                 // Shape only: a mandate target and no deal, a bounded list with one clause of each
-                // kind, and a start before the end. validate() runs when the owner signs.
+                // kind, and a start before the end when an end is carried (absent: the owner sets it
+                // in the editor). validate() runs when the owner signs.
                 let repeated = clauses
                     .iter()
                     .enumerate()
@@ -158,7 +159,7 @@ impl Runtime {
                     || clauses.len() > MAX_RULES_DRAFT_CLAUSES
                     || repeated
                     || *not_before < 0
-                    || expires <= not_before
+                    || expires.is_some_and(|e| e <= *not_before)
                     || focus.is_some_and(|n| !(1..=9).contains(&n))
                 {
                     return Err(invalid());

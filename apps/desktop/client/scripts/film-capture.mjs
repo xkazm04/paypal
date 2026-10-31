@@ -40,6 +40,8 @@ const USAGE = `film-capture: the demo film's capture of the director (browser pr
   node scripts/film-capture.mjs <film-dir> [options]
 
   --story <id>         the director story the film's capture beats belong to (default maya)
+  --film-ending <e>    Maya's film ending, today (default: the Rewind as it always was) or say
+                       (Say it and the timeline past now)
   --base-url <url>     a running dev or preview server (default: start vite on --port)
   --port <n>           port for the server this script starts (default ${PORT}, never 1430)
   --keep-server        leave the server it started running
@@ -65,6 +67,7 @@ function parseArgs(argv) {
     if (v === undefined) throw new Error(`incomplete option: ${a}`);
     switch (a) {
       case '--story': o.story = v; break;
+      case '--film-ending': o.filmEnding = v; break;
       case '--base-url': o.url = v; break;
       case '--port': o.port = Number(v); break;
       case '--date': o.date = v; break;
@@ -76,6 +79,7 @@ function parseArgs(argv) {
   if (o.port === 1430) throw new Error('port 1430 belongs to the main checkout: use another');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date)) throw new Error('--date is YYYY-MM-DD');
   if (!/^[a-z0-9-]+$/.test(o.story)) throw new Error('--story is a story id');
+  if (o.filmEnding !== undefined && !['today', 'say'].includes(o.filmEnding)) throw new Error('--film-ending is today or say');
   return o;
 }
 
@@ -119,7 +123,7 @@ async function startServer(o) {
 }
 
 function filmUrl(base, o, index) {
-  const q = new URLSearchParams({ ...(o.story !== 'maya' ? { story: o.story } : {}), beat: String(index), play: '0', take: 'film', date: o.date });
+  const q = new URLSearchParams({ ...(o.story !== 'maya' ? { story: o.story } : {}), ...(o.filmEnding ? { film_ending: o.filmEnding } : {}), beat: String(index), play: '0', take: 'film', date: o.date });
   return new URL(`director.html?${q}`, base).href;
 }
 

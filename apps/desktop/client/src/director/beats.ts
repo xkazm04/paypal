@@ -210,6 +210,12 @@ export const BEATS: readonly Beat[] = [
 ];
 
 /** How long the last caption stays before the scenario ends. */
+/** Maya's week under `film_ending=say` (stories.ts): the same beats, but the Rewind shot shows the Say it
+ *  panel and the timeline past now, and its caption closes on the walk-away headline the screen shows. */
+export const FILM_SAY_BEATS: readonly Beat[] = BEATS.map((b) => (b.id === 'end-rewind'
+  ? { ...b, caption: 'Her Rewind replays the week, then runs on past now to what comes next. If you walk away: $0 leaves.' }
+  : b));
+
 export const HOLD_LAST = 12;
 export const SCRIPT_LENGTH = (BEATS[BEATS.length - 1]?.at ?? 0) + HOLD_LAST;
 

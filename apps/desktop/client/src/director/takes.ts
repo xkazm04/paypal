@@ -13,7 +13,7 @@ import type { KeyId } from '@bindings/KeyId';
 import type { StartStepState } from '../lib/firstRun';
 import type { MockBackend } from '../mock/backend';
 import type { MockDeal } from '../mock/fixtures';
-import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, GROUP_CLOSED, GROUP_WINNER, IF_NOTHING, REWIND_ANSWER, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, shoppingFor, stateWord, TABLES, TABLES_VIEWS, TABLES_WATCH, tablesItem, tablesShortWho, type StartStepKey, type TourStopId } from '../lib/words';
+import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, GROUP_CLOSED, GROUP_WINNER, IF_NOTHING, REWIND_AHEAD, REWIND_ANSWER, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, SAY, shoppingFor, stateWord, TABLES, TABLES_VIEWS, TABLES_WATCH, tablesItem, tablesShortWho, type StartStepKey, type TourStopId } from '../lib/words';
 import { nowUnix, shortMoney } from '../lib/format';
 import { laneSteps, tickTone, weekBounds } from '../windows/main/logic';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
@@ -81,6 +81,16 @@ const CENTRE: readonly Expect[] = [
 ];
 
 /** Each beat's settled end state, from the story tests (story.test.ts) as it shows on screen. */
+/** The Rewind shot of Maya's week (end-rewind), under either film ending. */
+const REWIND_SHOT: readonly Expect[] = [
+  { window: 'main', open: true },
+  // the Rewind reads the week for a few seconds; its figures are only there once it has
+  { in: 'main', text: REWIND_ANSWER.reading, absent: true },
+  { in: 'main', text: REWIND_CARD.owner },
+  { in: 'main', text: REWIND_CARD.default },
+  { deal: HOLD, state: 'AUTO_VOIDED' },
+];
+
 export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   intro: [
     { window: 'main', open: true },
@@ -249,14 +259,12 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
     NO_PAY_IN_MAIN,
     { deal: HOLD, state: 'AUTO_VOIDED' },
   ],
-  // the Rewind (polish A): the week by who decided, and the tape of every step
+  // the Rewind (polish A): the week by who decided, and the tape of every step. Under the film's default
+  // ending (`film_ending=today`) it is the shot it always was: no Say it panel, no forecast past now.
   'end-rewind': [
-    { window: 'main', open: true },
-    // the Rewind reads the week for a few seconds; its figures are only there once it has
-    { in: 'main', text: REWIND_ANSWER.reading, absent: true },
-    { in: 'main', text: REWIND_CARD.owner },
-    { in: 'main', text: REWIND_CARD.default },
-    { deal: HOLD, state: 'AUTO_VOIDED' },
+    ...REWIND_SHOT,
+    { in: 'main', text: SAY.titleShort, absent: true },
+    { in: 'main', text: REWIND_AHEAD.walkAway, absent: true },
   ],
   'end-safety': [
     { window: 'main', open: true },
@@ -273,6 +281,17 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
     { deal: HAGGLE, state: 'WITHDRAWN' },
     { deal: HOLD, state: 'AUTO_VOIDED' },
     { deal: MISMATCH, state: 'MISMATCH' },
+  ],
+};
+
+/** Maya's week under `film_ending=say` (stories.ts): the same end states, but the Rewind shows the Say it
+ *  panel and runs on past now, and its closing line is the walk-away headline (walkHeadline: "$0 leaves"). */
+export const FILM_SAY_EXPECT: Readonly<Record<string, readonly Expect[]>> = {
+  ...EXPECT,
+  'end-rewind': [
+    ...REWIND_SHOT,
+    { in: 'main', text: SAY.titleShort },
+    { in: 'main', text: new RegExp(`${REWIND_AHEAD.walkAway}: \\$0 leaves\\.`) },
   ],
 };
 

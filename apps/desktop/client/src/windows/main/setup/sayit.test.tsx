@@ -42,11 +42,16 @@ async function say(text: string) {
 const pill = (slot: string) => document.querySelector<HTMLElement>(`.say-pill[data-chip="${slot}"]`);
 
 describe('Say it on the Charter', () => {
+  // "until Friday" reads as this Friday 18:00 only on a weekday before its 15:00; on a Friday afternoon it
+  // asks "today or next week?" and the end stays unset. Pin a Wednesday 10:00 (local time, Date only) for
+  // every sentence here instead of reading the clock.
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 21, 10, 0));
     localStorage.clear(); sessionStorage.clear(); history.replaceState(null, '', '/index.html?first_run=1');
     resetMockState(); hoisted.opened = []; hoisted.calls = []; hoisted.current = stubbed(); sayClear();
   });
-  afterEach(() => { cleanup(); hoisted.current = null; sayClear(); vi.unstubAllGlobals(); });
+  afterEach(() => { vi.useRealTimers(); cleanup(); hoisted.current = null; sayClear(); vi.unstubAllGlobals(); });
 
   it('shows the sentence from the brief as five solid chips and says what each allows', async () => {
     await say(MAYA);
