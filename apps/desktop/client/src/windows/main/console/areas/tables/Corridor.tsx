@@ -6,9 +6,10 @@
 // builds the beats; its test proves the browser preview's recorded table equals the engine's run),
 // and the figures shown are only ever landed prices, never one caught mid-slide.
 // Frame-pure: the picture is a function of the clock, so play, pause, the timeline scrubber and
-// reduced motion all agree. Reduced motion steps from beat to beat with no slide, lunge or burst; the
-// timeline names the beat it is on, the steps list is always there, and the one caption line is read
-// out as each beat lands.
+// reduced motion all agree. Under reduced motion, and in a hidden document (no animation frames), a
+// replay that would start by itself shows its final frame; a replay the person plays steps from beat
+// to beat with no slide, lunge or burst. The timeline names the beat it is on, the steps list is
+// always there, and the one caption line is read out as each beat lands.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { usePrefersReducedMotion } from '../../../../../lib/hooks';
 import { TABLES_WATCH as W } from '../../../../../lib/words';
@@ -21,18 +22,57 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 /** A landing ring grows and fades over this long. */
 const PULSE_MS = 520;
 
-/** The clock: real time while playing, frozen while paused or scrubbed. */
-function useClock(total: number, autoplay: boolean, rate = 1) {
-  const [t, setT] = useState(autoplay ? 0 : total);
-  const [playing, setPlaying] = useState(autoplay);
+/** Whether the document is hidden (a background tab, a minimised window, a frame off screen), kept
+ *  current. A hidden document gets no animation frames, so a replay started there would sit on its
+ *  first frame. */
+function useHidden(): boolean {
+  const read = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
+  const [hidden, setHidden] = useState(read);
+  useEffect(() => {
+    const sync = () => setHidden(read());
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, []);
+  return hidden;
+}
+
+/** The clock: real time while playing, frozen while paused or scrubbed. `still` (reduced motion, or a
+ *  hidden document) means a replay that starts by itself shows its final frame instead: on arrival, when
+ *  the document is hidden mid-play, when calm motion is switched on mid-play, and when beats are added
+ *  to a replay at rest. A replay the person starts (Play) still steps through under reduced motion; it
+ *  ends at once while the document is hidden. Beats added to a replay resting at its end play on from
+ *  there (the arena appends its wall hits this way). */
+function useClock(total: number, autoplay: boolean, rate = 1, still = false, hidden = false) {
+  const [t, setT] = useState(autoplay && !still ? 0 : total);
+  const [playing, setPlaying] = useState(autoplay && !still);
+  /** The play running now was started by the clock itself (arrival or added beats), not the person. */
+  const auto = useRef(autoplay && !still);
   const base = useRef<{ wall: number; t: number } | null>(null);
+  const tRef = useRef(t);
+  tRef.current = t;
+  const was = useRef(total);
+  // Beats added: from the end of a replay at rest, play on (or show the new end when still).
+  useEffect(() => {
+    const before = was.current;
+    was.current = total;
+    if (total === before) return;
+    if (tRef.current >= before && !playing) {
+      if (still || !autoplay) setT(total);
+      else { auto.current = true; base.current = null; setPlaying(true); }
+    } else if (tRef.current > total) setT(total);
+  }, [total]);
+  // Reduced motion or a hidden document arriving mid-play: a play the clock started ends on its last frame.
+  useEffect(() => {
+    if (!playing) return;
+    if ((still && auto.current) || hidden) { setT(total); setPlaying(false); }
+  }, [still, hidden, playing, total]);
   useEffect(() => {
     if (!playing) { base.current = null; return; }
-    // No frame clock (a test DOM, a hidden document): show the end at once.
-    if (typeof requestAnimationFrame !== 'function') { setT(total); setPlaying(false); return; }
+    // No frame clock (a test DOM) or a hidden document: show the end at once.
+    if (typeof requestAnimationFrame !== 'function' || hidden) { setT(total); setPlaying(false); return; }
     let raf = 0;
     // `t` is read once, when a play starts; the frame loop owns it from there.
-    const from = t;
+    const from = tRef.current;
     const tick = (now: number) => {
       if (!base.current) base.current = { wall: now, t: from };
       const next = Math.min(total, base.current.t + (now - base.current.wall) * rate);
@@ -42,10 +82,10 @@ function useClock(total: number, autoplay: boolean, rate = 1) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, total]);
+  }, [playing, total, hidden]);
   return {
     t, playing,
-    play: () => { if (t >= total) setT(0); setPlaying(true); },
+    play: () => { auto.current = false; if (t >= total) setT(0); setPlaying(true); },
     pause: () => setPlaying(false),
     seek: (to: number) => { setPlaying(false); setT(Math.max(0, Math.min(total, to))); },
   };
@@ -55,10 +95,11 @@ function useClock(total: number, autoplay: boolean, rate = 1) {
  *  once a little faster; the decision centre shows it above the owner's decision. */
 export function Corridor({ haggle, who, autoplay = true, big = false, compact = false }: { haggle: Haggle; who: string; autoplay?: boolean; big?: boolean; compact?: boolean }) {
   const reduced = usePrefersReducedMotion();
+  const hidden = useHidden();
   const pb = useMemo(() => playbook(haggle), [haggle]);
   const track = useMemo(() => trackOf(haggle), [haggle]);
   const lines = useMemo(() => haggle.beats.map((b) => captionOf(b, haggle, who)), [haggle, who]);
-  const clock = useClock(pb.total, autoplay && !reduced, compact ? 1.5 : 1);
+  const clock = useClock(pb.total, autoplay, compact ? 1.5 : 1, reduced || hidden, hidden);
   const [trackRef, widthPx] = useWidth();
   // Reduced motion: each beat is drawn as it rests (no slide, no lunge, no burst).
   const at = reduced ? restingTime(pb, clock.t) : clock.t;

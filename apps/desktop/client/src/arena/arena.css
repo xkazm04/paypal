@@ -1,10 +1,11 @@
-/* Break The Table (arena.html): browser preview only, never a desktop window.
+/* Break The Table: one component, two hosts (BreakTheTable.tsx). The page (arena.html, browser preview
+   only; its body and stage live in arena-page.css) and the console's place "Try to break it" (#p=try).
    A dark stage: the deck on the left, the table and the wallet's answer in the middle, Maya's safety
-   record and the proof command on the right. Tokens only (src/design/tokens.css). */
+   record and the proof on the right. Every rule is scoped under `.arena` or an `ar-` class that no
+   console area uses (the console's place roots are `ar-<area>`: `ar-record` and `ar-signed` here keep
+   clear of `ar-safety` and `ar-rules`). Tokens only (src/design/tokens.css). */
 
-html, body { height: 100%; }
-body.w-arena { margin: 0; background: var(--bg-deep); color: var(--text); }
-:root {
+.arena {
   --ar-agent: var(--coral);
   --ar-agent-l: var(--coral-l);
   --ar-cp: var(--steel);
@@ -12,14 +13,31 @@ body.w-arena { margin: 0; background: var(--bg-deep); color: var(--text); }
   --ar-held-l: var(--teal-l);
   --ar-stamp: var(--red);
   --ar-stamp-l: var(--red-l);
-}
-
-.arena { min-height: 100vh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
   font: var(--fw-regular) var(--fs-body)/var(--lh) var(--font);
+}
+.arena.host-page { min-height: 100vh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
   background:
     radial-gradient(55% 60% at 85% 0%, color-mix(in srgb, var(--teal) 12%, transparent), transparent 70%),
     radial-gradient(45% 55% at 0% 100%, color-mix(in srgb, var(--coral) 9%, transparent), transparent 70%),
     var(--bg-deep); }
+/* in the console: the sheet is the stage; the place's head is the console's own heading style */
+.arena.host-console { display: grid; gap: 12px; min-width: 0; }
+.arena.host-console .ar-top { padding: 0 0 4px; }
+.arena.host-console .ar-brand h1 { font: var(--fw-display) var(--fs-title1)/1.15 var(--display); }
+.arena.host-console .ar-main { padding: 0; grid-template-columns: minmax(230px, 280px) minmax(0, 1fr); }
+.arena.host-console .ar-side { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: start; }
+@media (max-width: 900px) { .arena.host-console .ar-main { grid-template-columns: 1fr; } }
+.arena.host-console .ar-foot { padding: 8px 0 0; }
+.arena.host-console .ar-card { padding-left: 14px; }
+.ar-go { margin-top: 10px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ar-corridor { grid-column: 1 / -1; min-width: 0; }
+.ar-corridor .hc { margin: 0; }
+.ar-hits { margin: 0; color: var(--muted); font-size: var(--fs-small); }
+.ar-proofcheck { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.ar-proofcheck h4 { font: var(--fw-semibold) var(--fs-title3)/1.2 var(--font); }
+.ar-proofcheck-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ar-proofcheck-pick select { min-width: 16rem; }
+
 .arena h1, .arena h2, .arena h3, .arena h4, .arena h5 { margin: 0; }
 .arena .mono { font-family: var(--mono); font-size: var(--fs-mono); }
 .arena .num { font-variant-numeric: tabular-nums; }
@@ -77,8 +95,8 @@ body.w-arena { margin: 0; background: var(--bg-deep); color: var(--text); }
 .ar-steps li b { font: var(--fw-semibold) var(--fs-title3)/1.1 var(--font); }
 .ar-steps li.turn { align-content: center; color: var(--gold-l); background: color-mix(in srgb, var(--gold) 12%, transparent); }
 .ar-steps li.turn span { color: inherit; font-size: var(--fs-small); }
-.ar-rules { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; grid-column: 1 / -1; }
-.ar-rules li { padding: 3px 9px; border-radius: var(--r-pill); font-size: var(--fs-small); color: var(--teal-l); background: color-mix(in srgb, var(--teal) 12%, transparent); }
+.ar-signed { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; grid-column: 1 / -1; }
+.ar-signed li { padding: 3px 9px; border-radius: var(--r-pill); font-size: var(--fs-small); color: var(--teal-l); background: color-mix(in srgb, var(--teal) 12%, transparent); }
 
 /* ---- the drop zone and the answer --------------------------------------------------------- */
 .ar-drop { position: relative; min-height: 320px; padding: 18px 20px; border-radius: var(--r-card); border: 2px dashed var(--line2);
@@ -147,8 +165,8 @@ body.w-arena { margin: 0; background: var(--bg-deep); color: var(--text); }
 .ar-note-row textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 /* ---- the side: Maya's safety record and the proof command ---------------------------------- */
-.ar-safety, .ar-check { padding: 14px 16px; border-radius: var(--r-card); background: var(--panel); border: 1px solid var(--line); }
-.ar-safety h2, .ar-check h2 { font: var(--fw-semibold) var(--fs-title3)/1.2 var(--font); }
+.ar-record, .ar-check { padding: 14px 16px; border-radius: var(--r-card); background: var(--panel); border: 1px solid var(--line); }
+.ar-record h2, .ar-check h2 { font: var(--fw-semibold) var(--fs-title3)/1.2 var(--font); }
 .ar-safety-n { margin: 10px 0 0; font: var(--fw-semibold) var(--fs-title2)/1.2 var(--font); }
 .ar-safety-ok { margin: 2px 0 0; color: var(--ar-held-l); font-size: var(--fs-small); }
 .ar-rows { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; max-height: 300px; overflow: auto; }

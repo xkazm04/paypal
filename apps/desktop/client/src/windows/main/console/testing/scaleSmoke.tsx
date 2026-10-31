@@ -126,6 +126,7 @@ export const LAYER_ROUTES: Readonly<Record<LayerId, LayerTarget>> = {
   pairing: { level: 'place', place: 'pairing' },
   settings: { level: 'place', place: 'settings' },
   safety: { level: 'place', place: 'safety' },
+  try: { level: 'place', place: 'try' },
 };
 
 /** LAYER_ROUTES as [layer id, target] rows, for `it.each`. */

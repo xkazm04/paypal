@@ -1,12 +1,15 @@
-// BROWSER PREVIEW ONLY. Break The Table's answer: what the wallet did with one attack, from the record
+// Break The Table's answer: what the wallet did with one attack, from the record
 // only (record.ts). First Maya's words (the verdict, why it held, the rule), then the wallet's own
 // record one level down (the rows it wrote, what was sent beside what PayPal saw, what the agent could
-// still see). And the closing view: every attack held, the command that checks it, the attacks as a file.
+// still see). And the closing view: every attack held, the attack deal's signed file checked in the proof
+// checker, the command that checks it all, the attacks as a file.
 import { useState } from 'react';
-import { ARENA_ANSWER, ARENA_CHECK, ARENA_FINALE, ARENA_NOTE, ARENA_VERDICT } from '../lib/words/arena';
+import { ARENA_ANSWER, ARENA_CHECK, ARENA_FINALE, ARENA_LIVE_MODE, ARENA_NOTE, ARENA_VERDICT } from '../lib/words/arena';
+import type { LiveAnswer } from './live';
 import { Quarantine } from '../shared/honesty';
 import { Btn } from '../shared/ui';
 import { NoteChip } from '../windows/main/console/areas/shared/NoteChip';
+import { ArenaProof } from './ArenaProof';
 import { Gauntlet } from './Gauntlet';
 import { ATTACK_WORDS, auditLine, dollars, minorOf, noteAsks, ruleName, stateWords, verdictOf, type Verdict } from './model';
 import { PROOF_FILE_NAME, proofFile } from './proof';
@@ -73,6 +76,37 @@ export function Answer({ attack: a, sentNote, noteDealId }: { attack: RecordedAt
   );
 }
 
+/** A live answer (live.ts): the judge's own agent app's move on the sandbox's table, drawn in the same
+ *  answer view as a recorded card, labelled as live. `rule` is the wallet's closed refusal code (null when
+ *  it answered), named the way the recorded cards name theirs; `sentence` is the sandbox's plain words. */
+export function LiveAnswerView({ answer: a }: { answer: LiveAnswer }) {
+  const refused = a.verdict === 'no';
+  const v = refused ? 'refused' : 'kept';
+  return (
+    <article className={`ar-answer v-${v} ar-live-answer`} data-live="">
+      <div className="ar-answer-h">
+        <span className={`ar-stamp v-${v}`}>{refused ? ARENA_LIVE_MODE.no : ARENA_LIVE_MODE.yes}</span>
+        <h3>{ARENA_LIVE_MODE.label}</h3>
+      </div>
+      <dl className="ar-why">
+        <div><dt>{refused ? ARENA_ANSWER.why : ARENA_LIVE_MODE.said}</dt><dd>{a.sentence}{a.rule ? <span className="ar-rule">{ruleName(a.rule, null)}</span> : null}</dd></div>
+      </dl>
+      <section className="ar-proof" aria-label={ARENA_ANSWER.record}>
+        <div className="ar-split">
+          <div className="ar-sent">
+            <h5>{ARENA_ANSWER.sent}</h5>
+            <pre className="mono"><b>{ARENA_LIVE_MODE.tool(a.tool)}</b></pre>
+          </div>
+          <div className={`ar-paypal${a.paypalAsked === 0 ? ' none' : ''}`}>
+            <h5>{ARENA_ANSWER.paypal}</h5>
+            <p className="ar-paypal-n">{ARENA_LIVE_MODE.asked(a.paypalAsked)}</p>
+          </div>
+        </div>
+      </section>
+    </article>
+  );
+}
+
 /** What was sent: the agent's tool call (its name, then its arguments), or the seller's envelope. A
  *  seller's note is their words: drawn only through Quarantine, never as plain page text. */
 function Sent({ attack: a }: { attack: RecordedAttack }) {
@@ -106,8 +140,10 @@ function NoteAsks({ asks }: { asks: string[] }) {
   );
 }
 
-/** The closing view: what the judge's attacks added up to, the command, and the attacks as a file. */
-export function Finale({ played }: { played: readonly RecordedAttack[] }) {
+/** The closing view: what the judge's attacks added up to, the attack deal's signed file checked in the
+ *  proof checker, the command, and the attacks as a file. `pageLink`: link the file to proof.html too
+ *  (the page host; the desktop shell does not serve that page). */
+export function Finale({ played, pageLink = true }: { played: readonly RecordedAttack[]; pageLink?: boolean }) {
   const [copied, setCopied] = useState(false);
   const file = proofFile(played);
   const s = file.summary;
@@ -133,6 +169,7 @@ export function Finale({ played }: { played: readonly RecordedAttack[] }) {
           </div>
           <p className="ar-finale-figs num">{ARENA_FINALE.figures(s.moved ?? '—', s.paypal_requests, s.paypal_calls, s.money_operations)}</p>
           {s.distinct < s.of ? <p className="ar-hint">{ARENA_FINALE.untried(s.of - s.distinct)}</p> : null}
+          <ArenaProof played={played} pageLink={pageLink} />
         </>
       )}
       <section className="ar-finale-run">

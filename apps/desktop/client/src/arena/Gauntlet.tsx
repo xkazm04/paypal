@@ -1,6 +1,6 @@
-// BROWSER PREVIEW ONLY. "Not just these 14": the gauntlet's own seeded hostile sessions, as the
+// "Not just these 14": the gauntlet's own seeded hostile sessions, as the
 // recorder summed them (record.ts `gauntlet`). Plain labelled numbers, no chart: the point is one
-// zero ("by an agent"), and every figure is the record's.
+// zero ("by an agent"), and every figure is the record's (that zero too: authorities() counts it).
 import { ARENA_GAUNTLET } from '../lib/words/arena';
 import { authorities } from './model';
 import { RECORD } from './record';
@@ -23,7 +23,7 @@ export function Gauntlet({ compact = false }: { compact?: boolean }) {
         <li><b className="num">{a.rule}</b><span>{ARENA_GAUNTLET.rule}</span></li>
         <li><b className="num">{a.safeDefault}</b><span>{ARENA_GAUNTLET.safeDefault}</span></li>
         {a.other ? <li><b className="num">{a.other}</b><span>{ARENA_GAUNTLET.other}</span></li> : null}
-        <li className="zero"><b className="num">0</b><span>{ARENA_GAUNTLET.agent}</span></li>
+        <li className={a.agent === 0 ? 'zero' : undefined}><b className="num">{a.agent}</b><span>{ARENA_GAUNTLET.agent}</span></li>
       </ul>
       <p className="ar-hint">{ARENA_GAUNTLET.never} {ARENA_GAUNTLET.seed(g.first_seed)}</p>
     </section>

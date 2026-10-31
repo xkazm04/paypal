@@ -260,4 +260,11 @@
 .hc.compact .hc-caption { min-height: 0; font-size: var(--fs-body); color: var(--muted); }
 .hc.compact .hc-caption.gold { color: var(--gold-l); }
 .cs-haggle-watch { position: absolute; top: 0; right: 0; }
-@media (max-height: 820px) { .cs-haggle { display: none; } }
+/* A short window (the director frames the main window at 1280x800) keeps the glance, drawn tighter:
+   a shorter track and a one-line caption. Only a really short window drops it for the decision. */
+@media (max-height: 820px) {
+  .hc.compact { padding-top: 0; }
+  .hc.compact .hc-track { height: 4.5rem; margin: var(--sp-3) var(--sp-2) var(--sp-5); }
+  .hc.compact .hc-caption { font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+@media (max-height: 640px) { .cs-haggle { display: none; } }

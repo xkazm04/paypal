@@ -11,7 +11,9 @@ import { RECORD, type RecordedAttack } from './record';
 
 export type Played = { n: number; attack: RecordedAttack };
 
-export function SafetyPanel({ plays }: { plays: readonly Played[] }) {
+/** `onOpen`: the console's move to the safety record (LayerNav); without it (the page) a link opens it
+ *  in the preview's main window. */
+export function SafetyPanel({ plays, onOpen }: { plays: readonly Played[]; onOpen?: () => void }) {
   const q = useQuery('safety_record', null);
   const first = useRef<number | null>(null);
   const { refetch } = q;
@@ -22,7 +24,7 @@ export function SafetyPanel({ plays }: { plays: readonly Played[] }) {
   const words = r ? safetyWords(r) : null;
   const added = r && first.current !== null ? r.refusals - first.current : 0;
   return (
-    <section className="ar-safety" aria-label={ARENA_SAFETY.heading}>
+    <section className="ar-record" aria-label={ARENA_SAFETY.heading}>
       <h2>{ARENA_SAFETY.heading}</h2>
       <p className="ar-sub">{ARENA_SAFETY.sub}</p>
       {words ? (
@@ -43,7 +45,8 @@ export function SafetyPanel({ plays }: { plays: readonly Played[] }) {
           ))}
         </ol>
       )}
-      <a className="ar-open" href="index.html#p=safety" target="_blank" rel="noopener">{ARENA_SAFETY.open}</a>
+      {onOpen ? <Btn sm kind="plain" className="ar-open" onClick={onOpen}>{ARENA_SAFETY.openHere}</Btn>
+        : <a className="ar-open" href="index.html#p=safety" target="_blank" rel="noopener">{ARENA_SAFETY.open}</a>}
     </section>
   );
 }

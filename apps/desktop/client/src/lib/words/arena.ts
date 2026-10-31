@@ -51,6 +51,7 @@ export const ARENA_DECK = {
   keys: 'Keys: 1 to 9 and 0 play Maya’s agent, Q W E R the seller, C checks it.',
   start: 'Start here',
   drag: 'Drag it onto the table, click it, or press its key.',
+  dragNoKey: 'Drag it onto the table or click it.',
 } as const;
 
 /** The figures the cards name, each read from the record (arena/model.ts): what the attack sent, and the
@@ -184,6 +185,7 @@ export const RULE_NAME: Readonly<Record<string, string>> = {
   market_unavailable: 'No market price',
   invalid_request: 'Not a usable request',
   unavailable: 'The wallet couldn’t answer',
+  call_budget: 'Too many calls this turn',
 };
 
 /** A signed rule refused by its clause (table-core Clause::number): which of Maya's rules held. */
@@ -234,6 +236,10 @@ export const DEAL_STATE_WORDS: Readonly<Record<string, string>> = {
   REFUSED: 'refused',
 };
 
+/** The longest seller note, in characters: the live sandbox takes 1 to 280 (it refuses anything longer),
+ *  and the recorded path keeps the same cap so a note behaves the same in both. */
+export const ARENA_NOTE_MAX = 280;
+
 export const ARENA_NOTE = {
   heading: 'Write your own seller note',
   sub: 'Say anything a scammer would. It arrives as the seller’s signed note.',
@@ -247,6 +253,7 @@ export const ARENA_NOTE = {
   obeyed: 'Even if an agent did what your note says',
   obeyedNone: 'Your note asks for nothing an agent could try.',
   empty: 'Write a note first.',
+  limit: (used: number, max: number): string => `${used} of ${max} characters`,
 } as const;
 
 export const ARENA_SAFETY = {
@@ -254,6 +261,7 @@ export const ARENA_SAFETY = {
   sub: 'Her record in The Table’s preview (sample week), read again after every attack.',
   reading: 'Reading her record…',
   open: 'Open it in The Table ›',
+  openHere: 'Open the safety record ›',
   session: 'Your attacks on it',
   sessionNone: 'Nothing yet. Every row your attacks write lands here.',
   added: (n: number): string => `+${n} from you`,
@@ -261,7 +269,7 @@ export const ARENA_SAFETY = {
 
 /** The closing card: the summary, the command, and the attacks as a file. */
 export const ARENA_FINALE = {
-  card: 'Check it yourself',
+  card: 'Check the proof yourself',
   cardSub: 'Every answer above, replayed against the wallet.',
   key: 'C',
   stamp: 'Held',
@@ -336,3 +344,54 @@ export const ARENA_LINK = 'Try to break it ›';
 export const ARENA_LINK_TITLE = 'Play the attacker against Maya’s agent. Every answer is the real wallet’s, recorded.';
 export const ARENA_PREVIEW = 'Preview · recorded answers';
 export const ARENA_BROWSER_ONLY = 'This preview runs in a web browser only.';
+
+/** Break The Table as a place of the console (`#p=try`): the same component as the page, hosted in the
+ *  main window. Its one gold action plays the next attack; nothing on it touches the owner's money. */
+export const ARENA_PLACE = {
+  /** The place's name: its layer heading, crumb, Find row and the row beside the safety record. */
+  title: 'Try to break it',
+  kicker: 'Break The Table · recorded answers',
+  lede: 'Play the attacker against Maya’s agent on a recorded table. Every answer is the real wallet’s, recorded through its agent server and money pipeline. Nothing here touches your money.',
+  find: 'play the attacker against a recorded table · see every answer held',
+  line: 'Play the attacker against a recorded table, and check the proof',
+  /** The one gold action: plays the next attack not yet tried. */
+  attack: 'Try an attack',
+  attackTitle: 'Play the next attack you have not tried yet against the recorded wallet',
+  attackDone: 'Every attack is played. Check the proof below.',
+  honest: 'Every answer on this place is the real wallet’s, recorded by playing it through the wallet’s agent server and money pipeline, and pinned by a test. Your own wallet is not attacked and nothing here moves money.',
+} as const;
+
+/** The table panel's corridor (e4's replay) on D-0193's recorded haggle, and the attacks that hit its wall. */
+export const ARENA_CORRIDOR = {
+  who: 'Dan',
+  hits: (n: number): string => (n === 0 ? 'Attacks that push past her limit land on the wall.' : n === 1 ? '1 attack hit the wall.' : `${n} attacks hit the wall.`),
+} as const;
+
+/** The finale's proof: the attack deal's recorded signed file, checked in the page. */
+export const ARENA_PROOF = {
+  heading: 'Check the proof yourself',
+  sub: 'The deal’s signed file the wallet exported after the attack, checked here line by line by the same checks the wallet runs. Break it on purpose and watch the right check turn red.',
+  pick: 'The attack’s file',
+  none: 'The seller’s attacks never reach a signed deal file: their messages were turned away or kept for Maya. Play one of Maya’s agent’s cards to check its file.',
+  page: 'Open it on its own page ›',
+  pageTitle: 'The proof checker on a page of its own, with this attack’s file',
+  loading: 'Reading the signed file…',
+  label: (title: string): string => `After “${title}”`,
+} as const;
+
+/** Live mode (src/arena/live.ts): a judge's own agent app playing through the local sandbox. Shown only
+ *  while live.ts reports a live table; the recorded cards stay the default. */
+export const ARENA_LIVE_MODE = {
+  /** The label on a live answer, where a recorded card's title would be. */
+  label: 'Live: your agent app',
+  sub: (table: string | null): string => (table ? `Your agent app is playing on ${table} through the sandbox on this machine. Its newest move lands on the table.` : 'Your agent app is playing through the sandbox on this machine. Its newest move lands on the table.'),
+  none: 'Waiting for your agent’s first move.',
+  yes: 'Answered',
+  no: 'Refused',
+  tool: (tool: string): string => `It called ${tool}`,
+  said: 'What the wallet said',
+  asked: (n: number): string => (n === 0 ? 'Nothing. Not a single request.' : n === 1 ? '1 request' : `${n} requests`),
+  count: (n: number): string => (n === 1 ? '1 live move' : `${n} live moves`),
+  noteSent: 'Your note went to the live table as the seller’s signed note.',
+  noteFailed: 'The live table did not take your note. The recorded answer is shown.',
+} as const;

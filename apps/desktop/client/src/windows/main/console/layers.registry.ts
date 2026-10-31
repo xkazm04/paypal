@@ -16,13 +16,14 @@ import { layers as setup } from './layers/setup';
 import { layers as shield } from './layers/shield';
 import { layers as spend } from './layers/spend';
 import { layers as tables } from './layers/tables';
+import { layers as tryIt } from './layers/try';
 import { layerIdOf, type LayerDef, type LayerId, type LayerProps } from './layers';
 import type { Route } from '../logic';
 
 /** Every registered def, in registration order (duplicates included: the test looks for them). */
 export const ALL_LAYERS: readonly LayerDef[] = [
   ...core, ...tables, ...spend, ...counter, ...book, ...shield, ...rescue,
-  ...deal, ...rewind, ...setup, ...rules, ...connections, ...settings, ...safety,
+  ...deal, ...rewind, ...setup, ...rules, ...connections, ...settings, ...safety, ...tryIt,
 ];
 
 export const LAYERS: ReadonlyMap<LayerId, LayerDef> = new Map(ALL_LAYERS.map((d) => [d.id, d] as const));

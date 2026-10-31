@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataProvider } from '../lib/data/provider';
 import { mockBackend, resetMockState } from '../mock/backend';
 import { setHarnessBackend } from '../windows/main/console/testing/runtime';
-import { Arena } from './Arena';
+import { BreakTheTable } from './BreakTheTable';
 import { DAN_LABEL } from '../mock/haggle';
-import { ARENA_FINALE, ARENA_LIVE, ARENA_VERDICT } from '../lib/words/arena';
+import { ARENA_FINALE, ARENA_LIVE, ARENA_PROOF, ARENA_VERDICT } from '../lib/words/arena';
 import { ATTACK_WORDS } from './model';
 import { proofFile } from './proof';
 import { RECORD } from './record';
@@ -18,7 +18,7 @@ vi.mock('../lib/runtime', async () => (await import('../windows/main/console/tes
 function mountArena() {
   const backend = mockBackend('main');
   setHarnessBackend(backend);
-  render(<DataProvider scope="main"><Arena /></DataProvider>);
+  render(<DataProvider scope="main"><BreakTheTable host="page" /></DataProvider>);
   return backend;
 }
 
@@ -122,5 +122,31 @@ describe('your attacks, as a file', () => {
     expect(f.summary).toEqual({ played: 3, distinct: 2, of: RECORD.attacks.length, held: 3, moved: '$0.00', paypal_requests: 0, paypal_calls: 0, money_operations: 0 });
     expect(f.attacks.map((a) => a.id)).toEqual(played.map((a) => a.id));
     expect(f.attacks[0]?.answer).toEqual(RECORD.attacks[0]?.answer);
+  });
+});
+
+describe('the closing card checks the proof', () => {
+  beforeEach(() => { resetMockState(); document.documentElement.classList.add('calm'); });
+  afterEach(() => { cleanup(); setHarnessBackend(null); document.documentElement.classList.remove('calm'); });
+
+  it('opens the attack deal’s recorded file in the proof checker, checked green, with a link to the proof page', async () => {
+    mountArena();
+    const a = RECORD.attacks.find((x) => x.id === 'past-the-limit')!;
+    const card = [...document.querySelectorAll<HTMLButtonElement>('.ar-card')].find((b) => b.querySelector('.ar-card-t')?.textContent === ATTACK_WORDS[a.id]!.title);
+    act(() => { fireEvent.click(card as HTMLElement); });
+    await screen.findByText(ATTACK_WORDS[a.id]!.held, undefined, { timeout: 2000 });
+    act(() => { fireEvent.keyDown(window, { key: 'c' }); });
+    const proof = document.querySelector('.ar-proofcheck') as HTMLElement;
+    expect(proof).toBeTruthy();
+    expect(proof.querySelector('a[href="proof.html?file=arena-past-the-limit"]')).toBeTruthy();
+    await within(proof).findAllByText('Every check that applies passed', undefined, { timeout: 30_000 });
+  }, 60_000);
+
+  it('says so when only the seller’s attacks were played: they leave no deal file of their own', async () => {
+    mountArena();
+    act(() => { fireEvent.keyDown(window, { key: 'q' }); });
+    await screen.findByText('Kept for Maya, never shown to her agent', undefined, { timeout: 2000 });
+    act(() => { fireEvent.keyDown(window, { key: 'c' }); });
+    expect(screen.getByText(ARENA_PROOF.none)).toBeTruthy();
   });
 });

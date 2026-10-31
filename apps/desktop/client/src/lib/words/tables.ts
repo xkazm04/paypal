@@ -313,7 +313,6 @@ export const TABLES = {
  *  (console/areas/tables/Corridor.tsx; the beats come from modules/tables/corridor.ts). Figures
  *  arrive formatted; "who" is the other side's short name. */
 export const TABLES_WATCH = {
-  cardValue: (from: string, to: string): string => `${from} → ${to}`,
   cardNote: 'Every offer, replayed',
   cardNone: 'No haggle to watch yet',
   sub: 'Every price here was signed by the agent that made it. Your limits are the walls.',
@@ -328,7 +327,6 @@ export const TABLES_WATCH = {
   replay: 'Watch again',
   pause: 'Pause',
   skip: 'Show the end',
-  speed: 'Speed',
   playTitle: 'Replay the haggle from its first offer',
   resume: 'Play on',
   timeline: 'Haggle timeline',
@@ -337,7 +335,6 @@ export const TABLES_WATCH = {
   // the walls and the lane
   most: 'Most you pay',
   least: 'Least you accept',
-  market: 'Typical price',
   marketRange: (lo: string, hi: string): string => `Typical price ${lo}–${hi}`,
   yourCall: (v: string): string => `Your call above ${v}`,
   them: (who: string): string => who,
@@ -373,5 +370,4 @@ export const TABLES_WATCH = {
   reading: 'Reading the haggle…',
   watchAll: 'Watch the haggle',
   watchAllTitle: 'Replay a haggle: every signed offer, and where your rules stepped in',
-  srSummary: (n: number): string => `${n} steps. Each one is listed below as it plays.`,
 } as const;

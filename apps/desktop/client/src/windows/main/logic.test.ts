@@ -35,8 +35,18 @@ describe('module mapping', () => {
     expect(moduleOf(mk({ kind: 'purchase', shield: 'HOLD' }), { module: 'spend' })).toBe('spend');
   });
   it('places the sample week as the design report does', () => {
+    // Every count is derived from the fixtures, never typed: a deal's kind names its module (Rust's
+    // DealKind -> Module, as the cases above pin one by one) unless the shield holds or blocks it, and a
+    // fixture's own attention item names the module its decision shows in.
+    const KIND_MODULE: Readonly<Record<Deal['kind'], string>> = { haggle: 'tables', purchase: 'spend', shop_order: 'counter', invoice: 'book', rescue: 'rescue' };
+    const expected = (d: Deal): string => (d.shield === 'HOLD' || d.shield === 'BLOCK' ? 'shield' : KIND_MODULE[d.kind]);
     const count = (m: string) => deals.filter((d) => moduleOf(d) === m).length;
-    expect([count('tables'), count('spend'), count('counter'), count('book'), count('shield'), count('rescue')]).toEqual([7, 6, 4, 0, 3, 3]); // D-0205 the recorded house haggle (mock/haggle.json); D-0184 lapsed at its approval (attention-ladder-1); D-0204 the house seller's table in the shop-around group; D-0199 MISMATCH carries a shield HOLD; Q-0207 quote; D-0194 checking with PayPal; D-0182/D-0178 rescues; D-0181 the safe-default release
+    const want = (m: string) => deals.filter((d) => expected(d) === m).length;
+    for (const m of ['tables', 'spend', 'counter', 'book', 'shield', 'rescue']) expect(count(m), m).toBe(want(m));
+    expect(['tables', 'spend', 'counter', 'book', 'shield', 'rescue'].reduce((n, m) => n + count(m), 0)).toBe(deals.length);
+    // Tables holds every haggle the shield leaves alone (D-0205 the recorded house haggle, D-0193 Dan's).
+    expect(count('tables')).toBe(deals.filter((d) => d.kind === 'haggle' && d.shield !== 'HOLD' && d.shield !== 'BLOCK').length);
+    for (const w of world.deals) if (w.attention) expect(moduleOf(w.deal, w.attention), w.display.label).toBe(w.attention.module);
   });
 });
 

@@ -344,9 +344,9 @@ export type SetupStep = (typeof SETUP_STEPS)[number];
 /** Where a deal page was opened from (its parent in the stack): a module, or one of its detail views. */
 export type DealFrom = { module: Module; view?: string };
 /** The owner's places, each a layer of the console (rebuild WP2.5; they were sheets before):
- *  agent rules and the wallet limits under them, connections and the pairing desk, settings, and
- *  the safety record. */
-export const PLACES = ['rules', 'limits', 'connections', 'pairing', 'settings', 'safety'] as const;
+ *  agent rules and the wallet limits under them, connections and the pairing desk, settings, the
+ *  safety record, and Break The Table beside it ("Try to break it", src/arena). */
+export const PLACES = ['rules', 'limits', 'connections', 'pairing', 'settings', 'safety', 'try'] as const;
 export type Place = (typeof PLACES)[number];
 /** Where a place was opened from, when that is not its usual parent: a module page, or Settings. */
 export type PlaceFrom = Module | 'settings';
@@ -466,7 +466,7 @@ export function withoutView(r: Route): Route {
 }
 
 /** A place's usual parent when it was not opened from anywhere in particular (null = the centre). */
-export const PLACE_PARENT: Readonly<Record<Place, Place | null>> = { rules: null, limits: 'rules', connections: null, pairing: 'connections', settings: null, safety: null };
+export const PLACE_PARENT: Readonly<Record<Place, Place | null>> = { rules: null, limits: 'rules', connections: null, pairing: 'connections', settings: null, safety: null, try: null };
 
 /**
  * Where Esc / the back button goes from `route` (overlays are handled before this): a module's

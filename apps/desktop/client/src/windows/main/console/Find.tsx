@@ -32,6 +32,7 @@ const PLACES: readonly FindItem[] = [
   { key: 's-limits', group: 'places', title: PLACE_NAME.limits, sub: PLACE_FIND_SUB.limits, target: { kind: 'route', route: { level: 'place', place: 'limits' } } },
   { key: 'p-setup', group: 'places', title: SETUP_PAGE_TITLE, sub: FIND_PLACE_SUB.setup, target: { kind: 'setup', step: 'keys' } },
   { key: 's-safety', group: 'places', title: PLACE_NAME.safety, sub: PLACE_FIND_SUB.safety, target: { kind: 'route', route: { level: 'place', place: 'safety' } } },
+  { key: 's-try', group: 'places', title: PLACE_NAME.try, sub: PLACE_FIND_SUB.try, target: { kind: 'route', route: { level: 'place', place: 'try' } } },
   { key: 's-quit', group: 'places', title: FIND_QUIT_TITLE, sub: FIND_PLACE_SUB.quit, target: { kind: 'quit' } },
 ];
 

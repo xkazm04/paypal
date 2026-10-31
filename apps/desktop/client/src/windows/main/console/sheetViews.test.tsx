@@ -112,7 +112,7 @@ describe('a deal card view is a step of the route', () => {
 describe('every sheet layer registers exactly the card views its page draws', () => {
   const SHEETS = layerRoutes().filter(([id]) => { const t = LAYER_ROUTES[id]; return id === 'deal' || (typeof t === 'object' && t.level === 'place'); });
   it('covers the deal and the places', () => {
-    expect(SHEETS.map(([id]) => id).sort()).toEqual(['connections', 'deal', 'limits', 'pairing', 'rules', 'safety', 'settings']);
+    expect(SHEETS.map(([id]) => id).sort()).toEqual(['connections', 'deal', 'limits', 'pairing', 'rules', 'safety', 'settings', 'try']);
   });
   it.each(SHEETS)('%s', async (id, target) => {
     await renderLayerAtScale(target, 'small');

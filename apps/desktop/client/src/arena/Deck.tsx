@@ -1,5 +1,5 @@
-// BROWSER PREVIEW ONLY. Break The Table's deck: the attack cards in their two suits and the closing
-// "Check it yourself" card. A card plays on click, on its key, or when dragged onto the table (drag.ts).
+// Break The Table's deck: the attack cards in their two suits and the closing "Check the proof yourself"
+// card. A card plays on click, on its key (the page only), or when dragged onto the table (drag.ts).
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { ARENA_DECK, ARENA_FINALE } from '../lib/words/arena';
 import type { Held } from './drag';
@@ -15,8 +15,10 @@ export type CardHandlers = {
   wasDrag: () => boolean;
 };
 
-export function Suit({ title, sub, cards, suit, played, hint, held, h }: {
+export function Suit({ title, sub, cards, suit, played, hint, held, h, keys = true }: {
   title: string; sub: string; cards: RecordedAttack[]; suit: RecordedAttack['suit']; played: (id: string) => number;
+  /** The cards answer to their keys (the page); in the console the keys are the console's. */
+  keys?: boolean;
   /** The card that says "Start here" (none once anything was played). */
   hint: string | null; held: Held | null; h: CardHandlers;
 }) {
@@ -28,7 +30,7 @@ export function Suit({ title, sub, cards, suit, played, hint, held, h }: {
         {cards.map((a, i) => {
           const w = ATTACK_WORDS[a.id];
           const n = played(a.id);
-          const key = keyFor(suit, i);
+          const key = keys ? keyFor(suit, i) : null;
           const lifted = held?.id === a.id;
           return (
             <li key={a.id} className={lifted ? 'lifted' : undefined}>
@@ -40,7 +42,7 @@ export function Suit({ title, sub, cards, suit, played, hint, held, h }: {
                 <span className="ar-card-t">{w?.title ?? a.id}</span>
                 <span className="ar-card-s">{w?.tries}</span>
                 {n ? <span className="ar-card-p">{ARENA_DECK.played}{n > 1 ? ` ×${n}` : ''}</span> : null}
-                {hint === a.id ? <span id="ar-start" className="ar-start">{ARENA_DECK.start} · {ARENA_DECK.drag}</span> : null}
+                {hint === a.id ? <span id="ar-start" className="ar-start">{ARENA_DECK.start} · {keys ? ARENA_DECK.drag : ARENA_DECK.dragNoKey}</span> : null}
               </button>
             </li>
           );
@@ -50,10 +52,10 @@ export function Suit({ title, sub, cards, suit, played, hint, held, h }: {
   );
 }
 
-export function FinaleCard({ onPlay, ready }: { onPlay: () => void; ready: boolean }) {
+export function FinaleCard({ onPlay, ready, keys = true }: { onPlay: () => void; ready: boolean; keys?: boolean }) {
   return (
-    <button type="button" className={`ar-card ar-finale-card${ready ? ' ready' : ''}`} aria-keyshortcuts="c" onClick={onPlay}>
-      <kbd className="ar-key">{ARENA_FINALE.key}</kbd>
+    <button type="button" className={`ar-card ar-finale-card${ready ? ' ready' : ''}${keys ? '' : ' nokey'}`} aria-keyshortcuts={keys ? 'c' : undefined} onClick={onPlay}>
+      {keys ? <kbd className="ar-key">{ARENA_FINALE.key}</kbd> : null}
       <span className="ar-card-t">{ARENA_FINALE.card}</span>
       <span className="ar-card-s">{ARENA_FINALE.cardSub}</span>
     </button>

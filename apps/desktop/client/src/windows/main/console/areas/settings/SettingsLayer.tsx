@@ -26,6 +26,7 @@ import {
   CONNECTIONS_ENGINE, CONNECTIONS_HOUSE, CONNECTIONS_PAYPAL, fingerprintGroups, LATEST_OF, modeWord, NOTICE_WHAT, PERMISSIONS_FINGERPRINT, SETTINGS_FACTS, PERMISSIONS_FINGERPRINT_MEANS, rulesName, SETTINGS_AGENTS, SETTINGS_CARD, SETTINGS_IF, SETTINGS_KICKER, SETTINGS_LOCK, SETTINGS_LOOK, SETTINGS_MORE,
   SETTINGS_ACT, SETTINGS_NOTIFY, SETTINGS_OPEN_CHARTER, SETTINGS_PROTECT, SETTINGS_TO_CONNECTIONS,
 } from '../../../../../lib/words';
+import { ARENA_PLACE } from '../../../../../lib/words/arena';
 import { RunBadge, WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Kv, layerCount, Seg, Silence, UNKNOWN, useToast } from '../../../../../shared/ui';
 import { deriveCircuit, settingsAnswer, type Circuit, type MandateLite } from '../../../setup/circuit';
@@ -153,6 +154,7 @@ export function SettingsLayer({ nav }: LayerProps) {
           <MoreRow name={SETTINGS_MORE.rules} line={SETTINGS_MORE.rulesLine} fk="st-rules" onOpen={() => nav.place('rules')} />
           <MoreRow name={SETTINGS_MORE.connections} line={SETTINGS_MORE.connectionsLine} fk="st-connections" onOpen={() => nav.place('connections')} />
           <MoreRow name={SETTINGS_MORE.safety} line={SETTINGS_MORE.safetyLine} fk="st-safety" onOpen={() => nav.place('safety')} />
+          <MoreRow name={ARENA_PLACE.title} line={ARENA_PLACE.line} fk="st-try" onOpen={() => nav.place('try')} />
           {backend().kind === 'mock' ? <MoreRow name={SETTINGS_MORE.firstRun} line={SETTINGS_MORE.firstRunLine} fk="st-first" onOpen={showFirstRun} /> : null}
           <MoreRow name={SETTINGS_MORE.quit} line={SETTINGS_MORE.quitLine} fk="st-quit" onOpen={() => nav.quit()} />
         </ul>

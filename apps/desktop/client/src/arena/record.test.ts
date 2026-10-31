@@ -34,6 +34,14 @@ describe('the arena record', () => {
     }
   });
 
+  it('carries totals that are the sums of its own attacks and sessions (the page shows these, never a typed count)', () => {
+    const sum = (k: 'paypal_requests' | 'paypal_calls' | 'money_operations') => RECORD.attacks.reduce((n, a) => n + a[k], 0);
+    expect(RECORD.totals).toEqual({ attacks: RECORD.attacks.length, paypal_requests: sum('paypal_requests'), paypal_calls: sum('paypal_calls'), money_operations: sum('money_operations') });
+    const g = RECORD.gauntlet;
+    expect(Object.values(g.refusals).reduce((n, x) => n + x, 0)).toBe(g.refused);
+    expect(g.refused).toBeLessThanOrEqual(g.agent_calls);
+  });
+
   it('pairs each refused agent call with the one intent.refused row naming its code', () => {
     for (const a of RECORD.attacks.filter((x) => x.suit === 'agent')) {
       expect(a.refused, a.id).toBe(true);
