@@ -496,6 +496,23 @@ impl Wallet {
         )?;
         Ok(envelope.raw().into())
     }
+    /// Signs a NOTE to the counterparty: human-only words, no terms and no state change. The
+    /// receiving wallet keeps it quarantined for its owner; no agent projection carries it.
+    pub fn note(
+        &mut self,
+        id: DealId,
+        text: table_proto::ShortText<280>,
+        now: Timestamp,
+    ) -> Result<String, Error> {
+        let deal = self.ledger.get_deal(id)?;
+        if deal.state.terminal() {
+            return Err(Error::Ledger(LedgerError::Conflict));
+        }
+        let envelope = self.signed(&deal, Body::Note { text }, now)?;
+        self.ledger
+            .commit_negotiation(&envelope, Direction::Outbound, None, None, now)?;
+        Ok(envelope.raw().into())
+    }
 }
 /// A tool name as it may be audited: the agent chooses it, so only a short snake-case name
 /// is kept.

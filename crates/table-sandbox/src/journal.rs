@@ -48,8 +48,11 @@ pub struct Entry {
     pub ms: u64,
     /// Which table (world) the call went to.
     pub table: u32,
-    /// A line the sandbox itself wrote (set only by [`Entry::marker`], never from a request).
+    /// A line the sandbox itself wrote (set only by [`Entry::marker`] and
+    /// [`Entry::seller_note`], never from a request).
     pub marker: bool,
+    /// The house seller's note, delivered from the arena (set only by [`Entry::seller_note`]).
+    pub seller_note: bool,
 }
 impl Entry {
     /// A line the sandbox itself writes (a fresh table opening), not an agent's call.
@@ -70,6 +73,29 @@ impl Entry {
             ms: 0,
             table,
             marker: true,
+            seller_note: false,
+        }
+    }
+    /// The house seller's note on `table`, as the arena delivered it. The words are kept as data
+    /// (`args.text`) and the line says where they went: the owner's quarantine, never the agent.
+    pub fn seller_note(table: u32, at: u64, text: &str, paypal: u64) -> Self {
+        Self {
+            seq: 0,
+            at,
+            method: "house/note".into(),
+            tool: None,
+            args: Some(serde_json::json!({ "text": text })),
+            outcome: Outcome::Protocol,
+            code: None,
+            clause: None,
+            rule: "The house seller sent a note: the wallet keeps it for you, quarantined, and your agent never reads it".into(),
+            detail: None,
+            told: None,
+            paypal,
+            ms: 0,
+            table,
+            marker: true,
+            seller_note: true,
         }
     }
 }
@@ -154,6 +180,10 @@ fn held(code: &str, clause: Option<u8>) -> String {
         ("market_unavailable", _) => "no market price is cached in the sandbox".into(),
         ("invalid_request", _) => "the wallet could not use the request".into(),
         ("session_not_enabled", _) => "the session is not enabled yet".into(),
+        ("call_budget", _) => format!(
+            "{} calls a turn, a looping agent is cut off",
+            table_mcp::CALL_BUDGET
+        ),
         ("run_ended", _) => "the agent's turn ended".into(),
         ("paused", _) => "every agent is paused".into(),
         ("group_closed", _) => "another table already agreed".into(),
@@ -213,6 +243,7 @@ pub fn read(request: Option<&Value>, status: u16, answer: Option<&Value>) -> Ent
         ms: 0,
         table: 0,
         marker: false,
+        seller_note: false,
     };
     if !(200..300).contains(&status) {
         entry.outcome = Outcome::Error;
@@ -290,16 +321,9 @@ pub fn read(request: Option<&Value>, status: u16, answer: Option<&Value>) -> Ent
                     .and_then(|w| w.get("text"))
                     .and_then(Value::as_str)
                     .map(str::to_owned);
-                let budget = entry
-                    .detail
-                    .as_deref()
-                    .is_some_and(|d| d.contains("tool-call budget"));
                 let statement = held(code.as_deref().unwrap_or(""), clause);
                 entry.rule = match (clause, code.as_deref()) {
-                    (None, _) if budget => format!(
-                        "The door held: {} calls a turn, a looping agent is cut off",
-                        table_mcp::CALL_BUDGET
-                    ),
+                    (_, Some("call_budget")) => format!("The door held: {statement}"),
                     (Some(clause), _) if clause > 0 => format!("Rule {clause} held: {statement}"),
                     (_, Some("tool_absent" | "malformed_call")) => {
                         format!("The door held: {statement}")
@@ -361,6 +385,27 @@ mod tests {
         let request = json!({"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"send_offer","arguments":{"price":huge}}});
         let entry = read(Some(&request), 200, None);
         assert!(entry.args.unwrap().as_str().unwrap().contains("not kept"));
+    }
+
+    #[test]
+    fn the_budget_cutoff_is_read_from_its_code_not_its_words() {
+        let request = json!({"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"table_view","arguments":{}}});
+        let wire = json!({"code":"call_budget","clause":null,"text":"Spent."});
+        let answer = json!({"jsonrpc":"2.0","id":7,"result":{"isError":true,"content":[{"type":"text","text":wire.to_string()}],"structuredContent":wire}});
+        let entry = read(Some(&request), 200, Some(&answer));
+        assert_eq!(entry.code.as_deref(), Some("call_budget"));
+        assert!(
+            entry.rule.starts_with("The door held: 64 calls a turn"),
+            "{}",
+            entry.rule
+        );
+        // The old words with another code are just that code.
+        let wire =
+            json!({"code":"unavailable","clause":null,"text":"x","detail":"tool-call budget"});
+        let answer =
+            json!({"jsonrpc":"2.0","id":8,"result":{"isError":true,"structuredContent":wire}});
+        let entry = read(Some(&request), 200, Some(&answer));
+        assert!(entry.rule.starts_with("The wallet held"), "{}", entry.rule);
     }
 
     #[test]

@@ -500,6 +500,15 @@ impl Seller {
         }
         result
     }
+    /// Signs a NOTE to the buyer on deal `id`: words for its owner, no terms, no state change.
+    /// It travels on the next tick's relay delivery like every other house message, and the
+    /// buyer's wallet keeps it quarantined (no agent projection carries a NOTE).
+    pub fn send_note(&mut self, id: DealId, text: &str) -> Result<(), Error> {
+        let text = table_proto::ShortText::<280>::new(text.to_owned())?;
+        let now = self.clock.now();
+        self.pipeline.wallet.note(id, text, now)?;
+        Ok(())
+    }
     /// Seats a buyer at a new table. A request turned away is counted by its fixed reason code
     /// for the public ledger (T9) and writes nothing.
     pub fn table(&mut self, request: HouseRequest) -> Result<HouseResponse, Error> {
@@ -1006,6 +1015,7 @@ type Reply = oneshot::Sender<Result<HouseResponse, Error>>;
 enum Message {
     Table(HouseRequest, Reply),
     Snapshot(DealId, oneshot::Sender<Result<Deal, Error>>),
+    Note(DealId, String, oneshot::Sender<Result<(), Error>>),
 }
 /// A public prefix read: rows, and where the signed answer goes.
 type PrefixAsk = (u64, oneshot::Sender<Result<SignedHousePrefix, Error>>);
@@ -1061,6 +1071,13 @@ impl HouseHandle {
     pub async fn snapshot(&self, id: DealId) -> Result<Deal, Error> {
         let (tx, rx) = oneshot::channel();
         self.ask(&self.tx, Message::Snapshot(id, tx), rx, None)
+            .await
+    }
+    /// Has the actor sign a NOTE to the buyer on `id` ([`Seller::send_note`]); asked on the
+    /// tables queue, so a full queue turns it away like a table request (uncounted).
+    pub async fn note(&self, id: DealId, text: String) -> Result<(), Error> {
+        let (tx, rx) = oneshot::channel();
+        self.ask(&self.tx, Message::Note(id, text, tx), rx, None)
             .await
     }
     /// The house's signed chain hash at `rows`, from the published chain (signed by the actor,
@@ -1129,6 +1146,7 @@ pub fn start(mut seller: Seller) -> House {
                 request=rx.recv()=>match request {
                     Some(Message::Table(request,reply))=>{if !reply.is_closed(){let _=reply.send(seller.table(request));}},
                     Some(Message::Snapshot(id,reply))=>{let _=reply.send(seller.pipeline.wallet.ledger.get_deal(id).map_err(Error::from));},
+                    Some(Message::Note(id,text,reply))=>{if !reply.is_closed(){let _=reply.send(seller.send_note(id,&text));}},
                     None=>break,
                 },
                 // After the tables queue: a buyer's table is never kept waiting by prefix reads.

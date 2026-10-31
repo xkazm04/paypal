@@ -27,6 +27,12 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use table_client::{AuditPage, AuditPageArgs, RunSnapshot, RunState, SafetyRecord};
 use table_runtime::{Action, Caller};
 
+/// The only browser origins the arena bridge answers: the client's dev and director port.
+pub const ARENA_ORIGINS: [&str; 2] = ["http://localhost:1430", "http://127.0.0.1:1430"];
+/// The header every `/api/arena/*` request carries (a cross-site form cannot set it).
+pub const ARENA_HEADER: (&str, &str) = ("x-sandbox", "arena");
+/// The largest note body the bridge reads, in bytes.
+pub const ARENA_NOTE_BYTES: usize = 2048;
 const PAGE: &str = include_str!("page/index.html");
 const SCRIPT: &str = include_str!("page/app.js");
 const STYLE: &str = include_str!("page/app.css");
@@ -178,9 +184,16 @@ impl App {
             .route("/app.css", get(style))
             .route("/favicon.ico", get(|| async { StatusCode::NO_CONTENT }))
             .route("/api/state", get(state))
-            .route("/api/journal", get(journal))
+            .route("/api/journal", get(journal).options(arena_preflight))
             .route("/api/fresh", post(fresh))
             .route("/api/proof", get(proof))
+            // The arena's bridge: a browser page on the client's dev port may read the table and
+            // hand the house seller a note. Nothing here reaches a tool or money.
+            .route(
+                "/api/arena/hello",
+                get(arena_hello).options(arena_preflight),
+            )
+            .route("/api/arena/note", post(arena_note).options(arena_preflight))
             // The wallet's own MCP server takes at most this much; nothing larger is kept.
             .layer(DefaultBodyLimit::max(64 * 1024))
             .with_state(self)
@@ -390,10 +403,7 @@ impl App {
         entry.paypal = self.recorders.buyer.asked();
         entry.table = table;
         // The wallet cut this turn off: remember it, so the turn is not renewed on age alone.
-        if entry
-            .detail
-            .as_deref()
-            .is_some_and(|d| d.contains("tool-call budget"))
+        if entry.code.as_deref() == Some("call_budget")
             && let Ok(mut turn) = self.turn.lock()
             && let Some(turn) = turn.as_mut()
         {
@@ -756,7 +766,17 @@ async fn journal(
     if !app.door(&headers) {
         return refused_door();
     }
-    Json(app.journal.after(after.after)).into_response()
+    // The live page reads it same-origin (no Origin, or its own). The arena reads it from its
+    // own port under the bridge's rule; any other origin is refused.
+    let origin = match headers.get(header::ORIGIN) {
+        None => None,
+        Some(_) if app.own_origin(&headers) => None,
+        Some(_) => match arena_gate(&app, &headers, false) {
+            Ok(origin) => origin,
+            Err(why) => return (StatusCode::FORBIDDEN, why).into_response(),
+        },
+    };
+    with_cors(origin, Json(app.journal.after(after.after)).into_response())
 }
 /// The page's "Open a fresh table": its own origin only, with a header a cross-site form cannot set.
 async fn fresh(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
@@ -770,6 +790,187 @@ async fn fresh(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
     match app.fresh(seen, "opened from the live page").await {
         Ok(number) => Json(json!({"table_number": number})).into_response(),
         Err(error) => (StatusCode::SERVICE_UNAVAILABLE, error.to_string()).into_response(),
+    }
+}
+/// The arena's origin when the request is one the bridge answers: a loopback Host, no Origin or
+/// one of [`ARENA_ORIGINS`] (never `null`), and, unless `preflight`, the arena header. A
+/// refusal is a 403 with the fixed reason.
+fn arena_gate(
+    app: &App,
+    headers: &HeaderMap,
+    preflight: bool,
+) -> Result<Option<header::HeaderValue>, &'static str> {
+    if !app.door(headers) {
+        return Err("loopback only");
+    }
+    let origin = match headers.get(header::ORIGIN) {
+        None => None,
+        Some(value) => match value.to_str() {
+            Ok(text) if ARENA_ORIGINS.contains(&text) => Some(value.clone()),
+            _ => return Err("origin not allowed"),
+        },
+    };
+    if preflight && origin.is_none() {
+        return Err("origin not allowed");
+    }
+    if !preflight
+        && headers.get(ARENA_HEADER.0).and_then(|v| v.to_str().ok()) != Some(ARENA_HEADER.1)
+    {
+        return Err("missing x-sandbox: arena");
+    }
+    Ok(origin)
+}
+/// `response` with the CORS headers for `origin` (an allowed arena origin), when there is one.
+fn with_cors(origin: Option<header::HeaderValue>, mut response: Response) -> Response {
+    let headers = response.headers_mut();
+    headers.insert(header::VARY, header::HeaderValue::from_static("Origin"));
+    if let Some(origin) = origin {
+        headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+    }
+    response
+}
+fn arena_answer(origin: Option<header::HeaderValue>, status: StatusCode, body: Value) -> Response {
+    with_cors(origin, (status, Json(body)).into_response())
+}
+/// The browser's preflight for an arena route: an allowed origin, GET or POST, and no header
+/// beyond `content-type` and `x-sandbox`.
+async fn arena_preflight(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
+    let origin = match arena_gate(&app, &headers, true) {
+        Ok(origin) => origin,
+        Err(why) => return (StatusCode::FORBIDDEN, why).into_response(),
+    };
+    let method = headers
+        .get(header::ACCESS_CONTROL_REQUEST_METHOD)
+        .and_then(|v| v.to_str().ok());
+    let asked_ok = headers
+        .get(header::ACCESS_CONTROL_REQUEST_HEADERS)
+        .and_then(|v| v.to_str().ok())
+        .is_none_or(|asked| {
+            asked
+                .split(',')
+                .map(|h| h.trim().to_ascii_lowercase())
+                .all(|h| h.is_empty() || h == "content-type" || h == "x-sandbox")
+        });
+    if !matches!(method, Some("GET" | "POST")) || !asked_ok {
+        return (StatusCode::FORBIDDEN, "preflight not allowed").into_response();
+    }
+    let mut response = with_cors(origin, StatusCode::NO_CONTENT.into_response());
+    let out = response.headers_mut();
+    out.insert(
+        header::ACCESS_CONTROL_ALLOW_METHODS,
+        header::HeaderValue::from_static("GET, POST"),
+    );
+    out.insert(
+        header::ACCESS_CONTROL_ALLOW_HEADERS,
+        header::HeaderValue::from_static("content-type, x-sandbox"),
+    );
+    out.insert(
+        header::ACCESS_CONTROL_MAX_AGE,
+        header::HeaderValue::from_static("600"),
+    );
+    // Both ends are loopback, but a browser that asks about private-network access gets a yes.
+    if headers.contains_key("access-control-request-private-network") {
+        out.insert(
+            "access-control-allow-private-network",
+            header::HeaderValue::from_static("true"),
+        );
+    }
+    response
+}
+/// `GET /api/arena/hello`: the sandbox is here, and which table is open (none once it closed).
+async fn arena_hello(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
+    let origin = match arena_gate(&app, &headers, false) {
+        Ok(origin) => origin,
+        Err(why) => return (StatusCode::FORBIDDEN, why).into_response(),
+    };
+    let mut hello = json!({"sandbox": "table-sandbox", "version": 1});
+    if let Some(world) = app.world()
+        && world.is_open().await
+        && let Some(object) = hello.as_object_mut()
+    {
+        object.insert("table".into(), json!(world.deal_id));
+    }
+    arena_answer(origin, StatusCode::OK, hello)
+}
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NoteBody {
+    text: String,
+}
+/// The note as the protocol can carry it: line breaks and tabs become spaces, the ends trimmed.
+/// Anything else a NOTE refuses (empty, over 280 characters, control or invisible characters)
+/// is refused by the house's own check.
+fn note_text(text: &str) -> String {
+    text.chars()
+        .map(|c| {
+            if matches!(c, '\n' | '\r' | '\t') {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect::<String>()
+        .trim()
+        .to_owned()
+}
+fn not_open(origin: Option<header::HeaderValue>) -> Response {
+    arena_answer(
+        origin,
+        StatusCode::CONFLICT,
+        json!({"accepted": false, "why": "no table is open"}),
+    )
+}
+/// `POST /api/arena/note`: the house seller's note on the open table, delivered as every
+/// counterparty note is (signed by the house, through the relay, quarantined by the wallet).
+async fn arena_note(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+    body: axum::body::Body,
+) -> Response {
+    let origin = match arena_gate(&app, &headers, false) {
+        Ok(origin) => origin,
+        Err(why) => return (StatusCode::FORBIDDEN, why).into_response(),
+    };
+    let Ok(bytes) = axum::body::to_bytes(body, ARENA_NOTE_BYTES).await else {
+        return arena_answer(
+            origin,
+            StatusCode::PAYLOAD_TOO_LARGE,
+            json!({"accepted": false, "why": "a note body is at most 2 KiB"}),
+        );
+    };
+    let Ok(note) = serde_json::from_slice::<NoteBody>(&bytes) else {
+        return arena_answer(
+            origin,
+            StatusCode::BAD_REQUEST,
+            json!({"accepted": false, "why": "the body is {\"text\": string}"}),
+        );
+    };
+    let text = note_text(&note.text);
+    let Some(world) = app.world() else {
+        return not_open(origin);
+    };
+    match world.note(text.clone()).await {
+        Ok(()) => {
+            let entry = app.journal.push(Entry::seller_note(
+                world.number,
+                unix_ms(),
+                &text,
+                app.recorders.buyer.asked(),
+            ));
+            app.echo_line(&app.line(&entry));
+            arena_answer(origin, StatusCode::OK, json!({"accepted": true}))
+        }
+        Err(crate::NoteError::Closed) => not_open(origin),
+        Err(crate::NoteError::Text) => arena_answer(
+            origin,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            json!({"accepted": false, "why": "a note is 1 to 280 characters of plain text"}),
+        ),
+        Err(crate::NoteError::Unavailable) => arena_answer(
+            origin,
+            StatusCode::SERVICE_UNAVAILABLE,
+            json!({"accepted": false, "why": "the house seller did not answer"}),
+        ),
     }
 }
 /// The table's proof file, as a download the offline verifier (`table-verify`) checks.

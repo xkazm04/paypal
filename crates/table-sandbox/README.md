@@ -11,7 +11,8 @@ Connect any agent app that speaks streamable HTTP MCP to `http://127.0.0.1:1443/
 buy the 27-inch monitor at The Table. It haggles with the house seller over signed offers; every
 call is answered by a rule the owner signed, and the page shows which one.
 
-![The live page at the end of a real agent app session](docs/live-page.png)
+No screenshot ships here: run it and record your own session (the live page and the terminal
+show every call and the rule that answered it), or see the recorded film under `film/`.
 
 ## What runs
 
@@ -71,6 +72,27 @@ assembles it (`apps/desktop/src-tauri/src/native.rs`), with these edges held in 
 `[::1]`), and `/mcp` refuses any request carrying an `Origin` (a browser page). "Open a fresh table"
 needs the page's own origin and a header a cross-site form cannot set. Agent arguments reach the
 page only as text and the terminal only without control characters.
+
+## The arena bridge
+
+The client's arena (`apps/desktop/client/src/arena/live.ts`, served on port 1430) plays live
+against this sandbox through three routes on the same loopback server:
+
+| Route | Answer |
+|---|---|
+| `GET /api/arena/hello` | `{"sandbox":"table-sandbox","version":1,"table":"<deal id>"}`; `table` is left out when no table is open |
+| `POST /api/arena/note` | body `{"text": string}`, at most 2 KiB (else 413); `{"accepted":true}`, or 409 with no open table, 422 when a NOTE cannot carry the text (1 to 280 characters, no control characters; line breaks become spaces), 400 for any other body |
+| `GET /api/journal` | the journal, unchanged |
+
+- Every `/api/arena/*` request needs the header `x-sandbox: arena`, else 403.
+- A browser `Origin` must be `http://localhost:1430` or `http://127.0.0.1:1430`; any other origin,
+  and `null`, gets 403. The preflight (`OPTIONS`) is answered for exactly those, allowing `GET`,
+  `POST` and the headers `content-type, x-sandbox`.
+- `/mcp` still refuses any request carrying an `Origin`.
+- A note is the house seller's NOTE: the house signs it, the relay carries it, and the buyer's
+  wallet takes it in like any counterparty note, quarantined for the owner. No agent projection
+  carries a NOTE, so the agent never sees it as instructions. The journal tags it
+  (`"method":"house/note"`, `"seller_note":true`). No route reaches a tool or money.
 
 ## Files
 

@@ -84,12 +84,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Live page   {url}/");
     println!("  MCP server  {url}/mcp   (negotiator: 5 tools, none moves money)");
     println!();
-    println!("  Connect your agent app:");
-    println!("    claude-code   claude mcp add --transport http table-wallet {url}/mcp");
-    println!("    codex-cli     add to ~/.codex/config.toml:");
+    println!("  Connect your agent app: a streamable HTTP MCP server at {url}/mcp");
+    println!("    add command   claude mcp add --transport http table-wallet {url}/mcp");
+    println!("    config file   ~/.codex/config.toml:");
     println!("                  [mcp_servers.table-wallet]");
     println!("                  url = \"{url}/mcp\"");
-    println!("    any other     a streamable HTTP MCP server at {url}/mcp");
+    println!("  The arena bridge: {url}/api/arena/hello (the client on :1430 plays live)");
     println!();
     println!("  Then ask it: \"Buy the 27-inch monitor at The Table. Get it under $250.\"");
     println!(

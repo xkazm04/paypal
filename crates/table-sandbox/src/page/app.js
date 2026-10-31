@@ -79,9 +79,10 @@ function renderFacts() {
   text("rule-in-person", s.rule.in_person);
   text("rule-per-deal", s.rule.per_deal);
   const url = "http://127.0.0.1:" + s.port + "/mcp";
-  text("cmd-claude", "claude mcp add --transport http table-wallet " + url);
-  text("cmd-codex", '[mcp_servers.table-wallet] url = "' + url + '"  (in ~/.codex/config.toml)');
-  text("cmd-any", "streamable HTTP MCP server: " + url);
+  // Agent app names appear only inside the copyable commands, never in the page's own words.
+  text("cmd-url", url);
+  text("cmd-add", "claude mcp add --transport http table-wallet " + url);
+  text("cmd-config", "# ~/.codex/config.toml\n[mcp_servers.table-wallet]\nurl = \"" + url + "\"");
   text("calls", String(s.calls));
   text("answered", String(s.answered));
   text("refused", String(s.refused));
@@ -445,6 +446,26 @@ $("fresh").addEventListener("click", async () => {
     tick();
   }
 });
+
+for (const button of document.querySelectorAll("button.copy")) {
+  button.addEventListener("click", async () => {
+    const source = $(button.dataset.copy);
+    if (!source) return;
+    try {
+      await navigator.clipboard.writeText(source.textContent);
+      button.textContent = "Copied";
+    } catch (_) {
+      // No clipboard (an older browser or a denied permission): select it for a manual copy.
+      const range = document.createRange();
+      range.selectNodeContents(source);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      button.textContent = "Selected";
+    }
+    setTimeout(() => (button.textContent = "Copy"), 1400);
+  });
+}
 
 tick();
 setInterval(tick, 700);

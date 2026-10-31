@@ -199,6 +199,17 @@ impl house_seller::Log for Quiet {
     fn line(&self, _: &str) {}
 }
 
+/// Why a seller note was not delivered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NoteError {
+    /// No table is open (finished, or its house stopped).
+    Closed,
+    /// The protocol cannot carry the text as a NOTE (empty, too long, control characters).
+    Text,
+    /// The house did not answer in time.
+    Unavailable,
+}
+
 /// What each wallet's PayPal client tried to send, across every table this sandbox opened.
 #[derive(Debug, Clone, Default)]
 pub struct Recorders {
@@ -241,6 +252,30 @@ impl World {
     pub async fn house_deal(&self) -> Option<Deal> {
         let house = self.house.lock().await;
         house.as_ref()?.handle.snapshot(self.deal_id).await.ok()
+    }
+    /// Whether this table is still open: its house is running and the deal is not finished.
+    pub async fn is_open(&self) -> bool {
+        self.house.lock().await.is_some() && self.deal().is_some_and(|d| !d.state.terminal())
+    }
+    /// The house seller signs `text` as its NOTE on this table. It reaches the buyer's wallet the
+    /// way every counterparty note does (the relay, then the wallet's inbound checks) and is kept
+    /// there quarantined for the owner: no agent projection carries a NOTE.
+    pub async fn note(&self, text: String) -> Result<(), NoteError> {
+        if self.deal().is_none_or(|d| d.state.terminal()) {
+            return Err(NoteError::Closed);
+        }
+        let house = self.house.lock().await;
+        let house = house.as_ref().ok_or(NoteError::Closed)?;
+        house
+            .handle
+            .note(self.deal_id, text)
+            .await
+            // The house's fixed failure names: never its text.
+            .map_err(|error| match error.code() {
+                "app.protocol" => NoteError::Text,
+                "ledger.conflict" => NoteError::Closed,
+                _ => NoteError::Unavailable,
+            })
     }
     /// Ends the live run and stops the house (its tick in flight finishes first).
     pub async fn close(&self) {

@@ -35,6 +35,8 @@ no payment was attempted.
 - `outside_band`, `rounds_exhausted`, `deadline_passed`, `not_your_turn`, `table_closed`,
   `group_closed`, `shield_hold`: the deal cannot take this proposal. Stop.
 - `paused`, `run_ended`, `session_not_enabled`: your session is over or paused. Stop.
+- `call_budget`: this turn's tool calls are used up. Stop calling tools and finish with what
+  you have.
 - `tool_absent`, `malformed_call`, `invalid_request`, `out_of_scope`: fix the call using the
   tool list; never invent tools.
 - `market_unavailable`: propose from your owner's request alone.

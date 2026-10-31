@@ -71,8 +71,9 @@ happen only in the [money pipeline](./money-pipeline.md).
    `isError` result with `{code, clause, text, detail?}` in `structuredContent` and as JSON text.
    The codes: `mandate_clause{clause}`, `wallet_limit`, `outside_band`, `rounds_exhausted`,
    `deadline_passed`, `owner_approval{clause}`, `group_closed`, `shield_hold{rule}`,
-   `not_your_turn`, `table_closed`, `paused`, `run_ended`, `session_not_enabled`, `tool_absent`,
-   `malformed_call`, `out_of_scope`, `market_unavailable`, `invalid_request`, `unavailable`.
+   `not_your_turn`, `table_closed`, `paused`, `run_ended`, `session_not_enabled`, `call_budget`
+   (the session's `CALL_BUDGET` tool calls are spent), `tool_absent`, `malformed_call`,
+   `out_of_scope`, `market_unavailable`, `invalid_request`, `unavailable`.
    Every refused call writes exactly one `intent.refused` audit row
    `{layer, tool, code, clause, reason}` (`Wallet::audit_refusal`).
 7. **Role playbooks.** A native run starts from its role's playbook, compiled in from `prompts/`

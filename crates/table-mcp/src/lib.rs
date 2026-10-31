@@ -520,14 +520,12 @@ async fn handle(
                     .to_owned();
                 // Every refusal here is audited before the agent hears about it; refusals past this
                 // point are audited by the wallet (or the runtime) that made them.
-                let over = Err((
-                    RefusalCode::Unavailable,
-                    Some("This session's tool-call budget is spent. Stop calling tools and finish with what you have.".to_owned()),
-                ));
+                // The closed code says it, so nobody downstream reads the budget from words.
+                let over = Err((RefusalCode::CallBudget, None));
                 if nth > CALL_BUDGET {
                     if nth == CALL_BUDGET + 1 {
                         s.service
-                            .record_refusal(&scope, &named, RefusalCode::Unavailable, now)
+                            .record_refusal(&scope, &named, RefusalCode::CallBudget, now)
                             .await
                             .map_err(|error| (refusal_code(&error), None))?;
                     }

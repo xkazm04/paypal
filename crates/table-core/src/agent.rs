@@ -401,6 +401,8 @@ pub enum RefusalCode {
     RunEnded,
     /// The session's grant is not enabled yet.
     SessionNotEnabled,
+    /// The session's tool-call budget is spent: a looping agent is cut off until its next turn.
+    CallBudget,
     /// No such tool for this role (for example any money tool: none exists).
     ToolAbsent,
     /// The call or its arguments do not match the tool's schema.
@@ -416,7 +418,7 @@ pub enum RefusalCode {
 }
 impl RefusalCode {
     /// Every code, one value per variant, for docs and tests.
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 20] = [
         Self::MandateClause { clause: 3 },
         Self::WalletLimit { limit: None },
         Self::OutsideBand,
@@ -430,6 +432,7 @@ impl RefusalCode {
         Self::Paused,
         Self::RunEnded,
         Self::SessionNotEnabled,
+        Self::CallBudget,
         Self::ToolAbsent,
         Self::MalformedCall,
         Self::OutOfScope,
@@ -453,6 +456,7 @@ impl RefusalCode {
             Self::Paused => "paused",
             Self::RunEnded => "run_ended",
             Self::SessionNotEnabled => "session_not_enabled",
+            Self::CallBudget => "call_budget",
             Self::ToolAbsent => "tool_absent",
             Self::MalformedCall => "malformed_call",
             Self::OutOfScope => "out_of_scope",
@@ -496,6 +500,9 @@ impl RefusalCode {
             Self::Paused => "Your owner paused every agent. Stop.",
             Self::RunEnded => "This session has ended. Stop.",
             Self::SessionNotEnabled => "This session is not enabled yet. Stop.",
+            Self::CallBudget => {
+                "This session's tool-call budget is spent. Stop calling tools and finish with what you have."
+            }
             Self::ToolAbsent => "No such tool. Use only the tools you were given.",
             Self::MalformedCall => "The call does not match the tool's schema. Fix the arguments.",
             Self::OutOfScope => "This is not the deal, item or role this session was started for.",
