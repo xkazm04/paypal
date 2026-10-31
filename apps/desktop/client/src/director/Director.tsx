@@ -17,6 +17,7 @@ import { clockLabel, nowUnix } from '../lib/format';
 import { rulesOf } from '../lib/say/draft';
 import { read } from '../lib/say/read';
 import { saySetAll } from '../lib/say/store';
+import { setArenaStage } from '../arena/stage';
 import { useNow, usePrefersReducedMotion } from '../lib/hooks';
 import { APPROVAL_FRAME } from '../lib/words';
 import { ARENA_LINK, ARENA_LINK_TITLE } from '../lib/words/arena';
@@ -26,7 +27,7 @@ import { HAGGLE } from './helpers';
 import { applyWorld, foldScene, INITIAL_SCENE, placeTours, runActions, WORLD_ACTIONS, type LookAt, type Scene, type Stage } from './actions';
 import type { Beat, Focus } from './beats';
 import { frameUrls, type Story } from './stories';
-import { charterSteps, checkBeat, deskTransform, expectedDeals, filmTarget, haggleRecord, pressFor, readChapterRecord, recordShownOnStage, selectChapter, stageRect, storyStartOn, syncShade, takePlan, wholeTake, type ChapterTake, type FrameName, type PxRect, type Seen, type TakePlan } from './takes';
+import { charterSteps, checkBeat, deskTransform, drawnButtonLabels, expectedDeals, filmTarget, haggleRecord, pressFor, readChapterRecord, recordShownOnStage, selectChapter, stageRect, storyStartOn, syncShade, takePlan, wholeTake, type ChapterTake, type FrameName, type PxRect, type Seen, type TakePlan } from './takes';
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -120,10 +121,8 @@ function frameButtons(f: HTMLIFrameElement | null | undefined): string[] {
   try {
     const d = f?.contentDocument;
     if (!d) return [];
-    return [...d.querySelectorAll<HTMLElement>('button, a[href], [role="button"]')]
-      .filter((b) => !(b as HTMLButtonElement).disabled && b.getAttribute('aria-disabled') !== 'true' && b.getClientRects().length > 0)
-      .map((b) => (b.innerText || b.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim())
-      .filter(Boolean);
+    // Break The Table's attack cards ("Pay me $999 now") are left out, and nothing else (takes.ts).
+    return drawnButtonLabels(d);
   } catch {
     return [];
   }
@@ -288,6 +287,7 @@ export function Director({ story }: { story: Story }) {
       setApprovalOpen(true);
     },
     say: (text, answers) => saySetAll(text, answers ?? {}),
+    arena: (played, finale) => setArenaStage({ played, finale }),
     // after the chips have landed and the page has found its own place (SayPanel / bringIn: 900 ms), the camera goes where the caption points
     look: (at) => {
       const sel: Record<LookAt, string> = { say: '.say-h', chips: '.say-readas', track: '.rw-bar', tables: '.rw-peeks' };
@@ -381,6 +381,8 @@ export function Director({ story }: { story: Story }) {
     if (story.firstRun) placeTours(sc.tour);
     // The sentence as the earlier beats left it, before the frames load and read it back.
     saySetAll(sc.say.text, sc.say.answers);
+    // Break The Table's attacks as the earlier beats staged them (nothing staged in any other story).
+    setArenaStage(sc.arena);
     const approvalId = sc.approval ? world.deal(sc.approval)?.deal.id ?? null : null;
     setMainOpen(sc.main.open);
     setApprovalOpen(!!approvalId || sc.owner);

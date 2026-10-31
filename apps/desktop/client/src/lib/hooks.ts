@@ -91,7 +91,11 @@ const clock = (() => {
   const subs = new Set<() => void>();
   let timer: ReturnType<typeof setInterval> | null = null;
   let offJump: (() => void) | null = null;
-  const tick = () => { now = nowUnix(); subs.forEach((s) => s()); };
+  /** Set while a quiet read's value holds: until the current task ends (a render, with React's
+   *  repeated getSnapshot calls, is one task) or the last countdown that read it goes away, so a
+   *  second boundary inside one render cannot change it. */
+  let held = false;
+  const tick = () => { now = nowUnix(); held = false; subs.forEach((s) => s()); };
   return {
     subscribe(cb: () => void) {
       subs.add(cb);
@@ -101,13 +105,27 @@ const clock = (() => {
         subs.delete(cb);
         if (!subs.size && timer) { clearInterval(timer); timer = null; }
         if (!subs.size && offJump) { offJump(); offJump = null; }
+        // The last countdown left: the next one drawn is a new screen and reads the clock again.
+        if (!subs.size) held = false;
       };
     },
     // With nothing subscribed no tick runs, so the first countdown drawn after a quiet spell
-    // reads the clock itself instead of the second the last countdown left.
-    get: () => (subs.size ? now : (now = nowUnix())),
+    // reads the clock itself instead of the second the last countdown left. That read is held for
+    // the rest of the task: useSyncExternalStore calls getSnapshot more than once per render and
+    // requires the same value each time ("The result of getSnapshot should be cached"), which a
+    // fresh read failed whenever a second ended between two calls (seen in the director's takes).
+    get: () => {
+      if (subs.size || held) return now;
+      now = nowUnix();
+      held = true;
+      queueMicrotask(() => { held = false; });
+      return now;
+    },
   };
 })();
+
+/** The snapshot useNow reads (exported for its tests). */
+export const nowSnapshot = (): number => clock.get();
 
 export function useNow(): number {
   return useSyncExternalStore(clock.subscribe, clock.get, clock.get);

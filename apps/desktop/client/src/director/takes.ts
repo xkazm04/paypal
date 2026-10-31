@@ -15,11 +15,12 @@ import type { MockBackend } from '../mock/backend';
 import type { MockDeal } from '../mock/fixtures';
 import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, GROUP_CLOSED, GROUP_WINNER, IF_NOTHING, REWIND_AHEAD, REWIND_ANSWER, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, SAY, shoppingFor, stateWord, TABLES, TABLES_VIEWS, TABLES_WATCH, tablesItem, tablesShortWho, type StartStepKey, type TourStopId } from '../lib/words';
 import { nowUnix, shortMoney } from '../lib/format';
-import { laneSteps, tickTone, weekBounds } from '../windows/main/logic';
+import { decidedBy, laneSteps, tickTone, weekBounds } from '../windows/main/logic';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
 import { capUsd as capUsdText, HAGGLE_FIGS as F } from './recorded';
 import { RECORDED } from '../mock/haggle';
+import { RECORD } from '../arena/record';
 
 export type FrameName = 'main' | 'tumbler' | 'approval';
 
@@ -62,14 +63,39 @@ export const BANNER = 'Browser preview with sample data — not the wallet. No P
 export const MOCK_BADGE = 'Preview · sample data';
 
 /** A button that pays, approves or captures: the Tumbler never has one, nor does a held request. */
-const PAYS = /^\s*(pay|approve|accept|capture|release|confirm)\b/i;
+export const PAYS = /^\s*(pay|approve|accept|capture|release|confirm)\b/i;
 const NO_PAY_IN_TUMBLER: Expect = { in: 'tumbler', button: PAYS, absent: true };
+
+/** Break The Table's recorded attacks (src/arena/record.ts), by id. */
+const ATTACK_IDS: ReadonlySet<string> = new Set(RECORD.attacks.map((a) => a.id));
+
+/**
+ * One of Break The Table's attack cards: a `button.ar-card` inside the arena (`.arena`, the page or the
+ * console's place "Try to break it") whose `data-attack` names a recorded attack. Its label is what an
+ * attacker tries ("Pay me $999 now", "Pay someone else") and pressing it shows the wallet's recorded
+ * refusal: it pays nobody. The one exemption from the button labels the no-pay rule reads; any other
+ * button, in the arena or anywhere else, still counts.
+ */
+export function isArenaAttackCard(el: Element): boolean {
+  if (el.tagName !== 'BUTTON' || !el.classList.contains('ar-card') || !el.closest('.arena')) return false;
+  const id = el.getAttribute('data-attack');
+  return id !== null && ATTACK_IDS.has(id);
+}
+
+/** Labels of the enabled, drawn buttons and links in a document (what `Seen.buttons` holds), leaving out
+ *  the arena's attack cards (isArenaAttackCard). `drawn` says whether an element is laid out. */
+export function drawnButtonLabels(doc: ParentNode, drawn: (el: HTMLElement) => boolean = (el) => el.getClientRects().length > 0): string[] {
+  return [...doc.querySelectorAll<HTMLElement>('button, a[href], [role="button"]')]
+    .filter((b) => !(b as HTMLButtonElement).disabled && b.getAttribute('aria-disabled') !== 'true' && drawn(b) && !isArenaAttackCard(b))
+    .map((b) => ((b.innerText ?? b.textContent) || b.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+}
 /** The Tumbler at rest (its puck): no card, so no "if you do nothing" line. */
 const TUMBLER_AT_REST: Expect = { in: 'tumbler', text: 'If you do nothing', absent: true };
 /** The house seller's table for the same monitor, shopped around with Dan's (the sample group). */
 export const HOUSE_TABLE = 'D-0204';
 /** The Table offers no button that pays or approves. */
-const NO_PAY_IN_MAIN: Expect = { in: 'main', button: PAYS, absent: true };
+export const NO_PAY_IN_MAIN: Expect = { in: 'main', button: PAYS, absent: true };
 const LEFT_SOON = /\b1 h (3\d|4\d) min left\b/;
 const LEFT_NOW = /\b1[34] min left\b/;
 /** The Table on its decision centre (the console's home since the 2026-10-14 rebuild): its title, a
@@ -80,7 +106,10 @@ const CENTRE: readonly Expect[] = [
   { in: 'main', text: SAFE_DEFAULT_LINE },
 ];
 
-/** Each beat's settled end state, from the story tests (story.test.ts) as it shows on screen. */
+/** The dock's answer line once its hold ended at the deadline: "decided by the safe default", in the
+ *  deal page's own words (dealAnswer reads decidedBy for a deal whose `decided_by` is the safe default). */
+export const DECIDED_BY_DEADLINE = `decided by ${decidedBy({ decided_by: { type: 'safe_default', deadline: 0 } }).text}`;
+
 /** The Rewind shot of Maya's week (end-rewind), under either film ending. */
 const REWIND_SHOT: readonly Expect[] = [
   { window: 'main', open: true },
@@ -91,6 +120,7 @@ const REWIND_SHOT: readonly Expect[] = [
   { deal: HOLD, state: 'AUTO_VOIDED' },
 ];
 
+/** Each beat's settled end state, from the story tests (story.test.ts) as it shows on screen. */
 export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   intro: [
     { window: 'main', open: true },
@@ -248,12 +278,15 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
     { in: 'main', text: 'USB-C dock for the test bench' },
     { deal: HOLD, state: 'AUTO_VOIDED' },
   ],
-  // the dock's proof: what PayPal has (an order and a hold, no payment), who decided, no receipt
+  // the dock's proof: what PayPal has (an order and a hold, no payment), who decided, no receipt.
+  // Who decided is the deal page's own answer line for a deadline's safe default (logic.ts decidedBy,
+  // one word per authority since 3519c8d3), never another authority's word.
   'end-proof': [
     { window: 'main', open: true },
     { in: 'main', text: 'USB-C dock for the test bench' },
     { in: 'main', text: 'Proof from PayPal' },
-    { in: 'main', text: 'decided by the deadline' },
+    { in: 'main', text: DECIDED_BY_DEADLINE },
+    { in: 'main', text: `decided by ${decidedBy({ decided_by: { type: 'human', at: 0 } }).text}`, absent: true },
     { in: 'main', text: 'Nothing paid yet' },
     { in: 'main', text: 'Nothing was paid, so nothing should appear on the statement.' },
     NO_PAY_IN_MAIN,

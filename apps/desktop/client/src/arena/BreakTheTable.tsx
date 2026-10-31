@@ -19,7 +19,7 @@ import { backend } from '../lib/runtime';
 import { usePrefersReducedMotion } from '../lib/hooks';
 import {
   ARENA_ANSWER, ARENA_AUTO, ARENA_CORRIDOR, ARENA_COUNTER, ARENA_DECK, ARENA_FINALE, ARENA_HONEST, ARENA_LEDE, ARENA_LIVE, ARENA_LIVE_MODE, ARENA_NOTE, ARENA_NOTE_MAX, ARENA_PLACE, ARENA_PREVIEW, ARENA_RESET,
-  ARENA_SAFETY, ARENA_TABLE, ARENA_TITLE,
+  arenaSafetyWords, ARENA_TABLE, ARENA_TITLE,
 } from '../lib/words/arena';
 import { DAN_LABEL } from '../mock/haggle';
 import type { MockBackend } from '../mock/backend';
@@ -30,9 +30,12 @@ import { arenaHaggle, hitsWall } from './corridor';
 import { FinaleCard, HeldCard, Suit, type CardHandlers } from './Deck';
 import { useCardDrag } from './drag';
 import { sendLiveNote, useLive, type LiveState } from './live';
+import { askForLive, liveApplies } from './liveReach';
+import { parseArenaStage, useArenaStage } from './stage';
+import { underDirector } from '../lib/preview';
 import { ATTACK_WORDS, cardForKey, counters, deck, rulesSentence, verdictOf, wholeDollars } from './model';
 import { attackById, isRefusal, RECORD, type RecordedAttack } from './record';
-import { CheckIt, SafetyPanel, type Played } from './Side';
+import { CheckIt, SafetyPanel, sampleRecord, type Played } from './Side';
 import { Gauntlet } from './Gauntlet';
 import { Wire } from './Wire';
 import '../windows/main/console/areas/tables.css';
@@ -71,6 +74,8 @@ export function BreakTheTable({ host, onOpenSafety }: { host: ArenaHost; /** The
   const page = host === 'page';
   const reduced = usePrefersReducedMotion();
   const liveState = useLive();
+  /** Live mode can apply here (a plain browser page: not the desktop app, not under the director). */
+  const canLive = useMemo(() => liveApplies(), []);
   const [plays, setPlays] = useState<Played[]>([]);
   const [view, setView] = useState<View>({ kind: 'empty' });
   const [note, setNote] = useState('');
@@ -201,6 +206,32 @@ export function BreakTheTable({ host, onOpenSafety }: { host: ArenaHost; /** The
   const untried = nextUntried(order, played);
   const reset = () => { setPlays([]); setSentNote(null); setLiveNote(null); setView({ kind: 'empty' }); setLive(''); setSession((x) => x + 1); };
 
+  // Under the director only: the story stages which recorded attacks have landed and whether the
+  // closing card is open (stage.ts), and the arena lands them as a click on each card would. New ones
+  // land after the ones already shown; anything else starts over.
+  const directed = useMemo(() => underDirector(), []);
+  const staged = useArenaStage(directed);
+  const playsRef = useRef(plays);
+  playsRef.current = plays;
+  /** The staged value already shown (undefined: none yet, the page just opened). */
+  const appliedRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!directed || appliedRef.current === staged) return;
+    // What was staged before the page opened (a seek) lands at once; what a beat stages while it is
+    // open lands as a click would, the newest card travelling to the table.
+    const opening = appliedRef.current === undefined;
+    appliedRef.current = staged;
+    const want = (parseArenaStage(staged)?.played ?? []).map((id) => attackById(id)).filter((a): a is RecordedAttack => !!a);
+    const now = playsRef.current.map((p) => p.attack.id);
+    const extends_ = now.length <= want.length && now.every((id, i) => want[i]?.id === id);
+    if (!extends_) reset();
+    const fresh = want.slice(extends_ ? now.length : 0);
+    const end = parseArenaStage(staged)?.finale === true;
+    fresh.forEach((a, k) => { if (k === fresh.length - 1 && !end && !opening) play(a); else land(a); });
+    if (end) finale();
+    // `staged` is the only input: the handlers it calls do not change what was staged.
+  }, [staged, directed]);
+
   const counter = (
     <section className="ar-counter" aria-label={ARENA_COUNTER.label}>
       <Figure big={String(c.attacks)} small={ARENA_COUNTER.attacks(c.attacks)} tone="attack" bump={c.attacks} />
@@ -279,8 +310,8 @@ export function BreakTheTable({ host, onOpenSafety }: { host: ArenaHost; /** The
           </section>
         </section>
 
-        <aside className="ar-side" aria-label={ARENA_SAFETY.heading}>
-          {liveState.status === 'live' ? <LivePanel state={liveState} /> : null}
+        <aside className="ar-side" aria-label={arenaSafetyWords(sampleRecord()).heading}>
+          {liveState.status === 'live' ? <LivePanel state={liveState} /> : canLive ? <ConnectLive /> : null}
           <SafetyPanel key={session} plays={plays} onOpen={onOpenSafety} />
           <CheckIt />
           {view.kind === 'finale' ? null : <Gauntlet compact />}
@@ -338,6 +369,28 @@ function LivePanel({ state }: { state: Extract<LiveState, { status: 'live' }> })
       <h2>{ARENA_LIVE_MODE.label}</h2>
       <p className="ar-sub">{ARENA_LIVE_MODE.sub(state.table)}</p>
       <p className="ar-hint">{state.answers.length === 0 ? ARENA_LIVE_MODE.none : ARENA_LIVE_MODE.count(state.answers.length)}</p>
+    </section>
+  );
+}
+
+/** No live table: the one way to look for the judge's agent app, besides coming back to the window
+ *  (live.ts probes once on mount and on focus, never on a timer while nothing answers). */
+function ConnectLive() {
+  const [asked, setAsked] = useState<'looking' | 'none' | null>(null);
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
+  const connect = () => {
+    askForLive();
+    setAsked('looking');
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    // the probe gives up after 1 s; still here a moment later means nothing answered
+    timer.current = window.setTimeout(() => { timer.current = null; setAsked('none'); }, 1_600);
+  };
+  return (
+    <section className="ar-record ar-connect" aria-label={ARENA_LIVE_MODE.connect}>
+      <p className="ar-sub">{ARENA_LIVE_MODE.connectSub}</p>
+      <Btn sm onClick={connect} disabled={asked === 'looking'} title={ARENA_LIVE_MODE.connectTitle}>{ARENA_LIVE_MODE.connect}</Btn>
+      {asked ? <p className="ar-hint" role="status">{asked === 'looking' ? ARENA_LIVE_MODE.looking : ARENA_LIVE_MODE.notFound}</p> : null}
     </section>
   );
 }

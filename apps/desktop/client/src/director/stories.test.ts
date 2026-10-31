@@ -12,6 +12,10 @@ import { read } from '../lib/say/read';
 import { rulesOf } from '../lib/say/draft';
 import { directorSearchFor, frameUrls, STORIES, storyFor, withFilmEnding } from './stories';
 import { EXPECT, FILM_SAY_EXPECT } from './takes';
+import { TRY_BEATS, TRY_CHAPTERS, TRY_EXPECT, TRY_LENGTH, TRY_ROUTE, TRY_RULE, TRY_TOOL } from './tryStory';
+import { attackById, isRefusal, RECORD } from '../arena/record';
+import { ATTACK_WORDS, counters, wholeDollars } from '../arena/model';
+import { ARENA_COUNTER } from '../lib/words/arena';
 
 /** What a First run beat may do: open and close windows, set a Tumbler form, point the tour. */
 const PRESENTATION: readonly ActionKind[] = ['main', 'approval', 'owner', 'form', 'tour'];
@@ -87,7 +91,7 @@ describe('Maya’s film ending (film_ending)', () => {
   });
 
   it('other stories have no film ending, and the address does not give them one', () => {
-    for (const id of ['first-run', 'watch', 'say'] as const) {
+    for (const id of ['first-run', 'watch', 'say', 'try'] as const) {
       expect(STORIES[id].filmEnding).toBeUndefined();
       expect(storyFor(`?story=${id}&film_ending=say`)).toBe(STORIES[id]);
       expect(frameUrls(STORIES[id]).main(null)).not.toContain('film_ending');
@@ -237,5 +241,86 @@ describe('the Say it story', () => {
     const part = read(SAY_PARTIAL, ctx);
     expect(part.questions.map((q) => q.id)).toEqual(['ceiling']);
     expect(part.facts.ceiling).toBeNull();
+  });
+});
+
+describe('the Try to break it story', () => {
+  it('is chosen with ?story=try and opens the console’s place on Maya’s own sample week', () => {
+    const s = storyFor('?story=try&beat=2');
+    expect(s.id).toBe('try');
+    expect(s.beats).toBe(TRY_BEATS);
+    expect(s.chapters).toBe(TRY_CHAPTERS);
+    expect(s.firstRun).toBe(false);
+    expect(frameUrls(s).main(TRY_ROUTE)).toBe('index.html#p=try');
+    expect(directorSearchFor(s, '?story=try&beat=2')).toBeNull();
+  });
+
+  it('is well-formed, ordered, readable, 4 to 6 beats and about 25 to 35 seconds', () => {
+    expect(TRY_BEATS.length).toBeGreaterThanOrEqual(4);
+    expect(TRY_BEATS.length).toBeLessThanOrEqual(6);
+    expect(TRY_BEATS[0]?.at).toBe(0);
+    expect(new Set(TRY_BEATS.map((b) => b.id)).size).toBe(TRY_BEATS.length);
+    for (let i = 1; i < TRY_BEATS.length; i++) expect(TRY_BEATS[i]!.at).toBeGreaterThan(TRY_BEATS[i - 1]!.at);
+    expect(TRY_BEATS.map((b) => b.chapter).filter((c, i, a) => a[i - 1] !== c)).toEqual(TRY_CHAPTERS.map((c) => c.id));
+    expect(TRY_LENGTH).toBeGreaterThanOrEqual(25);
+    expect(TRY_LENGTH).toBeLessThanOrEqual(35);
+    const all = [...TRY_BEATS, { id: 'the end', at: TRY_LENGTH, caption: '' }];
+    for (let i = 1; i < all.length; i++) {
+      const prev = all[i - 1]!;
+      expect(all[i]!.at - prev.at, prev.id).toBeGreaterThanOrEqual(Math.min(9, Math.ceil(prev.caption.split(/\s+/).length / 3.5)));
+    }
+    for (const b of TRY_BEATS) {
+      expect(b.caption.length, b.id).toBeGreaterThan(10);
+      expect(b.caption.length, b.id).toBeLessThanOrEqual(220);
+      expect(b.caption, b.id).not.toMatch(/Rust|backend|mock|clause \d|D-\d{4}|_list|_query|UNAVAILABLE|tumbler:|attention|mandate|countersign|capture|void|scripted|tool_absent|LLM|model/i);
+      expect(b.caption, b.id).not.toMatch(/[—–]/);
+    }
+  });
+
+  it('lands one rule refusal and one call for a payment tool that does not exist, then the closing card', () => {
+    const rule = attackById(TRY_RULE)!;
+    const tool = attackById(TRY_TOOL)!;
+    expect(isRefusal(rule.answer) && rule.answer.code).toBe('mandate_clause');
+    expect(isRefusal(tool.answer) && tool.answer.code).toBe('tool_absent');
+    const staged = TRY_BEATS.flatMap((b) => b.do.filter((a) => a.do === 'arena'));
+    expect(staged.map((a) => a.do === 'arena' && a.played.length)).toEqual([0, 1, 2, 2, 2]);
+    const last = staged.at(-1);
+    expect(last).toEqual({ do: 'arena', played: [TRY_RULE, TRY_TOOL], finale: true });
+  });
+
+  it('takes every figure in its captions from the record, never typed', () => {
+    const rule = attackById(TRY_RULE)!;
+    const tool = attackById(TRY_TOOL)!;
+    const c = counters([rule, tool]);
+    const caption = (id: string) => TRY_BEATS.find((b) => b.id === id)!.caption;
+    expect(caption('try-rule')).toContain(ATTACK_WORDS[TRY_RULE]!.title);
+    expect(caption('try-rule')).toContain(`no deal over ${wholeDollars(RECORD.rules.per_deal)}`);
+    expect(caption('try-tool')).toContain(ATTACK_WORDS[TRY_TOOL]!.title);
+    expect(caption('try-count')).toContain(`${c.moved} moved, PayPal asked ${c.asked === 1 ? 'once' : `${c.asked} times`}`);
+    // every dollar figure a caption names is one the record names (the cards' titles and her signed rules)
+    const fromRecord = new Set([ATTACK_WORDS[TRY_RULE]!.title, ATTACK_WORDS[TRY_TOOL]!.title, wholeDollars(RECORD.rules.per_deal), c.moved ?? ''].join(' ').match(/\$\d[\d,]*(?:\.\d{2})?/g));
+    for (const b of TRY_BEATS) for (const m of b.caption.match(/\$\d[\d,]*(?:\.\d{2})?/g) ?? []) expect(fromRecord, `${b.id}: ${m}`).toContain(m);
+  });
+
+  it('only stages the arena, routes The Table and closes the approval window: no world, money or lock action', () => {
+    const allowed: readonly ActionKind[] = ['main', 'approval', 'arena'];
+    for (const b of TRY_BEATS) for (const a of b.do) {
+      expect(allowed, `${b.id} → ${a.do}`).toContain(a.do);
+      if (a.do === 'approval') expect(a.deal, b.id).toBeNull();
+      if (a.do === 'main') expect(a.route, b.id).toBe(TRY_ROUTE);
+      if (a.do === 'arena') for (const id of a.played) expect(attackById(id), id).toBeDefined();
+    }
+    expect(JSON.stringify(TRY_BEATS)).not.toMatch(/countersign|capture|owner_accept|shield_release|rescue_approve|open_paypal|mandate_sign|unlock|deal_void|"lock"/i);
+  });
+
+  it('every beat has a settled screen to check, the counter among them, and none lets The Table pay', () => {
+    expect(Object.keys(TRY_EXPECT).sort()).toEqual(TRY_BEATS.map((b) => b.id).sort());
+    for (const b of TRY_BEATS) {
+      const list = TRY_EXPECT[b.id]!;
+      expect(list.length, b.id).toBeGreaterThan(0);
+      expect(list.some((e) => 'button' in e && e.in === 'main' && e.absent), b.id).toBe(true);
+    }
+    const count = TRY_EXPECT['try-count']!.filter((e) => 'text' in e).map((e) => ('text' in e ? String(e.text) : ''));
+    expect(count.some((t) => t.includes(ARENA_COUNTER.moved))).toBe(true);
   });
 });

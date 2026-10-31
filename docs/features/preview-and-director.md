@@ -41,7 +41,7 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
   "Your safety record" (beat `end-safety`, route `#p=safety&m=book`): who decided each money step,
   and that PayPal never heard of a request her rules refused. Before it, `end-proof` (route
   `#d=D-0190&dv=proof`) opens the dock's proof from PayPal: an order and a hold, no payment, no
-  receipt, nothing on the statement, "decided by the deadline". 28 beats in all, 214 s (3:34).
+  receipt, nothing on the statement, "decided by the safe default". 28 beats in all, 214 s (3:34).
 - URL parameters: `?beat=<index or id>`, `?play=0`, `?camera=desk`, `?date=YYYY-MM-DD` (the story
   starts at 14:02:04 that day), `?take=1` (hides the transport for recordings), `?take=film` (the
   demo film's capture, below).
@@ -167,6 +167,14 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
    `director.html?story=say` plays a third, "Say it, then see it" (`director/sayStory.ts`, 9 beats, about 95 s, on Maya's sample week): one sentence in
    The Table's Say it box (`{ do: 'say', text, answers? }`), the Rewind's timeline past a gold Now line, a question it asks instead of guessing, and Review
    rules opening the approval window on the rules it read (`{ do: 'owner', rules }`). Nothing in a beat can sign.
+
+   `director.html?story=try` plays "Try to break it" (`director/tryStory.ts`, 5 beats, 35 s, on Maya's sample week):
+   Break The Table in the console's place "Try to break it" (`#p=try`). Two recorded attacks land, one her signed
+   rules refuse and one asking for a payment tool that does not exist; the counter shows what they moved and how often
+   PayPal was asked; the closing card checks the attack's signed file. `{ do: 'arena', played, finale }` stages which
+   recorded attacks have landed (`src/arena/stage.ts`); nothing is clicked. Caption figures come from the arena record.
+   The no-pay-button rule leaves out only the arena's recorded attack cards (`takes.ts` `isArenaAttackCard`).
+   Rehearse with `pnpm takes --check --story try`. Under the director live mode never probes for a sandbox.
 
 ## Safety properties
 

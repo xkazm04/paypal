@@ -1,6 +1,6 @@
 // BROWSER PREVIEW ONLY. The director's stories, chosen by `director.html?story=<id>`: Maya's week
-// (the default, beats.ts), First run (firstRunStory.ts) and Watch the haggle (watchStory.ts, on Maya's
-// week). A story says which mock world its frames open in, so First run plays on the `?first_run=1`
+// (the default, beats.ts), First run (firstRunStory.ts), Watch the haggle (watchStory.ts, on Maya's
+// week), Say it, then see it (sayStory.ts) and Try to break it (tryStory.ts, Break The Table). A story says which mock world its frames open in, so First run plays on the `?first_run=1`
 // world and the sample week's storage stays as it was. Pure: the page's search string goes in, the story and the frames' addresses come out.
 import { FIRST_RUN_PARAM, SCALE_PARAM, scalePreview, withFirstRun } from '../mock/firstRun';
 import { FILM_ENDING_PARAM, FILM_ENDINGS, type FilmEnding, type ScaleName } from '../lib/preview';
@@ -8,10 +8,11 @@ import { BEATS, CHAPTERS, FILM_SAY_BEATS, SCRIPT_LENGTH, type Beat, type Chapter
 import { FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH } from './firstRunStory';
 import { SAY_BEATS, SAY_CHAPTERS, SAY_EXPECT, SAY_LENGTH } from './sayStory';
 import { EXPECT, FILM_SAY_EXPECT, FIRST_RUN_EXPECT, WATCH_EXPECT, type Expect } from './takes';
+import { TRY_BEATS, TRY_CHAPTERS, TRY_EXPECT, TRY_LENGTH } from './tryStory';
 import { WATCH_BEATS, WATCH_CHAPTERS, WATCH_LENGTH } from './watchStory';
 
 export const STORY_PARAM = 'story';
-export type StoryId = 'maya' | 'first-run' | 'watch' | 'say';
+export type StoryId = 'maya' | 'first-run' | 'watch' | 'say' | 'try';
 
 export type Story = {
   id: StoryId;
@@ -39,6 +40,9 @@ export const STORIES: Readonly<Record<StoryId, Story>> = {
   watch: { id: 'watch', title: 'Watch the haggle', beats: WATCH_BEATS, chapters: WATCH_CHAPTERS, length: WATCH_LENGTH, expect: WATCH_EXPECT, firstRun: false },
   // Say it, then see it plays on Maya's own sample week (it needs her deals for the timeline's forecast).
   say: { id: 'say', title: 'Say it, then see it', beats: SAY_BEATS, chapters: SAY_CHAPTERS, length: SAY_LENGTH, expect: SAY_EXPECT, firstRun: false },
+  // Break The Table in the console's place "Try to break it", on Maya's sample week (its attacks land on her
+  // monitor haggle with Dan, and her safety record counts them).
+  try: { id: 'try', title: 'Try to break it', beats: TRY_BEATS, chapters: TRY_CHAPTERS, length: TRY_LENGTH, expect: TRY_EXPECT, firstRun: false },
 };
 
 const isStoryId = (v: string | null): v is StoryId => v !== null && (Object.keys(STORIES) as string[]).includes(v);

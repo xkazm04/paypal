@@ -89,6 +89,10 @@ against this sandbox through three routes on the same loopback server:
   and `null`, gets 403. The preflight (`OPTIONS`) is answered for exactly those, allowing `GET`,
   `POST` and the headers `content-type, x-sandbox`.
 - `/mcp` still refuses any request carrying an `Origin`.
+- The arena asks `hello` once when it opens, then only when its window gets the focus back or the
+  judge presses "Connect my agent app"; while the sandbox answers it asks every 10 s and reads the
+  journal every 1.5 s. It never asks from the desktop app or under the director (its frames, a
+  rehearsal or the film capture), where a refused connection would be a console error.
 - A note is the house seller's NOTE: the house signs it, the relay carries it, and the buyer's
   wallet takes it in like any counterparty note, quarantined for the owner. No agent projection
   carries a NOTE, so the agent never sees it as instructions. The journal tags it

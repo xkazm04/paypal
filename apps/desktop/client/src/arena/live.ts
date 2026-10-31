@@ -7,11 +7,16 @@
 //
 // The bridge (crates/table-sandbox/src/front.rs, README "The arena bridge"): every request carries
 // `x-sandbox: arena`, and the sandbox answers only this page's origins (ports 1430). `useLive`
-// probes `/api/arena/hello` with a 1 s timeout on mount and every 10 s; while it answers, it
-// polls `/api/journal` every 1.5 s and maps each tool call the agent made to a `LiveAnswer`.
-// Anything else (no sandbox, a timeout, a stranger on the port) reads as recorded, silently.
+// probes `/api/arena/hello` with a 1 s timeout once on mount, then again only when the window gets the
+// focus back or the arena's "Connect my agent app" asks (liveReach.ts askForLive), never on a timer while
+// nothing answers: Chrome logs every refused probe as a console error, which no script can silence. While
+// it answers, it polls `/api/journal` every 1.5 s, maps each tool call the agent made to a `LiveAnswer`,
+// and probes every 10 s to notice the sandbox going away. Anything else (no sandbox, a timeout, a stranger
+// on the port) reads as recorded. It never probes at all where live mode cannot apply: in the desktop app
+// and under the director, its rehearsals and the film capture (liveReach.ts liveApplies).
 // Nothing here can move money: the bridge has no such route.
 import { useEffect, useState } from 'react';
+import { LIVE_ASK_EVENT, liveApplies } from './liveReach';
 
 export type LiveAnswer = { at: string; tool: string; verdict: 'yes' | 'no'; rule: string | null; sentence: string; paypalAsked: number };
 export type LiveState =
@@ -23,7 +28,10 @@ export const LIVE_PORT = 1443;
 const BASE = `http://127.0.0.1:${LIVE_PORT}`;
 const HEADER = { 'x-sandbox': 'arena' } as const;
 const PROBE_TIMEOUT_MS = 1_000;
+/** While live: how often the sandbox is asked whether it is still there. */
 const PROBE_EVERY_MS = 10_000;
+/** A focus and a visibility change arrive together: one probe for both. */
+const FOCUS_GAP_MS = 2_000;
 const JOURNAL_EVERY_MS = 1_500;
 /** The most answers kept (the sandbox's own journal keeps 500 entries). */
 const KEEP = 500;
@@ -106,8 +114,13 @@ async function journal(after: number): Promise<JournalEntry[] | null> {
 export function useLive(): LiveState {
   const [state, setState] = useState<LiveState>(RECORDED);
   useEffect(() => {
+    // Where live mode cannot apply, nothing is ever sent: the recorded cards it is.
+    if (!liveApplies()) return undefined;
     let gone = false;
     let live = false;
+    let probing = false;
+    let lastProbe = 0;
+    let probeTimer: ReturnType<typeof setInterval> | null = null;
     let table: string | null = null;
     let after = 0;
     let answers: LiveAnswer[] = [];
@@ -138,12 +151,23 @@ export function useLive(): LiveState {
       }
     };
     const check = async () => {
-      const found = await probe();
+      if (probing) return;
+      probing = true;
+      lastProbe = Date.now();
+      let found: string | null | undefined;
+      try {
+        found = await probe();
+      } finally {
+        probing = false;
+      }
       if (gone) return;
       if (found === undefined) {
-        // Gone (or never there): back to the recorded cards, and start over when it returns.
+        // Gone (or never there): back to the recorded cards, and quiet until the window is focused
+        // again or the person asks; start over when it returns.
         if (journalTimer) clearInterval(journalTimer);
         journalTimer = null;
+        if (probeTimer) clearInterval(probeTimer);
+        probeTimer = null;
         const was = live;
         live = false;
         after = 0;
@@ -159,14 +183,31 @@ export function useLive(): LiveState {
         journalTimer = setInterval(() => void read(), JOURNAL_EVERY_MS);
         void read();
       }
+      // While it answers, keep asking whether it is still there (an answering port logs nothing).
+      if (!probeTimer) probeTimer = setInterval(() => void check(), PROBE_EVERY_MS);
       if (changed) publish();
     };
+    /** The window has the person's attention again: look once, unless live already or just looked. */
+    const onFocus = () => {
+      if (live || Date.now() - lastProbe < FOCUS_GAP_MS) return;
+      void check();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') onFocus();
+    };
+    /** "Connect my agent app": look now. */
+    const onAsk = () => void check();
 
     void check();
-    const probeTimer = setInterval(() => void check(), PROBE_EVERY_MS);
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener(LIVE_ASK_EVENT, onAsk);
     return () => {
       gone = true;
-      clearInterval(probeTimer);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener(LIVE_ASK_EVENT, onAsk);
+      if (probeTimer) clearInterval(probeTimer);
       if (journalTimer) clearInterval(journalTimer);
     };
   }, []);

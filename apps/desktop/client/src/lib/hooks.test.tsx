@@ -10,7 +10,7 @@ const fake = {
 };
 vi.mock('./runtime', () => ({ backend: () => fake }));
 
-import { useEvent, usePrefersReducedMotion, useQuery } from './hooks';
+import { nowSnapshot, useEvent, useNow, usePrefersReducedMotion, useQuery } from './hooks';
 import { setCalm } from '../design/motion';
 
 afterEach(() => { cleanup(); pending.clear(); });
@@ -75,5 +75,38 @@ describe('useEvent', () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     expect(seen).toHaveBeenCalledWith('event subscription failed', 'deal:changed', expect.any(Error));
     seen.mockRestore();
+  });
+});
+
+describe('useNow: a stable snapshot within a tick', () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('two reads in the same second, and across a second boundary inside one task, are identical; the next task reads the new second', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(new Date('2026-10-30T19:30:00.998Z'));
+    await Promise.resolve();
+    const a = nowSnapshot();
+    expect(nowSnapshot()).toBe(a);
+    // the second ends between two reads of the same render (the flake): still the same value
+    vi.setSystemTime(new Date('2026-10-30T19:30:01.002Z'));
+    expect(nowSnapshot()).toBe(a);
+    // a later task reads the clock again
+    await Promise.resolve();
+    expect(nowSnapshot()).toBe(a + 1);
+  });
+
+  it('while a countdown is drawn, it moves only on the tick after the second boundary', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(new Date('2026-10-30T19:30:00.000Z'));
+    await Promise.resolve();
+    const h = renderHook(() => useNow());
+    const start = h.result.current;
+    expect(nowSnapshot()).toBe(start);
+    await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+    expect(h.result.current).toBe(start);
+    expect(nowSnapshot()).toBe(start);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    expect(h.result.current).toBe(start + 1);
+    h.unmount();
   });
 });
