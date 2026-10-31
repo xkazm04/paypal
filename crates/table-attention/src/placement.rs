@@ -178,7 +178,9 @@ pub fn approval_docked_rect(opener: Rect, work: Rect) -> Result<Rect, PlacementE
     })
 }
 
-/// Anchor is the resting puck. Grow from its edges; clamp only if neither side fits.
+/// Anchor is the resting puck. Grow from its edges; clamp only if neither side fits. A form
+/// narrower than the puck (the tab) keeps the puck's edge on the nearer side of the screen, so a
+/// tab snapped to the right edge stays flush with it.
 pub fn place(anchor: Rect, work: Rect, form: Form) -> Result<Placement, PlacementError> {
     if !anchor.valid() || !work.valid() {
         return Err(PlacementError);
@@ -190,7 +192,13 @@ pub fn place(anchor: Rect, work: Rect, form: Form) -> Result<Placement, Placemen
     let left = anchor.x + anchor.width - width;
     let down = anchor.y;
     let up = anchor.y + anchor.height - height;
-    let side = if right + width <= work.x + work.width {
+    let side = if width < anchor.width {
+        if anchor.x + anchor.width / 2.0 > work.x + work.width / 2.0 {
+            Side::Left
+        } else {
+            Side::Right
+        }
+    } else if right + width <= work.x + work.width {
         Side::Right
     } else {
         Side::Left
@@ -466,6 +474,31 @@ mod tests {
                 snap(rect(0.0, 200.0, 88.0, 88.0), work, None).unwrap().form,
                 Form::Tab
             );
+        }
+    }
+    #[test]
+    fn a_screen_edge_tab_docks_flush_against_that_edge_at_100_125_150_percent() {
+        for scale in [1.0, 1.25, 1.5] {
+            let work = rect(0.0, 0.0, 1920.0 * scale, 1040.0 * scale)
+                .logical(scale)
+                .unwrap();
+            for (x, class, edge) in [
+                (10.0, Snap::ScreenLeft, work.x),
+                (1920.0 - 98.0, Snap::ScreenRight, work.x + work.width),
+            ] {
+                let anchor = rect(x * scale, 300.0 * scale, 88.0 * scale, 88.0 * scale)
+                    .logical(scale)
+                    .unwrap();
+                let snapped = snap(anchor, work, None).unwrap();
+                assert_eq!((snapped.class, snapped.form), (class, Form::Tab));
+                let tab = place(snapped.anchor, work, snapped.form).unwrap().rect;
+                let touching = if class == Snap::ScreenLeft {
+                    tab.x
+                } else {
+                    tab.x + tab.width
+                };
+                assert_eq!(touching, edge, "{class:?} at {scale}: {tab:?}");
+            }
         }
     }
     #[test]
