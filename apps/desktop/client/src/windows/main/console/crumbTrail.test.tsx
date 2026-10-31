@@ -4,7 +4,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CRUMBS_MORE } from '../../../lib/words';
-import { CrumbTrail, foldCrumbs, maxFold } from './CrumbTrail';
+import { ContentCrumbs, CrumbTrail, foldCrumbs, maxFold } from './CrumbTrail';
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
@@ -75,5 +75,17 @@ describe('the trail on a narrow bar', () => {
     r.rerender(<CrumbTrail items={items.slice(0, 2)} label="Where you are" depth={2} chainKey="b" />);
     expect(screen.getByRole('navigation').getAttribute('data-fold')).toBeNull();
     expect(screen.getByRole('navigation').querySelectorAll(':scope > .ui-crumb-wrap')).toHaveLength(2);
+  });
+});
+
+describe('the in-content crumbs', () => {
+  it('link each ancestor and mark the current page', () => {
+    const go = vi.fn();
+    render(<ContentCrumbs label="This page" items={[{ label: 'Spend', onClick: go }, { label: 'Purchase' }]} />);
+    const nav = screen.getByRole('navigation', { name: 'This page' });
+    fireEvent.click(screen.getByRole('button', { name: 'Spend' }));
+    expect(go).toHaveBeenCalledTimes(1);
+    expect(nav.querySelector('[aria-current="page"]')?.textContent).toBe('Purchase');
+    expect(nav.querySelectorAll('button')).toHaveLength(1);
   });
 });

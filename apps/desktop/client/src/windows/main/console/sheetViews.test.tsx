@@ -17,7 +17,8 @@ const card = (label: string): HTMLButtonElement => {
   if (!c) throw new Error(`no card ${label}`);
   return c;
 };
-const crumbs = (): string[] => [...document.querySelectorAll('.cs-bar .ui-crumbs > .ui-crumb-wrap')].map((w) => (w.lastElementChild?.textContent ?? '').trim());
+// The top bar names only the current place (the trail is in the page content).
+const here = (): string => (document.querySelector('.cs-bar .cs-here')?.textContent ?? '').trim();
 const viewOpen = () => document.querySelector<HTMLElement>('.cs-layer .pf-view');
 const back = () => document.querySelector<HTMLButtonElement>('.cs-back');
 
@@ -28,7 +29,7 @@ describe('a place card view is a step of the route', () => {
     fireEvent.click(card(SETTINGS_CARD.agents));
     await waitFor(() => expect(viewOpen()).toBeTruthy());
     expect(location.hash).toBe('#p=settings&v=agents');
-    expect(crumbs().at(-1)).toBe(SETTINGS_CARD.agents);
+    expect(here()).toBe(SETTINGS_CARD.agents);
     // the sheet stayed the same element: the view opened under its cards
     expect(document.querySelector('.cs-layer')).toBe(layer);
     await waitFor(() => expect(document.activeElement?.hasAttribute('data-view-title')).toBe(true));
@@ -59,13 +60,13 @@ describe('a place card view is a step of the route', () => {
     await renderLayerAtScale('#p=settings&v=look', 'small');
     await waitFor(() => expect(viewOpen()?.dataset.view).toBe('look'));
     expect(card(SETTINGS_CARD.appearance).getAttribute('aria-expanded')).toBe('true');
-    expect(crumbs().at(-1)).toBe(SETTINGS_CARD.appearance);
+    expect(here()).toBe(SETTINGS_CARD.appearance);
   }, 60_000);
 
   it('an unknown view opens nothing and adds no step to the chain', async () => {
     await renderLayerAtScale('#p=settings&v=nothing-here', 'small');
     expect(viewOpen()).toBeNull();
-    expect(crumbs()).toHaveLength(2);
+    expect(here()).toBe('Settings');
     const b = back();
     if (!b) throw new Error('no back');
     await act(async () => { fireEvent.click(b); });
@@ -76,11 +77,12 @@ describe('a place card view is a step of the route', () => {
 describe('a deal card view is a step of the route', () => {
   it('opens as &dv=, the browser Back closes it, and Forward opens it again', async () => {
     await renderLayerAtScale(async (w) => ({ level: 'deal', deal: (await w.invoke('list_deals', null))[0]?.id ?? 'none' }), 'small');
-    const deep = crumbs().length;
+    const deal = here();
+    expect(deal).not.toBe('');
     fireEvent.click(card(DEAL_CARD.who));
     await waitFor(() => expect(viewOpen()).toBeTruthy());
     expect(location.hash).toMatch(/&dv=who$/);
-    expect(crumbs()).toHaveLength(deep + 1);
+    expect(here()).toBe(DEAL_CARD.who);
     await act(async () => { history.back(); });
     await waitFor(() => expect(viewOpen()).toBeNull());
     expect(location.hash).not.toContain('dv=');

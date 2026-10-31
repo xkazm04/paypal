@@ -42,21 +42,24 @@
 .ui-tabs { display: flex; align-items: flex-end; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .ui-tabs::-webkit-scrollbar { display: none; }
 .ui-tab { --c: var(--steel); position: relative; display: inline-flex; align-items: center; gap: var(--sp-2); height: 2.5rem; min-width: var(--target);
-  padding: 0 var(--sp-3); border: 0; border-radius: var(--r-pill) var(--r-pill) 0 0; cursor: pointer; white-space: nowrap; color: var(--muted);
-  font: var(--fw-medium) var(--fs-body)/1 var(--label); font-stretch: var(--label-stretch); letter-spacing: .05em;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 10%, var(--tab-mix)), var(--tab-lo));
-  box-shadow: inset 0 1px 0 var(--c), 0 0 0 1px var(--line2); transition: color var(--t-fast), box-shadow var(--t-fast); }
-.ui-tab .ico { width: 18px; height: 18px; display: grid; place-items: center; flex: none; color: var(--c); }
+  padding: 0 var(--sp-3); border: 0; border-radius: var(--r-pill) var(--r-pill) 0 0; cursor: pointer; white-space: nowrap; color: var(--dim);
+  font: var(--fw-regular) var(--fs-body)/1 var(--label); font-stretch: var(--label-stretch); letter-spacing: .05em;
+  background: var(--tab-lo);
+  box-shadow: 0 0 0 1px var(--line); transition: color var(--t-fast), background-color var(--t-fast), box-shadow var(--t-fast); }
+.ui-tab .ico { width: 18px; height: 18px; display: grid; place-items: center; flex: none; color: var(--c); opacity: .7; transition: opacity var(--t-fast); }
+.ui-tab:hover .ico, .ui-tab:focus-visible .ico, .ui-tab.active .ico { opacity: 1; }
 .ui-tab .ico svg { width: 18px; height: 18px; display: block; }
 .ui-tab .tt { font: var(--fw-medium) var(--fs-small)/1 var(--num); font-variant-numeric: tabular-nums lining-nums; color: var(--dim); letter-spacing: 0; }
 .ui-tab .cnt { display: grid; place-items: center; min-width: 1.4rem; height: 1.3rem; padding: 0 .35rem; border-radius: var(--r-tight);
   font: var(--fw-bold) var(--fs-small)/1 var(--num); font-variant-numeric: tabular-nums lining-nums; letter-spacing: 0;
   color: var(--on-gold); background: var(--gold); box-shadow: var(--glow-gold); }
-.ui-tab:hover, .ui-tab:focus-visible { color: var(--text); box-shadow: inset 0 1.5px 0 var(--c), 0 0 0 1px var(--c), 0 0 1.2rem color-mix(in srgb, var(--c) 28%, transparent); }
+.ui-tab:hover, .ui-tab:focus-visible { color: var(--text); background: var(--tab-mix); box-shadow: inset 0 1.5px 0 var(--c), 0 0 0 1px var(--line2); }
 .ui-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.ui-tab.active { z-index: 1; color: var(--text); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 16%, var(--tab-on)), var(--sheet-hi));
-  box-shadow: inset 0 2px 0 var(--c), 1px 0 0 var(--line2), -1px 0 0 var(--line2), 0 -.5rem 1.4rem color-mix(in srgb, var(--c) 22%, transparent); }
-:root[data-theme="light"] .ui-tab:hover, :root[data-theme="light"] .ui-tab.active { box-shadow: inset 0 2px 0 var(--c), 0 0 0 1px var(--line2); }
+/* the lit tab: full text colour, bold, a heavier top edge and an underline in the module colour; same box as the others */
+.ui-tab.active { z-index: 1; color: var(--text); font-weight: var(--fw-bold); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 16%, var(--tab-on)), var(--sheet-hi));
+  box-shadow: inset 0 3px 0 var(--c), inset 0 -3px 0 var(--c), 1px 0 0 var(--line2), -1px 0 0 var(--line2), 0 -.5rem 1.4rem color-mix(in srgb, var(--c) 22%, transparent); }
+:root[data-theme="light"] .ui-tab:hover { box-shadow: inset 0 2px 0 var(--c), 0 0 0 1px var(--line2); }
+:root[data-theme="light"] .ui-tab.active { box-shadow: inset 0 3px 0 var(--c), inset 0 -3px 0 var(--c), 0 0 0 1px var(--line2); }
 
 /* ---- filter chips ------------------------------------------------------------------------------- */
 .ui-filters { display: inline-flex; flex-wrap: wrap; gap: var(--sp-1); min-width: 0; }

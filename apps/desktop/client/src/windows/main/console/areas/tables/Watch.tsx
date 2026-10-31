@@ -15,7 +15,7 @@ import { haggleOf, watchable, type Haggle } from '../../../modules/tables/corrid
 import { takeWatched, worthWatching } from '../../../modules/tables/watchPick';
 import type { World } from '../../../world';
 import { ListEngine } from '../../ListEngine';
-import { StateChip, WhoChip } from '../../rows';
+import { DealRow1 } from '../../rows';
 import { Btn } from '../../../../../shared/ui';
 import { Corridor } from './Corridor';
 import { SplitView, useTranscript } from './parts';
@@ -43,15 +43,9 @@ export function WatchView({ deals, display, needOf, who }: Props) {
   const [stage, setStage] = useState(false);
   const picked = (k !== null ? rows.find((d) => d.id === k) : undefined) ?? rows[0];
   const list = (
-    <ListEngine<Deal> label={W.list} rows={rows} getKey={(d) => d.id} estimateSize={60} measure
+    <ListEngine<Deal> label={W.list} rows={rows} getKey={(d) => d.id} estimateSize={36}
       searchText={(d) => `${display(d).title} ${who(d).full}`}
-      renderRow={(d) => (
-        <span className={`tr-row${picked?.id === d.id ? ' picked' : ''}`}>
-          <span className="dot" aria-hidden="true" />
-          <span className="t"><b title={display(d).title}>{display(d).title}</b><span className="sub"><WhoChip name={who(d).short} /></span></span>
-          <span className="tr-end"><StateChip deal={d} /></span>
-        </span>
-      )}
+      renderRow={(d) => <DealRow1 deal={d} who={who(d).short} picked={picked?.id === d.id} />}
       rowLabel={(d) => `${display(d).title}, ${who(d).full}`} onPick={(d) => setK(d.id)} onOpen={(d) => setK(d.id)} empty={W.empty} />
   );
   const pane = picked ? <WatchPane key={picked.id} deal={picked} display={display} need={needOf.get(picked.id)} who={who(picked).short} stage={stage} onStage={setStage} /> : null;

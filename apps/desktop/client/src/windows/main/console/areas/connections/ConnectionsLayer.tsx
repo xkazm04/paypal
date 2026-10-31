@@ -255,7 +255,7 @@ function PeopleView({ rows, error }: { rows: CounterpartyDisplay[] | null; error
     <div className="cn-people" style={{ height: fitHeight(list.length, 56) }}>
       <ListEngine<CounterpartyDisplay> label={CONNECTIONS_PEOPLE.list} rows={list} getKey={(c) => c.key_id}
         searchText={(c) => `${houseWords(c.display_name)} ${c.declared_payee ? houseWords(c.declared_payee) : ''}`}
-        filters={PEOPLE_FILTERS} sorts={PEOPLE_SORTS} estimateSize={54}
+        filters={PEOPLE_FILTERS} sorts={PEOPLE_SORTS} estimateSize={36}
         renderRow={(c) => <PersonRow c={c} />} rowLabel={(c) => houseWords(c.display_name)}
         empty={CONNECTIONS_PEOPLE.empty} noMatch={CONNECTIONS_PEOPLE.noMatch} />
     </div>

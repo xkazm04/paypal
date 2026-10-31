@@ -19,7 +19,7 @@ import type { Module } from '@bindings/Module';
 import { useEvent, useMutation } from '../../../lib/hooks';
 import { isLazyPart, lazyPart, preloadOnIntent, preloadWhenIdle, whenPartsReady } from '../../../lib/lazy';
 import {
-  A_DEAL, BACK_TITLE, BRAND_NAME, WALLET_FAULT_TOAST, CHARTER_TITLE, BRAND_TITLE, CRUMBS_LABEL, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, NOTICE_WHAT, PLACE, PLACE_TITLE, PLACES_LABEL,
+  A_DEAL, BACK_TITLE, BRAND_NAME, WALLET_FAULT_TOAST, CHARTER_TITLE, BRAND_TITLE, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, NOTICE_WHAT, PLACE, PLACE_TITLE, PLACES_LABEL,
   SEAL_RING, sealLabel, silenceWords, tabTitle, tabWaiting, TABS_LABEL,
 } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
@@ -40,7 +40,7 @@ import { Find } from './Find';
 import { switchDemo } from './DemoSwitch';
 import { Footer } from './Footer';
 import type { FindTarget } from './findIndex';
-import { CrumbTrail } from './CrumbTrail';
+import { CrumbLabel } from './crumbItems';
 import { CentreHost, type CentreHostValue } from './layers/core';
 import { LayerHost, layerIdOf, placeFromRoute, type LayerId, type LayerNav, type LayerState } from './layers';
 import { LAYERS, LAYER_PARTS, layerOf } from './layers.registry';
@@ -378,8 +378,8 @@ export function Console() {
   const layerState = useMemo<LayerState>(() => ({ rewindAt, pairMode: pairStart, firstRun, presence }), [rewindAt, pairStart, firstRun, presence]);
 
   const insp = useInspectorHost();
-  // A crumb goes to that layer; the one just above is the same as Back.
-  const crumbs = chain.map((r, i) => ({ label: <CrumbLabel r={r} firstRun={firstRun} />, onClick: i === chain.length - 2 ? back : i < chain.length - 2 ? () => go(r) : undefined }));
+  // The top bar names the current place (the same label as the last crumb); the trail itself is in the content.
+  const here = chain.length ? chain[chain.length - 1] : null;
   const litRoute = pending ?? route;
   const placeLit = litRoute.level === 'place' ? litRoute.place : null;
 
@@ -389,7 +389,7 @@ export function Console() {
         <div className="cs-barl">
           <button type="button" className="cs-brand" onClick={goHome} title={BRAND_TITLE} aria-label={BRAND_TITLE}><Mark /><span>{BRAND_NAME}</span></button>
           {depth > 1 ? <button type="button" className="cs-back" onClick={back} title={BACK_TITLE}><span aria-hidden="true">‹</span> {DETAIL_BACK}</button> : null}
-          <CrumbTrail items={crumbs} label={CRUMBS_LABEL} depth={depth} chainKey={chain.map(routeKey).join('>')} />
+          {here ? <span className="cs-here" data-testid="cs-here" title={def.title(route)}><CrumbLabel r={here} firstRun={firstRun} /></span> : null}
         </div>
         <nav className="cs-places" aria-label={PLACES_LABEL}>
           <button type="button" id="cs-needpill" className={`cs-needpill${queue.length ? '' : ' zero'}`} aria-label={needPillLabel(queue.length)}
@@ -474,17 +474,6 @@ function useTabStop(row: RefObject<HTMLDivElement | null>, lit: Module | null): 
 export const PAID_FLASH_MS = TOAST_MS;
 const selDisplay = (w: World) => w.display;
 const SEAL_TONE = { quiet: 'steel', watching: 'teal', needs: 'gold', holding: 'coral', paid: 'ok', stopped: 'red' } as const;
-
-/** A crumb: the layer's own Crumb (a deal's name, a module view's label), else its title. */
-function CrumbLabel({ r, firstRun }: { r: Route; firstRun: boolean }) {
-  if (r.level === 'home' && firstRun) return <>{CHARTER_TITLE}</>;
-  const def = layerOf(r);
-  const v = sheetViewOf(r);
-  const view = v ? def.views?.[v] : undefined;
-  if (view) return <>{view}</>;
-  const C = def.Crumb;
-  return C ? <C route={r} /> : <>{def.title(r)}</>;
-}
 
 /** Idle-lock state. Locked: a click opens the approval window, where Windows Hello unlocks. When the
  *  window could not open, a toast says so (the centre's gold action shows the same as a notice). */

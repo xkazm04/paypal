@@ -10,13 +10,13 @@ import { formatMoney } from '../../../../../lib/format';
 import { useMutation } from '../../../../../lib/hooks';
 import { GROUP_CLOSED, GROUP_WINNER, itemWords, SHOP_AROUND, SHOP_AROUND_MEANS, SHOP_AROUND_OTHERS, sellersWord, shoppingFor, stateWord, TABLES, tablesItem, tablesShortWho } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
-import { Btn, Chip, Kv, Sheet, type ChipTone } from '../../../../../shared/ui';
+import { Btn, Chip, Kv, Sheet, UNKNOWN, type ChipTone } from '../../../../../shared/ui';
 import { isLive } from '../../../logic';
 import { groupStanding, isOpenTable, shopAroundSets } from '../../../modules/tables/groups';
 import { useCpLookup } from '../../../ui';
 import { useLayerNav } from '../../layers';
 import { ListEngine, type ListSort } from '../../ListEngine';
-import { Amount, StateChip, WhoChip } from '../../rows';
+import { Amount, Row1, StateChip, WhoChip } from '../../rows';
 import type { World } from '../../../world';
 import { SplitView, usePick } from './parts';
 
@@ -60,16 +60,20 @@ export function ShopView({ groups, deals, display }: { groups: readonly DealGrou
   return (
     <SplitView label={TABLES.groupsWhat} count={live.length}
       list={(
-        <ListEngine<DealGroupView> label={TABLES.groupList} rows={live} getKey={(g) => g.group_id} sorts={SORTS} estimateSize={64}
+        <ListEngine<DealGroupView> label={TABLES.groupList} rows={live} getKey={(g) => g.group_id} sorts={SORTS} estimateSize={36}
           searchText={(g) => `${itemOf(g)} ${g.tables.map((t) => cp(t.counterparty).name).join(' ')}`}
           renderRow={(g) => {
             const c = chipOf(g, who);
             const s = groupStanding(g);
+            const best = s.kind === 'bargaining' ? s.best?.seller_price ?? null : null;
+            const note = `${sellersWord(g.tables.length)}${best ? ` · ${TABLES.best(formatMoney(best))}` : ''}`;
             return (
-              <span className={`tr-row${picked?.group_id === g.group_id ? ' picked' : ''}`}>
-                <span className="t"><b>{shoppingFor(itemOf(g))}</b><span className="sub">{sellersWord(g.tables.length)}{s.kind === 'bargaining' && s.best?.seller_price ? <> · {TABLES.best(formatMoney(s.best.seller_price))}</> : null}</span></span>
-                <Chip tone={c.tone}>{c.text}</Chip>
-              </span>
+              <Row1 className={picked?.group_id === g.group_id ? 'picked' : undefined} note={note} title={note}>
+                <span className="c-who"><b title={shoppingFor(itemOf(g))}>{shoppingFor(itemOf(g))}</b></span>
+                <span className="c-state"><Chip tone={c.tone}>{c.text}</Chip></span>
+                {best ? <Amount money={best} /> : <span className="c-amt tx-dim">{UNKNOWN}</span>}
+                <span className="c-time">{sellersWord(g.tables.length)}</span>
+              </Row1>
             );
           }}
           rowLabel={(g) => shoppingFor(itemOf(g))} onPick={(g) => pick(g.group_id)}
@@ -90,6 +94,7 @@ function GroupDetail({ group, item, byId, who }: { group: DealGroupView; item: s
         <h2 title={item}>{shoppingFor(item)}</h2>
         <Chip tone={c.tone} title={SHOP_AROUND_MEANS}>{c.text}</Chip>
       </header>
+      <p className="tr-note">{sellersWord(group.tables.length)}{best?.seller_price ? ` · ${TABLES.best(formatMoney(best.seller_price))}` : ''}</p>
       <ul className="tb-sellers" aria-label={TABLES.sellersFor(item)}>
         {group.tables.map((t) => {
           const deal = byId.get(t.deal_id);

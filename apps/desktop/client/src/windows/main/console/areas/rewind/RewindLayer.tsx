@@ -114,7 +114,7 @@ export function RewindLayer({ nav, state }: LayerProps) {
       <section className="rw-tape" aria-label={REWIND_TAPE.title} style={{ height: `calc(${fitHeight(tape.length, 62, '70vh')} + 2rem)` }}>
         <h2 className="cs-h3">{REWIND_TAPE.title}</h2>
         <ListEngine<TapeRow> label={REWIND_TAPE.label} rows={tape} getKey={(t) => t.key} filters={FILTERS} filterLabel={REWIND_TAPE.filter} sorts={SORTS}
-          searchText={(t) => `${t.title} ${t.said}`} estimateSize={58}
+          searchText={(t) => `${t.title} ${t.said}`} estimateSize={36}
           renderRow={(t) => <TapeLine t={t} />} rowLabel={(t) => `${stepTime(t.s.at)} · ${t.said}`} onOpen={(t) => nav.deal(t.s.deal_id)}
           empty={REWIND_TAPE.empty} noMatch={REWIND_TAPE.noMatch} />
       </section>

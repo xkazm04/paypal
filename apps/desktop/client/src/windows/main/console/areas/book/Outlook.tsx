@@ -64,7 +64,7 @@ export function Outlook({ b, items }: { b: BookWorld; items: OutlookItem[] }) {
     <div className="bk-outlook">
       <ul className="bk-ols" aria-label={BOOK.outlookLabel}>{items.map((it) => <OutlookLine key={it.key} it={it} b={b} />)}</ul>
       <p className="ui-hint">{BOOK.notForecast(outlookCount(items))}</p>
-      <ListEngine<Deal> className={fewRows(rows.length)} label={BOOK.outlookList} rows={rows} getKey={(d) => d.id} filters={filters} estimateSize={64} measure
+      <ListEngine<Deal> className={fewRows(rows.length)} label={BOOK.outlookList} rows={rows} getKey={(d) => d.id} filters={filters} estimateSize={36} measure
         searchText={(d) => `${b.title(d)} ${b.who(d)}`}
         renderRow={(d) => <DealRow deal={d} need={b.needOf.get(d.id)} who={b.who(d)} />}
         rowLabel={(d) => b.title(d)} onOpen={(d) => nav.deal(d.id)} empty={BOOK.outlookEmpty} />

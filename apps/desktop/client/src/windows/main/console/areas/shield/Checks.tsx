@@ -6,7 +6,7 @@
 // and "Outcome only" fades the checks. No column is added per payee, so the page never scrolls
 // sideways. The picked row's whole story (every check, the price band, their note quarantined, the
 // decision and its hand-off) sits beside the list.
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useMemo, useState, type CSSProperties } from 'react';
 import type { Deal } from '@bindings/Deal';
 import { formatMinor } from '../../../../../lib/format';
 import { useNow } from '../../../../../lib/hooks';
@@ -49,6 +49,9 @@ function decisionWords(deal: Deal, s: ShieldWorld): string {
   return deal.shield === 'HOLD' ? SHIELD.move.closed(stateLabel(deal.state, deal).toLowerCase()) : SHIELD.move.elsewhere(s.moduleName(deal));
 }
 
+/** The checks row's columns; the narrower templates (by the row's own width) are in shield.css. */
+const CHECK_COLS = { '--cols': 'minmax(9rem, 1.6fr) 7rem 8.5rem minmax(0, .8fr) minmax(0, 1fr) minmax(0, .9fr) minmax(0, 1.2fr)' } as CSSProperties;
+
 function CheckRow({ deal, s, outcome }: { deal: Deal; s: ShieldWorld; outcome: boolean }) {
   const now = useNow();
   const cp = s.cpEntry(deal);
@@ -58,14 +61,14 @@ function CheckRow({ deal, s, outcome }: { deal: Deal; s: ShieldWorld; outcome: b
   const [pp] = paypalLine(deal);
   const need = s.need(deal);
   return (
-    <span className={`sh-crow${need ? ' needs' : ''}${outcome ? ' outcome' : ''}`}>
-      <span className="c-who"><b title={s.who(deal)}>{s.who(deal)}</b><span className="sh-sub" title={s.title(deal)}>{s.title(deal)}</span></span>
+    <span className={`row1 sh-crow${need ? ' needs' : ''}${outcome ? ' outcome' : ''}`} style={CHECK_COLS} title={`${s.who(deal)} · ${s.title(deal)}`}>
+      <span className="c-who"><b title={s.who(deal)}>{s.who(deal)}</b> <span className="sh-sub" title={s.title(deal)}>{s.title(deal)}</span></span>
       <span className="c-amt"><Amount money={dealTotal(deal)} tone={deal.shield === 'BLOCK' ? 'struck' : undefined} /></span>
       <span className="c-say"><VerdictChip v={deal.shield} /></span>
-      <span className={`c-chk c-new r-${newcp.r}`} title={newcp.l}><small>{SHIELD.col.newPayee}</small><span>{newcp.s}</span></span>
-      <span className={`c-chk c-mkt r-${market.r}${over ? ' tx-coral' : ''}`} title={market.l}><small>{SHIELD.col.price}</small><span><PriceMini deal={deal} />{market.s.replace(/ typical$/, '')}</span></span>
-      <span className="c-pp"><small>{SHIELD.col.paypal}</small><span className={pp.startsWith(SHIELD.nothingSentPrefix) ? 'tx-ok' : 'tx-gold'}>{pp}</span></span>
-      <span className={`c-move${need ? ' tx-gold' : ''}`}><small>{SHIELD.col.decision}</small><span>{decisionWords(deal, s)}</span></span>
+      <span className={`c-chk c-new r-${newcp.r}`} title={`${SHIELD.col.newPayee}: ${newcp.l}`}>{newcp.s}</span>
+      <span className={`c-chk c-mkt r-${market.r}${over ? ' tx-coral' : ''}`} title={`${SHIELD.col.price}: ${market.l}`}><PriceMini deal={deal} />{market.s.replace(/ typical$/, '')}</span>
+      <span className={`c-pp ${pp.startsWith(SHIELD.nothingSentPrefix) ? 'tx-ok' : 'tx-gold'}`} title={`${SHIELD.col.paypal}: ${pp}`}>{pp}</span>
+      <span className={`c-move${need ? ' tx-gold' : ''}`} title={`${SHIELD.col.decision}: ${decisionWords(deal, s)}`}>{decisionWords(deal, s)}</span>
     </span>
   );
 }
@@ -171,7 +174,7 @@ export function Checks({ s }: { s: ShieldWorld }) {
           options={[{ value: 'all', label: SHIELD.show.all }, { value: 'outcome', label: SHIELD.show.outcome, title: SHIELD.show.outcomeTitle }]} />
         <span className="ui-hint sh-unshown">{SHIELD.unshown}</span>
       </div>
-      <ListEngine<Deal> className={fewRows(rows.length)} label={SHIELD.checksLabel} rows={rows} getKey={(d) => d.id} filters={filters} filterLabel={SHIELD.filter.label} estimateSize={52} wideAt={1200} toolbarMin={0}
+      <ListEngine<Deal> className={fewRows(rows.length)} label={SHIELD.checksLabel} rows={rows} getKey={(d) => d.id} filters={filters} filterLabel={SHIELD.filter.label} estimateSize={36} wideAt={1200} toolbarMin={0}
         searchText={(d) => `${s.who(d)} ${s.title(d)} ${d.shield ? shieldWord(d.shield).text : ''}`}
         renderRow={(d) => <CheckRow deal={d} s={s} outcome={outcome} />}
         rowLabel={(d) => `${s.who(d)}, ${d.shield ? shieldWord(d.shield).text : SHIELD.noVerdict}`}

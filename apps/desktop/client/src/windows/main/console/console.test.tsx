@@ -12,7 +12,7 @@ import { WalletError } from '../../../lib/contract';
 import { readBudget, resetReadBudget } from '../../../lib/data/invoke';
 import { READ_CONCURRENCY } from '../../../lib/readEach';
 import {
-  BOUNDARY_RETRYING, APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, PAIR, CENTRE_TITLE, FACT, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, NOTICE_WHAT, PLACE, PLACE_NAME, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE, WALLET_FAULT_TOAST, WHY_LABEL,
+  BOUNDARY_RETRYING, APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, PAIR, CENTRE_TITLE, FACT, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, NOTICE_WHAT, PLACE, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE, WALLET_FAULT_TOAST, WHY_LABEL,
 } from '../../../lib/words';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 
@@ -331,7 +331,7 @@ describe('the chain of layers', () => {
     await waitFor(() => expect(layer()?.dataset.level).toBe('waiting'));
     expect(location.hash).toBe('#w=waiting');
     await waitFor(() => expect(document.activeElement?.textContent).toContain('wait for you'));
-    expect(screen.getByRole('navigation', { name: 'Where you are' }).textContent).toContain(WAITING_TITLE);
+    expect(document.querySelector('.cs-bar .cs-here')?.textContent).toContain(WAITING_TITLE);
     fireEvent.keyDown(document.activeElement ?? window, { key: 'Escape' });
     await waitFor(() => expect(layer()?.dataset.level).toBe('home'));
     await waitFor(() => expect((document.activeElement as HTMLElement | null)?.dataset.fk).toBe('all-waiting'));
@@ -428,7 +428,9 @@ describe('the owner places are layers (WP2.5)', () => {
     fireEvent.click(toLimits);
     await waitFor(() => expect(layer()?.dataset.layer).toBe('limits'));
     expect(location.hash).toBe('#p=limits');
-    expect(screen.getByRole('navigation', { name: 'Where you are' }).textContent).toContain(PLACE_NAME.rules);
+    // the top bar names only the current place (the trail is in the content) and keeps Back
+    expect(document.querySelector('.cs-bar .cs-here')?.textContent).toBeTruthy();
+    expect(document.querySelector('.cs-bar .cs-back')).toBeTruthy();
     fireEvent.keyDown(window, { key: 'Escape' });
     await waitFor(() => expect(layer()?.dataset.layer).toBe('rules'));
     await waitFor(() => expect((document.activeElement as HTMLElement | null)?.dataset.fk).toBe('to-limits'));

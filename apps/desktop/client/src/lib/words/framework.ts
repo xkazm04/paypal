@@ -54,6 +54,8 @@ export const MODULE_ART_LABEL: Readonly<Record<'tables' | 'spend' | 'counter' | 
   shield: 'Drawing: a shield with a lock',
   rescue: 'Drawing: a lifebuoy on the water',
 };
+/** The module page's own breadcrumb row (the top bar's trail is `CRUMBS_LABEL`). */
+export const MODULE_CRUMBS_LABEL = 'This page';
 /** The module layer chrome. */
 export const YOUR_CALL = 'Your call';
 export const yourCallLabel = (n: number): string => (n === 1 ? 'One decision here needs you. Open it.' : `${n} decisions here need you. Open them.`);
@@ -68,6 +70,13 @@ export const LIST_FILTER = 'Show';
 export const LIST_ALL = 'All';
 /** "Showing 40 of 5,000"; `n` formats a count. */
 export const listShowing = (shown: number, all: number, n: (x: number) => string = String): string => (shown === all ? `${n(all)} in all` : `Showing ${n(shown)} of ${n(all)}`);
+/** The pager under a long list: "21-40 of 312" (the total is the count after filter and search). */
+export const listRange = (from: number, to: number, total: number, n: (x: number) => string = String): string => `${n(from)}-${n(to)} of ${n(total)}`;
+export const PAGER_FIRST = 'First page';
+export const PAGER_PREV = 'Previous page';
+export const PAGER_NEXT = 'Next page';
+export const PAGER_LAST = 'Last page';
+export const pagerPage = (page: number, pages: number): string => `Page ${page} of ${pages}`;
 export const LIST_NO_MATCH = 'Nothing matches. Clear the search or the filter to see everything.';
 export const LIST_CLEAR = 'Clear';
 export const LIST_DETAIL_EMPTY = 'Pick a row to see it here.';

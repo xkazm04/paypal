@@ -23,7 +23,7 @@ import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer, type YourCall } from '../../ModuleLayer';
 import type { ModuleCard } from '../../ModuleSummary';
-import { Amount, Countdown } from '../../rows';
+import { Amount, Countdown, Row1 } from '../../rows';
 import { SplitView, usePick } from '../tables/parts';
 import { GateView } from './Gate';
 import { ClauseList, PurchaseDecision, PurchasePane, type Lane } from './Purchase';
@@ -149,32 +149,38 @@ export function SpendLayer({ nav }: LayerProps) {
     chip: mq.data && !m ? SPEND.rulesChip : undefined, chipTone: 'red' });
 
   const rulesState = mq.error ? <WalletNotice error={mq.error} what={SPEND.rulesWhat} message={TABLES_TRADE.unread} /> : !mq.data ? <Loading what={SPEND.rulesReading} /> : null;
-  const row = (l: Lane, picked: boolean) => {
+  // The same purchase on one line for the lists: the old rule line trails as the note.
+  const row1 = (l: Lane, picked: boolean) => {
     const disp = display(l.deal);
     const out = outcomeOf(l.deal);
     const need = needOf(l.deal.id);
     const line = l.cols.length ? ruleLine(l.cells, l.cols) : { kind: 'unknown' as const, text: SPEND.otherRules };
+    const text = `${line.text}${out.kind === 'refused' ? SPEND.neverAsked : ''}`;
+    const at = l.deal.created_at;
     return (
-      <span className={`tr-row${need ? ' needs' : ''}${picked ? ' picked' : ''}`}>
-        <span className="dot" aria-hidden="true" />
-        <span className="t">
+      <Row1 className={`${need ? 'needs ' : ''}${picked ? 'picked' : ''}`.trim() || undefined} title={text}
+        note={<span className={`sp-rl ${line.kind}`}>{text}</span>}>
+        <span className="c-who">
+          <span className="dot" aria-hidden="true" />
           <b title={disp.title}>{disp.title}</b>
-          <span className="sub">{whoOf(l)}{l.deal.created_at ? ` · ${clockLabel(l.deal.created_at)}` : ''}</span>
-          <span className={`sil sp-rl ${line.kind}`}>{line.text}{out.kind === 'refused' ? SPEND.neverAsked : ''}</span>
+          <span className="cs-who-chip" title={whoOf(l)}>{whoOf(l)}</span>
         </span>
-        <span className="sp-end">
-          {need ? <Countdown deadline={need.deadline} /> : <Chip tone={out.tone}>{out.label}</Chip>}
-          <Amount money={dealTotal(l.deal)} tone={amountTone(l.deal)} />
-        </span>
-      </span>
+        <span className="c-state"><Chip tone={out.tone}>{out.label}</Chip></span>
+        <Amount money={dealTotal(l.deal)} tone={amountTone(l.deal)} />
+        <span className="c-time">{need ? <Countdown deadline={need.deadline} /> : at ? clockLabel(at) : ''}</span>
+      </Row1>
     );
   };
   const list = (rows: readonly Lane[], label: string, picked: Lane | undefined, pick: (k: string) => void, empty: string, filters?: readonly ListFilter<Lane>[]) => (
-    <ListEngine<Lane> label={label} rows={rows} getKey={(l) => l.deal.id} filters={filters} sorts={filters ? ALL_SORTS : undefined} estimateSize={68} measure
+    <ListEngine<Lane> label={label} rows={rows} getKey={(l) => l.deal.id} filters={filters} sorts={filters ? ALL_SORTS : undefined} estimateSize={36}
       searchText={(l) => `${display(l.deal).title} ${whoOf(l)} ${l.slot ?? ''}`}
-      renderRow={(l) => row(l, picked?.deal.id === l.deal.id)}
+      renderRow={(l) => row1(l, picked?.deal.id === l.deal.id)}
       rowLabel={(l) => `${display(l.deal).title}, ${outcomeOf(l.deal).label}`} onPick={(l) => pick(l.deal.id)} onOpen={(l) => nav.deal(l.deal.id)} empty={empty} />
   );
+  const noteOf = (l: Lane): string => {
+    const line = l.cols.length ? ruleLine(l.cells, l.cols) : { text: SPEND.otherRules };
+    return `${line.text}${outcomeOf(l.deal).kind === 'refused' ? SPEND.neverAsked : ''}`;
+  };
   const pane = (l: Lane | undefined) => {
     if (!l) return null;
     const disp = display(l.deal);
@@ -182,7 +188,7 @@ export function SpendLayer({ nav }: LayerProps) {
     const c = cp(l.deal.counterparty);
     return (
       <PurchasePane key={l.deal.id} lane={l} disp={disp} need={need} who={c.name}
-        onRule={() => route.open('gate')}
+        onRule={() => route.open('gate')} note={noteOf(l)}
         decision={need ? <PurchaseDecision lane={l} disp={disp} need={need} m={l.rules} who={c} onToast={say} /> : null} />
     );
   };
@@ -191,9 +197,9 @@ export function SpendLayer({ nav }: LayerProps) {
   const waitingIds = new Set(needLanes.map((l) => l.deal.id));
   const latestLanes = [...needLanes, ...lanes.filter((l) => !waitingIds.has(l.deal.id))];
   const latest: LatestProps = {
-    title: LATEST_OF.spend, total: latestLanes.length, rowGuess: 80,
+    title: LATEST_OF.spend, total: latestLanes.length, rowGuess: 40,
     rows: latestLanes.slice(0, MAX_ROWS).map((l) => ({
-      key: l.deal.id, label: `${display(l.deal).title}, ${OPEN_THE_DEAL}`, onOpen: () => nav.deal(l.deal.id), node: row(l, false),
+      key: l.deal.id, label: `${display(l.deal).title}, ${OPEN_THE_DEAL}`, onOpen: () => nav.deal(l.deal.id), node: row1(l, false),
     })),
     seeAll: { onOpen: () => route.open(needLanes.length ? 'need' : 'week') },
   };

@@ -20,6 +20,8 @@ body.w-main { --cs-bar: 3.25rem; --sheet-top: var(--cs-bar); }
 .cs-back { display: inline-flex; align-items: center; gap: var(--sp-1); flex: none; height: var(--ctl); padding: 0 var(--sp-3) 0 var(--sp-2); cursor: pointer;
   border: 1px solid var(--line2); border-radius: var(--r-pill); background: color-mix(in srgb, var(--panel) 70%, transparent); color: var(--muted); font: inherit; }
 .cs-back:hover { color: var(--text); border-color: var(--steel); }
+/* the one short current-place label (the trail itself lives in the page content) */
+.cs-here { min-width: 0; max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-weight: var(--fw-semibold); }
 .cs-barl .ui-crumbs { min-width: 0; overflow: hidden; white-space: nowrap; }
 /* a narrow bar: every crumb shrinks with an ellipsis instead of running into the next (WP4a) */
 .cs-barl .ui-crumbs .ui-crumb-wrap { flex: 0 1 auto; min-width: 2.5em; overflow: hidden; }

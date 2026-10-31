@@ -104,3 +104,23 @@ export function CrumbTrail({ items, label, depth, chainKey }: { items: readonly 
     </nav>
   );
 }
+
+/** A page's own breadcrumb row inside its content (a module root, a module's detail view): the same
+ *  items as the top bar, a link for each ancestor and `aria-current` on the page you are on. */
+export function ContentCrumbs({ items, label, title }: { items: readonly Crumb[]; label: string; title?: string }) {
+  return (
+    <nav className="ml-crumbs" aria-label={label}>
+      <ol>
+        {items.map((c, i) => {
+          const last = i === items.length - 1;
+          return (
+            <li key={i}>
+              {i ? <span className="sep" aria-hidden="true">›</span> : null}
+              {!last && c.onClick ? <button type="button" onClick={c.onClick}>{c.label}</button> : <span aria-current={last ? 'page' : undefined} title={last ? title : undefined}>{c.label}</span>}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}

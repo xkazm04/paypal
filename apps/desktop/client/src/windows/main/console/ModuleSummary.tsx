@@ -39,9 +39,8 @@ export function ModuleSummary({ cards, label = MODULE_SUMMARY_LABEL }: { cards: 
   return (
     <section className="ml-cards" aria-label={label} style={{ '--n': Math.min(cards.length, MAX_CARDS) } as CSSProperties}>
       {cards.slice(0, MAX_CARDS).map((c) => (
-        <SummaryCard key={c.id} id={c.id} label={c.label} value={c.value} chip={c.chip} chipTone={c.ifNothing ? (c.chipTone ?? 'gold') : c.chipTone}
-          className={c.ifNothing ? 'needs' : undefined}
-          note={c.ifNothing ? <>{c.note ? <>{c.note} · </> : null}<span className="ml-ifnothing">{IF_NOTHING}: {c.ifNothing}</span></> : c.note}
+        <SummaryCard key={c.id} id={c.id} label={c.label} value={c.value} compact className={c.ifNothing ? 'needs' : undefined}
+          describe={c.ifNothing ? `${IF_NOTHING}: ${c.ifNothing}` : undefined} hint={typeof c.note === 'string' ? c.note : undefined}
           onOpen={() => route.open(c.view, c.id)} />
       ))}
     </section>

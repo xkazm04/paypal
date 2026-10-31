@@ -2,10 +2,13 @@
 // module's deals, the Book's ledger, the record's steps, the rescue list. A search box (debounced,
 // case-insensitive, over each row's search text built once per data change), filter chips whose
 // counts are counted in one pass per data change, a sort, and windowed rows (only the rows in view
-// are in the DOM, lib/data/useWindowedRows), with variable row heights when asked.
+// are in the DOM, lib/data/useWindowedRows), with variable row heights when asked. A list longer than
+// `pageSize` (default LIST_PAGE_SIZE = 20) is cut into pages under a Pager; the filter, search and
+// sort apply first, so the pager's total is the count after them, and any change of the three goes
+// back to page 1. `pageSize={0}` keeps a list whole (the windowed path above).
 //
 // Keyboard: the rows are one tab stop; Arrow Up/Down, Page Up/Down, Home, End move; Enter opens the
-// focused row (its deal). Escape clears the search (or the filter) first; with nothing to clear it
+// focused row (its deal). On a paged list Page Up/Down at the edge of a page flips the page. Escape clears the search (or the filter) first; with nothing to clear it
 // goes on to the console, which goes one layer up.
 //
 // Two steps where a list has a pane (rebuild WP4a, Director decision 3): a click (or Space) PICKS the
@@ -21,6 +24,7 @@ import { formatCount, formatTally } from '../../../lib/data/counts';
 import { useWindowedRows } from '../../../lib/data/useWindowedRows';
 import { LIST_ALL, LIST_CLEAR, LIST_DETAIL_EMPTY, LIST_FILTER, LIST_NO_MATCH, LIST_SEARCH, LIST_SEARCH_PLACEHOLDER, LIST_SORT, LIST_TWO_STEP, listShowing } from '../../../lib/words';
 import { Btn, Field } from '../../../shared/ui';
+import { pageCount, Pager } from './Pager';
 import { Reveal, Skeleton } from './stagger';
 
 /** How long the search waits after the last keystroke. */
@@ -29,6 +33,8 @@ export const SEARCH_DEBOUNCE_MS = 120;
 export const TOOLBAR_MIN = 8;
 /** From this window width a list with a `detail` shows the picked row beside it. */
 export const WIDE_AT = 1500;
+/** Rows per page of a long list (a list may pass its own `pageSize`; 0 = never paged). */
+export const LIST_PAGE_SIZE = 20;
 
 export type ListFilter<T> = { value: string; label: string; test: (row: T) => boolean; title?: string };
 export type ListSort<T> = { value: string; label: string; compare: (a: T, b: T) => number };
@@ -73,6 +79,8 @@ export type ListEngineProps<T> = {
   wideAt?: number;
   /** Reserved for WP3 (group headers between rows); not drawn yet. Rows keep their order. */
   groupBy?: (row: T) => string;
+  /** Rows per page (default LIST_PAGE_SIZE); 0 keeps the list whole and windowed. */
+  pageSize?: number;
   className?: string;
 };
 
@@ -140,6 +148,17 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
   const sort = sorts?.find((s) => s.value === sortValue) ?? null;
   const shown = useMemo(() => shownRows(rows, hay, q, filter, sort), [rows, hay, q, filter, sort]);
 
+  // The page: 1-based, kept with the filter / search / sort it was chosen under, so changing any of
+  // them is back to page 1 without an effect; clamped when the data shrinks.
+  const pageSize = p.pageSize ?? LIST_PAGE_SIZE;
+  const sig = `${filterValue ?? ''} ${q} ${sortValue ?? ''}`;
+  const [pageAt, setPageAt] = useState<{ sig: string; page: number }>({ sig, page: 1 });
+  const pages = pageCount(shown.length, pageSize);
+  const page = Math.min(pageAt.sig === sig ? pageAt.page : 1, pages);
+  const paged = pageSize > 0 && shown.length > pageSize;
+  const pageRows = useMemo(() => (paged ? shown.slice((page - 1) * pageSize, page * pageSize) : shown), [paged, shown, page, pageSize]);
+  const setPage = useCallback((n: number) => setPageAt({ sig, page: n }), [sig]);
+
   const wide = useWide(p.wideAt ?? WIDE_AT);
   const hasDetail = !!p.detail;
   const side = wide && hasDetail;
@@ -147,7 +166,7 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
   const pickedRow = hasDetail && picked !== null ? shown.find((r) => getKey(r) === picked) : undefined;
   const detailRef = useRef<HTMLElement>(null);
 
-  const list = useWindowedRows({ rows: shown, getKey, estimateSize: p.estimateSize, measure: p.measure });
+  const list = useWindowedRows({ rows: pageRows, getKey, estimateSize: p.estimateSize, measure: p.measure });
   const toolbar = rows.length > (p.toolbarMin ?? TOOLBAR_MIN);
 
   /** A click or Space: pick when there is a pane, else open. */
@@ -164,6 +183,28 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
     if (onOpen) onOpen(row);
     else activate(row);
   }, [onOpen, activate]);
+  // Page Up / Down at the edge of a page flips it; the hook's own move handles everything else.
+  const focusAfterFlip = useRef<'first' | 'last' | null>(null);
+  useEffect(() => {
+    const want = focusAfterFlip.current;
+    if (!want) return;
+    focusAfterFlip.current = null;
+    const row = want === 'first' ? pageRows[0] : pageRows[pageRows.length - 1];
+    if (row !== undefined) list.focusKey(getKey(row));
+  });
+  const onListKey = (e: KeyboardEvent) => {
+    if (paged && (e.key === 'PageDown' || e.key === 'PageUp')) {
+      const edge = pageRows[e.key === 'PageDown' ? pageRows.length - 1 : 0];
+      const next = e.key === 'PageDown' ? page + 1 : page - 1;
+      if (edge !== undefined && list.focusedKey === getKey(edge) && next >= 1 && next <= pages) {
+        e.preventDefault();
+        focusAfterFlip.current = e.key === 'PageDown' ? 'first' : 'last';
+        setPage(next);
+        return;
+      }
+    }
+    list.onKeyDown(e);
+  };
   const twoStep = !!onOpen && (hasDetail || !!onPick);
 
   const clear = () => { setQuery(''); setFilterValue(null); };
@@ -214,7 +255,8 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
         {rows.length === 0 ? <p className="le-empty">{p.empty}</p>
           : shown.length === 0 ? <p className="le-empty">{p.noMatch ?? LIST_NO_MATCH} <Btn sm kind="plain" onClick={clear}>{LIST_CLEAR}</Btn></p>
             : (
-              <div ref={list.scrollRef} onKeyDown={list.onKeyDown} className="le-scroll" role="list" aria-label={p.label} aria-describedby={twoStep ? hintId : undefined}>
+              <div className="le-col">
+              <div ref={list.scrollRef} onKeyDown={onListKey} className="le-scroll" role="list" aria-label={p.label} aria-describedby={twoStep ? hintId : undefined}>
                 <div className="le-space" style={{ height: list.totalSize }}>
                   {list.items.map((it) => {
                     const rp = list.rowProps(it);
@@ -230,6 +272,8 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
                     );
                   })}
                 </div>
+              </div>
+              {paged ? <Pager page={page} pageSize={pageSize} total={shown.length} onPage={setPage} label={`${p.label} pages`} /> : null}
               </div>
             )}
         {hasDetail ? (

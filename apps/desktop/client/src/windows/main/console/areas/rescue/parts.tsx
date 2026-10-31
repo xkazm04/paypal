@@ -295,7 +295,8 @@ export function CompareCells({ deal, r }: { deal: Deal; r: RescueWorld }) {
         const [v, s] = st.kind === 'default' ? [RESCUE.cmp.nothingSent, isReplay(deal, view) ? RESCUE.cmp.replay : retry ? RESCUE.cmp.retry(coarse(retry, now)) : RESCUE.cmp.noRetry]
           : st.kind === 'offer' ? [formatMoney(st.offer.invoice), RESCUE.cmp.off(percentWords(st.offer.discount_bp))]
             : st.kind === 'off' && st.code !== 'NOT_BUILT' ? [RESCUE.cmp.notNow, st.code === 'REPLAY' ? RESCUE.cmp.replay : RESCUE.cmp.retrySoon] : [RESCUE.cmp.notYet, RESCUE.cmp.gist[c as LeverKey]];
-        return <span key={c} className={`rs-cell k-${st.kind}`} title={st.kind === 'off' || st.kind === 'unknown' ? st.why : undefined}><small className="h">{RESCUE.cmp.head[c]}</small><b>{v}</b><small>{s}</small></span>;
+        const why = st.kind === 'off' || st.kind === 'unknown' ? ` (${st.why})` : '';
+        return <span key={c} className={`rs-cell k-${st.kind}`} title={`${RESCUE.cmp.head[c]}: ${v} - ${s}${why}`}><small className="h">{RESCUE.cmp.head[c]}</small><b>{v}</b></span>;
       })}
     </>
   );

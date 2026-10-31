@@ -21,7 +21,7 @@ afterEach(() => { cleanup(); history.replaceState(null, '', '/'); });
 
 const layer = () => document.querySelector<HTMLElement>('.cs-layer');
 const level = () => layer()?.dataset.level;
-const crumbs = () => screen.getByRole('navigation', { name: 'Where you are' }).textContent;
+const crumbs = () => document.querySelector('.cs-bar .cs-here')?.textContent;
 const settled = () => waitFor(() => {
   const el = layer()?.querySelector<HTMLElement>('[data-layer-title]');
   if (!el || el.closest('.cs-centre.loading')) throw new Error('no heading yet');

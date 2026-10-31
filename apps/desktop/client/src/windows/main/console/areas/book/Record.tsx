@@ -4,7 +4,7 @@
 // and shows the list from there, so the oldest step is a few moves away, never a hundred clicks.
 // Only the steps in view are in the page. The chain is checked in the wallet before every page: a
 // failed check shows no steps, says what that means and lets the owner check again. Read-only.
-import { useCallback, useEffect, useMemo, useRef, useState, type UIEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type UIEvent } from 'react';
 import type { AuditRow } from '@bindings/AuditRow';
 import type { Deal } from '@bindings/Deal';
 import { clockLabel } from '../../../../../lib/format';
@@ -56,17 +56,18 @@ export function stepChange(r: Pick<AuditRow, 'from' | 'to'>, deal: Pick<Deal, 's
   return r.to ? `${r.from ? `${stateWord(r.from, ctx).text} → ` : ''}${stateWord(r.to, ctx).text}` : null;
 }
 
+/** A step's columns: when, what, the status change, then who took it (and the deal) as the note. */
+const STEP_COLS = { '--cols': '5.5rem minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr)' } as CSSProperties;
+
 function StepRow({ r, deal, title }: { r: AuditRow; deal: Deal | undefined; title: string | null }) {
   const change = stepChange(r, deal);
   const by = r.decided_by ? decidedBy({ decided_by: r.decided_by }).text : null;
   return (
-    <span className="bk-step">
+    <span className="row1 bk-step" style={STEP_COLS} title={`${actionWord(r.action)} · ${actorWord(r.actor)}${title ? ` · ${title}` : ''}`}>
       <span className="bk-when">{clockLabel(r.at)}</span>
-      <span className="bk-what">
-        <b>{actionWord(r.action)}</b>
-        <span className="bk-sub">{actorWord(r.actor)}{title ? <> · <span className="bk-who" title={title}>{title}</span></> : null}</span>
-      </span>
+      <b className="bk-t">{actionWord(r.action)}</b>
       <span className="bk-change">{by ? <span>{by}</span> : null}{by && change ? ' · ' : null}{change ?? (by ? null : <span className="bk-dim">{BOOK.dash}</span>)}</span>
+      <span className="bk-sub c-note">{actorWord(r.actor)}{title ? <> · <span className="bk-who">{title}</span></> : null}</span>
     </span>
   );
 }
@@ -172,7 +173,7 @@ export function Record({ b }: { b: BookWorld }) {
       {/* Before the first page is read the list says nothing: a failed read is the notice above,
           never "nothing on record". */}
       {next === undefined ? (read.error ? null : <Loading what={BOOK.record.loading} />) : (
-        <ListEngine<AuditRow> className={fewRows(shown.length)} label={BOOK.record.label} rows={shown} getKey={(r) => String(r.seq)} filters={FILTERS} filterLabel={BOOK.record.filter.label} estimateSize={52} toolbarMin={0}
+        <ListEngine<AuditRow> className={fewRows(shown.length)} label={BOOK.record.label} rows={shown} getKey={(r) => String(r.seq)} filters={FILTERS} filterLabel={BOOK.record.filter.label} estimateSize={36} toolbarMin={0}
           searchText={(r) => `${actionWord(r.action)} ${actorWord(r.actor)} ${titleOf(r) ?? ''}`}
           renderRow={(r) => <StepRow r={r} deal={r.deal_id ? byId.get(r.deal_id) : undefined} title={titleOf(r)} />}
           rowLabel={(r) => `${actionWord(r.action)}, ${clockLabel(r.at)}`}

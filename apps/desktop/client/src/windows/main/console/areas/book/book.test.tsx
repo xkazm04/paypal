@@ -62,7 +62,8 @@ describe('Book summary', () => {
     expect(row.held.minor).toBeGreaterThan(0);
     expect(row.out_today.minor).toBeGreaterThan(paid.reduce((t, m) => t + m.minor, 0));
     expect(meter?.textContent).not.toBe(formatMinor(row.out_today.minor, row.out_today.currency));
-    expect(r.layer.querySelector('[data-card="ledger"]')?.textContent).toContain(BOOK.cards.today(text));
+    // The compact chip keeps the figure's note as its tooltip, not as text.
+    expect(r.layer.querySelector('[data-card="ledger"]')?.getAttribute('title')).toContain(BOOK.cards.today(text));
   }, 60_000);
 });
 
@@ -92,6 +93,18 @@ describe('Book ledger', () => {
     expect(rows).toBeGreaterThan(0);
     expect(rows).toBeLessThan(60);
     expect(r.budget.byCommand.get('deal_evidence')?.total ?? 0).toBeLessThanOrEqual(rows);
+  }, 60_000);
+
+  it('pages the ledger: 20 one-line rows and a pager "1-20 of N" over the filtered count', async () => {
+    const r = await renderLayerAtScale('#m=book&v=ledger', 'large');
+    fireEvent.click(within(r.layer).getByRole('button', { name: BOOK.scope.all }));
+    await settle();
+    const list = r.layer.querySelectorAll('.le-item');
+    expect(list.length).toBeLessThanOrEqual(20);
+    for (const row of r.layer.querySelectorAll('.bk-row')) expect(row.classList.contains('row1')).toBe(true);
+    expect(r.layer.querySelector('.pg-range')?.textContent).toMatch(/^1-20 of [0-9,]+$/);
+    fireEvent.click(within(r.layer).getByRole('button', { name: 'Next page' }));
+    await waitFor(() => expect(r.layer.querySelector('.pg-range')?.textContent).toMatch(/^21-40 of /));
   }, 60_000);
 
   it('searches, says when nothing matches, and Escape clears the search first', async () => {

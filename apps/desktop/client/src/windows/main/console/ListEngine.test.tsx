@@ -6,9 +6,9 @@
 import type { ReactNode } from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { LIST_SEARCH, LIST_TWO_STEP, listShowing } from '../../../lib/words';
+import { LIST_SEARCH, LIST_TWO_STEP, listRange, listShowing } from '../../../lib/words';
 import { formatTally } from '../../../lib/data/counts';
-import { countFilters, ListEngine, SEARCH_DEBOUNCE_MS, shownRows, type ListFilter, type ListSort } from './ListEngine';
+import { countFilters, LIST_PAGE_SIZE, ListEngine, SEARCH_DEBOUNCE_MS, shownRows, type ListFilter, type ListSort } from './ListEngine';
 
 type Row = { id: string; title: string; who: string; minor: number; held: boolean };
 const rowsOf = (n: number): Row[] => Array.from({ length: n }, (_, i) => ({ id: `r${i}`, title: `Monitor ${i}`, who: i % 7 === 0 ? 'Partsco' : `Shop ${i % 5}`, minor: (i * 37) % 10_000, held: i % 3 === 0 }));
@@ -44,11 +44,11 @@ const SORTS: ListSort<Row>[] = [
   { value: 'amount', label: 'Largest first', compare: (a, b) => b.minor - a.minor },
 ];
 
-function Harness({ rows, onOpen, detail }: { rows: Row[]; onOpen?: (r: Row) => void; detail?: (r: Row) => ReactNode }) {
+function Harness({ rows, onOpen, detail, pageSize }: { rows: Row[]; onOpen?: (r: Row) => void; detail?: (r: Row) => ReactNode; pageSize?: number }) {
   return (
     <div className="host">
       <ListEngine<Row> label="Deals" rows={rows} getKey={(r) => r.id} searchText={(r) => `${r.title} ${r.who}`} filters={FILTERS} sorts={SORTS}
-        estimateSize={ROW} renderRow={(r) => <span>{r.title} · {r.who}</span>} onOpen={onOpen} detail={detail} empty="No deals yet." />
+        estimateSize={ROW} renderRow={(r) => <span>{r.title} · {r.who}</span>} onOpen={onOpen} detail={detail} pageSize={pageSize} empty="No deals yet." />
     </div>
   );
 }
@@ -203,5 +203,88 @@ describe('two steps: a click picks for the pane, Enter opens', () => {
     fireEvent.keyDown(row, { key: 'Enter' });
     expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: 'r1' }));
     expect(screen.getByRole('list', { name: 'Tables' }).hasAttribute('aria-describedby')).toBe(false);
+  });
+});
+
+describe('paging', () => {
+  const pager = () => document.querySelector('.pg');
+  const range = () => document.querySelector('.pg-range')?.textContent;
+  const numbers = () => document.querySelectorAll('.pg-n').length;
+  const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
+
+  it('a 94-row list shows 20 rows, "1-20 of 94" and five pages', () => {
+    expect(LIST_PAGE_SIZE).toBe(20);
+    render(<Harness rows={rowsOf(94)} />);
+    expect(items()).toHaveLength(20);
+    expect(range()).toBe(listRange(1, 20, 94));
+    expect(numbers()).toBe(5);
+    click('Page 5 of 5');
+    expect(items()).toHaveLength(14);
+    expect(range()).toBe(listRange(81, 94, 94));
+    expect(screen.getByRole('button', { name: 'Next page' }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('20 rows or fewer: no pager and no footer', () => {
+    render(<Harness rows={rowsOf(20)} />);
+    expect(items()).toHaveLength(20);
+    expect(pager()).toBeNull();
+  });
+
+  it('pageSize 0 keeps the windowed list whole', () => {
+    render(<Harness rows={rowsOf(5000)} pageSize={0} />);
+    expect(pager()).toBeNull();
+    expect(items().length).toBeGreaterThan(0);
+    expect(items().length).toBeLessThan(60);
+  });
+
+  it('a filter, a sort and a search go back to page 1, and the total is the filtered count', () => {
+    vi.useFakeTimers();
+    const rows = rowsOf(94);
+    render(<Harness rows={rows} />);
+    click('Page 3 of 5');
+    expect(range()).toBe(listRange(41, 60, 94));
+    fireEvent.click(screen.getByRole('button', { name: /^On hold/ }));
+    const held = rows.filter((r) => r.held).length;
+    expect(range()).toBe(listRange(1, 20, held));
+    click('Page 2 of 2');
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'amount' } });
+    expect(range()).toBe(listRange(1, 20, held));
+    click('Page 2 of 2');
+    fireEvent.change(screen.getByRole('searchbox', { name: LIST_SEARCH }), { target: { value: 'monitor 3' } });
+    act(() => { vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS + 10); });
+    const hits = rows.filter((r) => r.held && r.title.toLowerCase().includes('monitor 3')).length;
+    expect(pager()).toBeNull();
+    expect(items()).toHaveLength(hits);
+  });
+
+  it('clamps to the last page when the data shrinks', () => {
+    const { rerender } = render(<Harness rows={rowsOf(94)} />);
+    click('Page 5 of 5');
+    rerender(<Harness rows={rowsOf(45)} />);
+    expect(range()).toBe(listRange(41, 45, 45));
+    expect(items()).toHaveLength(5);
+    rerender(<Harness rows={rowsOf(10)} />);
+    expect(pager()).toBeNull();
+    expect(items()).toHaveLength(10);
+  });
+
+  it('Page Down at the end of a page flips it; the pick survives the flip', async () => {
+    const was = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1600 });
+    render(<Harness rows={rowsOf(94)} detail={(r) => <p>Detail of {r.title}</p>} />);
+    fireEvent.click(document.querySelectorAll<HTMLButtonElement>('.le-row')[1] as HTMLElement);
+    expect(screen.getByText('Detail of Monitor 1')).toBeTruthy();
+    const last = document.querySelectorAll<HTMLButtonElement>('.le-row')[19] as HTMLElement;
+    act(() => { last.focus(); });
+    fireEvent.keyDown(last, { key: 'PageDown' });
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    expect(range()).toBe(listRange(21, 40, 94));
+    expect((document.activeElement as HTMLElement).textContent).toContain('Monitor 20');
+    expect(screen.getByText('Detail of Monitor 1')).toBeTruthy();
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'PageUp' });
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    expect(range()).toBe(listRange(1, 20, 94));
+    expect((document.activeElement as HTMLElement).textContent).toContain('Monitor 19');
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: was });
   });
 });

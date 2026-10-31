@@ -9,11 +9,11 @@ import type { Deal } from '@bindings/Deal';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { clockLabel, formatMinor, formatMoney } from '../../../../../lib/format';
 import { useNow, useQuery } from '../../../../../lib/hooks';
-import { COUNTER, COUNTER_VIEWS, LATEST_OF, OPEN_THE_DEAL, TABLES_TRADE, timeLeftWords } from '../../../../../lib/words';
+import { COUNTER, COUNTER_VIEWS, LATEST_OF, OPEN_THE_DEAL, stateWord, TABLES_TRADE, timeLeftWords } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Kv, Loading, useLayer, useLayerCount, useToast } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
-import { chipClass, dealTotal, isLive, PENDING_BACKEND, sumByCurrency } from '../../../logic';
+import { chipClass, dealTotal, isLive, PENDING_BACKEND, stripFor, sumByCurrency } from '../../../logic';
 import {
   buildCatalog, draftFloor, draftImpact, draftState, itemName, matchesFilter, sellerMandates, underDraft, vsMarket, type CatalogRow, type FloorDraft,
 } from '../../../modules/counter/model';
@@ -25,7 +25,7 @@ import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer, type YourCall } from '../../ModuleLayer';
 import type { ModuleCard } from '../../ModuleSummary';
-import { Amount, Countdown, StateChip, WhoChip } from '../../rows';
+import { Amount, Countdown, Row1, StateChip, WhoChip } from '../../rows';
 import { SplitView, usePick } from '../tables/parts';
 import { MiniBar, OrderPane } from './Order';
 import { DraftBar, ItemPane } from './Prices';
@@ -164,36 +164,42 @@ export function CounterLayer({ nav }: LayerProps) {
     { id: 'earlier', view: 'earlier', label: COUNTER_VIEWS.earlier, value: COUNTER.earlierValue(past.length), note: COUNTER.earlierNote(past.length > 0) },
   ];
 
-  const orderRow = (d: Deal, picked: boolean) => {
+  // The same order on one line for the lists: its progress trails as the note.
+  const orderRow1 = (d: Deal, picked: boolean) => {
     const disp = display(d);
     const need = needOf(d.id);
     const row = rowOf.get(d.terms.item_ref);
+    const at = d.updated_at ?? d.created_at;
+    const steps = stripFor(d);
+    const stateText = stateWord(d.state, { side: d.side, kind: d.kind }).text;
+    const progress = COUNTER.stepOf(steps.findIndex((s) => s.status === 'cur') + 1, steps.length, stateText);
     return (
-      <span className={`tr-row${need ? ' needs' : ''}${picked ? ' picked' : ''}`}>
-        <span className="dot" aria-hidden="true" />
-        <span className="t">
+      <Row1 className={`${need ? 'needs ' : ''}${picked ? 'picked' : ''}`.trim() || undefined} title={progress}
+        note={isLive(d) ? <MiniBar deal={d} /> : undefined}>
+        <span className="c-who">
+          <span className="dot" aria-hidden="true" />
           <b title={disp.title}>{disp.title}</b>
-          <span className="sub"><WhoChip name={cp(d.counterparty).name} /></span>
-          {isLive(d) ? <span className="ctr-line"><MiniBar deal={d} /><Countdown deadline={need?.deadline ?? disp.deadline} /></span> : null}
+          <WhoChip name={cp(d.counterparty).name} />
         </span>
-        <span className="ctr-end">
-          {need ? <Chip tone="gold">{COUNTER.needsChip}</Chip> : <StateChip deal={d} />}
-          {underDraft(d, row, draft) ? <Chip tone="coral" title={COUNTER.withdrawsTitle}>{COUNTER.withdrawsChip}</Chip> : null}
-          <Amount money={dealTotal(d)} tone={isLive(d) ? undefined : chipClass(d) === 'done' ? 'moved' : 'struck'} />
+        <span className="c-state">
+          {underDraft(d, row, draft) ? <Chip tone="coral" title={COUNTER.withdrawsTitle}>{COUNTER.withdrawsChip}</Chip>
+            : need ? <Chip tone="gold">{COUNTER.needsChip}</Chip> : <StateChip deal={d} />}
         </span>
-      </span>
+        <Amount money={dealTotal(d)} tone={isLive(d) ? undefined : chipClass(d) === 'done' ? 'moved' : 'struck'} />
+        <span className="c-time">{isLive(d) ? <Countdown deadline={need?.deadline ?? disp.deadline} /> : at ? clockLabel(at) : ''}</span>
+      </Row1>
     );
   };
   const orderList = (rowsOf: readonly Deal[], label: string, picked: Deal | undefined, pick: (k: string) => void, empty: string, filters: readonly ListFilter<Deal>[], sorts: readonly ListSort<Deal>[]) => (
-    <ListEngine<Deal> label={label} rows={rowsOf} getKey={(d) => d.id} filters={filters} sorts={sorts} estimateSize={64} measure
+    <ListEngine<Deal> label={label} rows={rowsOf} getKey={(d) => d.id} filters={filters} sorts={sorts} estimateSize={36}
       searchText={(d) => `${display(d).title} ${cp(d.counterparty).name}`}
-      renderRow={(d) => orderRow(d, picked?.id === d.id)}
+      renderRow={(d) => orderRow1(d, picked?.id === d.id)}
       rowLabel={(d) => `${display(d).title}, ${cp(d.counterparty).name}`} onPick={(d) => pick(d.id)} onOpen={(d) => nav.deal(d.id)} empty={empty} />
   );
   // Latest: the live orders (waiting ones first, as the orders view lists them), else the earlier ones.
   const latestOrders = (list: readonly Deal[], open: boolean): LatestProps => ({
-    title: LATEST_OF.counter, total: list.length, rowGuess: 78,
-    rows: list.slice(0, MAX_ROWS).map((d) => ({ key: d.id, label: `${display(d).title}, ${OPEN_THE_DEAL}`, onOpen: () => nav.deal(d.id), node: orderRow(d, false) })),
+    title: LATEST_OF.counter, total: list.length, rowGuess: 40,
+    rows: list.slice(0, MAX_ROWS).map((d) => ({ key: d.id, label: `${display(d).title}, ${OPEN_THE_DEAL}`, onOpen: () => nav.deal(d.id), node: orderRow1(d, false) })),
     seeAll: { onOpen: () => route.open(open ? 'orders' : 'earlier') },
   });
   const orderPane = (d: Deal | undefined) => (d ? <OrderPane key={d.id} deal={d} disp={display(d)} row={rowOf.get(d.terms.item_ref)} draft={draft} /> : null);
@@ -223,18 +229,19 @@ export function CounterLayer({ nav }: LayerProps) {
               {!mq.data && !mq.error ? <Loading what={COUNTER.rulesReading} /> : (
                 <SplitView label={COUNTER.itemsList} count={rows.length}
                   list={(
-                    <ListEngine<CatalogRow> label={COUNTER.itemsList} rows={rows} getKey={(r) => r.itemRef} filters={itemFilters} sorts={ITEM_SORTS} estimateSize={56}
+                    <ListEngine<CatalogRow> label={COUNTER.itemsList} rows={rows} getKey={(r) => r.itemRef} filters={itemFilters} sorts={ITEM_SORTS} estimateSize={36}
                       searchText={(r) => `${r.title ?? ''} ${r.itemRef}`}
                       renderRow={(r) => {
                         const f = draftFloor(r, draft);
                         const changed = draft[r.itemRef] !== undefined;
                         const n = r.deals.filter(isLive).length;
                         return (
-                          <span className={`tr-row${pickedItem?.itemRef === r.itemRef ? ' picked' : ''}`}>
-                            <span className="t"><b title={itemName(r)}>{itemName(r)}</b><span className="sub">{vsMarket(f, r.market).short} · {COUNTER.ordersCount(n)}</span></span>
-                            {changed ? <Chip tone="gold">{COUNTER.draftChip}</Chip> : <span />}
-                            {f ? <Amount money={f} /> : <span className="tx-dim">{COUNTER.notSet}</span>}
-                          </span>
+                          <Row1 className={pickedItem?.itemRef === r.itemRef ? 'picked' : undefined} note={vsMarket(f, r.market).short} title={vsMarket(f, r.market).short}>
+                            <span className="c-who"><b title={itemName(r)}>{itemName(r)}</b></span>
+                            <span className="c-state">{changed ? <Chip tone="gold">{COUNTER.draftChip}</Chip> : null}</span>
+                            {f ? <Amount money={f} /> : <span className="c-amt tx-dim">{COUNTER.notSet}</span>}
+                            <span className="c-time">{COUNTER.ordersCount(n)}</span>
+                          </Row1>
                         );
                       }}
                       rowLabel={(r) => itemName(r)} onPick={(r) => pickItem(r.itemRef)} empty={COUNTER.itemsEmpty} />
