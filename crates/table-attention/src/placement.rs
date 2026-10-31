@@ -178,7 +178,9 @@ pub fn approval_docked_rect(opener: Rect, work: Rect) -> Result<Rect, PlacementE
     })
 }
 
-/// Anchor is the resting puck. Grow from its edges; clamp only if neither side fits.
+/// Anchor is the resting puck. Grow from its edges; clamp only if neither side fits. A form
+/// narrower than the puck (the tab) keeps the puck's edge on the nearer side of the screen, so a
+/// tab snapped to the right edge stays flush with it.
 pub fn place(anchor: Rect, work: Rect, form: Form) -> Result<Placement, PlacementError> {
     if !anchor.valid() || !work.valid() {
         return Err(PlacementError);
@@ -190,7 +192,13 @@ pub fn place(anchor: Rect, work: Rect, form: Form) -> Result<Placement, Placemen
     let left = anchor.x + anchor.width - width;
     let down = anchor.y;
     let up = anchor.y + anchor.height - height;
-    let side = if right + width <= work.x + work.width {
+    let side = if width < anchor.width {
+        if anchor.x + anchor.width / 2.0 > work.x + work.width / 2.0 {
+            Side::Left
+        } else {
+            Side::Right
+        }
+    } else if right + width <= work.x + work.width {
         Side::Right
     } else {
         Side::Left
