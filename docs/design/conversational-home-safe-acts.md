@@ -25,7 +25,7 @@ Registry subjects read before deciding: `schema-driven-ui` / technique `action-c
 | Disclose in units of consequence: what is done, to what, what it costs, whether it can be undone. | The box says what stops, what does not happen, and how to reverse it, with the live count of working agents. |
 | Consent binds to the disclosed parameters; if they change before execution, re-ask. | The resolved action carries a fingerprint of the facts it was shown with. The press re-resolves; if the fingerprint changed the press does nothing and the row re-renders with the new state. |
 | Confirmation proportional to blast radius; uniform "are you sure" is worse than none. | One explicit press on a box that already states the consequence. No second dialog for a reversible act. Irreversible acts are not offered here at all. |
-| In-flight disarm: busy and disabled from click to acknowledgement. | The button is disabled and says "Pausing..." while the command runs; a second press cannot send a second command. |
+| In-flight disarm: busy and disabled from click to acknowledgement. | The button is disabled and says "Pausing…" while the command runs; a second press cannot send a second command. |
 | Fire, then watch: acknowledged is not succeeded; never fabricate the outcome. | The result line appears only after the command returns success, and the row reads the paused state back from the wallet's settings. A failure shows the wallet's own error notice. |
 
 ### Deviations from the standard (recorded, not hidden)
@@ -61,10 +61,10 @@ Fixed words (in `lib/words/board.ts`, `BOARD_ACT`), with host facts filled in:
 
 - Heading: **Needs your OK**
 - Title: **Pause all your agents**
-- What it does: "2 agents working now will stop, and nothing new starts." / "No agent is working right now. Nothing new starts while they are paused." / "How many agents are working is not available yet. Nothing new starts while they are paused."
+- What it does: "2 agents working now stop, and nothing new starts." / "No agent is working right now. Nothing new starts while they are paused." / "How many agents are working is not available yet. Nothing new starts while they are paused."
 - What it does not do: "Nothing is paid, approved or cancelled. Deadlines keep running, and anything left waiting lapses with no money moving."
 - How to reverse: "You can undo this here, or press Resume in Settings, Your agents."
-- Button: **Pause all agents** (while running: "Pausing...")
+- Button: **Pause all agents** (while running: "Pausing…")
 - Result: "All agents paused. Their work stopped; nothing new starts." with **Undo** (resume). After undo: "Agents resumed. Nothing restarts by itself; restart a table in Settings if you want one back."
 - Disarmed reasons: "your agents are already paused", "whether your agents are paused is not available yet".
 
