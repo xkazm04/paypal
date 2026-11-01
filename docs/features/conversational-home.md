@@ -27,21 +27,28 @@ Ops: `show` a panel, `focus` a module / fate / deal, `filter` the board, `propos
 
 ## Who decides each money step
 
-Nobody on this page does. A proposal button resolves host-side to `approval_open` (open a decision, open a setup step) or to a console route, and the confirmation is rendered from the resolved action, not from the proposal's own words. The decision and owner tiers stay in the approval window; `windows/main/console/guard.test.ts` scans the whole main window, the board included, and a second check there proves the board and `lib/assistant` name no decision, owner or session command and call only `approval_open` and the safe acts' act-tier commands.
+Nobody on this page does. A proposal button resolves host-side to `approval_open` (open a decision, open a setup step) or to a console route, and the confirmation is rendered from the resolved action, not from the proposal's own words. The decision and owner tiers stay in the approval window; `windows/main/console/guard.test.ts` scans the whole main window, the board included, and a second check there proves the board and `lib/assistant` name no decision, owner or session command and call only `approval_open` and `assistant_act`.
 
 ## Safe acts from chat
 
 Design and the full candidate table: [`docs/design/conversational-home-safe-acts.md`](../design/conversational-home-safe-acts.md).
 
-One act may be proposed: **pause all agents** (`pause_agents`, which runs `pause_all_agents`, act tier). It can only make the wallet do less: agent work stops, nothing new starts, nothing is paid, approved or cancelled, and deadlines keep running with no money moving.
+Three acts may be proposed, each of which can only make the wallet do less:
 
-- The proposal is drawn as a "Needs your OK" box whose title, effect lines and button come from fixed words and the wallet's own facts (paused or not, how many agents are working). The assistant's reason sits above it as "The board says: ...", never inside it.
-- It is disarmed, with the reason, when agents are already paused or when that is not known.
-- One press runs the command once, after re-checking that what was shown still holds. The result line appears only after the wallet answers.
-- Undo is the host's own button and runs `resume_all_agents`; the assistant cannot propose resuming. Resume is also in Settings, Your agents.
-- An act proposal carrying any extra key is dropped and counted, never trimmed. A reply the validator repaired says so under the answer.
+| Act | Runs (act tier) | Undo (host only) |
+|---|---|---|
+| **Pause all agents** (`pause_agents`) | `pause_all_agents` | `resume_all_agents` |
+| **Pause one agent** (`pause_agent`: negotiator, shopper or assistant) | `agent_pause` | `agent_resume` |
+| **Let one ask lapse** (`let_lapse`: a deal on the board) | `deal_let_lapse` | `deal_lapse_undo`, until the deadline |
 
-Dropped, and why: letting an ask lapse and withdrawing an offer cannot be undone; snoozing is tumbler-only; there is no command to dismiss a notice; starting agents or opening tables makes the wallet do more.
+- The board sends every act and every undo through one wallet command, `assistant_act` (act tier, main only). The wallet runs the act from its own closed list and writes one `assistant.act` row to the audit chain with the consent words she was shown, their hash and the fingerprint. A refused act records nothing.
+- The proposal is drawn as a "Needs your OK" box whose title, effect lines and button come from fixed words and the wallet's own facts (paused or not, how many agents are working, which agents are paused, the deal's own label). The assistant's reason sits above it as "The board says: …", never inside it.
+- It is disarmed, with the reason, when there is nothing to do (already paused), when the deal is gone or its card does not offer a lapse (a hold, a closed mismatch), or when the facts are not known.
+- One press sends the act once, after re-checking that what was shown still holds. The result line appears only after the wallet answers; Undo is offered while the wallet still shows something to undo. The assistant cannot propose an undo.
+- An act proposal carrying any extra key, an unknown agent or an unknown deal is dropped and counted, never trimmed. A reply the validator repaired says so under the answer.
+- A one-agent pause stops that agent's runs; the wallet's background passes (market watch, rescue watch, seller order step) follow pause-all only.
+
+Dropped, and why: withdrawing an offer cannot be undone and the other side sees it; snoozing is tumbler-only; there is no command to dismiss a notice; starting agents or opening tables makes the wallet do more.
 
 ## Where it lives
 
@@ -59,5 +66,6 @@ Dropped, and why: letting an ask lapse and withdrawing an offer cannot be undone
 - The in-app (Tauri) desktop app has only the scripted engine; the CLI path there needs a new `read`-tier command, an authority-table row and the isolation conformance check (see the engine-path note). UNVERIFIED: how the Tauri webview treats the one CSS container query the board uses.
 - The week mark is derived from each deal's last update, not from the history read.
 - Answers from the live engine are wordy; the prompt has not been tuned for length.
-- A safe act is not recorded as "proposed by the assistant" anywhere the wallet keeps; the pause itself is in the wallet's settings. Recording the proposal and the words shown needs a wallet-side change.
-- The scripted engine does not propose the pause yet; only a live engine (or a test engine) can.
+- The provenance row records the consent box, not the reply that proposed it.
+- The scripted engine does not propose the safe acts yet; only a live engine (or a test engine) can.
+- The console has no buttons of its own for the one-agent pause or the lapse undo yet.
