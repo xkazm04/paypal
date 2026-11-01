@@ -241,7 +241,7 @@ mod tests {
     /// up in review as an edit to this line (and to `bindings/authority.ts`). Update it only when
     /// the table change is intended.
     const PINNED_MANIFEST: &str =
-        "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4";
+        "b7c2386380ddfd5bd7993e3034261c7b2469e3b1880b41f2058e866c27cf4d17";
 
     #[test]
     fn the_manifest_fingerprint_is_pinned() {

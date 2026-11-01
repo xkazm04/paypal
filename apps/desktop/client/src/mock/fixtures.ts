@@ -114,6 +114,9 @@ export type MockState = {
   /** The house's practice table per deal id, kept when its words were confirmed (Rust: preference `house.table.<id>`). */
   houseTables?: Record<string, HouseTableDraft>;
   snoozed?: Record<string, number>;
+  /** Cards the owner let lapse (deal_let_lapse), kept so deal_lapse_undo can put them back
+   *  (Rust: the `lapse.<deal>` preference; the card is rebuilt from the deal there). */
+  lapsed?: Record<string, AttentionItem>;
   counterparties: CounterpartyDisplay[];
   /** Latest signed NOTE per deal id (counterparty_note): untrusted words, main window only. */
   notes?: Record<string, CounterpartyNote>;
@@ -596,6 +599,7 @@ export function buildMockState(now: number): MockState {
       first_run: false,
       channel3_configured: true,
       agents_paused: false,
+      paused_agents: [],
       selected_engine: 'claude-code',
       engine_chosen: true,
       preferences: { pinned: true, position: null, form: 'rest', quiet: false, dnd: false, notifications: true, snap: 'free' },

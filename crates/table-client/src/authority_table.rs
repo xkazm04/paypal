@@ -276,6 +276,12 @@ pub const AUTHORITY: &[CommandAuthority] = &[
     row("counterparty_revoke",    APPROVAL, Owner,    PRIVILEGED, ANY,         R),
     // The wallet-limits what-if, like mandate_simulate: it replays, never signs or writes.
     row("envelope_simulate",      APPROVAL, Read,     OPEN,       ANY,         R),
+    // Safe acts (acts.rs): reversible, no money, main only. The lapse undo and the one-agent
+    // pause/resume are each other's undo; assistant_act runs one of them and records provenance.
+    row("deal_lapse_undo",        MAIN,     Act,      OPEN,       ANY,         R),
+    row("agent_pause",            MAIN,     Act,      OPEN,       ANY,         R),
+    row("agent_resume",           MAIN,     Act,      OPEN,       ANY,         R),
+    row("assistant_act",          MAIN,     Act,      OPEN,       ANY,         R),
 ];
 
 const fn release_count() -> usize {

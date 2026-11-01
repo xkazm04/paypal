@@ -347,6 +347,11 @@ mod tests {
             ("market.observed", json!({}), None),
             ("relay.bound", json!({}), None),
             ("run.start", json!({}), None),
+            (
+                "assistant.act",
+                json!({"source":"assistant_proposal","act":"let_lapse","consent":"Needs your OK."}),
+                None,
+            ),
             ("run.finish", json!({}), None),
             (
                 "mcp.withheld",

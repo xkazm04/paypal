@@ -46,6 +46,10 @@
     "allow-rescue-book",
     "allow-deal-group-open",
     "allow-deal-groups",
-    "allow-safety-record"
+    "allow-safety-record",
+    "allow-deal-lapse-undo",
+    "allow-agent-pause",
+    "allow-agent-resume",
+    "allow-assistant-act"
   ]
 }

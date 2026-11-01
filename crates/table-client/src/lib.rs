@@ -8,6 +8,8 @@ use ts_rs::TS;
 mod approval;
 pub mod authority;
 pub use approval::*;
+mod acts;
+pub use acts::*;
 mod authority_table;
 pub mod deal_states;
 mod facts;
@@ -383,6 +385,14 @@ pub struct CommandContract {
     pub counterparty_revoke: Command<CounterpartyRevokeArgs, ()>,
     /// Wallet-limits what-if: draft limits replayed over recorded purchases. Read-only, approval.
     pub envelope_simulate: Command<EnvelopeSimulateArgs, MandateSimulation>,
+    /// Safe acts (acts.rs): clears the lapse mark `deal_let_lapse` set, before the deadline (main).
+    pub deal_lapse_undo: Command<DealArgs, ()>,
+    /// Pauses one agent: its runs stop and none starts for it until `agent_resume` (main).
+    pub agent_pause: Command<AgentArgs, ()>,
+    /// Clears one agent's pause; starts nothing (main).
+    pub agent_resume: Command<AgentArgs, ()>,
+    /// Runs one safe act an assistant proposal led to and records its provenance (main).
+    pub assistant_act: Command<AssistantActArgs, ()>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]

@@ -122,6 +122,9 @@ const BOOKKEEPING: &[&str] = &[
     "rescue.watch_read",
     "rescue.watch_seen",
     "rescue.watch_unread",
+    // Safe acts: the provenance of an act the owner pressed on an assistant proposal. A pause or a
+    // lapse moves no money and is no step; a lapsed deal's step is its deadline's safe default.
+    "assistant.act",
 ];
 /// What one row says, before folding.
 pub(super) enum Row {
