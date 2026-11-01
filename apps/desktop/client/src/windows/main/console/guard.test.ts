@@ -59,9 +59,9 @@ describe('the main window never names a release command', () => {
       const a = AUTHORITY[name as keyof typeof AUTHORITY];
       expect(a, name).toBeDefined();
       expect(a.release, name).toBe(false);
-      expect(['ui', 'act'], name).toContain(a.tier);
+      expect(['read', 'ui', 'act'], name).toContain(a.tier);
     }
-    expect(new Set(called)).toEqual(new Set(['approval_open', 'pause_all_agents', 'resume_all_agents']));
+    expect(new Set(called)).toEqual(new Set(['approval_open', 'pause_all_agents', 'resume_all_agents', 'assistant_ask', 'assistant_status']));
   });
   it('the decision centre opens the approval window and nothing else', () => {
     const centre = files.find((f) => f.path.endsWith(join('console', 'Centre.tsx')))?.text ?? '';
