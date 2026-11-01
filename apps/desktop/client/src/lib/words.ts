@@ -1075,3 +1075,5 @@ export * from './words/approval';
 export * from './words/demo';
 export * from './words/proofcheck';
 export * from './words/say';
+export * from './words/board';
+export * from './words/assistant';

@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { sourceLocPlugin } from './scripts/babel/source-loc-vite-plugin.mjs';
+import { assistantBridge } from './scripts/assistantBridge';
 
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -15,7 +16,8 @@ const DIRECTOR_BUILD = process.env.THE_TABLE_DIRECTOR_BUILD === '1';
 
 export default defineConfig(({ command }) => ({
   // sourceLocPlugin is inert unless THE_TABLE_INSPECTOR=1 (npm run tauri:dev:test).
-  plugins: [sourceLocPlugin(), react()],
+  // assistantBridge: dev server only (apply: 'serve'), the board's claude-code engine in the browser.
+  plugins: [sourceLocPlugin(), react(), assistantBridge()],
   base: './',
   // One switch: THE_TABLE_INSPECTOR=1 drives both the Babel stamps and the overlay (mount.tsx).
   // VITE_PREVIEW_PAGES: the main window shows the browser-preview places (the scenario director) only where

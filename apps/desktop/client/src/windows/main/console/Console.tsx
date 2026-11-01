@@ -19,7 +19,7 @@ import type { Module } from '@bindings/Module';
 import { useEvent, useMutation } from '../../../lib/hooks';
 import { isLazyPart, lazyPart, preloadOnIntent, preloadWhenIdle, whenPartsReady } from '../../../lib/lazy';
 import {
-  A_DEAL, BACK_TITLE, BRAND_NAME, WALLET_FAULT_TOAST, CHARTER_TITLE, BRAND_TITLE, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, NOTICE_WHAT, PLACE, PLACE_TITLE, PLACES_LABEL,
+  A_DEAL, BACK_TITLE, BOARD_TO_BOARD, BOARD_TO_BOARD_TITLE, BRAND_NAME, WALLET_FAULT_TOAST, CHARTER_TITLE, BRAND_TITLE, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, NOTICE_WHAT, PLACE, PLACE_TITLE, PLACES_LABEL,
   SEAL_RING, sealLabel, silenceWords, tabTitle, tabWaiting, TABS_LABEL,
 } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
@@ -49,6 +49,7 @@ import { useWatching } from './ledger';
 import { focusKeyOf, restoreLayer, type LayerMemory } from './memory';
 import { chainOf, isAncestor, moduleOfRoute, mountKey, parentOf, routeKey, sameLayer, type ChainCtx } from './route';
 import { StaleBanner } from './StaleBanner';
+import { setHomeView } from '../switchboard/view';
 import { StaggerProvider } from './stagger';
 import { watchTable } from '../modules/tables/watchPick';
 // Every tab's stylesheet is part of the window's one eager stylesheet (never fetched with a tab's code),
@@ -399,6 +400,7 @@ export function Console() {
             <button key={b.place} type="button" id={`cs-place-${b.place}`} className={`cs-place${placeLit && b.lit.includes(placeLit) ? ' on' : ''}`}
               aria-current={placeLit && b.lit.includes(placeLit) ? 'page' : undefined} onClick={() => barPlace(b.place)} title={b.title}>{b.label}</button>
           ))}
+          <button type="button" id="cs-place-board" className="cs-place" onClick={() => setHomeView('board')} title={BOARD_TO_BOARD_TITLE}>{BOARD_TO_BOARD}</button>
           <button type="button" className="cs-place" onClick={() => setFind(true)} title={PLACE_TITLE.find}>{PLACE.find} <kbd>/</kbd></button>
           <LockButton />
         </nav>
