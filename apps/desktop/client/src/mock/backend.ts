@@ -1478,6 +1478,11 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     safety_record: () => safetyRecordOf(state, state.history ?? buildMockState(nowUnix()).history ?? [], nowUnix(), {
       broken: params.get('records') === 'broken', violation: params.get('safety') === 'violation',
     }),
+    // The board assistant runs in the desktop shell only (one tool-less engine turn); the preview has
+    // no engine to start, so it says so and the board answers from its scripted preview. The browser
+    // dev server's bridge (scripts/assistantBridge.ts) is a separate path that never comes here.
+    assistant_ask: () => fail('UNAVAILABLE', "The assistant app isn't available on this computer right now."),
+    assistant_status: () => ({ available: false, reason: "The assistant app isn't available on this computer right now." }),
   };
 
   // ---- the preview world (director and preview stage only; no money operation) ----------------

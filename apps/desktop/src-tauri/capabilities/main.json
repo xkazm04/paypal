@@ -46,6 +46,8 @@
     "allow-rescue-book",
     "allow-deal-group-open",
     "allow-deal-groups",
-    "allow-safety-record"
+    "allow-safety-record",
+    "allow-assistant-ask",
+    "allow-assistant-status"
   ]
 }

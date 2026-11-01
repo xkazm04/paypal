@@ -3,6 +3,8 @@ import type { AgentStartArgs } from "./AgentStartArgs";
 import type { ApprovalHandoff } from "./ApprovalHandoff";
 import type { ApprovalOpenArgs } from "./ApprovalOpenArgs";
 import type { ApprovalSummary } from "./ApprovalSummary";
+import type { AssistantAskArgs } from "./AssistantAskArgs";
+import type { AssistantAvailability } from "./AssistantAvailability";
 import type { AttentionSnapshot } from "./AttentionSnapshot";
 import type { AuditPage } from "./AuditPage";
 import type { AuditPageArgs } from "./AuditPageArgs";
@@ -136,4 +138,13 @@ counterparty_revoke: Command<CounterpartyRevokeArgs, null>,
 /**
  * Wallet-limits what-if: draft limits replayed over recorded purchases. Read-only, approval.
  */
-envelope_simulate: Command<EnvelopeSimulateArgs, MandateSimulation>, };
+envelope_simulate: Command<EnvelopeSimulateArgs, MandateSimulation>, 
+/**
+ * The board assistant: one tool-less turn over the question and board digest the main
+ * window built; returns the raw, untrusted reply JSON text. Read tier, main only.
+ */
+assistant_ask: Command<AssistantAskArgs, string>, 
+/**
+ * Whether the board assistant would try a question. Runs no model. Read tier, main only.
+ */
+assistant_status: Command<null, AssistantAvailability>, };
