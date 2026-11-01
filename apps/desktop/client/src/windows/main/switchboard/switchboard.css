@@ -177,6 +177,12 @@
 .sb-proposal.off { border-style: dashed; }
 .sb-proposal .sb-why { color: var(--muted); }
 .sb-proposal .sb-quiet { font-size: var(--fs-small); }
+/* a safe act: the consent box the host draws (its words never come from the reply) */
+.sb-consent { display: grid; gap: 4px; padding: var(--sp-2); border-radius: var(--r-card); border: 1px solid var(--gold-l); border-left-width: 3px; background: var(--bg); }
+.sb-consent .sb-ok { font: var(--fw-medium) var(--fs-small)/1.2 var(--label); font-stretch: var(--label-stretch); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--gold-l); }
+.sb-consent .sb-ct { color: var(--text); }
+.sb-acted { display: grid; gap: 4px; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-card); border: 1px solid var(--line2); background: var(--panel); }
+.sb-acted .sb-quiet { font-size: var(--fs-small); }
 
 .sb-thread { flex: 0 1 auto; max-height: 26%; min-height: 3.2rem; overflow-y: auto; padding: var(--sp-2) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
 .sb-turn { display: grid; gap: 4px; }

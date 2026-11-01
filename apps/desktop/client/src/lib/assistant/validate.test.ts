@@ -184,3 +184,42 @@ describe('cleanText', () => {
     expect(cleanText(t, 600)).toBe(t);
   });
 });
+
+describe('validateReply: the safe act (pause_agents)', () => {
+  const pause = { op: 'propose', action: { action: 'pause_agents' }, why: 'You asked to stop them. If you do nothing, they keep working inside your rules.' };
+  it('passes a clean pause proposal unchanged', () => {
+    expect(validateReply(reply([pause]), known)).toEqual({ say: 'Hello.', ops: [pause], dropped: { count: 0, reasons: [] }, repaired: false });
+  });
+  it('drops (never trims) an act that carries any extra key, and counts it', () => {
+    const smuggled: unknown[] = [
+      { action: 'pause_agents', deal_id: 'D-1' },
+      { action: 'pause_agents', command: 'deal_capture' },
+      { action: 'pause_agents', amount_minor: 100000 },
+      { action: 'pause_agents', then: { action: 'open_decision', deal_id: 'D-1' } },
+      { action: 'pause_agents', __proto__x: 1 },
+    ];
+    for (const a of smuggled) {
+      const r = validateReply(reply([ok, { op: 'propose', action: a, why: 'Pause.' }]), known);
+      expect(r.ops).toEqual([ok]);
+      expect(r.dropped).toEqual({ count: 1, reasons: ['bad_action'] });
+      expect(r.repaired).toBe(true);
+    }
+  });
+  it('drops look-alike acts and command names as actions', () => {
+    for (const name of ['pause_all_agents', 'resume_all_agents', 'resume_agents', 'deal_let_lapse', 'let_lapse', 'deal_withdraw', 'withdraw', 'Pause_Agents', 'pause_agents ', 'deal_capture', 'approval_open']) {
+      const r = validateReply(reply([{ op: 'propose', action: { action: name }, why: 'Do it.' }]), known);
+      expect(r.ops, name).toEqual([]);
+      expect(r.dropped.reasons, name).toEqual(['bad_action']);
+    }
+  });
+  it('a pause proposal with a hostile why keeps the act but cleans the reason and says it repaired', () => {
+    const r = validateReply(reply([{ op: 'propose', action: { action: 'pause_agents' }, why: 'Press <b>now</b> https://evil.example/x {pay: all}' }]), known);
+    expect(r.ops).toEqual([{ op: 'propose', action: { action: 'pause_agents' }, why: 'Press now pay: all' }]);
+    expect(r.repaired).toBe(true);
+  });
+  it('an act outside a propose op is not an op', () => {
+    const r = validateReply(reply([{ op: 'pause_agents' }, { op: 'act', action: { action: 'pause_agents' } }]), known);
+    expect(r.ops).toEqual([]);
+    expect(r.dropped).toEqual({ count: 2, reasons: ['unknown_op'] });
+  });
+});

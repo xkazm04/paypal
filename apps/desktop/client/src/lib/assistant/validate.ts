@@ -9,12 +9,14 @@
 //    capped (say 600, why 160). A cleaned field marks the reply `repaired`. A `why` that is empty
 //    after cleaning drops its op (a proposal with no stated reason must not be shown).
 //  - Identifier fields (deal ids, hash, targets, module, fate) are never repaired: wrong means drop.
+//  - An `act` action (ACTION_CLASS) with any key it does not define is dropped, not repaired: the
+//    one thing that can change the wallet is never rebuilt from a damaged proposal.
 //  - Nullable fields that are omitted count as null (the contract says null, never omitted): repaired.
 //  - More than 8 ops: the first 8 are examined, the rest dropped as one count each.
 //  - `dropped.reasons` lists each distinct reason once, in first-seen order; `count` counts parts.
 import type { ActionRef, PanelSpec, UiOp, ValidatedReply } from './contract';
 import { ASSISTANT_V, FATES, MODULE_KEYS, PANEL_KINDS } from './contract';
-import { ACTIONS, DEAL_ID_RE, DEAL_ID_MAX, HASH_RE, OPS, OPS_MAX, PANELS, SAY_MAX, SETUP_TARGETS, WHY_MAX, type EntryDef, type FieldDef } from './vocabulary';
+import { ACTION_CLASS, ACTIONS, DEAL_ID_RE, DEAL_ID_MAX, HASH_RE, OPS, OPS_MAX, PANELS, SAY_MAX, SETUP_TARGETS, WHY_MAX, type EntryDef, type FieldDef } from './vocabulary';
 
 export type Known = { dealIds: ReadonlySet<string> };
 
@@ -145,6 +147,10 @@ function checkAction(v: unknown, known: Known): Res<ActionRef> {
   if (!isObj(v)) return fail('bad_action');
   const a = get(v, 'action');
   if (typeof a !== 'string' || !own(ACTIONS, a)) return fail('bad_action');
+  // An act changes the wallet: a stray key on it (an amount, an id, a command name) is not trimmed
+  // away quietly; the whole proposal is dropped and counted.
+  const def = ACTIONS[a as ActionRef['action']];
+  if (ACTION_CLASS[a as ActionRef['action']] === 'act' && Object.keys(v).some((k) => k !== 'action' && !def.fields.some((d) => d.name === k))) return fail('bad_action');
   const r = checkEntry('action', ACTIONS[a as ActionRef['action']], v, known, () => null);
   return r.ok ? { ok: true, value: r.value as ActionRef, changed: r.changed } : r;
 }
