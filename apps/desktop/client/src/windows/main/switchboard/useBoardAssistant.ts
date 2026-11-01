@@ -1,11 +1,15 @@
 // The board's door to the assistant. One question goes: digest from the board model -> engine.ask ->
-// validateReply -> a ValidatedReply the board applies. The engine is the injected one, else the dev
-// bridge's `claude-code` when it answers a probe (once, on mount), else the scripted preview. If the
-// chosen engine fails for any reason, that question is answered by the scripted engine and the outcome
-// says so (the board shows one line). A reply is a proposal: nothing here executes anything.
+// validateReply -> a ValidatedReply the board applies. The engine is the injected one; else, in the
+// desktop app (the real shell, not demo mode), the shell's `claude-code` (`assistant_ask`) when
+// `assistant_status` says it would try; else, in the browser dev server, the dev bridge's
+// `claude-code` when it answers a probe; else the scripted preview. The choice is made once, on mount.
+// If the chosen engine fails for any reason, that question is answered by the scripted engine and the
+// outcome says so (the board shows one line). A reply is a proposal: nothing here executes anything.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Backend } from '../../../lib/contract';
+import { backend as pageBackend } from '../../../lib/runtime';
 import {
-  bridgeAvailable, createBridgeEngine, createScriptedEngine, validateReply,
+  bridgeAvailable, createBridgeEngine, createScriptedEngine, createTauriEngine, tauriAssistantAvailable, validateReply,
   type AssistantEngine, type DigestInput, type EngineInfo, type ValidatedReply,
 } from '../../../lib/assistant';
 
@@ -14,9 +18,29 @@ export type AssistantDeps = {
   scripted?: AssistantEngine;
   /** The validation door (default: the real one). */
   validate?: typeof validateReply;
-  /** Probe for the dev bridge (default: bridgeAvailable). Skipped when an engine is injected. */
+  /** Probe for the dev bridge (default: bridgeAvailable). Skipped when an engine is injected; when
+   *  given, the desktop shell is not asked. */
   probe?: () => Promise<boolean>;
+  /** The page's backend (default: lib/runtime's; null when none is initialised). */
+  backend?: () => Backend | null;
 };
+
+const currentBackend = (): Backend | null => {
+  try {
+    return pageBackend();
+  } catch {
+    return null;
+  }
+};
+
+/** The live engine for this page, or null: the shell's in the desktop app, else the dev bridge's. */
+async function chooseLive(deps: AssistantDeps): Promise<AssistantEngine | null> {
+  const shell = deps.probe ? null : (deps.backend ?? currentBackend)();
+  if (shell?.kind === 'tauri') {
+    return (await tauriAssistantAvailable(() => shell)) ? createTauriEngine(() => shell) : null;
+  }
+  return (await (deps.probe ?? bridgeAvailable)()) ? createBridgeEngine() : null;
+}
 
 export type AskOutcome =
   | { kind: 'reply'; reply: ValidatedReply; engine: EngineInfo; fellBack: boolean }
@@ -42,8 +66,7 @@ export function useBoardAssistant(injected?: AssistantEngine, deps: AssistantDep
   useEffect(() => {
     if (injected) return;
     let dead = false;
-    const probe = depsRef.current.probe ?? bridgeAvailable;
-    void probe().then((ok) => { if (!dead && ok) setLive(createBridgeEngine()); }, () => undefined);
+    void chooseLive(depsRef.current).then((e) => { if (!dead && e) setLive(e); }, () => undefined);
     return () => { dead = true; };
   }, [injected]);
 

@@ -33,6 +33,31 @@ struct DesktopState {
     agents_paused: std::sync::atomic::AtomicBool,
     /// The tray menu as shown; every tray click is answered from it.
     tray: Mutex<table_client::tray::TrayModel>,
+    /// The board assistant (`assistant_ask`); `None` only if its pinned contract failed to load.
+    assistant: Option<table_engine::AssistantDoor>,
+}
+/// The board assistant's door: the installed `claude-code`, found and contained exactly as the
+/// agent engines are (`resolve_command`, `NativeEngine`), in its own run root, with the pinned
+/// prompt and schema. No engine found: a door that answers "not available".
+fn assistant_door(data: &std::path::Path) -> Option<table_engine::AssistantDoor> {
+    use table_engine::{
+        ASSISTANT_LIMITS, AssistantDoor, AssistantTurn, EngineId, NativeEngine, resolve_command,
+        search_paths,
+    };
+    let spec = table_client::assistant::assistant_spec().ok()?;
+    let engine = resolve_command(EngineId::ClaudeCode, &search_paths())
+        .ok()
+        .and_then(|exe| {
+            NativeEngine::new(
+                EngineId::ClaudeCode,
+                exe,
+                data.join("assistant"),
+                ASSISTANT_LIMITS,
+            )
+            .ok()
+        })
+        .map(|engine| Arc::new(engine) as Arc<dyn AssistantTurn>);
+    Some(AssistantDoor::new(engine, spec))
 }
 #[derive(Debug)]
 struct Surface {
@@ -263,7 +288,9 @@ pub fn run() -> Result<(), tauri::Error> {
             rescue_watch_stop,
             safety_record,
             counterparty_revoke,
-            envelope_simulate
+            envelope_simulate,
+            assistant_ask,
+            assistant_status
         ])
         .setup(|app| {
             let data = app.path().app_data_dir()?;
@@ -331,6 +358,7 @@ pub fn run() -> Result<(), tauri::Error> {
                     agents_paused,
                     table_core::Clock::now(&table_runtime::SystemClock),
                 )),
+                assistant: assistant_door(&data),
             });
             tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .on_navigation(navigation::permits)

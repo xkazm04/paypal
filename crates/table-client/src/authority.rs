@@ -241,7 +241,26 @@ mod tests {
     /// up in review as an edit to this line (and to `bindings/authority.ts`). Update it only when
     /// the table change is intended.
     const PINNED_MANIFEST: &str =
-        "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4";
+        "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944";
+
+    /// Written out by hand: the board assistant's two commands are reads the main window alone
+    /// may call, answered by the shell, with no token, unlock or selection. Its reply is text the
+    /// client validates; it can never be a way to the release set from another window.
+    #[test]
+    fn the_board_assistant_is_a_main_only_shell_read() {
+        for name in ["assistant_ask", "assistant_status"] {
+            let a = authority(name).unwrap();
+            assert_eq!(a.labels, &[WindowLabel::Main], "{name}");
+            assert_eq!(a.tier, Tier::Read, "{name}");
+            assert_eq!(a.enforcer, Enforcer::Shell, "{name}");
+            assert_eq!(a.selection, Selection::None, "{name}");
+            assert!(!a.token && !a.unlock && !a.release(), "{name}");
+            assert!(
+                !admits(name, "approval") && !admits(name, "tumbler"),
+                "{name}"
+            );
+        }
+    }
 
     #[test]
     fn the_manifest_fingerprint_is_pinned() {

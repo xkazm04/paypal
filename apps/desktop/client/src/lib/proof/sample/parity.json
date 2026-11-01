@@ -2,7 +2,7 @@
   "samples": {
     "busy": {
       "golden": {
-        "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+        "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
         "checks": [
           {
             "applies": true,
@@ -105,14 +105,14 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+            "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
             "id": "permissions",
             "ok": true
           },
           {
             "applies": true,
             "checked": true,
-            "detail": "evidence head 8de004343957 signed by the deal's agent",
+            "detail": "evidence head 185f1ba700e3 signed by the deal's agent",
             "id": "evidence",
             "ok": true
           }
@@ -134,7 +134,7 @@
           "name": "shield-release",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -237,7 +237,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -272,7 +272,7 @@
           "name": "market-price",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -375,7 +375,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -410,7 +410,7 @@
           "name": "group-winner",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -513,7 +513,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -548,7 +548,7 @@
           "name": "group-agreed",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -651,7 +651,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -686,7 +686,7 @@
           "name": "request-id",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -789,7 +789,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -818,7 +818,7 @@
     },
     "buyer": {
       "golden": {
-        "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+        "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
         "checks": [
           {
             "applies": true,
@@ -921,14 +921,14 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+            "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
             "id": "permissions",
             "ok": true
           },
           {
             "applies": true,
             "checked": true,
-            "detail": "evidence head 389c75a19250 signed by the deal's agent",
+            "detail": "evidence head 83dfd583b052 signed by the deal's agent",
             "id": "evidence",
             "ok": true
           }
@@ -951,7 +951,7 @@
           "name": "price",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -1054,7 +1054,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -1122,7 +1122,7 @@
           "name": "transcript-head",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -1225,7 +1225,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -1253,7 +1253,7 @@
     },
     "monitor": {
       "golden": {
-        "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+        "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
         "checks": [
           {
             "applies": true,
@@ -1356,14 +1356,14 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+            "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
             "id": "permissions",
             "ok": true
           },
           {
             "applies": true,
             "checked": true,
-            "detail": "evidence head f7471be7c02d signed by the deal's agent",
+            "detail": "evidence head 9ae60d65d24a signed by the deal's agent",
             "id": "evidence",
             "ok": true
           }
@@ -1386,7 +1386,7 @@
           "name": "price",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -1489,7 +1489,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -1526,7 +1526,7 @@
           "name": "audit-line",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -1629,7 +1629,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -1663,7 +1663,7 @@
           "name": "audit-gap",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -1766,7 +1766,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -1802,7 +1802,7 @@
           "name": "signature",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -1905,7 +1905,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -1940,7 +1940,7 @@
           "name": "payee",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -2043,7 +2043,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -2079,7 +2079,7 @@
           "name": "paypal-amount",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -2182,7 +2182,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -2217,7 +2217,7 @@
           "name": "refund",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -2320,7 +2320,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -2355,7 +2355,7 @@
           "name": "receipt",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -2458,7 +2458,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -2493,7 +2493,7 @@
           "name": "rules",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -2596,7 +2596,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },
@@ -2633,7 +2633,7 @@
           "name": "relabel",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -2804,7 +2804,7 @@
           "name": "owner-key",
           "outcome": {
             "report": {
-              "authority_manifest": "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+              "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
               "checks": [
                 {
                   "applies": true,
@@ -2907,7 +2907,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "permissions fingerprint b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4",
+                  "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
                   "id": "permissions",
                   "ok": true
                 },

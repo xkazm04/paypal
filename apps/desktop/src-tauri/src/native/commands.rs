@@ -502,6 +502,37 @@ pub(super) async fn proof_check(
         })?;
     check_proof_file(&bytes).map(Some)
 }
+/// The board assistant (main window only): the question and board digest the page built go to
+/// the shell's `AssistantDoor` (one tool-less turn, no wallet handle); the raw reply text comes
+/// back for the page's `validateReply`. Nothing here reaches the wallet actor.
+#[tauri::command]
+pub(super) async fn assistant_ask(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    args: AssistantAskArgs,
+) -> Result<String, CommandError> {
+    label(&window, "assistant_ask")?;
+    let door = state
+        .assistant
+        .as_ref()
+        .ok_or_else(|| assistant::refusal_error(table_engine::AssistantRefusal::Unavailable))?;
+    door.ask(&args.text).await.map_err(assistant::refusal_error)
+}
+/// Whether the board assistant would try a question (no model runs).
+#[tauri::command]
+pub(super) async fn assistant_status(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+) -> Result<AssistantAvailability, CommandError> {
+    label(&window, "assistant_status")?;
+    Ok(assistant::availability(match &state.assistant {
+        Some(door) => door.status(),
+        None => table_engine::AssistantStatus {
+            available: false,
+            refusal: Some(table_engine::AssistantRefusal::Unavailable),
+        },
+    }))
+}
 #[tauri::command]
 pub(super) async fn mandate_simulate(
     window: WebviewWindow,

@@ -518,13 +518,16 @@ impl Fixture {
 
 /// The shell answers these itself (window surface), checking the label against the table; the
 /// runtime never sees them. Pinned here so a new shell-only row is a deliberate choice.
-const SHELL_ONLY: [&str; 6] = [
+const SHELL_ONLY: [&str; 8] = [
     "main_open",
     "tumbler_set_form",
     "tumbler_pin",
     "tumbler_drag",
     "tumbler_snap",
     "proof_check",
+    // The board assistant: the shell's AssistantDoor, which holds no wallet handle.
+    "assistant_ask",
+    "assistant_status",
 ];
 
 /// One command's cells against a fresh wallet (an admitted call may change state: pause,

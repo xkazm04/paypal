@@ -276,6 +276,10 @@ pub const AUTHORITY: &[CommandAuthority] = &[
     row("counterparty_revoke",    APPROVAL, Owner,    PRIVILEGED, ANY,         R),
     // The wallet-limits what-if, like mandate_simulate: it replays, never signs or writes.
     row("envelope_simulate",      APPROVAL, Read,     OPEN,       ANY,         R),
+    // The board assistant: text in, untrusted reply text out; no tools, no wallet handle, moves
+    // nothing. Main only: never the Tumbler, never the approval window. The shell answers it.
+    row("assistant_ask",          MAIN,     Read,     OPEN,       ANY,         S),
+    row("assistant_status",       MAIN,     Read,     OPEN,       ANY,         S),
 ];
 
 const fn release_count() -> usize {

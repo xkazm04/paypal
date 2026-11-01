@@ -6,8 +6,10 @@ use table_core::{Deal, DealId, H256, Mode};
 pub use table_proto::{PairingIdentity, SignedPairingIdentity};
 use ts_rs::TS;
 mod approval;
+pub mod assistant;
 pub mod authority;
 pub use approval::*;
+pub use assistant::{AssistantAskArgs, AssistantAvailability};
 mod authority_table;
 pub mod deal_states;
 mod facts;
@@ -383,6 +385,11 @@ pub struct CommandContract {
     pub counterparty_revoke: Command<CounterpartyRevokeArgs, ()>,
     /// Wallet-limits what-if: draft limits replayed over recorded purchases. Read-only, approval.
     pub envelope_simulate: Command<EnvelopeSimulateArgs, MandateSimulation>,
+    /// The board assistant: one tool-less turn over the question and board digest the main
+    /// window built; returns the raw, untrusted reply JSON text. Read tier, main only.
+    pub assistant_ask: Command<AssistantAskArgs, String>,
+    /// Whether the board assistant would try a question. Runs no model. Read tier, main only.
+    pub assistant_status: Command<(), AssistantAvailability>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
