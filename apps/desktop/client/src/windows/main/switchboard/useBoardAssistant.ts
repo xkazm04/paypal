@@ -1,0 +1,88 @@
+// The board's door to the assistant. One question goes: digest from the board model -> engine.ask ->
+// validateReply -> a ValidatedReply the board applies. The engine is the injected one, else the dev
+// bridge's `claude-code` when it answers a probe (once, on mount), else the scripted preview. If the
+// chosen engine fails for any reason, that question is answered by the scripted engine and the outcome
+// says so (the board shows one line). A reply is a proposal: nothing here executes anything.
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  bridgeAvailable, createBridgeEngine, createScriptedEngine, validateReply,
+  type AssistantEngine, type DigestInput, type EngineInfo, type ValidatedReply,
+} from '../../../lib/assistant';
+
+export type AssistantDeps = {
+  /** The scripted engine used as the fallback (default: the real one). */
+  scripted?: AssistantEngine;
+  /** The validation door (default: the real one). */
+  validate?: typeof validateReply;
+  /** Probe for the dev bridge (default: bridgeAvailable). Skipped when an engine is injected. */
+  probe?: () => Promise<boolean>;
+};
+
+export type AskOutcome =
+  | { kind: 'reply'; reply: ValidatedReply; engine: EngineInfo; fellBack: boolean }
+  | { kind: 'cancelled' };
+
+export type BoardAssistant = {
+  /** The engine the next question goes to. */
+  engine: EngineInfo;
+  busy: boolean;
+  ask: (question: string, input: DigestInput) => Promise<AskOutcome>;
+  cancel: () => void;
+};
+
+export function useBoardAssistant(injected?: AssistantEngine, deps: AssistantDeps = {}): BoardAssistant {
+  const depsRef = useRef(deps);
+  depsRef.current = deps;
+  const scripted = useRef<AssistantEngine | null>(null);
+  const getScripted = (): AssistantEngine => (scripted.current ??= depsRef.current.scripted ?? createScriptedEngine());
+  const [live, setLive] = useState<AssistantEngine | null>(null);
+  const [busy, setBusy] = useState(false);
+  const abort = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (injected) return;
+    let dead = false;
+    const probe = depsRef.current.probe ?? bridgeAvailable;
+    void probe().then((ok) => { if (!dead && ok) setLive(createBridgeEngine()); }, () => undefined);
+    return () => { dead = true; };
+  }, [injected]);
+
+  useEffect(() => () => abort.current?.abort(), []);
+
+  const engine = injected ?? live ?? getScripted();
+
+  const ask = useCallback(async (question: string, input: DigestInput): Promise<AskOutcome> => {
+    abort.current?.abort();
+    const ctl = new AbortController();
+    abort.current = ctl;
+    setBusy(true);
+    const known = { dealIds: new Set(input.deals.map((d) => d.id)) };
+    const validate = depsRef.current.validate ?? validateReply;
+    try {
+      let used: AssistantEngine = injected ?? live ?? getScripted();
+      let fellBack = false;
+      let raw: unknown;
+      try {
+        raw = await used.ask(question, input, ctl.signal);
+      } catch (e) {
+        if (ctl.signal.aborted) return { kind: 'cancelled' };
+        if (used.info.id === 'scripted') throw e;
+        used = getScripted();
+        fellBack = true;
+        raw = await used.ask(question, input, ctl.signal);
+      }
+      if (ctl.signal.aborted) return { kind: 'cancelled' };
+      return { kind: 'reply', reply: validate(raw, known), engine: used.info, fellBack };
+    } catch (e) {
+      if (ctl.signal.aborted) return { kind: 'cancelled' };
+      // The scripted engine itself failed: an empty, validated reply, so the board says it had nothing.
+      return { kind: 'reply', reply: { say: '', ops: [], dropped: { count: 0, reasons: [] }, repaired: false }, engine: getScripted().info, fellBack: true };
+    } finally {
+      if (abort.current === ctl) { abort.current = null; setBusy(false); }
+    }
+  }, [injected, live]);
+
+  const cancel = useCallback(() => { abort.current?.abort(); }, []);
+
+  return { engine: engine.info, busy, ask, cancel };
+}
