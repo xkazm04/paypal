@@ -14,6 +14,10 @@ pub fn wallet_tool(name: &str) -> bool {
     name.strip_prefix("mcp__wallet__")
         .is_some_and(|n| TOOLS.contains(&n))
 }
+/// The one tool an assistant turn may list and call: the CLI's own carrier for `--json-schema`
+/// output (measured on claude-code 2.1.316: the init lists exactly it, and the model answers
+/// with one `tool_use` of it). It reaches nothing outside the process: its input is the reply.
+pub const STRUCTURED_OUTPUT_TOOL: &str = "StructuredOutput";
 #[derive(Debug)]
 pub struct StreamParser {
     engine: EngineId,
@@ -21,6 +25,8 @@ pub struct StreamParser {
     initialized: bool,
     terminal: Option<TerminalVerdict>,
     failed: bool,
+    /// An assistant turn's `structured_output`, from its clean terminal result.
+    structured: Option<Value>,
 }
 impl StreamParser {
     pub fn new(engine: EngineId, profile: Profile) -> Self {
@@ -30,6 +36,7 @@ impl StreamParser {
             initialized: false,
             terminal: None,
             failed: false,
+            structured: None,
         }
     }
     pub fn line(&mut self, line: &str) -> Result<Vec<EngineEvent>, Error> {
@@ -61,11 +68,14 @@ impl StreamParser {
                 .and_then(Value::as_array)
                 .ok_or(Error::Isolation)?;
             if tools.iter().any(|t| {
-                t.as_str()
-                    .is_none_or(|n| self.profile == Profile::Toolless || !wallet_tool(n))
+                t.as_str().is_none_or(|n| match self.profile {
+                    Profile::Agent => !wallet_tool(n),
+                    Profile::Toolless => true,
+                    Profile::Assistant => n != STRUCTURED_OUTPUT_TOOL,
+                })
             }) || (self.profile == Profile::Agent && (tools.is_empty() || servers.len() != 1))
                 || servers.iter().any(|s| {
-                    self.profile == Profile::Toolless
+                    self.profile != Profile::Agent
                         || s.get("name").and_then(Value::as_str) != Some("wallet")
                         || s.get("status").and_then(Value::as_str) != Some("connected")
                 })
@@ -104,6 +114,9 @@ impl StreamParser {
                 } else {
                     TerminalVerdict::Clean
                 };
+                if self.profile == Profile::Assistant && verdict == TerminalVerdict::Clean {
+                    self.structured = v.get("structured_output").cloned();
+                }
                 self.terminal = Some(verdict.clone());
                 Ok(vec![EngineEvent::Result { verdict }])
             }
@@ -122,12 +135,21 @@ impl StreamParser {
                                 .ok_or(Error::Invalid)?
                                 .into(),
                         }),
+                        Some("tool_use") if self.profile == Profile::Assistant => {
+                            // The reply itself; it is read from the terminal result.
+                            if c.get("name").and_then(Value::as_str) != Some(STRUCTURED_OUTPUT_TOOL)
+                            {
+                                return Err(Error::Isolation);
+                            }
+                        }
+                        Some("thinking" | "redacted_thinking")
+                            if self.profile == Profile::Assistant => {}
                         Some("tool_use") => {
                             let name = c
                                 .get("name")
                                 .and_then(Value::as_str)
                                 .ok_or(Error::Invalid)?;
-                            if self.profile == Profile::Toolless || !wallet_tool(name) {
+                            if self.profile != Profile::Agent || !wallet_tool(name) {
                                 return Err(Error::Isolation);
                             }
                             events.push(EngineEvent::ToolCall {
@@ -149,6 +171,24 @@ impl StreamParser {
             {
                 Ok(Vec::new())
             }
+            // An assistant turn: the CLI acknowledges its own structured-output call as a user
+            // message of tool results only, and reports its rate-limit window. Neither carries a
+            // tool, text or authority; any other content fails closed.
+            "user" if self.profile == Profile::Assistant => {
+                let content = v
+                    .pointer("/message/content")
+                    .and_then(Value::as_array)
+                    .ok_or(Error::Invalid)?;
+                if content
+                    .iter()
+                    .all(|c| c.get("type").and_then(Value::as_str) == Some("tool_result"))
+                {
+                    Ok(Vec::new())
+                } else {
+                    Err(Error::Invalid)
+                }
+            }
+            "rate_limit_event" if self.profile == Profile::Assistant => Ok(Vec::new()),
             "thread.started" => Ok(Vec::new()),
             "item.started" | "item.completed" => {
                 let kind = v
@@ -177,7 +217,7 @@ impl StreamParser {
                             .and_then(Value::as_str)
                             .ok_or(Error::Invalid)?;
                         let name = format!("mcp__{server}__{tool}");
-                        if self.profile == Profile::Toolless || !wallet_tool(&name) {
+                        if self.profile != Profile::Agent || !wallet_tool(&name) {
                             return Err(Error::Isolation);
                         }
                         if !started {
@@ -213,6 +253,14 @@ impl StreamParser {
             "turn.started" => Ok(Vec::new()),
             _ => Err(Error::Invalid),
         }
+    }
+    /// An assistant turn's reply: the `structured_output` of a clean terminal result, and only
+    /// when every line of the stream was accepted.
+    pub fn structured_output(&self) -> Option<&Value> {
+        if self.failed || self.terminal != Some(TerminalVerdict::Clean) {
+            return None;
+        }
+        self.structured.as_ref()
     }
     pub fn finish(&self) -> TerminalVerdict {
         if self.failed {

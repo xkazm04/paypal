@@ -1,5 +1,6 @@
 //! Engine contract, fenced launch plans, strict stream validation and offline scripted engine.
 mod argv;
+mod assistant;
 mod native;
 mod parser;
 mod policy;
@@ -7,6 +8,7 @@ mod resolve;
 #[cfg(windows)]
 mod windows_job;
 pub use argv::*;
+pub use assistant::*;
 use async_trait::async_trait;
 pub use native::*;
 pub use parser::*;
@@ -44,6 +46,9 @@ pub struct EngineInfo {
 pub enum Profile {
     Agent,
     Toolless,
+    /// The board's assistant (`assistant.rs`): one tool-less turn with structured output, no
+    /// wallet grant. Its argv is `assistant_argv`, never `argv`; `execute` refuses it.
+    Assistant,
 }
 #[derive(Debug, Clone)]
 pub struct AgentJob {
