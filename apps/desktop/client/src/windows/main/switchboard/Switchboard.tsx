@@ -4,31 +4,37 @@
 // the ops below are applied here, by the host; a proposal is armed only if the host resolves it
 // (resolve.ts). Nothing on this page approves, signs, captures, voids or releases anything: the only
 // route to a money decision is `approval_open`, and a decision is made in the approval window.
+// Safe acts (docs/design/conversational-home-safe-acts.md): a proposal that changes the wallet is
+// drawn as a consent box from the host's resolution, and its one act-tier command (SAFE_ACTS) is
+// invoked only by the owner's press on that box, once, after re-checking what was shown. Its undo is
+// the host's own button, never the assistant's.
 // Esc backs out to the overview and never leaves the page by itself; `/` focuses the chat input.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Module } from '@bindings/Module';
 import type { AssistantEngine, Fate, PanelSpec, UiOp, ValidatedReply } from '../../../lib/assistant';
 import { useMutation } from '../../../lib/hooks';
 import {
-  BOARD_ANSWER_CLOSE, BOARD_ANSWER_EMPTY, BOARD_ANSWER_LABEL, BOARD_CRUMB_BOARD, BOARD_CRUMB_LABEL, BOARD_EMPTY_BOARD, BOARD_FATE, BOARD_FILTER_CLEAR, BOARD_MAIN_LABEL, BOARD_PROPOSAL,
-  BOARD_SUB, BOARD_TITLE, BOARD_TO_CONSOLE, BOARD_TO_CONSOLE_TITLE, BRAND_NAME,
+  BOARD_ACT, BOARD_ANSWER_CLOSE, BOARD_ANSWER_EMPTY, BOARD_ANSWER_LABEL, BOARD_CRUMB_BOARD, BOARD_CRUMB_LABEL, BOARD_EMPTY_BOARD, BOARD_FATE, BOARD_FILTER_CLEAR, BOARD_MAIN_LABEL, BOARD_PROPOSAL,
+  BOARD_REPAIRED, BOARD_SUB, BOARD_TITLE, BOARD_TO_CONSOLE, BOARD_TO_CONSOLE_TITLE, BRAND_NAME,
 } from '../../../lib/words';
 import { Mark } from '../../../shared/brand';
-import { MockBadge, ModeBadge } from '../../../shared/honesty';
+import { MockBadge, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { MODULE } from '../../../shared/modules';
 import { Btn, ThemeSwitch } from '../../../shared/ui';
-import { useLocked, useSettings } from '../world';
+import { useLocked, useRuns, useSettings } from '../world';
 import { Answer, panelTitle, type PanelHost } from './Answer';
 import { ChatRail, type Turn } from './ChatRail';
 import { InstrumentStrip } from './InstrumentStrip';
 import { Matrix, NO_FILTER, type Filter, type Highlight } from './Matrix';
-import { resolveAction, type Run } from './resolve';
+import { resolveAction, type BoardFacts, type Consent, type Run, type SafeAct } from './resolve';
 import { useBoardAssistant, type AssistantDeps } from './useBoardAssistant';
 import { useBoardModel } from './useBoardModel';
 import { setHomeView } from './view';
 import './switchboard.css';
 
 type Proposal = { id: number; action: Extract<UiOp, { op: 'propose' }>['action']; why: string };
+/** The outcome of an act the owner pressed on this page (kept until the next act or Esc). */
+type Acted = { act: SafeAct; phase: 'done' | 'undone' };
 
 const SETUP_PANEL: PanelSpec = { kind: 'setup' };
 
@@ -37,6 +43,10 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
   const settings = useSettings().data;
   const locked = useLocked();
   const open = useMutation('approval_open');
+  // The acts' commands: exactly SAFE_ACTS (resolve.ts), both act tier; called only from `perform` / `undo`.
+  const pause = useMutation('pause_all_agents');
+  const resume = useMutation('resume_all_agents');
+  const runs = useRuns().data;
   const assistant = useBoardAssistant(engine, deps);
 
   const [panel, setPanel] = useState<PanelSpec | null>(null);
@@ -44,6 +54,10 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
   const [highlight, setHighlight] = useState<Highlight | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [repaired, setRepaired] = useState(false);
+  const [acted, setActed] = useState<Acted | null>(null);
+  const [stale, setStale] = useState<ReadonlySet<number>>(() => new Set());
+  const inflight = useRef(false);
   const turnId = useRef(0);
   const root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -54,7 +68,7 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
   const selKey = selId ? model.byId.get(selId) ?? null : null;
 
   // ---- the owner's own moves ----
-  const overview = useCallback(() => { setPanel(null); setFilter(NO_FILTER); setHighlight(null); setProposals([]); }, []);
+  const overview = useCallback(() => { setPanel(null); setFilter(NO_FILTER); setHighlight(null); setProposals([]); setRepaired(false); setActed(null); }, []);
   const pick = useCallback((id: string) => {
     const k = model.byId.get(id);
     if (!k) return;
@@ -75,6 +89,39 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
     window.location.hash = r.hash === '#' ? '' : r.hash;
     setHomeView('console');
   }, [open]);
+  // ---- the facts an act depends on, read from the wallet (never from the reply) ----
+  const facts = useMemo<BoardFacts>(() => ({
+    agentsPaused: settings ? !!settings.agents_paused : null,
+    agentsWorking: runs ? runs.filter((r) => r.state === 'running' || r.state === 'starting').length : null,
+  }), [settings, runs]);
+  const factsRef = useRef(facts);
+  factsRef.current = facts;
+
+  // ---- an act: the owner pressed the consent box. Re-resolve, compare with what was shown, run once ----
+  const perform = useCallback(async (p: Proposal, shown: Consent) => {
+    if (inflight.current) return;
+    const now = resolveAction(p.action, model.byId, factsRef.current);
+    if (!now.armed || !now.act || now.consent.fingerprint !== shown.fingerprint) {
+      setStale((s) => new Set(s).add(p.id));
+      return;
+    }
+    inflight.current = true;
+    try {
+      if (now.run.act === 'pause_agents' && (await pause.run(null)) === null) setActed({ act: 'pause_agents', phase: 'done' });
+    } finally {
+      inflight.current = false;
+    }
+  }, [model.byId, pause]);
+  const undo = useCallback(async (a: Acted) => {
+    if (inflight.current || a.phase !== 'done') return;
+    inflight.current = true;
+    try {
+      if (a.act === 'pause_agents' && (await resume.run(null))) setActed({ act: 'pause_agents', phase: 'undone' });
+    } finally {
+      inflight.current = false;
+    }
+  }, [resume]);
+
   const host = useMemo<PanelHost>(() => ({ model, run, pending: open.pending, error: open.error, locked, pick, filterTo }), [model, run, open.pending, open.error, locked, pick, filterTo]);
 
   // ---- the assistant's ops ----
@@ -98,6 +145,8 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
     if (nextFilter !== undefined) setFilter(nextFilter);
     if (nextHighlight !== undefined) setHighlight(nextHighlight);
     setProposals(props);
+    setStale(new Set());
+    setRepaired(reply.repaired);
   }, [model.byId]);
 
   const ask = useCallback(async (question: string) => {
@@ -171,19 +220,56 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
               <div className="sb-answer-b"><Answer panel={shown} host={host} /></div>
             </>
           ) : <p className="sb-quiet">{BOARD_ANSWER_EMPTY}</p>}
+          {repaired ? <p className="sb-note" data-note="repaired">{BOARD_REPAIRED}</p> : null}
           {proposals.length ? (
             <ul className="sb-proposals" aria-label={BOARD_PROPOSAL.label}>
               {proposals.map((p) => {
-                const r = resolveAction(p.action, model.byId);
+                // An act whose outcome is shown below is not offered again beside it.
+                if (acted && acted.phase === 'done' && acted.act === p.action.action) return null;
+                const r = resolveAction(p.action, model.byId, facts);
+                const why = <span className="sb-why"><b>{BOARD_PROPOSAL.because}:</b> {p.why}</span>;
+                if (r.armed && r.act) {
+                  // The consent box: every word from the resolution (fixed words + the wallet's facts).
+                  const c = r.consent;
+                  return (
+                    <li key={p.id} className="sb-proposal act" data-proposal={p.action.action} data-act={r.run.act}>
+                      {why}
+                      <section className="sb-consent" aria-label={BOARD_ACT.boxLabel} data-consent={r.run.act}>
+                        <span className="sb-ok">{r.confirm}</span>
+                        <b className="sb-ct">{c.title}</b>
+                        <span>{c.does}</span>
+                        <span>{c.doesNot}</span>
+                        <span className="sb-quiet">{c.reverse}</span>
+                        <span className="sb-actions">
+                          <Btn sm disabled={pause.pending || resume.pending} onClick={() => void perform(p, c)} data-press={r.run.act}>{pause.pending ? c.pressing : c.press}</Btn>
+                        </span>
+                        {stale.has(p.id) ? <span className="sb-quiet" data-stale>{BOARD_ACT.whyDisarmed.changed}</span> : null}
+                        {pause.error ? <WalletNotice error={pause.error} what={BOARD_ACT.pause.failed} /> : null}
+                      </section>
+                    </li>
+                  );
+                }
                 return (
                   <li key={p.id} className={`sb-proposal${r.armed ? '' : ' off'}`} data-proposal={p.action.action}>
-                    <span className="sb-why"><b>{BOARD_PROPOSAL.because}:</b> {p.why}</span>
-                    <Btn sm disabled={!r.armed || open.pending} onClick={() => { if (r.armed) run(r.run); }} locked={r.armed && r.run.kind === 'approval' && locked}>{r.label}</Btn>
+                    {why}
+                    <Btn sm disabled={!r.armed || open.pending} onClick={() => { if (r.armed && !r.act) run(r.run); }} locked={r.armed && !r.act && r.run.kind === 'approval' && locked}>{r.label}</Btn>
                     <span className="sb-quiet">{r.armed ? r.confirm : `${BOARD_PROPOSAL.disarmed}: ${r.reason}`}</span>
                   </li>
                 );
               })}
             </ul>
+          ) : null}
+          {acted ? (
+            <div className="sb-acted" role="status" data-acted={`${acted.act}:${acted.phase}`}>
+              <span>{acted.phase === 'done' ? BOARD_ACT.pause.done : BOARD_ACT.pause.undone}</span>
+              {acted.phase === 'done' && facts.agentsPaused === true ? (
+                <span className="sb-actions">
+                  <Btn sm disabled={resume.pending || pause.pending} onClick={() => void undo(acted)} title={BOARD_ACT.pause.undoTitle} data-undo={acted.act}>{resume.pending ? BOARD_ACT.pause.undoing : BOARD_ACT.pause.undo}</Btn>
+                  <span className="sb-quiet">{BOARD_ACT.pause.reverse}</span>
+                </span>
+              ) : null}
+              {resume.error ? <WalletNotice error={resume.error} what={BOARD_ACT.pause.undoFailed} /> : null}
+            </div>
           ) : null}
         </section>
       </ChatRail>

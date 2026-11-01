@@ -225,4 +225,40 @@ export const BOARD_PROPOSAL = {
   },
 } as const;
 
-export const BOARD_HANDOFF_FAILED = 'The approval window did not open. Nothing was changed.';
+// ---- safe acts: the consent box the host draws for a proposal that changes the wallet (reversibly) ----
+// Every word here is fixed or filled from the wallet's own data, never from the assistant's reply.
+// docs/design/conversational-home-safe-acts.md
+export const BOARD_ACT = {
+  needsOk: 'Needs your OK',
+  boxLabel: 'Check what this does before you press it',
+  pause: {
+    title: 'Pause all your agents',
+    does: (working: number | null): string =>
+      working === null
+        ? 'How many agents are working is not available yet. Nothing new starts while they are paused.'
+        : working === 0
+          ? 'No agent is working right now. Nothing new starts while they are paused.'
+          : `${working} ${working === 1 ? 'agent working now stops' : 'agents working now stop'}, and nothing new starts.`,
+    doesNot: 'Nothing is paid, approved or cancelled. Deadlines keep running, and anything left waiting lapses with no money moving.',
+    reverse: 'You can undo this here, or press Resume in Settings, Your agents.',
+    press: 'Pause all agents',
+    pressing: 'Pausing…',
+    done: 'All agents paused. Their work stopped; nothing new starts.',
+    undo: 'Undo',
+    undoing: 'Resuming…',
+    undoTitle: 'Resume your agents. Nothing restarts by itself.',
+    undone: 'Agents resumed. Nothing restarts by itself; restart a table in Settings if you want one back.',
+    failed: 'Pausing your agents',
+    undoFailed: 'Resuming your agents',
+  },
+  whyDisarmed: {
+    alreadyPaused: 'your agents are already paused',
+    pausedUnknown: 'whether your agents are paused is not available yet',
+    changed: 'things changed since this was shown; check it again',
+  },
+} as const;
+
+/** Said under an answer the board had to tidy before showing it (text cleaned, gaps filled). */
+export const BOARD_REPAIRED = 'This answer was tidied before it was shown. The buttons come from the board, not from its words.';
+
+export const BOARD_HANDOFF_FAILED ='The approval window did not open. Nothing was changed.';

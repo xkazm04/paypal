@@ -52,6 +52,19 @@ export const ACTIONS: Record<ActionRef['action'], EntryDef> = {
   open_decision: { name: 'open_decision', about: 'A button that opens the approval window on this deal. She decides there; you cannot.', fields: [f('deal_id', 'deal_id')] },
   open_setup: { name: 'open_setup', about: 'A button that opens one setup step in the approval window.', fields: [f('target', 'setup_target')] },
   open_console: { name: 'open_console', about: 'A button that opens a page of the full console.', fields: [f('hash', 'hash')] },
+  pause_agents: { name: 'pause_agents', about: 'A button that pauses all her agents after she confirms it: their work stops and nothing new starts. Nothing is paid or cancelled, and she can undo it. Propose it only when she asks to stop or pause her agents.', fields: [] },
+};
+
+/** What pressing an action does. `handoff`: opens the approval window or a console page, changes
+ *  nothing. `act`: changes the wallet in a small reversible way, only after the owner's explicit
+ *  press on a consent box the host draws from its own data. The command an act runs is chosen by the
+ *  host (windows/main/switchboard/resolve.ts), never named here or by the assistant. */
+export type ActionClass = 'handoff' | 'act';
+export const ACTION_CLASS: Record<ActionRef['action'], ActionClass> = {
+  open_decision: 'handoff',
+  open_setup: 'handoff',
+  open_console: 'handoff',
+  pause_agents: 'act',
 };
 
 export const OPS: Record<UiOp['op'], EntryDef> = {

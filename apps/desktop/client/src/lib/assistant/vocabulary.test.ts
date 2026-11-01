@@ -3,11 +3,11 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { formatHash, parseHash, PLACES, PREVIEW_PLACES } from '../../windows/main/logic';
 import { FATES, MODULE_KEYS, PANEL_KINDS, type ActionRef, type UiOp } from './contract';
-import { ACTIONS, CONSOLE_PLACES, HASH_RE, OPS, PANELS, SETUP_TARGETS, describeVocabulary, replyJsonSchema } from './vocabulary';
+import { ACTION_CLASS, ACTIONS, CONSOLE_PLACES, HASH_RE, OPS, PANELS, SETUP_TARGETS, describeVocabulary, replyJsonSchema } from './vocabulary';
 
 // The compile-time half of parity: adding an op or action to contract.ts without listing it here is a type error.
 const ALL_OPS: Record<UiOp['op'], true> = { show: true, focus: true, filter: true, propose: true };
-const ALL_ACTIONS: Record<ActionRef['action'], true> = { open_decision: true, open_setup: true, open_console: true };
+const ALL_ACTIONS: Record<ActionRef['action'], true> = { open_decision: true, open_setup: true, open_console: true, pause_agents: true };
 
 const json = (v: unknown): string => JSON.stringify(v);
 
@@ -54,7 +54,21 @@ describe('no action can decide or take free text (B3)', () => {
       for (const c of forbidden) expect(a.name).not.toContain(c);
       for (const d of a.fields) expect(['deal_id', 'setup_target', 'hash']).toContain(d.kind);
     }
-    expect(Object.keys(ACTIONS).sort()).toEqual(['open_console', 'open_decision', 'open_setup']);
+    expect(Object.keys(ACTIONS).sort()).toEqual(['open_console', 'open_decision', 'open_setup', 'pause_agents']);
+  });
+  it('every action has a class, and the only act is pause_agents, which takes no parameter', () => {
+    expect(Object.keys(ACTION_CLASS).sort()).toEqual(Object.keys(ALL_ACTIONS).sort());
+    const acts = Object.entries(ACTION_CLASS).filter(([, c]) => c === 'act').map(([a]) => a);
+    expect(acts).toEqual(['pause_agents']);
+    for (const a of acts) expect(ACTIONS[a as ActionRef['action']].fields).toEqual([]);
+  });
+  it('the schema of an act admits no extra key', () => {
+    const s = JSON.stringify(replyJsonSchema());
+    expect(s).toContain('{"type":"object","description":"' + ACTIONS.pause_agents.about + '","additionalProperties":false,"required":["action"],"properties":{"action":{"const":"pause_agents"}}}');
+  });
+  it('the vocabulary text names no wallet command, not even the one an act runs', () => {
+    const t = describeVocabulary();
+    for (const c of ['pause_all_agents', 'resume_all_agents', 'deal_let_lapse', 'deal_withdraw', 'agent_start']) expect(t).not.toContain(c);
   });
   it('setup targets are the three hand-off steps only', () => {
     expect([...SETUP_TARGETS]).toEqual(['credentials', 'mandate', 'unlock']);

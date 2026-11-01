@@ -38,6 +38,31 @@ describe('the main window never names a release command', () => {
     }
     expect(found).toEqual([]);
   });
+  it('the board and its assistant never name a decision, owner or session command; their only calls are approval_open and act-tier safe acts', () => {
+    const lib = join(root, '..', '..', 'lib', 'assistant');
+    const board = [...sources(join(root, 'switchboard')), ...sources(lib)];
+    expect(board.some((f) => f.path.endsWith(join('switchboard', 'resolve.ts')))).toBe(true);
+    expect(board.some((f) => f.path.endsWith(join('assistant', 'vocabulary.ts')))).toBe(true);
+    const high = Object.entries(AUTHORITY).filter(([, a]) => a.tier === 'decision' || a.tier === 'owner' || a.tier === 'session').map(([name]) => name);
+    expect(high).toEqual(expect.arrayContaining(['deal_capture', 'mandate_sign', 'approval_token', 'unlock']));
+    const found: string[] = [];
+    for (const f of board) {
+      for (const name of high) {
+        if (CALL(name).test(f.text)) found.push(`${f.path}: calls ${name}`);
+        // `unlock` is also the approval window's setup target; for it only a call is forbidden.
+        if (name.includes('_') && LITERAL(name).test(f.text)) found.push(`${f.path}: names ${name}`);
+      }
+    }
+    expect(found).toEqual([]);
+    const called = board.flatMap((f) => [...f.text.matchAll(/(?:useMutation|useCommand|readCommand|invoke)\s*(?:<[^>]*>)?\(\s*['"`]([a-z_]+)['"`]/g)].map((m) => m[1]!));
+    for (const name of called) {
+      const a = AUTHORITY[name as keyof typeof AUTHORITY];
+      expect(a, name).toBeDefined();
+      expect(a.release, name).toBe(false);
+      expect(['ui', 'act'], name).toContain(a.tier);
+    }
+    expect(new Set(called)).toEqual(new Set(['approval_open', 'pause_all_agents', 'resume_all_agents']));
+  });
   it('the decision centre opens the approval window and nothing else', () => {
     const centre = files.find((f) => f.path.endsWith(join('console', 'Centre.tsx')))?.text ?? '';
     const calls = [...centre.matchAll(/useMutation\(\s*'([a-z_]+)'/g)].map((m) => m[1]);
