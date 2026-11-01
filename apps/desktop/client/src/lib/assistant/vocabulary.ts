@@ -4,6 +4,7 @@
 // below make a new panel kind, op or action in the contract a compile error here until it is described,
 // and vocabulary.test.ts fails for the same reason at run time.
 // Pure and Node-safe: imports only contract.ts and @bindings types (the dev bridge loads this in Node).
+import type { AgentSlot } from '@bindings/AgentSlot';
 import type { ApprovalTarget } from '@bindings/ApprovalTarget';
 import { ASSISTANT_V, FATES, MODULE_KEYS, PANEL_KINDS, type ActionRef, type PanelKind, type UiOp } from './contract';
 
@@ -15,6 +16,9 @@ export const DEAL_ID_MAX = 64;
 
 /** Setup targets an action may name (the approval window opens on them; nothing is signed here). */
 export const SETUP_TARGETS: readonly Extract<ApprovalTarget, 'credentials' | 'mandate' | 'unlock'>[] = ['credentials', 'mandate', 'unlock'];
+
+/** The agents `pause_agent` may name (the wallet's three agent slots). */
+export const AGENT_SLOTS: readonly AgentSlot[] = ['negotiator', 'shopper', 'assistant'];
 
 /** Places `open_console` may reach (the console's own places, minus the preview-only director). */
 export const CONSOLE_PLACES = ['rules', 'limits', 'connections', 'pairing', 'settings', 'safety', 'try', 'proof'] as const;
@@ -29,7 +33,7 @@ export const HASH_RE = new RegExp(
 );
 
 /** What a field holds. The kind decides how it is validated and which schema it gets. */
-export type FieldKind = 'module' | 'fate' | 'deal_id' | 'hash' | 'setup_target' | 'why' | 'panel' | 'action';
+export type FieldKind = 'module' | 'fate' | 'deal_id' | 'hash' | 'setup_target' | 'agent' | 'why' | 'panel' | 'action';
 export type FieldDef = { name: string; kind: FieldKind; nullable: boolean };
 export type EntryDef = { name: string; about: string; fields: readonly FieldDef[] };
 
@@ -53,6 +57,8 @@ export const ACTIONS: Record<ActionRef['action'], EntryDef> = {
   open_setup: { name: 'open_setup', about: 'A button that opens one setup step in the approval window.', fields: [f('target', 'setup_target')] },
   open_console: { name: 'open_console', about: 'A button that opens a page of the full console.', fields: [f('hash', 'hash')] },
   pause_agents: { name: 'pause_agents', about: 'A button that pauses all her agents after she confirms it: their work stops and nothing new starts. Nothing is paid or cancelled, and she can undo it. Propose it only when she asks to stop or pause her agents.', fields: [] },
+  pause_agent: { name: 'pause_agent', about: 'A button that pauses one of her agents after she confirms it: the negotiator haggles at her tables, the shopper makes agent purchases, the assistant reads the book and drafts work. Its work stops; nothing is paid or cancelled, and she can undo it. Propose it only when she asks to stop or pause that agent.', fields: [f('agent', 'agent')] },
+  let_lapse: { name: 'let_lapse', about: 'A button that, after she confirms it, leaves one deal that needs her to lapse at its deadline, exactly as if she did nothing: no money moves, nothing is agreed or cancelled early, and she can undo it before the deadline. Propose it only when she says she does not want that deal.', fields: [f('deal_id', 'deal_id')] },
 };
 
 /** What pressing an action does. `handoff`: opens the approval window or a console page, changes
@@ -65,6 +71,8 @@ export const ACTION_CLASS: Record<ActionRef['action'], ActionClass> = {
   open_setup: 'handoff',
   open_console: 'handoff',
   pause_agents: 'act',
+  pause_agent: 'act',
+  let_lapse: 'act',
 };
 
 export const OPS: Record<UiOp['op'], EntryDef> = {
@@ -87,6 +95,7 @@ function kindText(d: FieldDef): string {
     case 'deal_id': return `deal_id${n}`;
     case 'hash': return 'hash';
     case 'setup_target': return `target (${SETUP_TARGETS.join('|')})`;
+    case 'agent': return `agent (${AGENT_SLOTS.join('|')})`;
     case 'why': return `why (plain text, up to ${WHY_MAX} characters)`;
     case 'panel': return 'panel';
     case 'action': return 'action';
@@ -122,6 +131,7 @@ function fieldSchema(d: FieldDef): Schema {
     case 'deal_id': return orNull({ type: 'string', minLength: 1, maxLength: DEAL_ID_MAX });
     case 'hash': return { type: 'string', pattern: HASH_RE.source, maxLength: 40 };
     case 'setup_target': return { type: 'string', enum: [...SETUP_TARGETS] };
+    case 'agent': return { type: 'string', enum: [...AGENT_SLOTS] };
     case 'why': return { type: 'string', minLength: 1, maxLength: WHY_MAX };
     case 'panel': return { anyOf: PANEL_KINDS.map((k) => entrySchema('kind', PANELS[k])) };
     case 'action': return { anyOf: ACTION_KEYS.map((k) => entrySchema('action', ACTIONS[k])) };

@@ -206,7 +206,7 @@ describe('validateReply: the safe act (pause_agents)', () => {
     }
   });
   it('drops look-alike acts and command names as actions', () => {
-    for (const name of ['pause_all_agents', 'resume_all_agents', 'resume_agents', 'deal_let_lapse', 'let_lapse', 'deal_withdraw', 'withdraw', 'Pause_Agents', 'pause_agents ', 'deal_capture', 'approval_open']) {
+    for (const name of ['pause_all_agents', 'resume_all_agents', 'resume_agents', 'deal_let_lapse', 'deal_withdraw', 'withdraw', 'Pause_Agents', 'pause_agents ', 'deal_capture', 'approval_open']) {
       const r = validateReply(reply([{ op: 'propose', action: { action: name }, why: 'Do it.' }]), known);
       expect(r.ops, name).toEqual([]);
       expect(r.dropped.reasons, name).toEqual(['bad_action']);
@@ -221,5 +221,29 @@ describe('validateReply: the safe act (pause_agents)', () => {
     const r = validateReply(reply([{ op: 'pause_agents' }, { op: 'act', action: { action: 'pause_agents' } }]), known);
     expect(r.ops).toEqual([]);
     expect(r.dropped).toEqual({ count: 2, reasons: ['unknown_op'] });
+  });
+});
+
+describe('validateReply: one agent and one lapse', () => {
+  it('passes typed targets and drops anything else, never repairing an act', () => {
+    const ok1 = { op: 'propose', action: { action: 'pause_agent', agent: 'shopper' }, why: 'You asked to stop the shopper.' };
+    const ok2 = { op: 'propose', action: { action: 'let_lapse', deal_id: 'D-1' }, why: 'You said you do not want it.' };
+    expect(validateReply(reply([ok1, ok2]), known)).toEqual({ say: 'Hello.', ops: [ok1, ok2], dropped: { count: 0, reasons: [] }, repaired: false });
+    const bad: unknown[] = [
+      { action: 'pause_agent', agent: 'owner' },
+      { action: 'pause_agent', agent: 'Shopper' },
+      { action: 'pause_agent' },
+      { action: 'pause_agent', agent: 'shopper', deal_id: 'D-1' },
+      { action: 'let_lapse', deal_id: 'D-404' },
+      { action: 'let_lapse', deal_id: 'D-1', amount_minor: 100 },
+      { action: 'let_lapse' },
+      { action: 'lapse_undo', deal_id: 'D-1' },
+      { action: 'resume_agent', agent: 'shopper' },
+    ];
+    for (const a of bad) {
+      const r = validateReply(reply([{ op: 'propose', action: a, why: 'Do it.' }]), known);
+      expect(r.ops, JSON.stringify(a)).toEqual([]);
+      expect(r.dropped.count, JSON.stringify(a)).toBe(1);
+    }
   });
 });

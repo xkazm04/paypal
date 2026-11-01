@@ -1,7 +1,7 @@
 {
   "arena-accept-over-her-line.tableproof": {
     "report": {
-      "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+      "authority_manifest": "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
       "checks": [
         {
           "applies": true,
@@ -20,7 +20,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "agent signed 5 outbound, peer signed 6 inbound; head 95da8ec5d1a9",
+          "detail": "agent signed 5 outbound, peer signed 6 inbound; head d6ed9c265195",
           "id": "transcript",
           "ok": true
         },
@@ -48,7 +48,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "24 deal rows hash-consistent; chain head #29 b20923b63c2b",
+          "detail": "24 deal rows hash-consistent; chain head #29 f7cd08ced8aa",
           "id": "audit",
           "ok": true
         },
@@ -104,14 +104,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+          "detail": "permissions fingerprint 6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
           "id": "permissions",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head 1f36ea238a72 signed by the deal's agent",
+          "detail": "evidence head 129cb1b9f022 signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
@@ -125,7 +125,7 @@
   },
   "arena-after-the-deadline.tableproof": {
     "report": {
-      "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+      "authority_manifest": "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
       "checks": [
         {
           "applies": true,
@@ -144,7 +144,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "agent signed 5 outbound, peer signed 6 inbound; head 3f9ed1b9ba04",
+          "detail": "agent signed 5 outbound, peer signed 6 inbound; head 14c6433bebea",
           "id": "transcript",
           "ok": true
         },
@@ -172,7 +172,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "24 deal rows hash-consistent; chain head #29 59f778a200b2",
+          "detail": "24 deal rows hash-consistent; chain head #29 2b5c295218b2",
           "id": "audit",
           "ok": true
         },
@@ -228,14 +228,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+          "detail": "permissions fingerprint 6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
           "id": "permissions",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head 0890eeff9ba1 signed by the deal's agent",
+          "detail": "evidence head 9daf94ad099b signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
@@ -249,7 +249,7 @@
   },
   "arena-another-deal.tableproof": {
     "report": {
-      "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+      "authority_manifest": "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
       "checks": [
         {
           "applies": true,
@@ -268,7 +268,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "agent signed 5 outbound, peer signed 6 inbound; head fcdbd07b1beb",
+          "detail": "agent signed 5 outbound, peer signed 6 inbound; head 67bdde8d222e",
           "id": "transcript",
           "ok": true
         },
@@ -296,7 +296,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "24 deal rows hash-consistent; chain head #29 73312bf0f228",
+          "detail": "24 deal rows hash-consistent; chain head #29 0291bf35caf0",
           "id": "audit",
           "ok": true
         },
@@ -352,14 +352,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+          "detail": "permissions fingerprint 6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
           "id": "permissions",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head f81b67d33e33 signed by the deal's agent",
+          "detail": "evidence head 1c61840b658c signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
@@ -373,7 +373,7 @@
   },
   "arena-before-switched-on.tableproof": {
     "report": {
-      "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+      "authority_manifest": "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
       "checks": [
         {
           "applies": true,
@@ -392,7 +392,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "agent signed 5 outbound, peer signed 6 inbound; head 1c2a6594c005",
+          "detail": "agent signed 5 outbound, peer signed 6 inbound; head ad56ba508966",
           "id": "transcript",
           "ok": true
         },
@@ -420,7 +420,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "24 deal rows hash-consistent; chain head #29 3a44b014f0a4",
+          "detail": "24 deal rows hash-consistent; chain head #29 c4e6dd71ea09",
           "id": "audit",
           "ok": true
         },
@@ -476,14 +476,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+          "detail": "permissions fingerprint 6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
           "id": "permissions",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head 02542a9f2be0 signed by the deal's agent",
+          "detail": "evidence head e1674028493a signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
@@ -497,7 +497,7 @@
   },
   "arena-different-payee.tableproof": {
     "report": {
-      "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+      "authority_manifest": "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
       "checks": [
         {
           "applies": true,
@@ -544,7 +544,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "2 deal rows hash-consistent; chain head #29 5e17ce899bad",
+          "detail": "2 deal rows hash-consistent; chain head #29 c7928618140f",
           "id": "audit",
           "ok": true
         },
@@ -600,14 +600,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+          "detail": "permissions fingerprint 6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
           "id": "permissions",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head 7aa0ec6b6848 signed by the deal's agent",
+          "detail": "evidence head fc399ec59902 signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
@@ -621,7 +621,7 @@
   },
   "arena-fifty-monitors.tableproof": {
     "report": {
-      "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+      "authority_manifest": "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
       "checks": [
         {
           "applies": true,
@@ -668,7 +668,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "3 deal rows hash-consistent; chain head #30 fe31b70cafba",
+          "detail": "3 deal rows hash-consistent; chain head #30 5ef2ffca5a1e",
           "id": "audit",
           "ok": true
         },
@@ -724,14 +724,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+          "detail": "permissions fingerprint 6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
           "id": "permissions",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head 366dcf2634d4 signed by the deal's agent",
+          "detail": "evidence head 05b4cb49f33c signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
@@ -745,7 +745,7 @@
   },
   "arena-just-over-the-top.tableproof": {
     "report": {
-      "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+      "authority_manifest": "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
       "checks": [
         {
           "applies": true,
@@ -764,7 +764,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "agent signed 5 outbound, peer signed 6 inbound; head 66238e665dc1",
+          "detail": "agent signed 5 outbound, peer signed 6 inbound; head cb80a74a41b5",
           "id": "transcript",
           "ok": true
         },
@@ -792,7 +792,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "24 deal rows hash-consistent; chain head #29 2b094d25512e",
+          "detail": "24 deal rows hash-consistent; chain head #29 77a6e1f3deb7",
           "id": "audit",
           "ok": true
         },
@@ -848,14 +848,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+          "detail": "permissions fingerprint 6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
           "id": "permissions",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head fd9119b48ff1 signed by the deal's agent",
+          "detail": "evidence head c716506cf383 signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
@@ -869,7 +869,7 @@
   },
   "arena-past-the-limit.tableproof": {
     "report": {
-      "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+      "authority_manifest": "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
       "checks": [
         {
           "applies": true,
@@ -888,7 +888,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "agent signed 5 outbound, peer signed 6 inbound; head f048711a1897",
+          "detail": "agent signed 5 outbound, peer signed 6 inbound; head 2a4214d1df5b",
           "id": "transcript",
           "ok": true
         },
@@ -916,7 +916,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "24 deal rows hash-consistent; chain head #29 247f96bd4b67",
+          "detail": "24 deal rows hash-consistent; chain head #29 43e9963a0a26",
           "id": "audit",
           "ok": true
         },
@@ -972,14 +972,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+          "detail": "permissions fingerprint 6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
           "id": "permissions",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head 0e1ee20d2c2a signed by the deal's agent",
+          "detail": "evidence head 59da9804352c signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
@@ -993,7 +993,7 @@
   },
   "arena-pay-me-now.tableproof": {
     "report": {
-      "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+      "authority_manifest": "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
       "checks": [
         {
           "applies": true,
@@ -1012,7 +1012,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "agent signed 5 outbound, peer signed 6 inbound; head 54ea306d52da",
+          "detail": "agent signed 5 outbound, peer signed 6 inbound; head eb0d5400aeec",
           "id": "transcript",
           "ok": true
         },
@@ -1040,7 +1040,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "24 deal rows hash-consistent; chain head #29 d1aefd7c7e78",
+          "detail": "24 deal rows hash-consistent; chain head #29 998a3b367fb7",
           "id": "audit",
           "ok": true
         },
@@ -1096,14 +1096,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+          "detail": "permissions fingerprint 6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
           "id": "permissions",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head bdeedc882f14 signed by the deal's agent",
+          "detail": "evidence head 6379f0672118 signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
@@ -1117,7 +1117,7 @@
   },
   "arena-rewrite-the-rules.tableproof": {
     "report": {
-      "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+      "authority_manifest": "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
       "checks": [
         {
           "applies": true,
@@ -1136,7 +1136,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "agent signed 5 outbound, peer signed 6 inbound; head de9006d563ce",
+          "detail": "agent signed 5 outbound, peer signed 6 inbound; head 35d991535c40",
           "id": "transcript",
           "ok": true
         },
@@ -1164,7 +1164,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "24 deal rows hash-consistent; chain head #29 10529911c123",
+          "detail": "24 deal rows hash-consistent; chain head #29 8f4d5d6aefd8",
           "id": "audit",
           "ok": true
         },
@@ -1220,14 +1220,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+          "detail": "permissions fingerprint 6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
           "id": "permissions",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head aaf9e6198d2d signed by the deal's agent",
+          "detail": "evidence head 28c7a48494bb signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
@@ -1241,7 +1241,7 @@
   },
   "d-0205.tableproof": {
     "report": {
-      "authority_manifest": "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+      "authority_manifest": "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
       "checks": [
         {
           "applies": true,
@@ -1253,14 +1253,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "mandate 01M6BB2NSZPMJ4JSCP2WJ0A9F9 v1",
+          "detail": "mandate 01M6BDBVJD83VJZ291XEVDP7WR v1",
           "id": "mandate",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "agent signed 5 outbound, peer signed 6 inbound; head d9fca2cd0b3a",
+          "detail": "agent signed 5 outbound, peer signed 6 inbound; head 1c949e94a7f1",
           "id": "transcript",
           "ok": true
         },
@@ -1288,7 +1288,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "43 deal rows hash-consistent; chain head #45 c521e0aac7ac",
+          "detail": "43 deal rows hash-consistent; chain head #45 95864ca312ac",
           "id": "audit",
           "ok": true
         },
@@ -1344,21 +1344,21 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "permissions fingerprint c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944",
+          "detail": "permissions fingerprint 6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd",
           "id": "permissions",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head 8dff89aeeb5f signed by the deal's agent",
+          "detail": "evidence head 3fae63b5f859 signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
       ],
-      "deal_id": "01M6BB2NT1X49P78GX6BGP5VDY",
+      "deal_id": "01M6BDBVJFRHRS8NPE8GK9DQ1T",
       "mode": "sandbox",
-      "owner_key_id": "380e78757b467fbb4962d85f65165ec454bc8f5ac590b3f199bf581146afe4b6",
+      "owner_key_id": "12ee5775718c988aa4748d5313749f8940a5eb2cd5dffc00efbb34b1dd08b6d1",
       "same_version": true,
       "verified": true
     }

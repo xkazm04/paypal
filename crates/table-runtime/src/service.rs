@@ -418,6 +418,7 @@ impl Runtime {
                 .list_mandates(&self.pipeline.wallet.owner_public_key()))?
             .is_empty(),
             agents_paused: self.paused,
+            paused_agents: Some(self.paused_agents()?),
             selected_engine: self.engine,
             engine_chosen: app(self
                 .pipeline

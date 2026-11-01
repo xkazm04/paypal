@@ -241,7 +241,7 @@ mod tests {
     /// up in review as an edit to this line (and to `bindings/authority.ts`). Update it only when
     /// the table change is intended.
     const PINNED_MANIFEST: &str =
-        "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944";
+        "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd";
 
     /// Written out by hand: the board assistant's two commands are reads the main window alone
     /// may call, answered by the shell, with no token, unlock or selection. Its reply is text the

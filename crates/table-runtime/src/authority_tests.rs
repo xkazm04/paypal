@@ -510,6 +510,25 @@ impl Fixture {
                 )
                 .await
             }
+            // Safe acts (acts.rs).
+            "deal_lapse_undo" => self.exec(&c, Action::LapseUndo(id)).await,
+            "agent_pause" => self.exec(&c, Action::AgentPause(AgentSlot::Shopper)).await,
+            "agent_resume" => self.exec(&c, Action::AgentResume(AgentSlot::Shopper)).await,
+            "assistant_act" => {
+                self.exec(
+                    &c,
+                    Action::AssistantAct(AssistantActArgs {
+                        act: AssistantAct::PauseAgent {
+                            agent: AgentSlot::Negotiator,
+                        },
+                        consent: ConsentShown {
+                            words: "Pause your negotiator.".into(),
+                            fingerprint: "pause_agent|negotiator".into(),
+                        },
+                    }),
+                )
+                .await
+            }
             other => panic!("no conformance call for {other}: add it here when adding the row"),
         };
         value.map(|_| ())

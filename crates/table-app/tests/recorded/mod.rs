@@ -112,6 +112,10 @@ pub fn keep_bundle(
         Some(Ok(bundle)) if !table_verify::verify_bundle(&bundle).verified() => {
             "it no longer verifies".to_owned()
         }
+        // The fingerprint is hex, so the mask hides it: a changed authority table is drift too.
+        Some(Ok(bundle)) if bundle.authority_manifest != fresh.authority_manifest => {
+            "it names another permissions fingerprint".to_owned()
+        }
         Some(Ok(_)) => {
             let was: Value =
                 serde_json::from_slice(kept.as_deref().unwrap_or_default()).unwrap_or(Value::Null);

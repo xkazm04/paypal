@@ -21,12 +21,12 @@ import { Mark } from '../../../shared/brand';
 import { MockBadge, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { MODULE } from '../../../shared/modules';
 import { Btn, ThemeSwitch } from '../../../shared/ui';
-import { useLocked, useRuns, useSettings } from '../world';
+import { useDeals, useLocked, useNeeds, useRuns, useSettings } from '../world';
 import { Answer, panelTitle, type PanelHost } from './Answer';
 import { ChatRail, type Turn } from './ChatRail';
 import { InstrumentStrip } from './InstrumentStrip';
 import { Matrix, NO_FILTER, type Filter, type Highlight } from './Matrix';
-import { resolveAction, type BoardFacts, type Consent, type Run, type SafeAct } from './resolve';
+import { resolveAction, undoAvailable, type ActRun, type BoardFacts, type Consent, type Run } from './resolve';
 import { useBoardAssistant, type AssistantDeps } from './useBoardAssistant';
 import { useBoardModel } from './useBoardModel';
 import { setHomeView } from './view';
@@ -34,7 +34,7 @@ import './switchboard.css';
 
 type Proposal = { id: number; action: Extract<UiOp, { op: 'propose' }>['action']; why: string };
 /** The outcome of an act the owner pressed on this page (kept until the next act or Esc). */
-type Acted = { act: SafeAct; phase: 'done' | 'undone' };
+type Acted = { proposal: Proposal; run: ActRun; fingerprint: string; reverse: string; phase: 'done' | 'undone' };
 
 const SETUP_PANEL: PanelSpec = { kind: 'setup' };
 
@@ -43,10 +43,13 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
   const settings = useSettings().data;
   const locked = useLocked();
   const open = useMutation('approval_open');
-  // The acts' commands: exactly SAFE_ACTS (resolve.ts), both act tier; called only from `perform` / `undo`.
-  const pause = useMutation('pause_all_agents');
-  const resume = useMutation('resume_all_agents');
+  // Every act and every undo goes through the one wallet door (SAFE_ACT_COMMAND, act tier), which
+  // runs the closed act and records the consent words; called only from `perform` / `undo`.
+  const doAct = useMutation('assistant_act');
+  const undoAct = useMutation('assistant_act');
   const runs = useRuns().data;
+  const needs = useNeeds();
+  const deals = useDeals().data;
   const assistant = useBoardAssistant(engine, deps);
 
   const [panel, setPanel] = useState<PanelSpec | null>(null);
@@ -93,7 +96,10 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
   const facts = useMemo<BoardFacts>(() => ({
     agentsPaused: settings ? !!settings.agents_paused : null,
     agentsWorking: runs ? runs.filter((r) => r.state === 'running' || r.state === 'starting').length : null,
-  }), [settings, runs]);
+    pausedAgents: settings ? settings.paused_agents ?? null : null,
+    // As the console's own rule (Decision.tsx): a gate that offers Let it lapse, never a closed mismatch.
+    lapsable: deals ? new Set(needs.filter((n) => n.kind === 'gate' && n.actions.includes('let_lapse') && deals.find((d) => d.id === n.deal_id)?.state !== 'MISMATCH').map((n) => n.deal_id)) : null,
+  }), [settings, runs, needs, deals]);
   const factsRef = useRef(facts);
   factsRef.current = facts;
 
@@ -107,20 +113,23 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
     }
     inflight.current = true;
     try {
-      if (now.run.act === 'pause_agents' && (await pause.run(null)) === null) setActed({ act: 'pause_agents', phase: 'done' });
+      const out = await doAct.run({ act: now.run.wire, consent: { words: now.consent.words, fingerprint: now.consent.fingerprint } });
+      if (out === null) setActed({ proposal: p, run: now.run, fingerprint: now.consent.fingerprint, reverse: now.consent.reverse, phase: 'done' });
     } finally {
       inflight.current = false;
     }
-  }, [model.byId, pause]);
+  }, [model.byId, doAct]);
   const undo = useCallback(async (a: Acted) => {
     if (inflight.current || a.phase !== 'done') return;
     inflight.current = true;
     try {
-      if (a.act === 'pause_agents' && (await resume.run(null))) setActed({ act: 'pause_agents', phase: 'undone' });
+      const words = `${BOARD_ACT.undo}. ${a.run.undoTitle}`;
+      const out = await undoAct.run({ act: a.run.undoWire, consent: { words, fingerprint: `undo|${a.fingerprint}`.slice(0, 160) } });
+      if (out === null) setActed({ ...a, phase: 'undone' });
     } finally {
       inflight.current = false;
     }
-  }, [resume]);
+  }, [undoAct]);
 
   const host = useMemo<PanelHost>(() => ({ model, run, pending: open.pending, error: open.error, locked, pick, filterTo }), [model, run, open.pending, open.error, locked, pick, filterTo]);
 
@@ -225,7 +234,7 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
             <ul className="sb-proposals" aria-label={BOARD_PROPOSAL.label}>
               {proposals.map((p) => {
                 // An act whose outcome is shown below is not offered again beside it.
-                if (acted && acted.phase === 'done' && acted.act === p.action.action) return null;
+                if (acted && acted.phase === 'done' && acted.proposal === p) return null;
                 const r = resolveAction(p.action, model.byId, facts);
                 const why = <span className="sb-why"><b>{BOARD_PROPOSAL.because}:</b> {p.why}</span>;
                 if (r.armed && r.act) {
@@ -241,10 +250,10 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
                         <span>{c.doesNot}</span>
                         <span className="sb-quiet">{c.reverse}</span>
                         <span className="sb-actions">
-                          <Btn sm disabled={pause.pending || resume.pending} onClick={() => void perform(p, c)} data-press={r.run.act}>{pause.pending ? c.pressing : c.press}</Btn>
+                          <Btn sm disabled={doAct.pending || undoAct.pending} onClick={() => void perform(p, c)} data-press={r.run.act}>{doAct.pending ? c.pressing : c.press}</Btn>
                         </span>
                         {stale.has(p.id) ? <span className="sb-quiet" data-stale>{BOARD_ACT.whyDisarmed.changed}</span> : null}
-                        {pause.error ? <WalletNotice error={pause.error} what={BOARD_ACT.pause.failed} /> : null}
+                        {doAct.error ? <WalletNotice error={doAct.error} what={BOARD_ACT.failed} /> : null}
                       </section>
                     </li>
                   );
@@ -260,15 +269,15 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
             </ul>
           ) : null}
           {acted ? (
-            <div className="sb-acted" role="status" data-acted={`${acted.act}:${acted.phase}`}>
-              <span>{acted.phase === 'done' ? BOARD_ACT.pause.done : BOARD_ACT.pause.undone}</span>
-              {acted.phase === 'done' && facts.agentsPaused === true ? (
+            <div className="sb-acted" role="status" data-acted={`${acted.run.act}:${acted.phase}`}>
+              <span>{acted.phase === 'done' ? acted.run.done : acted.run.undone}</span>
+              {acted.phase === 'done' && undoAvailable(acted.run, facts) ? (
                 <span className="sb-actions">
-                  <Btn sm disabled={resume.pending || pause.pending} onClick={() => void undo(acted)} title={BOARD_ACT.pause.undoTitle} data-undo={acted.act}>{resume.pending ? BOARD_ACT.pause.undoing : BOARD_ACT.pause.undo}</Btn>
-                  <span className="sb-quiet">{BOARD_ACT.pause.reverse}</span>
+                  <Btn sm disabled={undoAct.pending || doAct.pending} onClick={() => void undo(acted)} title={acted.run.undoTitle} data-undo={acted.run.act}>{undoAct.pending ? BOARD_ACT.undoing : BOARD_ACT.undo}</Btn>
+                  <span className="sb-quiet">{acted.reverse}</span>
                 </span>
               ) : null}
-              {resume.error ? <WalletNotice error={resume.error} what={BOARD_ACT.pause.undoFailed} /> : null}
+              {undoAct.error ? <WalletNotice error={undoAct.error} what={BOARD_ACT.undoFailed} /> : null}
             </div>
           ) : null}
         </section>

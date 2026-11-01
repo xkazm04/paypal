@@ -88,6 +88,8 @@ const ON_DEADLINE: Partial<Record<DealState, DealState>> = {
   SETTLING: 'EXPIRED', AWAITING_APPROVAL: 'EXPIRED', APPROVED: 'EXPIRED',
   AUTHORIZED: 'AUTO_VOIDED',
 };
+/** As Rust's AgentSlot::ALL: the slot order paused_agents is listed in. */
+const AGENT_SLOTS: readonly AgentSlot[] = ['negotiator', 'shopper', 'assistant'];
 /** The sentence the shell's event loop sends with a deadline's terminal state. */
 const DEADLINE_SILENCE = 'Deadline or safe decision completed; no capture was made';
 
@@ -992,9 +994,60 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       // As Rust: the same gate the card offered; a hold or a card without Let lapse has none.
       const a = d.attention;
       if (!a || a.kind !== 'gate' || !a.actions.includes('let_lapse') || !shown(a)) fail('INVALID', 'Invalid or stale wallet command');
+      state.lapsed = { ...state.lapsed, [deal_id]: a };
       d.attention = null;
       save();
       emit('attention:changed', attention());
+      return null;
+    },
+    // Safe acts (Rust acts.rs). As Runtime::lapse_undo: the mark is set and the deal has not ended.
+    deal_lapse_undo: ({ deal_id }) => {
+      const d = find(deal_id);
+      const kept = state.lapsed?.[deal_id];
+      if (!kept || TERMINAL.has(d.deal.state)) fail('INVALID', 'Invalid or stale wallet command');
+      const { [deal_id]: _gone, ...rest } = state.lapsed ?? {};
+      state.lapsed = rest;
+      d.attention = kept;
+      save();
+      emit('attention:changed', attention());
+      return null;
+    },
+    // As Runtime::pause_agent / resume_agent: sticky per slot, in slot order; the mock's runs are
+    // all haggles, so pausing the negotiator cancels them.
+    agent_pause: ({ agent }) => {
+      const now = new Set([...(state.settings.paused_agents ?? []), agent]);
+      state.settings = { ...state.settings, paused_agents: AGENT_SLOTS.filter((s) => now.has(s)) };
+      if (agent === 'negotiator') {
+        state.runs = state.runs.map((r) => (r.state === 'running' || r.state === 'starting' ? { ...r, state: 'cancelled' as const } : r));
+        for (const r of state.runs) emit('agent:changed', r);
+      }
+      save();
+      publishSettings();
+      return null;
+    },
+    agent_resume: ({ agent }) => {
+      state.settings = { ...state.settings, paused_agents: (state.settings.paused_agents ?? []).filter((s) => s !== agent) };
+      save();
+      publishSettings();
+      return null;
+    },
+    // As Runtime::assistant_act: plain bounded consent words (refused, never trimmed), the act,
+    // then one `assistant.act` row. A refused act records nothing.
+    assistant_act: ({ act, consent }) => {
+      const plain = (s: string, max: number) => s.trim().length > 0 && s.length <= max && !/[\u0000-\u001f\u007f-\u009f]/.test(s);
+      if (!plain(consent.words, 800) || !plain(consent.fingerprint, 160)) fail('INVALID', 'Invalid or stale wallet command');
+      let deal_id: string | null = null;
+      switch (act.act) {
+        case 'pause_all': handlers.pause_all_agents(null); break;
+        case 'resume_all': handlers.resume_all_agents(null); break;
+        case 'let_lapse': handlers.deal_let_lapse({ deal_id: act.deal_id }); deal_id = act.deal_id; break;
+        case 'lapse_undo': handlers.deal_lapse_undo({ deal_id: act.deal_id }); deal_id = act.deal_id; break;
+        case 'pause_agent': handlers.agent_pause({ agent: act.agent }); break;
+        case 'resume_agent': handlers.agent_resume({ agent: act.agent }); break;
+      }
+      const audit = state.audit ?? [];
+      state.audit = [...audit, { seq: audit.length + 1, at: nowUnix(), actor: 'owner', action: 'assistant.act', deal_id, decided_by: null, from: null, to: null }];
+      save();
       return null;
     },
     deal_snooze: ({ deal_id }) => {

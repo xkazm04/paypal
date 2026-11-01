@@ -280,6 +280,12 @@ pub const AUTHORITY: &[CommandAuthority] = &[
     // nothing. Main only: never the Tumbler, never the approval window. The shell answers it.
     row("assistant_ask",          MAIN,     Read,     OPEN,       ANY,         S),
     row("assistant_status",       MAIN,     Read,     OPEN,       ANY,         S),
+    // Safe acts (acts.rs): reversible, no money, main only. The lapse undo and the one-agent
+    // pause/resume are each other's undo; assistant_act runs one of them and records provenance.
+    row("deal_lapse_undo",        MAIN,     Act,      OPEN,       ANY,         R),
+    row("agent_pause",            MAIN,     Act,      OPEN,       ANY,         R),
+    row("agent_resume",           MAIN,     Act,      OPEN,       ANY,         R),
+    row("assistant_act",          MAIN,     Act,      OPEN,       ANY,         R),
 ];
 
 const fn release_count() -> usize {

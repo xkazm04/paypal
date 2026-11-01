@@ -1,10 +1,12 @@
 //! Native shell: views send all wallet commands to one Rust actor.
+mod acts;
 mod commands;
 mod events;
 mod navigation;
 mod routing;
 mod surface;
 mod toast;
+use acts::*;
 use commands::*;
 use routing::*;
 use serde::de::DeserializeOwned;
@@ -290,7 +292,11 @@ pub fn run() -> Result<(), tauri::Error> {
             counterparty_revoke,
             envelope_simulate,
             assistant_ask,
-            assistant_status
+            assistant_status,
+            deal_lapse_undo,
+            agent_pause,
+            agent_resume,
+            assistant_act
         ])
         .setup(|app| {
             let data = app.path().app_data_dir()?;

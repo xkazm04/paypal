@@ -118,6 +118,7 @@ Command families (full list in `authority_table.rs`):
 | Routing and preferences | `main_open`, `approval_open`, `settings_write` | main, tumbler | ui |
 | Safe actions | `deal_withdraw` (all), `deal_let_lapse`, `pause_all_agents`, `quit_confirm` (main, tumbler), `deal_snooze` (tumbler) | as listed | act, no token |
 | Main actions | `agent_start`, `engine_select`, `pairing_create/join/poll`, `house_wake`, `deal_group_open` | main | act |
+| Safe acts (reversible, no money) | `deal_lapse_undo`, `agent_pause`, `agent_resume`, `assistant_act` (the board's one door: runs one closed act and writes an `assistant.act` audit row) | main | act, no token |
 | Session | `approval_token`, `unlock` | approval | session |
 | Owner authority | `mandate_sign`, `mandate_revoke`, `band_set` (selected), `envelope_sign`, `set_credentials`, `pairing_confirm`, `deal_create`, `deal_join`, `market_refresh` (selected), `rescue_replay`, `rescue_watch_add/stop` | approval | owner, token + unlock |
 | Money decisions | `deal_countersign`, `deal_capture`, `deal_void`, `deal_owner_accept`, `shield_release`, `rescue_approve`, `open_paypal_in_browser` | approval | decision, token + unlock + selected |

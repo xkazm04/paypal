@@ -8,7 +8,7 @@ export type AuthorityEnforcer = "runtime" | "shell";
 export type CommandAuthority = { labels: Array<AuthorityLabel>, token: boolean, unlock: boolean, selection: AuthoritySelection, tier: AuthorityTier, release: boolean, enforcer: AuthorityEnforcer, };
 
 /** Lowercase hex SHA-256 of the canonical table; get_settings reports the same value. */
-export const AUTHORITY_MANIFEST = "c96731ae9367a8cab9cf08df99879b698ebda53e07fb3aafb015b6ec6ddaa944";
+export const AUTHORITY_MANIFEST = "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd";
 
 export const AUTHORITY = {
   deal_snooze: { labels: ["tumbler"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
@@ -86,6 +86,10 @@ export const AUTHORITY = {
   envelope_simulate: { labels: ["approval"], token: false, unlock: false, selection: "none", tier: "read", release: false, enforcer: "runtime" },
   assistant_ask: { labels: ["main"], token: false, unlock: false, selection: "none", tier: "read", release: false, enforcer: "shell" },
   assistant_status: { labels: ["main"], token: false, unlock: false, selection: "none", tier: "read", release: false, enforcer: "shell" },
+  deal_lapse_undo: { labels: ["main"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
+  agent_pause: { labels: ["main"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
+  agent_resume: { labels: ["main"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
+  assistant_act: { labels: ["main"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
 } satisfies Record<string, CommandAuthority>;
 
 /** Who is told each window event, keyed by event name: the shell sends to exactly these. */

@@ -103,6 +103,11 @@ pub enum Action {
     SafetyRecord,
     CounterpartyRevoke(CounterpartyRevokeArgs),
     EnvelopeSimulate(EnvelopeSimulateArgs),
+    /// Safe acts (acts.rs).
+    LapseUndo(DealId),
+    AgentPause(AgentSlot),
+    AgentResume(AgentSlot),
+    AssistantAct(AssistantActArgs),
 }
 impl Action {
     /// The IPC command this action serves, whose row in the authority table
@@ -172,6 +177,10 @@ impl Action {
             Action::SafetyRecord => "safety_record",
             Action::CounterpartyRevoke(_) => "counterparty_revoke",
             Action::EnvelopeSimulate(_) => "envelope_simulate",
+            Action::LapseUndo(_) => "deal_lapse_undo",
+            Action::AgentPause(_) => "agent_pause",
+            Action::AgentResume(_) => "agent_resume",
+            Action::AssistantAct(_) => "assistant_act",
             Action::Select(_)
             | Action::SelectPairing(_)
             | Action::ClaimNotification { .. }
@@ -282,7 +291,12 @@ impl Action {
             | Action::GroupOpen(_)
             | Action::RescueWatchAdd(_)
             | Action::RescueWatchStop(_)
-            | Action::CounterpartyRevoke(_) => false,
+            | Action::CounterpartyRevoke(_)
+            // Safe acts write preferences and the audit chain, and pause cancels runs.
+            | Action::LapseUndo(_)
+            | Action::AgentPause(_)
+            | Action::AgentResume(_)
+            | Action::AssistantAct(_) => false,
         }
     }
     /// The deal an action names, for the table's selected-deal column.
@@ -298,6 +312,7 @@ impl Action {
             | Action::MarketPrepare(id)
             | Action::Withdraw(id)
             | Action::LetLapse(id)
+            | Action::LapseUndo(id)
             | Action::Snooze(id)
             | Action::Handoff(id)
             | Action::ExportProof(id) => Some(*id),
