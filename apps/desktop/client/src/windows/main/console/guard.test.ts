@@ -61,7 +61,7 @@ describe('the main window never names a release command', () => {
       expect(a.release, name).toBe(false);
       expect(['ui', 'act'], name).toContain(a.tier);
     }
-    expect(new Set(called)).toEqual(new Set(['approval_open', 'pause_all_agents', 'resume_all_agents']));
+    expect(new Set(called)).toEqual(new Set(['approval_open', 'assistant_act']));
   });
   it('the decision centre opens the approval window and nothing else', () => {
     const centre = files.find((f) => f.path.endsWith(join('console', 'Centre.tsx')))?.text ?? '';

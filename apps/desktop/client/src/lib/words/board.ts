@@ -231,6 +231,10 @@ export const BOARD_PROPOSAL = {
 export const BOARD_ACT = {
   needsOk: 'Needs your OK',
   boxLabel: 'Check what this does before you press it',
+  undo: 'Undo',
+  undoing: 'Undoing…',
+  failed: 'That did not happen',
+  undoFailed: 'The undo did not happen',
   pause: {
     title: 'Pause all your agents',
     does: (working: number | null): string =>
@@ -244,16 +248,42 @@ export const BOARD_ACT = {
     press: 'Pause all agents',
     pressing: 'Pausing…',
     done: 'All agents paused. Their work stopped; nothing new starts.',
-    undo: 'Undo',
-    undoing: 'Resuming…',
     undoTitle: 'Resume your agents. Nothing restarts by itself.',
     undone: 'Agents resumed. Nothing restarts by itself; restart a table in Settings if you want one back.',
-    failed: 'Pausing your agents',
-    undoFailed: 'Resuming your agents',
+  },
+  /** One agent, named by the fixed words below. */
+  pauseOne: {
+    name: { negotiator: 'negotiator', shopper: 'shopper', assistant: 'assistant agent' },
+    role: { negotiator: 'It haggles at your tables.', shopper: 'It makes agent purchases.', assistant: 'It reads the book and drafts shop and rescue work.' },
+    title: (name: string): string => `Pause your ${name}`,
+    does: (role: string): string => `${role} Its work stops now, and nothing new starts for it. Your other agents keep working.`,
+    doesNot: 'Nothing is paid, approved or cancelled. Deadlines keep running, and anything left waiting lapses with no money moving.',
+    reverse: 'You can undo this here.',
+    press: (name: string): string => `Pause the ${name}`,
+    pressing: 'Pausing…',
+    done: (name: string): string => `Your ${name} is paused. Its work stopped; nothing new starts for it.`,
+    undoTitle: (name: string): string => `Resume your ${name}. Nothing restarts by itself.`,
+    undone: (name: string): string => `Your ${name} is back. Nothing restarts by itself.`,
+  },
+  /** Let one ask lapse. `label` is the deal's own label (D-0190), never counterparty text. */
+  lapse: {
+    title: (label: string): string => `Let ${label} lapse`,
+    does: 'It leaves your list now and lapses at its deadline, exactly as if you did nothing.',
+    doesNot: 'No money moves. Nothing is agreed, and nothing is cancelled early.',
+    reverse: 'You can undo this here until its deadline.',
+    press: 'Let it lapse',
+    pressing: 'Setting it aside…',
+    done: (label: string): string => `${label} will lapse at its deadline. No money moves.`,
+    undoTitle: 'Put it back on your list before its deadline.',
+    undone: (label: string): string => `${label} is back on your list.`,
   },
   whyDisarmed: {
     alreadyPaused: 'your agents are already paused',
     pausedUnknown: 'whether your agents are paused is not available yet',
+    agentPaused: 'that agent is already paused',
+    allPaused: 'all your agents are already paused',
+    gone: 'that deal is not on the board',
+    notLapsable: 'that deal cannot be left to lapse from here',
     changed: 'things changed since this was shown; check it again',
   },
 } as const;

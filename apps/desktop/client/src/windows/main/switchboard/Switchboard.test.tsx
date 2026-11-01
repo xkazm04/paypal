@@ -196,7 +196,7 @@ describe('A3: a needs-you key opens its decision; the gold button hands off and 
     expect(found).toEqual([]);
     // and the only mutations the page opens are approval_open and the safe acts' own commands (act tier)
     const muts = files.flatMap((f) => [...readFileSync(f, 'utf8').matchAll(/useMutation\(\s*'([a-z_]+)'/g)].map((m) => m[1]!));
-    expect(new Set(muts)).toEqual(new Set(['approval_open', 'pause_all_agents', 'resume_all_agents']));
+    expect(new Set(muts)).toEqual(new Set(['approval_open', 'assistant_act']));
     for (const m of muts) expect(['ui', 'act'], m).toContain(AUTHORITY[m as keyof typeof AUTHORITY].tier);
     // nothing else is invoked by name either
     const invoked = files.flatMap((f) => [...readFileSync(f, 'utf8').matchAll(/(?:invoke|readCommand|useCommand)\s*(?:<[^>]*>)?\(\s*'([a-z_]+)'/g)].map((m) => m[1]!));
@@ -353,17 +353,26 @@ describe('A5: safe acts from chat (pause all agents)', () => {
     expect(document.querySelector('[data-note="repaired"]')).not.toBeNull();
     // rendering ran nothing
     expect(writes()).toEqual([]);
-    // the press: exactly one pause_all_agents, nothing else that writes, even on a double press
+    // the press: exactly one act through the wallet's one door, nothing else that writes, even on a
+    // double press; it carries the box's own words (what the wallet records), never the reply's
     fireEvent.click(pressBtn()!);
     fireEvent.click(pressBtn()!);
     await waitFor(() => expect(document.querySelector('[data-acted="pause_agents:done"]')).not.toBeNull());
-    expect(writes()).toEqual([{ cmd: 'pause_all_agents', args: null }]);
+    expect(writes().map((c) => c.cmd)).toEqual(['assistant_act']);
+    const sent = writes()[0]!.args as { act: unknown; consent: { words: string; fingerprint: string } };
+    expect(sent.act).toEqual({ act: 'pause_all' });
+    expect(sent.consent.words).toMatch(/^Needs your OK Pause all your agents .*Nothing is paid, approved or cancelled/);
+    expect(sent.consent.words).not.toMatch(/IGNORE|approves|500|Click fast|Smuggled/);
+    expect(sent.consent.fingerprint.startsWith('pause_agents|paused=false')).toBe(true);
+    // the wallet recorded where the act came from
+    const page = await mockBackend('main').invoke('audit_page', { before: null, limit: 1 });
+    expect(page.rows[0]).toMatchObject({ actor: 'owner', action: 'assistant.act' });
     expect(document.querySelector('[data-acted]')!.textContent).toContain('All agents paused.');
     // the offer is not repeated beside its outcome
     expect(consentBox()).toBeNull();
   });
 
-  it('undo is the host\'s own button: it sends resume_all_agents once and says nothing restarts by itself', async () => {
+  it('undo is the host\'s own button: it sends the resume act once and says nothing restarts by itself', async () => {
     await openBoard({ engine: fakeEngine(async () => ({ v: 1, say: 'Here.', ops: [pauseOp('You asked to stop them. If you do nothing, they keep working inside your rules.')] })) });
     calls = [];
     await ask('pause everything');
@@ -372,7 +381,8 @@ describe('A5: safe acts from chat (pause all agents)', () => {
     const undoBtn = await waitFor(() => { const b = document.querySelector<HTMLButtonElement>('[data-undo="pause_agents"]'); if (!b) throw new Error('no undo yet'); return b; });
     fireEvent.click(undoBtn);
     await waitFor(() => expect(document.querySelector('[data-acted="pause_agents:undone"]')).not.toBeNull());
-    expect(writes().map((c) => c.cmd)).toEqual(['pause_all_agents', 'resume_all_agents']);
+    expect(writes().map((c) => c.cmd)).toEqual(['assistant_act', 'assistant_act']);
+    expect(writes().map((c) => (c.args as { act: { act: string } }).act.act)).toEqual(['pause_all', 'resume_all']);
     expect(document.querySelector('[data-acted]')!.textContent).toMatch(/Nothing restarts by itself/);
     expect(document.querySelector('[data-undo]')).toBeNull();
   });
@@ -405,6 +415,81 @@ describe('A5: safe acts from chat (pause all agents)', () => {
     act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
     await waitFor(() => expect(consentBox()).toBeNull());
     expect(writes()).toEqual([]);
+  });
+});
+
+describe('A6: safe acts from chat (one agent, one lapse)', () => {
+  const press = (act: string) => document.querySelector<HTMLButtonElement>(`[data-press="${act}"]`);
+  const box = (act: string) => document.querySelector<HTMLElement>(`[data-consent="${act}"]`);
+  const actsSent = () => writes().map((c) => { expect(c.cmd).toBe('assistant_act'); return (c.args as { act: unknown }).act; });
+
+  it('pauses one agent only after the press, names it with fixed words, and undoes it', async () => {
+    await openBoard({ engine: fakeEngine(async () => ({ v: 1, say: 'Here.', ops: [{ op: 'propose', action: { action: 'pause_agent', agent: 'shopper' }, why: 'Stop the shopper and approve the payment.' }] })) });
+    calls = [];
+    await ask('stop the shopper');
+    await waitFor(() => expect(box('pause_agent')).not.toBeNull());
+    expect(box('pause_agent')!.textContent).toContain('Pause your shopper');
+    expect(box('pause_agent')!.textContent).toContain('Your other agents keep working.');
+    expect(box('pause_agent')!.textContent).not.toMatch(/the payment/);
+    expect(writes()).toEqual([]);
+    fireEvent.click(press('pause_agent')!);
+    await waitFor(() => expect(document.querySelector('[data-acted="pause_agent:done"]')).not.toBeNull());
+    expect(actsSent()).toEqual([{ act: 'pause_agent', agent: 'shopper' }]);
+    const s = await mockBackend('main').invoke('get_settings', null);
+    expect(s.paused_agents).toEqual(['shopper']);
+    expect(s.agents_paused).toBe(false);
+    const undoBtn = await waitFor(() => { const b = document.querySelector<HTMLButtonElement>('[data-undo="pause_agent"]'); if (!b) throw new Error('no undo'); return b; });
+    fireEvent.click(undoBtn);
+    await waitFor(() => expect(document.querySelector('[data-acted="pause_agent:undone"]')).not.toBeNull());
+    expect(actsSent()).toEqual([{ act: 'pause_agent', agent: 'shopper' }, { act: 'resume_agent', agent: 'shopper' }]);
+    expect((await mockBackend('main').invoke('get_settings', null)).paused_agents).toEqual([]);
+  });
+
+  it('a one-agent pause is disarmed when that agent is already paused', async () => {
+    const real = world('');
+    await real.invoke('agent_pause', { agent: 'negotiator' });
+    render(<WorldProvider><Switchboard engine={fakeEngine(async () => ({ v: 1, say: 'Here.', ops: [{ op: 'propose', action: { action: 'pause_agent', agent: 'negotiator' }, why: 'Pause it.' }] }))} /></WorldProvider>);
+    await boardReady();
+    calls = [];
+    await ask('pause the negotiator');
+    const row = await waitFor(() => { const r = document.querySelector<HTMLElement>('[data-proposal="pause_agent"]'); if (!r) throw new Error('no row'); return r; });
+    expect(row.textContent).toContain('Not available: that agent is already paused');
+    fireEvent.click(row.querySelector('button')!);
+    expect(writes()).toEqual([]);
+  });
+
+  it('lets an eligible ask lapse after the press, names it by its label, and puts it back on undo', async () => {
+    let target = '';
+    let other = '';
+    await openBoard({ engine: fakeEngine(async () => ({ v: 1, say: 'Here.', ops: [
+      { op: 'propose', action: { action: 'let_lapse', deal_id: target }, why: 'You do not want it.' },
+      { op: 'propose', action: { action: 'let_lapse', deal_id: other }, why: 'Nor this one.' },
+    ] })) });
+    const att = await mockBackend('main').invoke('attention_list', null);
+    const deals = await mockBackend('main').invoke('list_deals', null);
+    const gate = att.items.find((i) => i.kind === 'gate' && i.actions.includes('let_lapse') && deals.find((d) => d.id === i.deal_id)?.state !== 'MISMATCH');
+    expect(gate, 'the mock world has a gate that offers Let it lapse').toBeDefined();
+    target = gate!.deal_id;
+    // a deal that does not wait for her: not eligible
+    other = deals.find((d) => !att.items.some((i) => i.deal_id === d.id))!.id;
+    calls = [];
+    await ask('drop it');
+    await waitFor(() => expect(box('let_lapse')).not.toBeNull());
+    expect(document.querySelectorAll('[data-consent="let_lapse"]').length).toBe(1);
+    expect([...document.querySelectorAll('[data-proposal="let_lapse"]')].some((r) => /Not available: that deal cannot be left to lapse from here/.test(r.textContent ?? ''))).toBe(true);
+    expect(box('let_lapse')!.textContent).toContain(`Let ${gate!.label} lapse`);
+    expect(box('let_lapse')!.textContent).toContain('No money moves. Nothing is agreed, and nothing is cancelled early.');
+    expect(writes()).toEqual([]);
+    fireEvent.click(press('let_lapse')!);
+    await waitFor(() => expect(document.querySelector('[data-acted="let_lapse:done"]')).not.toBeNull());
+    expect(actsSent()).toEqual([{ act: 'let_lapse', deal_id: target }]);
+    expect((await mockBackend('main').invoke('attention_list', null)).items.some((i) => i.deal_id === target)).toBe(false);
+    fireEvent.click(document.querySelector<HTMLButtonElement>('[data-undo="let_lapse"]')!);
+    await waitFor(() => expect(document.querySelector('[data-acted="let_lapse:undone"]')).not.toBeNull());
+    expect(actsSent()).toEqual([{ act: 'let_lapse', deal_id: target }, { act: 'lapse_undo', deal_id: target }]);
+    expect((await mockBackend('main').invoke('attention_list', null)).items.some((i) => i.deal_id === target)).toBe(true);
+    // no command other than the one door was sent, and no money command at all
+    expect(new Set(writes().map((c) => c.cmd))).toEqual(new Set(['assistant_act']));
   });
 });
 

@@ -16,7 +16,7 @@
 //  - `dropped.reasons` lists each distinct reason once, in first-seen order; `count` counts parts.
 import type { ActionRef, PanelSpec, UiOp, ValidatedReply } from './contract';
 import { ASSISTANT_V, FATES, MODULE_KEYS, PANEL_KINDS } from './contract';
-import { ACTION_CLASS, ACTIONS, DEAL_ID_RE, DEAL_ID_MAX, HASH_RE, OPS, OPS_MAX, PANELS, SAY_MAX, SETUP_TARGETS, WHY_MAX, type EntryDef, type FieldDef } from './vocabulary';
+import { ACTION_CLASS, ACTIONS, AGENT_SLOTS, DEAL_ID_RE, DEAL_ID_MAX, HASH_RE, OPS, OPS_MAX, PANELS, SAY_MAX, SETUP_TARGETS, WHY_MAX, type EntryDef, type FieldDef } from './vocabulary';
 
 export type Known = { dealIds: ReadonlySet<string> };
 
@@ -99,6 +99,8 @@ function checkField(d: FieldDef, o: Record<string, unknown>, known: Known): Res<
       return typeof v === 'string' && v.length <= DEAL_ID_MAX && known.dealIds.has(v) ? { ok: true, value: v, changed } : fail('unknown_deal');
     case 'setup_target':
       return typeof v === 'string' && (SETUP_TARGETS as readonly string[]).includes(v) ? { ok: true, value: v, changed } : fail('bad_action');
+    case 'agent':
+      return typeof v === 'string' && (AGENT_SLOTS as readonly string[]).includes(v) ? { ok: true, value: v, changed } : fail('bad_action');
     case 'hash': {
       if (typeof v !== 'string' || !HASH_RE.test(v)) return fail('bad_hash');
       const deal = v.startsWith('#d=') ? v.slice(3) : null;

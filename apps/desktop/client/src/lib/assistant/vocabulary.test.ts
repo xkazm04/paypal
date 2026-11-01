@@ -3,11 +3,11 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { formatHash, parseHash, PLACES, PREVIEW_PLACES } from '../../windows/main/logic';
 import { FATES, MODULE_KEYS, PANEL_KINDS, type ActionRef, type UiOp } from './contract';
-import { ACTION_CLASS, ACTIONS, CONSOLE_PLACES, HASH_RE, OPS, PANELS, SETUP_TARGETS, describeVocabulary, replyJsonSchema } from './vocabulary';
+import { ACTION_CLASS, ACTIONS, AGENT_SLOTS, CONSOLE_PLACES, HASH_RE, OPS, PANELS, SETUP_TARGETS, describeVocabulary, replyJsonSchema } from './vocabulary';
 
 // The compile-time half of parity: adding an op or action to contract.ts without listing it here is a type error.
 const ALL_OPS: Record<UiOp['op'], true> = { show: true, focus: true, filter: true, propose: true };
-const ALL_ACTIONS: Record<ActionRef['action'], true> = { open_decision: true, open_setup: true, open_console: true, pause_agents: true };
+const ALL_ACTIONS: Record<ActionRef['action'], true> = { open_decision: true, open_setup: true, open_console: true, pause_agents: true, pause_agent: true, let_lapse: true };
 
 const json = (v: unknown): string => JSON.stringify(v);
 
@@ -52,15 +52,23 @@ describe('no action can decide or take free text (B3)', () => {
     const forbidden = ['approve', 'sign', 'capture', 'void', 'release', 'pay', 'countersign'];
     for (const a of Object.values(ACTIONS)) {
       for (const c of forbidden) expect(a.name).not.toContain(c);
-      for (const d of a.fields) expect(['deal_id', 'setup_target', 'hash']).toContain(d.kind);
+      for (const d of a.fields) expect(['deal_id', 'setup_target', 'hash', 'agent']).toContain(d.kind);
     }
-    expect(Object.keys(ACTIONS).sort()).toEqual(['open_console', 'open_decision', 'open_setup', 'pause_agents']);
+    expect(Object.keys(ACTIONS).sort()).toEqual(['let_lapse', 'open_console', 'open_decision', 'open_setup', 'pause_agent', 'pause_agents']);
   });
-  it('every action has a class, and the only act is pause_agents, which takes no parameter', () => {
+  it('every action has a class; the acts are the three that make the wallet do less, each with a typed target only', () => {
     expect(Object.keys(ACTION_CLASS).sort()).toEqual(Object.keys(ALL_ACTIONS).sort());
-    const acts = Object.entries(ACTION_CLASS).filter(([, c]) => c === 'act').map(([a]) => a);
-    expect(acts).toEqual(['pause_agents']);
-    for (const a of acts) expect(ACTIONS[a as ActionRef['action']].fields).toEqual([]);
+    const acts = Object.entries(ACTION_CLASS).filter(([, c]) => c === 'act').map(([a]) => a).sort();
+    expect(acts).toEqual(['let_lapse', 'pause_agent', 'pause_agents']);
+    expect(ACTIONS.pause_agents.fields).toEqual([]);
+    expect(ACTIONS.pause_agent.fields.map((d) => [d.name, d.kind, d.nullable])).toEqual([['agent', 'agent', false]]);
+    expect(ACTIONS.let_lapse.fields.map((d) => [d.name, d.kind, d.nullable])).toEqual([['deal_id', 'deal_id', false]]);
+    // no undo is proposable
+    for (const undo of ['resume_agents', 'resume_agent', 'lapse_undo', 'resume_all', 'undo']) expect(Object.keys(ACTIONS)).not.toContain(undo);
+  });
+  it('the agent field is the three agent slots', () => {
+    expect([...AGENT_SLOTS]).toEqual(['negotiator', 'shopper', 'assistant']);
+    expect(JSON.stringify(replyJsonSchema())).toContain('"agent":{"type":"string","enum":["negotiator","shopper","assistant"]}');
   });
   it('the schema of an act admits no extra key', () => {
     const s = JSON.stringify(replyJsonSchema());

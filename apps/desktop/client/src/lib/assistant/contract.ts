@@ -5,6 +5,7 @@
 // only ever sees a ValidatedReply. A reply is a PROPOSAL: rendering it never executes anything.
 // Absent-value convention for the whole feature: a value that is not known is `null` (never 0, never
 // omitted); the UI shows it dashed, "not available yet".
+import type { AgentSlot } from '@bindings/AgentSlot';
 import type { ApprovalTarget } from '@bindings/ApprovalTarget';
 import type { Module } from '@bindings/Module';
 
@@ -35,13 +36,16 @@ export type PanelSpec =
  *  money or signs: those hand off to the approval window through `approval_open`.
  *  Two classes (ACTION_CLASS in vocabulary.ts): a `handoff` opens something and changes nothing; an
  *  `act` changes the wallet in a small, reversible way, and only after the owner's explicit press on
- *  a consent box the HOST draws (docs/design/conversational-home-safe-acts.md). The one act is
- *  `pause_agents`, which can only make the wallet do less. */
+ *  a consent box the HOST draws (docs/design/conversational-home-safe-acts.md). The acts can only
+ *  make the wallet do less: `pause_agents` (all), `pause_agent` (one) and `let_lapse` (leave one
+ *  ask to its silence outcome). Each has an undo the host offers; no undo is proposable. */
 export type ActionRef =
   | { action: 'open_decision'; deal_id: string }
   | { action: 'open_setup'; target: Extract<ApprovalTarget, 'credentials' | 'mandate' | 'unlock'> }
   | { action: 'open_console'; hash: string }
-  | { action: 'pause_agents' };
+  | { action: 'pause_agents' }
+  | { action: 'pause_agent'; agent: AgentSlot }
+  | { action: 'let_lapse'; deal_id: string };
 
 export type UiOp =
   /** Put an answer panel in the answer area (replaces the current one). */
