@@ -42,6 +42,19 @@ describe('mock walk-away forecast mirrors the Rust rules', () => {
     expect(mockForecast([{ ...fd({ state: 'RECEIPTED', side: 'seller' }, null), receiptAt: NOW - H }], ctx)).toEqual([]);
   });
 
+  it('a rescue fix never moves on a rule: no invoice is sent and nothing is collected on its own, only its deadline lapses it', () => {
+    // Rust Pipeline::authority refuses every step of a rescue but the owner's, so its gates never
+    // pass and forecast.rs promises no create, authorize or capture for one.
+    const agreed = fd({ state: 'AGREED', side: 'seller', kind: 'rescue' }, NOW + 5 * H);
+    expect(mockForecast([agreed], ctx).map((l) => [l.action, l.trigger, l.authority])).toEqual([['lapse', 'deadline', 'safe_default']]);
+    const sent = fd({ state: 'AWAITING_APPROVAL', side: 'seller', kind: 'rescue' }, NOW + 28 * 24 * H, false);
+    const f = mockForecast([sent], ctx);
+    expect(f).toEqual([]);
+    const q = mockQuitLines([sent], f);
+    expect(q.while_off).toEqual([]);
+    expect(q.at_paypal.map((l) => l.effect)).toEqual(['request_runs_out']);
+  });
+
   it('a terminal deal forecasts nothing (Rust skips terminal()), nor does a captured or receipted one with no lapse ahead', () => {
     for (const state of ['MISMATCH', 'FAILED', 'WITHDRAWN', 'CAPTURED', 'RECEIPTED'] as const) {
       expect(mockForecast([fd({ state, side: 'seller' }, NOW + 5 * H)], ctx), state).toEqual([]);
