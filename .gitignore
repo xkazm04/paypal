@@ -31,6 +31,8 @@ dist/
 /.claude/skills/scan-sweep
 /.claude/skills/spark
 /.claude/skills/demo-film
+/.claude/skills/hackathon
+/.claude/worktrees/
 /.claude/rules/ai-registry-access.md
 /.claude/rules/ai-registry-software-engineering.md
 /.ai/skill-runs.local.jsonl
