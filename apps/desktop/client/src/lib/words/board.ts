@@ -320,3 +320,100 @@ export const BOARD_ACT = {
 export const BOARD_REPAIRED = 'This answer was tidied before it was shown. The buttons come from the board, not from its words.';
 
 export const BOARD_HANDOFF_FAILED ='The approval window did not open. Nothing was changed.';
+
+// ---- the three standing questions (windows/main/switchboard/standing.ts; docs/ux/UX-GUIDE.md) ----
+/** Up to three labels, then "and n more". */
+const someLabels = (labels: readonly string[]): string =>
+  labels.length > 3 ? `${labels.slice(0, 3).join(', ')} and ${labels.length - 3} more` : BOARD_CHANGED.list(labels);
+/** "holds are released, asks lapse and ..." with its first letter raised. */
+const happensLine = (parts: readonly string[]): string => {
+  const s = BOARD_CHANGED.list(parts);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+/** The three questions she answers on any screen in two seconds, and the board's short answers. */
+export const BOARD_STANDING = {
+  label: 'Your three questions',
+  question: { safe: 'Is my money safe right now?', needs: 'Does anything need me?', nothing: 'What happens if I do nothing?' },
+  notYet: 'Not available yet',
+  notSetUp: 'Not set up yet',
+  setUpFirst: 'Nothing can be paid until setup is done',
+  nextStep: BOARD_SETUP.next,
+  // Is my money safe right now? (the safety record)
+  safe: 'Safe',
+  safeDetail: (entries: number | null): string => (entries === null ? 'Nothing broke your rules' : `${BOARD_INST.recordsCount(entries)} · nothing broke your rules`),
+  broken: BOARD_SAFETY.broken,
+  brokenDetail: BOARD_INST.recordsBrokenLine,
+  // Does anything need me? (the Needs you column)
+  needsNone: 'Nothing needs you',
+  needsSome: (n: number): string => `${n} ${n === 1 ? 'needs' : 'need'} you`,
+  area: (name: string, n: number): string => `${name} ${n}`,
+  needsWhere: (areas: readonly string[], soonest: string | null): string => [...areas, ...(soonest ? [BOARD_COUNT_SOON(soonest)] : [])].join(' · '),
+  // What happens if I do nothing? (the needs-you keys' If you do nothing lines)
+  stays: 'Nothing moves by itself',
+  happens: {
+    release: 'holds are released',
+    lapse: 'asks lapse',
+    retry: 'failed renewals retry at PayPal',
+    check: 'payments being checked follow what PayPal shows',
+    stays: 'the rest waits for you',
+  },
+  staysOnly: 'Everything waits for you as it is',
+  happensLine,
+  comesIn: (n: number): string => (n === 1 ? 'A payment can come in by itself' : `${n} payments can come in by themselves`),
+  comesInDetail: (labels: readonly string[]): string => `${someLabels(labels)} · nothing goes out by itself`,
+  goesOutNothing: 'Nothing goes out by itself',
+  unknownDetail: (labels: readonly string[]): string => `What happens to ${someLabels(labels)} is ${BOARD_NOT_AVAILABLE}`,
+} as const;
+
+// ---- the figures in the board's sentence (windows/main/switchboard/figures.ts) ----------------------
+type FigureFate = keyof typeof BOARD_FATE;
+const dealsWord = (n: number): string => `${n} ${n === 1 ? 'deal' : 'deals'}`;
+/** "need you", "moving by itself", "stopped", "paid", agreeing with n. */
+const fatePhrase = (n: number, fate: FigureFate): string =>
+  fate === 'needs' ? (n === 1 ? 'needs you' : 'need you') : fate === 'moving' ? (n === 1 ? 'moving by itself' : 'moving by themselves') : fate;
+
+/** What a linked figure is, in plain words: the line a hover or a focus on it shows. */
+export const BOARD_FIGURE = {
+  label: 'What this figure is',
+  fatePhrase,
+  /** "D-0193: Used road bike, $329.00, needs you". */
+  deal: (label: string, title: string, amount: string | null, state: string): string => `${label}: ${title}, ${amount ?? BOARD_NO_AMOUNT}, ${state.toLowerCase()}`,
+  /** "D-0193 closes in 3 h 58 m. If you do nothing: the offer lapses ...". */
+  dealLeft: (label: string, left: string, onSilence: string | null): string => `${label} closes in ${left}. ${BOARD_IF_NOTHING}: ${onSilence ?? BOARD_NOT_AVAILABLE}`,
+  fact: {
+    room: 'your room left today',
+    cap: 'your daily limit',
+    held: 'held at PayPal, or agreed and waiting',
+    heldAt: 'held at PayPal',
+    heldBefore: 'agreed and waiting to be paid',
+    heldCap: 'the most you hold at once',
+    paidOut: 'paid out today, confirmed by PayPal',
+    paidIn: 'paid to you, in your records',
+    outToday: 'agreed to pay today',
+  },
+  /** "$860.00 is your room left today", "$329.00 appears on 2 deals: D-0193 and D-0199". */
+  money: (text: string, facts: readonly string[], deals: readonly { label: string; title: string }[]): string => {
+    const parts: string[] = [];
+    if (facts.length) parts.push(`${text} is ${BOARD_CHANGED.list(facts)}`);
+    if (deals.length === 1) parts.push(`${facts.length ? 'and' : `${text} is`} ${deals[0]!.label}, ${deals[0]!.title}`);
+    else if (deals.length > 1) parts.push(`${facts.length ? 'it also' : text} appears on ${dealsWord(deals.length)}${deals.length <= 4 ? `: ${BOARD_CHANGED.list(deals.map((d) => d.label))}` : ''}`);
+    return parts.join('; ');
+  },
+  /** "6 deals need you: Tables 2, Spend 1, Counter 1, Shield 1, Rescue 1". */
+  count: (n: number, fate: FigureFate, areas: readonly string[]): string => `${dealsWord(n)} ${fatePhrase(n, fate)}${areas.length ? `: ${areas.join(', ')}` : ''}`,
+  /** "Spend: 1 deal needs you". */
+  cellCount: (area: string, n: number, fate: FigureFate): string => `${area}: ${dealsWord(n)} ${fatePhrase(n, fate)}`,
+  areaCount: (area: string, n: number): string => `${area} ${n}`,
+  /** "23 deals on the board: 6 need you, 7 moving, 6 stopped, 4 paid". */
+  whole: (n: number, parts: readonly string[]): string => `${dealsWord(n)} on the board: ${parts.join(', ')}`,
+  /** "6 need you", "1 needs you", "7 moving", "6 stopped", "4 paid". */
+  fateCount: (n: number, fate: FigureFate): string => `${n} ${fate === 'needs' ? (n === 1 ? 'needs you' : 'need you') : BOARD_FATE[fate].short.toLowerCase()}`,
+  /** "Spend: 6 deals on the board". */
+  rowTotal: (area: string, n: number): string => `${area}: ${dealsWord(n)} on the board`,
+  /** "Spend, agent purchases: 6 deals · 1 needs you · 0 moving · 3 stopped · 2 paid". */
+  area: (name: string, role: string, total: number, parts: readonly string[]): string =>
+    total ? `${name}, ${role}: ${dealsWord(total)} · ${parts.join(' · ')}` : `${name}, ${role}: no deals here`,
+  today: (n: number, cap: number | null): string => (cap === null ? `Deals your agents agreed to today: ${n}` : `Deals your agents agreed to today: ${n}, of ${cap} allowed a day`),
+  rules: BOARD_RULES.count,
+} as const;

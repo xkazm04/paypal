@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { PanelSpec, UiOp } from '../../../lib/assistant';
 import { BOARD_CHANGED, BOARD_PANEL_TITLE } from '../../../lib/words';
 import {
-  applyLayout, canPin, changedAnything, changeLine, closePanel, diffArrangement, EMPTY_ARRANGEMENT, focusPanel, panelKey, PIN_MAX, place, REGION_MAX, setPinned, type Arrangement, type ChangeNames,
+  applyLayout, canPin, changedAnything, changeLine, closePanel, diffArrangement, EMPTY_ARRANGEMENT, focusPanel, panelKey, PIN_MAX, place, REGION_MAX, setPinned, slotsOf, type Arrangement, type ChangeNames,
 } from './region';
 
 const money: PanelSpec = { kind: 'money' };
@@ -139,5 +139,64 @@ describe('what changed', () => {
     expect(before.filter).toEqual({ module: 'book', fate: null });
     expect(changedAnything(diffArrangement(after, before))).toBe(true);
     expect(diffArrangement(before, before)).toEqual({ added: [], kept: before.region, removed: [], filter: null, highlight: null });
+  });
+});
+
+describe('stable slots: an answer stays where it appeared', () => {
+  /** The region by slot, as kinds ('-' = an empty slot). */
+  const bySlot = (a: Arrangement) => slotsOf(a.region).map((x) => x?.spec.kind ?? '-');
+
+  it('fill three: the slots fill in order', () => {
+    const a = applyLayout(EMPTY_ARRANGEMENT, [show(money), show(week), show(rules)], known);
+    expect(bySlot(a)).toEqual(['money', 'week', 'rules']);
+    expect(a.region.map((x) => x.slot)).toEqual([0, 1, 2]);
+    expect(bySlot(EMPTY_ARRANGEMENT)).toEqual(['-', '-', '-']);
+  });
+
+  it('pin one, place a fourth: it takes the evicted panel’s slot, and no other panel moves', () => {
+    let a = applyLayout(EMPTY_ARRANGEMENT, [show(money), show(week), show(rules)], known);
+    a = setPinned(a, 'money', true);
+    expect(bySlot(a)).toEqual(['money', 'week', 'rules']);
+    a = applyLayout(a, [show(rescue)], known);
+    // week (the oldest unpinned) left slot 1; rescue sits there; money and rules did not move
+    expect(kinds(a)).toEqual(['money', 'rules', 'rescue']);
+    expect(bySlot(a)).toEqual(['money', 'rescue', 'rules']);
+    // the next one evicts rules (now the oldest unpinned) and takes slot 2
+    a = applyLayout(a, [show({ kind: 'safety' })], known);
+    expect(bySlot(a)).toEqual(['money', 'rescue', 'safety']);
+  });
+
+  it('a panel never changes slot while it stays: a show of an equal panel, a pin, a focus, a close of another', () => {
+    let a = applyLayout(EMPTY_ARRANGEMENT, [show(money), show(week), show(rules)], known);
+    a = place(a, { kind: 'money' });
+    a = setPinned(a, panelKey(rules), true);
+    a = focusPanel(a, 'week');
+    expect(bySlot(a)).toEqual(['money', 'week', 'rules']);
+    a = closePanel(a, 'week');
+    expect(bySlot(a)).toEqual(['money', '-', 'rules']);
+  });
+
+  it('close then place: the lowest free slot, with no eviction while one is free', () => {
+    let a = applyLayout(EMPTY_ARRANGEMENT, [show(money), show(week), show(rules)], known);
+    a = closePanel(closePanel(a, 'money'), panelKey(rules));
+    expect(bySlot(a)).toEqual(['-', 'week', '-']);
+    a = place(a, rescue);
+    expect(bySlot(a)).toEqual(['rescue', 'week', '-']);
+    a = place(a, money);
+    expect(bySlot(a)).toEqual(['rescue', 'week', 'money']);
+    // full again: the oldest unpinned (week) leaves, and the new one takes its slot
+    a = place(a, rules);
+    expect(bySlot(a)).toEqual(['rescue', 'rules', 'money']);
+  });
+
+  it('undo restores the slots: the arrangement is a value', () => {
+    let before = applyLayout(EMPTY_ARRANGEMENT, [show(money), show(week), show(rules)], known);
+    before = closePanel(before, 'money');
+    const snapshot = bySlot(before);
+    const after = applyLayout(before, [show(rescue), show({ kind: 'safety' })], known);
+    expect(bySlot(after)).toEqual(['rescue', 'safety', 'rules']);
+    // the board restores `before` as is: its slots are untouched by the reply
+    expect(bySlot(before)).toEqual(snapshot);
+    expect(snapshot).toEqual(['-', 'week', 'rules']);
   });
 });

@@ -13,6 +13,11 @@
 // - `Arrangement` is everything a reply may change on screen: the region, its focus, the filter and
 //   the light. `applyLayout` applies a reply's layout ops to it, `diffArrangement` says what changed,
 //   and the board keeps the arrangement from before the last applied reply for its one-step undo.
+// - Slots (spark the-proof-table): every panel carries a fixed screen position, its Slot. A new panel
+//   takes the slot of the panel it evicted, else the lowest free slot; a panel never changes slot while
+//   it stays (a show of an equal panel, a pin, a focus, another panel's close leave it where it is);
+//   closing a panel frees its slot. The slot lives on the panel, so the arrangement stays one value and
+//   the one-step undo restores slots with everything else. `slotsOf` lays the region out by slot.
 // Pure: no React, no IO; Switchboard.tsx owns the state and the owner's moves.
 import type { Module } from '@bindings/Module';
 import type { Fate, PanelSpec, UiOp } from '../../../lib/assistant';
@@ -23,18 +28,25 @@ export { REGION_MAX };
 /** At most this many pinned panels: one slot always stays free for the assistant's next answer. */
 export const PIN_MAX = REGION_MAX - 1;
 
-export type RegionPanel = { readonly spec: PanelSpec; readonly pinned: boolean };
-export type Region = readonly RegionPanel[];
-
 /** A fixed position on screen for an answer (spark the-proof-table). */
 export type Slot = 0 | 1 | 2;
+const SLOTS: readonly Slot[] = [0, 1, 2];
+
+/** One answer in the region: what it shows, the owner's pin, and its fixed position on screen. */
+export type RegionPanel = { readonly spec: PanelSpec; readonly pinned: boolean; readonly slot: Slot };
+export type Region = readonly RegionPanel[];
 
 /** The region laid out by slot: index = Slot, null = an empty slot. Length REGION_MAX. A panel keeps
  *  its slot for as long as it stays; a new panel takes the evicted panel's slot, else the lowest free
- *  one. WP0 stub: index order; WP2 implements stable slots. */
+ *  one. Two panels never share a slot (place assigns them); were they to, the older one keeps it. */
 export function slotsOf(region: Region): (RegionPanel | null)[] {
-  return Array.from({ length: REGION_MAX }, (_, i) => region[i] ?? null);
+  const out: (RegionPanel | null)[] = Array.from({ length: REGION_MAX }, () => null);
+  for (const p of region) if (p.slot >= 0 && p.slot < REGION_MAX && out[p.slot] === null) out[p.slot] = p;
+  return out;
 }
+
+/** The lowest slot no panel holds, or null when every slot is taken. */
+const lowestFree = (r: Region): Slot | null => SLOTS.find((s) => s < REGION_MAX && !r.some((x) => x.slot === s)) ?? null;
 
 export type Arrangement = {
   readonly region: Region;
@@ -73,13 +85,20 @@ const keepFocus = (r: Region, focus: string | null): string | null => (focus !==
 export function place(a: Arrangement, spec: PanelSpec): Arrangement {
   const key = panelKey(spec);
   if (has(a.region, key)) return { ...a, focus: key };
-  let region: RegionPanel[] = [...a.region, { spec, pinned: false }];
-  while (region.length > REGION_MAX) {
+  let region: RegionPanel[] = [...a.region];
+  let slot: Slot | null = null;
+  while (region.length >= REGION_MAX) {
     const oldest = region.findIndex((x) => !x.pinned);
-    // Unreachable while pins are capped at PIN_MAX; kept so the cap holds even if they were not.
-    if (oldest < 0) break;
+    // Unreachable while pins are capped at PIN_MAX: with every panel pinned there is no slot to give,
+    // so the new panel is not placed and the cap holds.
+    if (oldest < 0) return a;
+    slot = region[oldest]!.slot;
     region = region.filter((_, i) => i !== oldest);
   }
+  slot ??= lowestFree(region);
+  // Unreachable: fewer than REGION_MAX panels always leave a free slot.
+  if (slot === null) return a;
+  region = [...region, { spec, pinned: false, slot }];
   return { ...a, region, focus: keepFocus(region, key) };
 }
 
