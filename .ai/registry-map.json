@@ -3271,7 +3271,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:5 The director is a browser-only rehearsal rig that plays beat files against the mock wallet over BroadcastChannel. A search of apps/desktop/client/src/director for mcp, jsonrpc, tools/call and tool_use found no hits, so no tool server or tool client exists here.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "agent-memory",
@@ -4086,7 +4090,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-client/src/authority_table.rs:16 This contract is Tauri IPC between the desktop shell's windows and the runtime, authorised by window label, not a model-facing tool protocol. A search of crates/table-client for jsonrpc, tools/call, McpGrant and inputSchema found nothing; \"MCP\" appears only at assistant.rs:136, as a word a test forbids in user-facing refusal text.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "prompt-assembly",
@@ -5639,7 +5647,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-verify/src/lib.rs:1 The verifier is a pure offline checker of signed proof bundles and house ledgers with no tool protocol surface. A search of crates/table-verify for jsonrpc, tools/call, McpGrant and inputSchema found nothing; \"MCP\" appears only as prose in acceptance-ids.txt:27 (an acceptance-ID label), not as code.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "authorization",
@@ -8388,7 +8400,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "crates/table-engine/src/native.rs:142 The engine is the MCP host side for spawned agent CLIs: it writes a per-run config that names only the wallet server and carries credentials as env placeholders rather than secrets, checks the attested tool inventory, and kills the whole process tree, so config-as-credential-store and connection custody are handled.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "quality-gates",
@@ -9214,7 +9230,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-app/tests/gauntlet.rs:1110 The gauntlet counts any call answered on the protocol channel as a fault. Off-catalog names (\"shell\", \"capture\", gauntlet.rs:1683) and envelope-malformed calls (a non-string tool name, gauntlet.rs:1702) are required to come back as in-band isError results coded tool_absent / malformed_call (gauntlet.rs:2088). That pins the server's routing of unknown-tool and envelope failures to the model, against the two-channel rule.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "agent-instruction-files",

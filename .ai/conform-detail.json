@@ -8394,6 +8394,139 @@
           "reason": "replaced by 5cdd00f9-0ac2-4516-9c3a-a9a28644b901"
         }
       ]
+    },
+    "6ad8f933-5c5e-4ed6-8ace-f642dffc558f/mcp-tools": {
+      "context": "table-engine-agent-process",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T17:08:53.264Z",
+      "worker": "54673088-960b-4341-9f98-808596c0c3cc",
+      "techniques": [
+        {
+          "technique": "client-integration",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/native.rs:142 The per-run config file holds env placeholders, not the token. The token goes in through env (native.rs:174) and is zeroized on drop (lib.rs:66). The spawn uses an argv array with no shell (resolve.rs:1)."
+        },
+        {
+          "technique": "transport-selection",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/native.rs:131 Loopback HTTP is chosen because the server lives in the wallet process, not as a child of the CLI. The client refuses any URL that is not 127.0.0.1 or that carries userinfo, a query or a fragment, and it requires both credentials. Origin validation on the server half sits in table-mcp, outside this context."
+        },
+        {
+          "technique": "authentication-and-scoping",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/native.rs:137 Each run carries its own grant (token plus secret) and refuses to start without both. env_clear plus ENV_ALLOW (native.rs:81) keep the host's API keys from passing through to the child."
+        },
+        {
+          "technique": "untrusted-result-handling",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/policy.rs:234 The negotiator parses the tool result into a closed typed projection with no counterparty free text, and shape failure is an error."
+        },
+        {
+          "technique": "tool-schema-design",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/policy.rs:169 As a consumer it honours the in-band error flag (refusal is None) and fails closed when the flag is missing. A refused act still ends the run Clean, per the comment at policy.rs:238, because the wallet audited the refusal."
+        },
+        {
+          "technique": "first-party-agent-is-a-principal",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/policy.rs:2 Strong form: the first-party deterministic negotiator goes through the same grant and door as third-party agent CLIs, with no private code path."
+        },
+        {
+          "technique": "one-server-many-registrations",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/argv.rs:27 Strict config, ignored user config and an inventory check that demands exactly one server named wallet (parser.rs:76) together rule out a second registration of the server."
+        },
+        {
+          "technique": "command-audit-by-position",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/resolve.rs:35 The host owns the argv entirely. Binaries come from a fixed table and no user-configured command string is executed, so there is nothing to audit by position."
+        },
+        {
+          "technique": "catalog-projection-modes",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/parser.rs:4 The catalog is seven tools on one server under strict config, so no host tool ceiling applies."
+        },
+        {
+          "technique": "egress-argument-gating",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/parser.rs:157 The arguments go to the first-party wallet server, which owns and gates the schema. There is no third-party schema for the host to gate."
+        },
+        {
+          "technique": "ambient-selection-is-not-an-argument",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/policy.rs:226 table_view with no arguments resolves the deal from the server-minted grant scope, not from a UI's current selection, so the single-seat-application precondition does not hold."
+        }
+      ]
+    },
+    "dca763f0-8645-4f2a-a617-a0be91dfdff7/mcp-tools": {
+      "context": "wallet-app-tests",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T17:08:53.264Z",
+      "worker": "54673088-960b-4341-9f98-808596c0c3cc",
+      "techniques": [
+        {
+          "technique": "tool-schema-design",
+          "verdict": "deviation",
+          "evidence": "crates/table-app/tests/gauntlet.rs:1110 The standard routes unknown tool and call-envelope schema failure to protocol errors. The test requires in-band results for both, matching table-mcp lib.rs:541-546. No recorded opacity decision sits next to it."
+        },
+        {
+          "technique": "authentication-and-scoping",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/tests/gauntlet.rs:1096 Every call carries a fresh per-call grant scoped to one deal and role (gauntlet.rs:1080), which is revoked right after."
+        },
+        {
+          "technique": "untrusted-result-handling",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/tests/gauntlet.rs:1118 Every answer is checked for the injected counterparty-note tag, so counterparty text never reaches the agent."
+        },
+        {
+          "technique": "caller-differentiated-capability",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/tests/gauntlet.rs:1683 Agents reach for owner-surface money verbs and tools outside their role's catalog. The test asserts these are refused and reach no PayPal call, so the agent surface stays a strict subset."
+        },
+        {
+          "technique": "server-composition",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/tests/gauntlet.rs:1102 Each hostile call goes through the real single router door, so validation, scoping and audit are exercised at dispatch."
+        }
+      ],
+      "registryProposal": "Every refusal here must leave exactly one audited intent.refused row that the model can read. tool-schema-design could say whether an audit-every-refusal requirement justifies delivering unknown-tool and envelope failures in-band, or whether the audit should be written and the protocol error still returned."
+    },
+    "301e09f0-979a-4861-b442-b4efe22b7bd2/mcp-tools": {
+      "context": "director-preview-stories",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T17:08:53.264Z",
+      "worker": "54673088-960b-4341-9f98-808596c0c3cc",
+      "techniques": []
+    },
+    "3be5eb78-fe5d-4f61-ae53-ffceafebc9a6/mcp-tools": {
+      "context": "offline-proof-verifier",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T17:08:53.264Z",
+      "worker": "54673088-960b-4341-9f98-808596c0c3cc",
+      "techniques": []
+    },
+    "b122a56d-4e5f-4259-959c-b90ba9e1c58e/mcp-tools": {
+      "context": "ipc-contract-and-authority-table",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T17:08:53.264Z",
+      "worker": "54673088-960b-4341-9f98-808596c0c3cc",
+      "techniques": []
     }
   }
 }
