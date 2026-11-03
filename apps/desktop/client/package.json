@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "takes": "node scripts/takes.mjs"
+    "takes": "node scripts/takes.mjs",
+    "eval:board": "node scripts/eval-board.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.2",

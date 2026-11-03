@@ -2981,3 +2981,10 @@ reversible-screen-ops). Client only; no Rust, IPC or bindings change.
 - **Deferred to after 2026-11-12**: the prompt still says `show` replaces, because the prompt and op wording are
   pinned in `crates/table-client/src/assistant_contract.json` (embedded in the shell). Proposed wording is in
   `docs/features/conversational-home.md`.
+- **View-choice evaluation (P2)**: `lib/assistant/eval` - 40 labelled owner questions over three boards (12
+  negatives), scored through the real `validateReply` door for schema validity, exact panel choice, false and
+  missed triggers; the scripted arm runs in `pnpm test`, the live arm is `pnpm eval:board` (results to the OS temp
+  folder, never committed). First figures, 2026-11-03: scripted 52.5% pass; live (the installed CLI default model)
+  70.0% pass, 100% schema-valid, 20% false trigger (all eight: a sentence-shaped question given a panel), 12.9%
+  missed (all four: a two-panel question given one). Both live failure classes come from the pinned prompt (see
+  "Known gaps" in `docs/features/conversational-home.md`).
