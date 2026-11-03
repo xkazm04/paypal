@@ -976,12 +976,11 @@
           "changedAt": "2026-10-23",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:19 The notice wiring test scans raw text from every .tsx file, allowing commented JSX and test-fixture markup to count as rendered-notice evidence.",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:19 The notice-wiring pin matches raw source text, including comments, across a population that also takes in the window's own *.test.tsx files, so commented-out or fixture JSX can satisfy the unlock check, which only has a floor (>= 3).",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-runtime-assembly",
@@ -1596,12 +1595,11 @@
           "changedAt": "2026-10-23",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "apps/desktop/client/src/mock/forecast.ts:11 retypes Rust constants by hand; only the authority mirror is generated (bindings/authority.ts), so forecast/checks/rescue/safety/what-if mirrors drift silently while tests named 'mirrors the Rust rules' pass (fixture-economics)",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/mock/forecast.test.ts:18 The suite is named as a mirror of forecast.rs, but it only asserts hand-written expectations against the hand-written mockForecast and never runs or reads Rust's forecast rules, so a rule change in Rust stays green while the name tells a searcher that parity is checked.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
+          "revisionsBehind": 1
         },
         {
           "subject": "voice-io",
@@ -3848,12 +3846,11 @@
           "changedAt": "2026-10-23",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "services/house-seller/src/main.rs:39 the shipped wiring (compiled release from TABLE_HOUSE_RELEASE_JSON, set only at Dockerfile:6, credential check, drain) never runs under test: ci.yml:61 builds debug without it and all house tests are in-process (live-app-harness, configuration-axes, out-of-graph-artifacts)",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "services/house-seller/src/scoreboard/witness.test.mjs:3 The scoreboard witness suite runs only by a hand-typed node --test command; CI's client job runs vitest over apps/desktop/client/src only, so this shipped page's tests sit outside every gated graph and the green board never includes them.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-cli-transport",
@@ -8777,12 +8774,11 @@
           "changedAt": "2026-10-23",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "apps/desktop/client/src/windows/tumbler/logic.test.ts:28 claims form sizes 'mirror the Rust table' but :30 compares the TS copy to a literal, so placement drift stays green (unreached-decisions-pin-nothing); no lane drives the shipped window (Tumbler.tsx:228, live-app-harness)",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:41 The window's core loop asks Rust for a form and draws whatever Rust emits back, but every Tumbler test mounts it on the browser mock (whose tumbler_set_form echoes the event itself), so the real request/report round trip across the shell boundary is never exercised by any lane.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
+          "revisionsBehind": 1
         },
         {
           "subject": "voice-io",

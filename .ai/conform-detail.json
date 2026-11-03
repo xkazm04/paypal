@@ -103,24 +103,45 @@
       "subject": "test-harness",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-14",
-      "evaluatedTs": "2026-10-14T23:18:09.459Z",
-      "worker": "a0c1a5ea-74bf-43ad-ba3e-7af40cca4f16",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T11:16:59.445Z",
+      "worker": "5cdd00f9-0ac2-4516-9c3a-a9a28644b901",
       "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:14 The walk admits every .tsx file, including actions/frame/render tests, and never strips prose; population and haystack both default toward green."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/frame.test.tsx:53 The close path is pinned with an awaited-call needle that prose cannot spell, alongside a behavioural test of closeThisWindow itself."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/frame.test.tsx:59 The hold-to-confirm timing is driven by fake timers, not wall-clock elapsed time."
+        },
         {
           "technique": "gate-scope-is-not-report-scope",
           "verdict": "deviation",
-          "evidence": "apps/desktop/client/src/windows/approval/gating.test.ts:26 Tests claiming every combination iterate manually listed union members. DealState[] permits an incomplete list, and the numerical case floor does not detect a newly omitted state."
+          "evidence": "apps/desktop/client/src/windows/approval/gating.test.ts:26 Tests claiming every combination iterate manually listed union members. DealState[] permits an incomplete list, and the numerical case floor does not detect a newly omitted state.",
+          "carriedFrom": "2026-10-14"
         },
         {
           "technique": "isolation-lanes",
           "verdict": "conformant",
-          "evidence": "apps/desktop/client/src/windows/approval/actions.test.tsx:28 The rendered Actions tests explicitly unmount their React trees after each case; their callback mocks and gate fixtures are created per setup."
-        },
+          "evidence": "apps/desktop/client/src/windows/approval/actions.test.tsx:28 The rendered Actions tests explicitly unmount their React trees after each case; their callback mocks and gate fixtures are created per setup.",
+          "carriedFrom": "2026-10-14"
+        }
+      ],
+      "superseded": [
         {
-          "technique": "pin-the-call-not-the-name",
-          "verdict": "deviation",
-          "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:19 The unparsed matcher accepts commented JSX, and discovery includes .test.tsx files. An in-memory comment-only probe matched both its token-error selector and required footerNoticeText call needle."
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:19 The notice wiring test scans raw text from every .tsx file, allowing commented JSX and test-fixture markup to count as rendered-notice evidence.",
+          "evaluatedAt": "2026-10-14T23:18:09.459Z",
+          "worker": "a0c1a5ea-74bf-43ad-ba3e-7af40cca4f16",
+          "reason": "replaced by 5cdd00f9-0ac2-4516-9c3a-a9a28644b901"
         }
       ]
     },
@@ -8194,6 +8215,116 @@
           "evaluatedAt": "2026-10-14",
           "worker": null,
           "reason": "replaced by f0f0e2b7-8c74-467b-b79e-89cb272190f6"
+        }
+      ]
+    },
+    "78691638-b912-45fd-98f8-083cec08e3a9/test-harness": {
+      "context": "tumbler-window",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T11:16:59.445Z",
+      "worker": "5cdd00f9-0ac2-4516-9c3a-a9a28644b901",
+      "techniques": [
+        {
+          "technique": "live-app-harness",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/tumbler/breathing.test.tsx:28 The highest-fidelity Tumbler test mounts the real component on the mock backend; no lane drives the shipped window, so the round trip from tumbler_set_form to the tumbler:form event is only proven by the mock answering itself."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/tumbler/logic.test.ts:39 The earlier stale verdict no longer holds: the 'mirror the Rust table' test now parses Form::size out of placement.rs instead of comparing against a literal, so a size change in Rust turns it red."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/tumbler/logic.test.ts:36 The source pin strips comments before matching, and its needle is a match-arm shape (Self::X => (w, h)) that only code can produce, with a count floor of 7 at line 44."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/tumbler/ladder.test.ts:14 The ladder schedule is read from the generated LADDER binding (one authority) instead of a hand-kept copy."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/tumbler/logic.test.ts:28 claims form sizes 'mirror the Rust table' but :30 compares the TS copy to a literal, so placement drift stays green (unreached-decisions-pin-nothing); no lane drives the shipped window (Tumbler.tsx:228, live-app-harness)",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by 5cdd00f9-0ac2-4516-9c3a-a9a28644b901"
+        }
+      ]
+    },
+    "97ce9cef-2512-4583-a3a5-6ee0b27f287d/test-harness": {
+      "context": "browser-mock-backend",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T11:16:59.445Z",
+      "worker": "5cdd00f9-0ac2-4516-9c3a-a9a28644b901",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/mock/checks.test.ts:18 This name, like forecast.test.ts:18, claims parity with the Rust wallet, but the assertions only check the mock against literals written by the same author; the Rust decision the name refers to is never reached."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/mock/rustConstants.test.ts:46 The constants the mock copies (forecast.ts:12-14, rescue, safety) are now pinned against the Rust source, which fixes the constant half of the earlier stale verdict; the rules half is still hand-kept."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/mock/rustConstants.test.ts:19 Comments are stripped and the needle is a `const NAME: T =` declaration shape. authority.test.ts:209-212 reads backend.ts raw, but its needles are also code shapes."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/mock/forecast.ts:11 retypes Rust constants by hand; only the authority mirror is generated (bindings/authority.ts), so forecast/checks/rescue/safety/what-if mirrors drift silently while tests named 'mirrors the Rust rules' pass (fixture-economics)",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by 5cdd00f9-0ac2-4516-9c3a-a9a28644b901"
+        }
+      ]
+    },
+    "eec42666-8620-4b0d-8d2e-bc418a280b71/test-harness": {
+      "context": "house-seller-service",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T11:16:59.445Z",
+      "worker": "5cdd00f9-0ac2-4516-9c3a-a9a28644b901",
+      "techniques": [
+        {
+          "technique": "out-of-graph-artifacts",
+          "verdict": "deviation",
+          "evidence": "services/house-seller/src/scoreboard/witness.test.mjs:3 No CI job invokes node --test, and vite.config.ts includes only src/**/*.test.ts(x) under apps/desktop/client."
+        },
+        {
+          "technique": "live-app-harness",
+          "verdict": "deviation",
+          "evidence": "services/house-seller/src/main.rs:38 The shipped wiring (compiled release pin, credential load at :47, drain) is never started under test; no test spawns the binary and all house tests are in-process."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "deviation",
+          "evidence": "services/house-seller/src/hosted.rs:1385 full_channel_is_full relies on a 20 ms wall-clock sleep for the spawned request to occupy the queue. The next test (:1397 try_send) and PollSchedule (:1224, virtual ticks) show the deterministic shape."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "services/house-seller/src/main.rs:39 the shipped wiring (compiled release from TABLE_HOUSE_RELEASE_JSON, set only at Dockerfile:6, credential check, drain) never runs under test: ci.yml:61 builds debug without it and all house tests are in-process (live-app-harness, configuration-axes, out-of-graph-artifacts)",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by 5cdd00f9-0ac2-4516-9c3a-a9a28644b901"
         }
       ]
     }
