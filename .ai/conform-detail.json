@@ -8527,6 +8527,84 @@
       "evaluatedTs": "2026-11-03T17:08:53.264Z",
       "worker": "54673088-960b-4341-9f98-808596c0c3cc",
       "techniques": []
+    },
+    "1b4ef14a-5a8a-438c-988d-365c439b153d/test-harness": {
+      "context": "deal-review",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T22:08:30.797Z",
+      "worker": "967129d6-de70-449e-96fc-737cb832ccb8",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/priceCheck.test.tsx:25 The name overstates what is pinned: Rust is never reached and no shared vector exists (searched crates/ and bindings/ for the cases)."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/review/market.render.test.tsx:33 Before relying on the shared mock world, the test asserts that the seeded deal actually carries the invariant the HOLD case needs (seeded-data honesty)."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/listingCode.test.ts:68 The claim is a user-felt window freeze, not overlap or cutoff. The bound is loose and one-sided (1 s against 8 s measured unfixed), which is the technique's own exemption."
+        }
+      ]
+    },
+    "68496392-9930-4018-bc06-41c2f3e3c286/test-harness": {
+      "context": "safety-and-setup",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T22:08:30.797Z",
+      "worker": "967129d6-de70-449e-96fc-737cb832ccb8",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/setup/pairing.test.ts:35 The file claims a cross-language decision it never reaches. The name overstates."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.test.tsx:146 The join-retry cap is proved by counting calls under fake timers, after extra settled time, not by elapsed wall time."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/safety/model.test.ts:98 Each test pins the clock and resets storage and mock state in beforeEach, so tests inherit nothing from the machine or from each other."
+        }
+      ]
+    },
+    "877e3281-ae38-485a-a404-4476986454a5/test-harness": {
+      "context": "shared-surfaces-onboarding-honesty",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T22:08:30.797Z",
+      "worker": "967129d6-de70-449e-96fc-737cb832ccb8",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/shared/tour.test.tsx:235 The predicate doesn't read the construct for the resource (the surface the ink sits on), and the haystack includes the prose comments."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/tourAnchors.test.tsx:75 Anchors are resolved against the real windows rather than a page the test draws itself. The header states that the sibling suites would stay green on a renamed anchor."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/tourAnchors.test.tsx:73 The reverse check first asserts its population (all three windows were rendered), so a filtered run or an empty map can't pass it vacuously."
+        }
+      ]
     }
   }
 }

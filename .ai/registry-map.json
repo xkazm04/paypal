@@ -2730,7 +2730,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/priceCheck.test.tsx:25 The test name claims parity with Rust's Mandate::market_product_for, but it only checks the TS marketProductFor against three hand-written expectations and never runs or reads the Rust rule, so a change to Rust's binding or to market_product_valid stays green while the name tells a searcher parity is pinned.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27
         },
         {
           "subject": "supply-chain",
@@ -7548,7 +7552,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/setup/pairing.test.ts:35 The test name claims the desk's payee check follows Rust's PayeeRef text_id! rule, but it asserts hand-written accept/refuse lists against the TS payeeProblem only. No Rust test or shared vector runs these cases (searched crates/ for them), so a Rust rule change stays green under a name that says parity is pinned.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27
         },
         {
           "subject": "prompt-assembly",
@@ -7769,7 +7777,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/shared/tour.test.tsx:235 The contrast test judges text, muted and dim against --panel2 because this pin says the coach mark draws them there. But the needle matches anywhere in raw tour.css, comments included, and isn't scoped to a rule drawn on --panel2 (unlike the background check one line above). Moving an ink onto another surface, or leaving it only in a comment, stays green.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27
         },
         {
           "subject": "prompt-assembly",

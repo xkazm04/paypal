@@ -1,0 +1,144 @@
+{
+ "schema": "conform-run/1",
+ "worker": "967129d6-de70-449e-96fc-737cb832ccb8",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-03T22:08:30.797917+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "deal-review",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/approval/priceCheck.test.tsx:25 The test name claims parity with Rust's Mandate::market_product_for, but it only checks the TS marketProductFor against three hand-written expectations and never runs or reads the Rust rule, so a change to Rust's binding or to market_product_valid stays green while the name tells a searcher parity is pinned.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/approval/priceCheck.test.tsx:25 The name overstates what is pinned: Rust is never reached and no shared vector exists (searched crates/ and bindings/ for the cases)."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/review/market.render.test.tsx:33 Before relying on the shared mock world, the test asserts that the seeded deal actually carries the invariant the HOLD case needs (seeded-data honesty)."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/listingCode.test.ts:68 The claim is a user-felt window freeze, not overlap or cutoff. The bound is loose and one-sided (1 s against 8 s measured unfixed), which is the technique's own exemption."
+    }
+   ]
+  },
+  {
+   "context": "safety-and-setup",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/setup/pairing.test.ts:35 The test name claims the desk's payee check follows Rust's PayeeRef text_id! rule, but it asserts hand-written accept/refuse lists against the TS payeeProblem only. No Rust test or shared vector runs these cases (searched crates/ for them), so a Rust rule change stays green under a name that says parity is pinned.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/setup/pairing.test.ts:35 The file claims a cross-language decision it never reaches. The name overstates."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.test.tsx:146 The join-retry cap is proved by counting calls under fake timers, after extra settled time, not by elapsed wall time."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/safety/model.test.ts:98 Each test pins the clock and resets storage and mock state in beforeEach, so tests inherit nothing from the machine or from each other."
+    }
+   ]
+  },
+  {
+   "context": "shared-surfaces-onboarding-honesty",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/shared/tour.test.tsx:235 The contrast test judges text, muted and dim against --panel2 because this pin says the coach mark draws them there. But the needle matches anywhere in raw tour.css, comments included, and isn't scoped to a rule drawn on --panel2 (unlike the background check one line above). Moving an ink onto another surface, or leaving it only in a comment, stays green.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/shared/tour.test.tsx:235 The predicate doesn't read the construct for the resource (the surface the ink sits on), and the haystack includes the prose comments."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/tourAnchors.test.tsx:75 Anchors are resolved against the real windows rather than a page the test draws itself. The header states that the sibling suites would stay green on a renamed anchor."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/tourAnchors.test.tsx:73 The reverse check first asserts its population (all three windows were rendered), so a filtered run or an empty map can't pass it vacuously."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "wallet-app-services",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-03T22:08:30.797917+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "fixture-economics",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "deal-review",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T22:08:30.797917+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "isolation-lanes",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "safety-and-setup",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T22:08:30.797917+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "derived-selection-must-be-measured",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "shared-surfaces-onboarding-honesty",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
