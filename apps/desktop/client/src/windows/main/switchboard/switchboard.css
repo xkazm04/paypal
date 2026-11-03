@@ -148,6 +148,21 @@
 .sb-close { width: var(--ctl-sm); height: var(--ctl-sm); border: 0; border-radius: var(--r-tight); background: none; color: var(--muted); cursor: pointer; font-size: var(--fs-title3); line-height: 1; }
 .sb-close:hover { background: var(--hover); color: var(--text); }
 .sb-close:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+/* the composition region (region.ts): up to three answers, oldest first; the focus one is marked, a
+   pinned one says so. Plain and token-only on purpose: the look is decided later. */
+.sb-answer-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
+.sb-layout-undo { flex: none; }
+.sb-region { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+.sb-panel { display: grid; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-card); border: 1px solid var(--line); }
+.sb-panel.focus { border-color: var(--line2); background: var(--panel); }
+.sb-panel.pinned { border-left: 3px solid var(--teal-l); }
+.sb-ptitle { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.sb-ptitle:focus-visible, .sb-pin:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.sb-pactions { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.sb-pin { height: var(--ctl-sm); padding: 0 var(--sp-1); border: 0; border-radius: var(--r-tight); background: none; color: var(--muted); cursor: pointer; font-size: var(--fs-small); }
+.sb-pin:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.sb-pin[aria-pressed="true"] { color: var(--teal-l); font-weight: var(--fw-semibold); }
+.sb-pin:disabled { opacity: .45; cursor: not-allowed; }
 .sb-answer-b { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); overflow-wrap: anywhere; }
 .sb-answer-b > * { min-width: 0; }
 .sb-decision, .sb-deal, .sb-setup { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); }
@@ -191,6 +206,9 @@
 .sb-q { color: var(--text); }
 .sb-a .sb-say { white-space: pre-wrap; overflow-wrap: anywhere; }
 .sb-note { color: var(--gold-l); font-size: var(--fs-small); }
+.sb-changed { color: var(--muted); font-size: var(--fs-small); }
+.sb-changed[data-changed="undone"] { text-decoration: line-through; }
+.sb-changed .sb-undone { text-decoration: none; display: inline-block; }
 .sb-busy { display: flex; align-items: center; gap: var(--sp-2); color: var(--muted); }
 .sb-ask { flex: none; display: grid; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3) var(--sp-3); border-top: 1px solid var(--line); }
 .sb-chips { display: flex; flex-wrap: wrap; gap: 6px; }

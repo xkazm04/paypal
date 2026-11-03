@@ -1,6 +1,6 @@
 # The board: one-page home with an assistant
 
-Status: built on branch `worktree-spark-conversational-home`, opt-in, not merged. Project and decisions: [`docs/design/conversational-home-migration.md`](../design/conversational-home-migration.md). MCP question: [`conversational-home.md`](../design/conversational-home.md). In-app engine path: [`conversational-home-engine-path.md`](../design/conversational-home-engine-path.md).
+Status: on main, opt-in (the console stays the default view). Project and decisions: [`docs/design/conversational-home-migration.md`](../design/conversational-home-migration.md). MCP question: [`conversational-home.md`](../design/conversational-home.md). In-app engine path: [`conversational-home-engine-path.md`](../design/conversational-home-engine-path.md).
 
 ## What the owner sees
 
@@ -9,6 +9,11 @@ A second view of the main window, beside the console. Open it with `?view=board`
 - **Instrument strip.** Room left today against the signed cap, deals today against the cap, held (at PayPal and before PayPal), confirmed by PayPal, and whether the records are intact. A figure the wallet cannot know shows dashed "not available yet", never 0.
 - **The switchboard.** One row per module, in the module's colour and glyph. Four columns: needs you, moving by itself, stopped, paid. Every deal is one key with a shape and a word for its status, its amount and its time left; a key that needs the owner also says what happens if she does nothing. A small week mark ends each row.
 - **Chat rail and answer area.** She asks in her own words; the answer arrives as one of ten panels and may light up or dim parts of the board. The board never leaves the page.
+- **The answer region.** Up to three answers sit side by side in the rail, oldest first (`REGION_MAX` in `lib/assistant/vocabulary.ts`, the region itself in `switchboard/region.ts`). A new answer is added, never swapped in: showing a panel that is already there (same kind and same deal, module or column) adds nothing and moves nothing, it only becomes the answer in focus. When the region is full the oldest panel she did not pin leaves. Clicking a key, "+n more" or a strip figure opens its panel by the same rule. Only the panel in focus carries the gold hand-off, so the page keeps one gold button.
+- **Pins.** She can pin up to two answers (one slot always stays free for the next answer). A pinned answer survives every later reply; only she unpins or closes it, and the assistant has no way to. Pins last for this sitting at the board: Esc (back to the overview) clears the region and its pins, and nothing is stored.
+- **What changed.** Under each reply that changed the screen, one plain line says what it did: "Added: Your money today. Kept: Rules in force (pinned). Removed: This week." plus the filter and the light ("Showing only Spend.", "The light is off."). A reply that changed nothing on screen has no line.
+- **Undo last change.** One button above the answers puts the answers, the filter and the light back exactly as they were before the board's last reply (one step). It is greyed out when there is nothing to undo, and any move of hers after the reply (a click on a key, a filter, a pin, a close) takes its place, so it clears. An act's own Undo (below) is separate and unchanged. Stop applies nothing: a stopped question leaves the screen as she last saw it, even when the engine answers just as she presses Stop.
+- **Her move wins.** If she changes the board (a key, "+n more", a filter, a row or column head, Esc, a pin, a close, Undo) after asking and before the reply arrives, the reply's layout (shows, light, filter) is not applied. The answer still shows its words and its proposals, and its line says "Nothing changed on screen, because you moved the board while it answered." with one quiet "Show what it suggested": pressing it applies that layout by the region's rules as an undo step of its own. Only the latest such offer is kept.
 - **Day one.** On a brand-new wallet the first answer is the four setup steps and the board is honestly empty.
 - **Decisions.** Clicking a key opens the decision behind it. Its gold button hands off to the approval window; nothing is approved on this page.
 
@@ -23,7 +28,7 @@ Two engines sit behind one door.
 
 The engine is told what the board shows (a digest with no counterparty text) and answers with one JSON reply: a short `say` plus up to eight ops from a closed set. `validateReply` (`lib/assistant/validate.ts`) is the only door: it salvages valid ops, drops the rest, counts what it dropped (shown to the owner as "n parts could not be shown") and never throws. If the live engine fails, the board falls back to the scripted one and says so.
 
-Ops: `show` a panel, `focus` a module / fate / deal, `filter` the board, `propose` a button. Panels: needs, decision, deal, money, rules, rescue, safety, book, week, setup.
+Ops: `show` a panel (shows compose into the answer region; see above), `focus` a module / fate / deal, `filter` the board, `propose` a button. Panels: needs, decision, deal, money, rules, rescue, safety, book, week, setup. The wire did not change for the region: no new op, no version bump.
 
 ## Who decides each money step
 
@@ -63,6 +68,8 @@ Dropped, and why: withdrawing an offer cannot be undone and the other side sees 
 `switchboard/*.test.*` (fate mapping over the mock world, per-cell counts, first-run, decision hand-off sends only `approval_open`, op execution with a fake engine, keyboard, engine choice between the shell, the dev bridge and the scripted preview), `lib/assistant/*.test.ts` (registry parity, hostile replies, digest injection, scripted intents, the in-app client and the pinned prompt and schema), `lib/assistant/bridge/*.test.ts` (fake-CLI hardening cases; the live test runs only with `ASSISTANT_LIVE=1`). Rust: `crates/table-engine/tests/assistant.rs` (exact argv, the strict stream, the door's limits and conformance, the contained child with an offline fixture), `table-client` `assistant` and `authority` tests, `src-tauri/tests/capabilities.rs`; the live run is spike 7 (`TABLE_LIVE_ENGINES=1`).
 
 ## Known gaps
+
+- The prompt does not teach that shows compose yet: `OPS.show` in `vocabulary.ts` still tells the model a show "replaces the current one", because the shell sends a pinned copy of the prompt (`assistant_contract.json`) that changes only with a shell rebuild. The region composes whatever the model sends; a model that believes it replaces sends one show per reply, which the region adds. Proposed wording for after 2026-11-12: `OPS.show.about` = "Add an answer panel to the answer area. Up to 3 stay on screen; showing one that is already there just points to it; panels she pinned stay." and a prompt line "Shows add up: show only what this question needs; do not re-show what is already there."
 
 - UNVERIFIED in a real Tauri webview: the in-app `claude-code` path (`assistant_ask`) is tested in Rust and in the client and ran live through the Rust path once (CLI 2.1.316), but has not been called from the desktop window itself; nor has the one CSS container query the board uses.
 - In-app isolation is checked on the CLI's first output line, not before input: the CLI only lists its tools after reading its input, so the shell sends a canned question with no owner data first each session, and shuts the assistant for the session on any wrong inventory (engine-path note, "Isolation").

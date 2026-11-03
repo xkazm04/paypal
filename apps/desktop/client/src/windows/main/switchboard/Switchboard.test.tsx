@@ -493,6 +493,217 @@ describe('A6: safe acts from chat (one agent, one lapse)', () => {
   });
 });
 
+// ---- the composition region: shows compose, pins hold, a line says what changed, one undo ----
+
+describe('A9: the composition region', () => {
+  type Ops = ValidatedReply['ops'];
+  /** A board whose replies are the given op lists, one per question, in order. */
+  async function boardWith(replies: Ops[], engine?: AssistantEngine): Promise<void> {
+    let i = 0;
+    await openBoard({ engine: engine ?? fakeEngine(async () => ({})), deps: { validate: (() => reply({ say: 'Here.', ops: replies[i++] ?? [] })) as never } });
+  }
+  const panels = () => [...document.querySelectorAll<HTMLElement>('[data-panel]')].map((p) => p.dataset.panel);
+  const focusKind = () => document.querySelector<HTMLElement>('.sb-panel[aria-current="true"]')?.dataset.panel;
+  const undoBtn = () => document.querySelector<HTMLButtonElement>('[data-layout-undo]')!;
+  const lines = () => [...document.querySelectorAll<HTMLElement>('[data-changed]')].map((p) => p.textContent);
+  async function turn(q: string, n: number): Promise<void> {
+    await ask(q);
+    await waitFor(() => expect(document.querySelectorAll('.sb-a').length).toBe(n));
+    await waitFor(() => expect(document.querySelector('.sb-busy')).toBeNull());
+  }
+
+  it('a show adds a panel beside the last one; several shows compose; an equal one is not duplicated and does not move', async () => {
+    await boardWith([
+      [{ op: 'show', panel: { kind: 'money' } }],
+      [{ op: 'show', panel: { kind: 'week' } }, { op: 'show', panel: { kind: 'money' } }],
+    ]);
+    expect(undoBtn().disabled).toBe(true);
+    await turn('room left?', 1);
+    expect(panels()).toEqual(['money']);
+    expect(lines()).toEqual(['Added: Your money today.']);
+    await turn('and the week?', 2);
+    expect(panels()).toEqual(['money', 'week']);
+    // money was shown again: it stayed first and is the turn's focus
+    expect(focusKind()).toBe('money');
+    expect(document.querySelector('[data-answer]')!.getAttribute('data-answer')).toBe('money');
+    expect(lines()[1]).toBe('Added: This week. Kept: Your money today.');
+  });
+
+  it('three at most: the oldest unpinned panel leaves, a pinned one survives every reply, and the line says so', async () => {
+    await boardWith([
+      [{ op: 'show', panel: { kind: 'money' } }, { op: 'show', panel: { kind: 'week' } }],
+      [{ op: 'show', panel: { kind: 'rules', module: null } }, { op: 'show', panel: { kind: 'rescue' } }],
+      [{ op: 'show', panel: { kind: 'safety' } }, { op: 'show', panel: { kind: 'needs', module: null } }],
+    ]);
+    await turn('one', 1);
+    fireEvent.click(document.querySelector('[data-pin="money"]')!);
+    expect(document.querySelector('[data-panel="money"]')!.getAttribute('data-pinned')).toBe('true');
+    expect(document.querySelector('[data-pin="money"]')!.getAttribute('aria-pressed')).toBe('true');
+    await turn('two', 2);
+    expect(panels()).toEqual(['money', 'rules', 'rescue']);
+    expect(lines()[1]).toBe('Added: Rules in force and Failed renewals. Kept: Your money today (pinned). Removed: This week.');
+    await turn('three', 3);
+    expect(panels()).toEqual(['money', 'safety', 'needs']);
+    // the owner unpins and closes; the model is never the one that does
+    fireEvent.click(document.querySelector('[data-pin="money"]')!);
+    expect(document.querySelector('[data-panel="money"]')!.getAttribute('data-pinned')).toBe('false');
+    fireEvent.click(document.querySelector('[data-close="money"]')!);
+    expect(panels()).toEqual(['safety', 'needs']);
+  });
+
+  it('one undo puts the region, the filter and the light back exactly as before the last reply', async () => {
+    await boardWith([
+      [{ op: 'show', panel: { kind: 'money' } }, { op: 'filter', module: 'spend', fate: null }],
+      [{ op: 'show', panel: { kind: 'week' } }, { op: 'filter', module: null, fate: null }, { op: 'focus', module: 'rescue', fate: null, deal_id: null }],
+    ]);
+    await turn('one', 1);
+    await turn('two', 2);
+    expect(panels()).toEqual(['money', 'week']);
+    expect(cell('tables', 'moving').classList.contains('dim')).toBe(false);
+    expect(document.querySelector('[data-rowhead="rescue"]')!.classList.contains('lit')).toBe(true);
+    expect(lines()[1]).toBe('Added: This week. Kept: Your money today. Showing the whole board again. Lit up: Rescue.');
+    expect(undoBtn().disabled).toBe(false);
+    fireEvent.click(undoBtn());
+    expect(panels()).toEqual(['money']);
+    expect(focusKind()).toBe('money');
+    expect(cell('tables', 'moving').classList.contains('dim')).toBe(true);
+    expect(cell('spend', 'paid').classList.contains('dim')).toBe(false);
+    expect(document.querySelector('[data-rowhead="rescue"]')!.classList.contains('lit')).toBe(false);
+    // one step: nothing more to undo, and the turn's line says it was undone
+    expect(undoBtn().disabled).toBe(true);
+    expect(document.querySelectorAll('[data-changed="undone"]').length).toBe(1);
+    expect(document.querySelectorAll('[data-changed]')[1]!.getAttribute('data-changed')).toBe('undone');
+  });
+
+  it('a reply that changes nothing on screen has no line and no undo', async () => {
+    await boardWith([[{ op: 'show', panel: { kind: 'money' } }], [{ op: 'show', panel: { kind: 'money' } }], []]);
+    await turn('one', 1);
+    expect(undoBtn().disabled).toBe(false);
+    await turn('again', 2);
+    await turn('nothing', 3);
+    expect(lines()).toEqual(['Added: Your money today.']);
+    expect(undoBtn().disabled).toBe(true);
+  });
+
+  it('an owner move after the reply supersedes its undo; a pick adds its panel by the same rules', async () => {
+    await boardWith([[{ op: 'show', panel: { kind: 'money' } }]]);
+    await turn('one', 1);
+    expect(undoBtn().disabled).toBe(false);
+    fireEvent.click(cell('spend', 'needs').querySelector<HTMLElement>('[data-deal]')!);
+    await waitFor(() => expect(panels()).toEqual(['money', 'decision']));
+    expect(focusKind()).toBe('decision');
+    expect(undoBtn().disabled).toBe(true);
+    // a row head is an owner move too
+    expect(document.querySelectorAll('[data-changed="undone"]').length).toBe(0);
+  });
+
+  it('with two decisions on screen, only the focused one is gold', async () => {
+    await openBoard();
+    const keys = [...document.querySelectorAll<HTMLElement>('.sb-key.f-needs[data-deal]')].filter((k) => !/D-0199/.test(k.getAttribute('aria-label') ?? ''));
+    expect(keys.length).toBeGreaterThan(1);
+    fireEvent.click(keys[0]!);
+    fireEvent.click(keys[1]!);
+    await waitFor(() => expect(panels()).toEqual(['decision', 'decision']));
+    expect(document.querySelectorAll('.ui-btn.gold').length).toBe(1);
+    expect(document.querySelector('.sb-panel[aria-current="true"] .ui-btn.gold')).not.toBeNull();
+    // focusing the first moves the gold with it, and moves no panel
+    fireEvent.click(document.querySelector<HTMLElement>('.sb-panel .sb-ptitle')!);
+    expect(document.querySelectorAll('.ui-btn.gold').length).toBe(1);
+    expect(document.querySelector('.sb-panel')!.getAttribute('aria-current')).toBe('true');
+  });
+
+  it('Stop restores: a cancelled turn applies nothing, even when the engine answers after the stop', async () => {
+    let i = 0;
+    // The second question's engine answers (with ops) the moment Stop is pressed: the race a real
+    // engine can lose. The board must apply none of it.
+    const engine = fakeEngine((_q, _d, signal) => (i++ === 0 ? Promise.resolve({}) : new Promise((res) => { signal?.addEventListener('abort', () => res({})); })));
+    await boardWith([
+      [{ op: 'show', panel: { kind: 'money' } }, { op: 'filter', module: 'shield', fate: null }],
+      [{ op: 'show', panel: { kind: 'week' } }, { op: 'show', panel: { kind: 'rescue' } }, { op: 'filter', module: null, fate: null }],
+    ], engine);
+    await turn('one', 1);
+    const before = { panels: panels(), undo: undoBtn().disabled, dim: cell('tables', 'moving').classList.contains('dim') };
+    await ask('slow');
+    await waitFor(() => expect(document.querySelector('.sb-busy')).not.toBeNull());
+    fireEvent.click(document.querySelector('[data-cancel]')!);
+    await waitFor(() => expect(document.querySelectorAll('.sb-a')[1]?.textContent).toContain('Stopped. Nothing changed.'));
+    await settle();
+    expect(panels()).toEqual(before.panels);
+    expect(cell('tables', 'moving').classList.contains('dim')).toBe(before.dim);
+    expect(undoBtn().disabled).toBe(before.undo);
+    expect(lines()).toEqual(['Added: Your money today. Showing only Shield.']);
+  });
+
+  it('a move she makes while it answers wins: the reply\'s layout is held and offered, its proposals still appear', async () => {
+    let release: (() => void) | null = null;
+    let i = 0;
+    const engine = fakeEngine(() => (i++ === 0 ? Promise.resolve({}) : new Promise((res) => { release = () => res({}); })));
+    await boardWith([
+      [{ op: 'show', panel: { kind: 'week' } }],
+      [{ op: 'show', panel: { kind: 'money' } }, { op: 'filter', module: 'shield', fate: null }, { op: 'propose', action: { action: 'open_setup', target: 'mandate' }, why: 'Rules first.' }],
+    ], engine);
+    await turn('one', 1);
+    await ask('slow');
+    await waitFor(() => expect(document.querySelector('.sb-busy')).not.toBeNull());
+    // her move while it answers: a row head
+    fireEvent.click(document.querySelector('[data-rowhead="spend"]')!);
+    await act(async () => { release?.(); await settle(); });
+    await waitFor(() => expect(document.querySelector('.sb-busy')).toBeNull());
+    // nothing of the reply's layout landed; her filter stands
+    expect(panels()).toEqual(['week']);
+    expect(cell('spend', 'paid').classList.contains('dim')).toBe(false);
+    expect(cell('shield', 'needs').classList.contains('dim')).toBe(true);
+    expect(undoBtn().disabled).toBe(true);
+    // the turn says so, with one quiet offer; the proposal is there as usual
+    const heldLine = document.querySelector<HTMLElement>('[data-changed="held"]')!;
+    expect(heldLine.textContent).toContain('Nothing changed on screen, because you moved the board while it answered.');
+    expect(document.querySelectorAll('[data-proposal="open_setup"]').length).toBe(1);
+    expect(document.querySelectorAll('.sb-a')[1]!.textContent).toContain('Here.');
+    // applying it goes through the region's rules and is an undo step of its own
+    fireEvent.click(heldLine.querySelector('[data-apply-held]')!);
+    expect(panels()).toEqual(['week', 'money']);
+    expect(cell('shield', 'needs').classList.contains('dim')).toBe(false);
+    expect(document.querySelector('[data-changed="held"]')).toBeNull();
+    expect(lines()[1]).toBe('Added: Your money today. Kept: This week. Showing only Shield.');
+    expect(undoBtn().disabled).toBe(false);
+    fireEvent.click(undoBtn());
+    expect(panels()).toEqual(['week']);
+    expect(cell('shield', 'needs').classList.contains('dim')).toBe(true);
+    expect(cell('spend', 'paid').classList.contains('dim')).toBe(false);
+  });
+
+  it('without a move while it answers, the reply applies as usual (the control for the test above)', async () => {
+    await boardWith([[{ op: 'show', panel: { kind: 'week' } }], [{ op: 'show', panel: { kind: 'money' } }]]);
+    await turn('one', 1);
+    fireEvent.click(document.querySelector('[data-rowhead="spend"]')!);
+    await turn('two', 2);
+    expect(panels()).toEqual(['week', 'money']);
+    expect(document.querySelector('[data-changed="held"]')).toBeNull();
+  });
+
+  it('Esc clears the region and its pins', async () => {
+    await boardWith([[{ op: 'show', panel: { kind: 'money' } }, { op: 'show', panel: { kind: 'week' } }]]);
+    await turn('one', 1);
+    fireEvent.click(document.querySelector('[data-pin="money"]')!);
+    act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    await waitFor(() => expect(document.querySelector('[data-answer="none"]')).not.toBeNull());
+    expect(panels()).toEqual([]);
+    expect(undoBtn().disabled).toBe(true);
+  });
+
+  it('on a new wallet the setup steps still open the answer area, and an answer takes their place', async () => {
+    let i = 0;
+    world('?first_run=1');
+    render(<WorldProvider><Switchboard engine={fakeEngine(async () => ({}))} deps={{ validate: (() => reply({ ops: i++ === 0 ? [{ op: 'show', panel: { kind: 'money' } }] : [] })) as never }} /></WorldProvider>);
+    await waitFor(() => expect(document.querySelector('[data-setup]')).not.toBeNull());
+    expect(document.querySelector('[data-answer="setup"]')).not.toBeNull();
+    expect(panels()).toEqual([]);
+    await ask('room?');
+    await waitFor(() => expect(panels()).toEqual(['money']));
+    expect(document.querySelector('[data-setup]')).toBeNull();
+  });
+});
+
 describe('A7: the keyboard path', () => {
   it('arrows move between keys (one tab stop), `/` focuses the input, Esc backs out and never leaves', async () => {
     await openBoard();

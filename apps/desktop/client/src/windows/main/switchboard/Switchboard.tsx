@@ -8,14 +8,21 @@
 // drawn as a consent box from the host's resolution, and its one act-tier command (SAFE_ACTS) is
 // invoked only by the owner's press on that box, once, after re-checking what was shown. Its undo is
 // the host's own button, never the assistant's.
+// The answer area is a composition region (region.ts): up to three panels the assistant's `show` ops
+// and the owner's own opens add to by one rule, that the owner may pin (a pinned panel survives every
+// reply) or close. After each applied reply the rail says in one line what changed on screen, and one
+// Undo puts the region, the filter and the light back exactly as they were before that reply. An owner
+// move supersedes that undo; a stopped turn applies nothing; Esc clears the region and its pins. A
+// move she makes while a question is being answered wins: that reply's layout is held and offered on
+// its turn, never applied over her move (its proposals still appear).
 // Esc backs out to the overview and never leaves the page by itself; `/` focuses the chat input.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Module } from '@bindings/Module';
 import type { AssistantEngine, Fate, PanelSpec, UiOp, ValidatedReply } from '../../../lib/assistant';
 import { useMutation } from '../../../lib/hooks';
 import {
-  BOARD_ACT, BOARD_ANSWER_CLOSE, BOARD_ANSWER_EMPTY, BOARD_ANSWER_LABEL, BOARD_CRUMB_BOARD, BOARD_CRUMB_LABEL, BOARD_EMPTY_BOARD, BOARD_FATE, BOARD_FILTER_CLEAR, BOARD_MAIN_LABEL, BOARD_PROPOSAL,
-  BOARD_REPAIRED, BOARD_SUB, BOARD_TITLE, BOARD_TO_CONSOLE, BOARD_TO_CONSOLE_TITLE, BRAND_NAME,
+  BOARD_ACT, BOARD_ANSWER_CLOSE, BOARD_ANSWER_EMPTY, BOARD_ANSWER_LABEL, BOARD_CHANGED, BOARD_CRUMB_BOARD, BOARD_CRUMB_LABEL, BOARD_EMPTY_BOARD, BOARD_FATE, BOARD_FILTER_CLEAR, BOARD_MAIN_LABEL,
+  BOARD_PANEL_TITLE, BOARD_PROPOSAL, BOARD_REGION, BOARD_REPAIRED, BOARD_SUB, BOARD_TITLE, BOARD_TO_CONSOLE, BOARD_TO_CONSOLE_TITLE, BRAND_NAME,
 } from '../../../lib/words';
 import { Mark } from '../../../shared/brand';
 import { MockBadge, ModeBadge, WalletNotice } from '../../../shared/honesty';
@@ -25,7 +32,10 @@ import { useDeals, useLocked, useNeeds, useRuns, useSettings } from '../world';
 import { Answer, panelTitle, type PanelHost } from './Answer';
 import { ChatRail, type Turn } from './ChatRail';
 import { InstrumentStrip } from './InstrumentStrip';
-import { Matrix, NO_FILTER, type Filter, type Highlight } from './Matrix';
+import { Matrix, NO_FILTER } from './Matrix';
+import {
+  applyLayout, canPin, changedAnything, changeLine, closePanel, diffArrangement, EMPTY_ARRANGEMENT, focusPanel, panelKey, PIN_MAX, place, setPinned, type Arrangement, type ChangeNames,
+} from './region';
 import { resolveAction, undoAvailable, type ActRun, type BoardFacts, type Consent, type Run } from './resolve';
 import { useBoardAssistant, type AssistantDeps } from './useBoardAssistant';
 import { useBoardModel } from './useBoardModel';
@@ -52,9 +62,12 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
   const deals = useDeals().data;
   const assistant = useBoardAssistant(engine, deps);
 
-  const [panel, setPanel] = useState<PanelSpec | null>(null);
-  const [filter, setFilter] = useState<Filter>(NO_FILTER);
-  const [highlight, setHighlight] = useState<Highlight | null>(null);
+  // Everything a reply may change on screen, as one value (region.ts). The ref is the value the next
+  // reply is applied to, so a diff and an undo snapshot never read a stale render.
+  const [arr, setArr] = useState<Arrangement>(EMPTY_ARRANGEMENT);
+  const arrRef = useRef<Arrangement>(arr);
+  /** The arrangement from before the last applied reply that changed something (one step), and its turn. */
+  const [undoTo, setUndoTo] = useState<{ before: Arrangement; turn: number } | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [repaired, setRepaired] = useState(false);
@@ -65,23 +78,65 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
   const root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
 
-  // A brand-new wallet opens on the setup steps; everything else opens on the plain board.
-  const shown: PanelSpec | null = panel ?? (model.firstRun ? SETUP_PANEL : null);
+  const { filter, highlight } = arr;
+  const focused = arr.region.find((x) => panelKey(x.spec) === arr.focus) ?? null;
+  // A brand-new wallet opens on the setup steps (shown while the region is empty, not a region panel);
+  // everything else opens on the plain board.
+  const setupShown = arr.region.length === 0 && model.firstRun;
+  const shown: PanelSpec | null = focused?.spec ?? (setupShown ? SETUP_PANEL : null);
   const selId = shown && (shown.kind === 'decision' || shown.kind === 'deal') ? shown.deal_id : null;
   const selKey = selId ? model.byId.get(selId) ?? null : null;
 
-  // ---- the owner's own moves ----
-  const overview = useCallback(() => { setPanel(null); setFilter(NO_FILTER); setHighlight(null); setProposals([]); setRepaired(false); setActed(null); }, []);
+  const commit = useCallback((next: Arrangement) => { arrRef.current = next; setArr(next); }, []);
+  // Counts the owner's own changes to the arrangement. A reply whose question was asked before the
+  // count moved does not apply its layout: she changed the board while it answered, and her move wins
+  // (its layout is offered on the turn instead; `ask` / `applyHeld`).
+  const ownerMoves = useRef(0);
+  /** A reply's layout ops held back because she moved while it answered, by turn (the latest only). */
+  const held = useRef<{ turn: number; ops: readonly UiOp[] } | null>(null);
+
+  // ---- the owner's own moves: each supersedes the last reply's pending undo ----
+  const move = useCallback((f: (a: Arrangement) => Arrangement) => {
+    const next = f(arrRef.current);
+    if (next === arrRef.current) return;
+    ownerMoves.current += 1;
+    commit(next);
+    setUndoTo(null);
+  }, [commit]);
+  // Back to the overview: the region and its pins clear (pins live for this task only).
+  const overview = useCallback(() => { ownerMoves.current += 1; commit(EMPTY_ARRANGEMENT); setUndoTo(null); setProposals([]); setRepaired(false); setActed(null); }, [commit]);
   const pick = useCallback((id: string) => {
     const k = model.byId.get(id);
     if (!k) return;
-    setHighlight(null);
-    setPanel({ kind: k.fate === 'needs' ? 'decision' : 'deal', deal_id: id });
+    move((a) => ({ ...place(a, { kind: k.fate === 'needs' ? 'decision' : 'deal', deal_id: id }), highlight: null }));
+  }, [model.byId, move]);
+  const filterTo = useCallback((m: Module | null, f: Fate | null) => move((a) => ({ ...a, filter: { module: m, fate: f }, highlight: null })), [move]);
+  const toggleRow = (m: Module) => move((a) => ({ ...a, filter: { module: a.filter.module === m ? null : m, fate: a.filter.fate } }));
+  const toggleCol = (f: Fate) => move((a) => ({ ...a, filter: { module: a.filter.module, fate: a.filter.fate === f ? null : f } }));
+  const more = (m: Module, f: Fate) => move((a) => ({ ...place(a, { kind: 'book', module: m, fate: f }), filter: { module: m, fate: f }, highlight: null }));
+  const openPanel = (spec: PanelSpec) => move((a) => ({ ...place(a, spec), highlight: null }));
+
+  // ---- the one-step undo of the last reply's layout change (acts keep their own undo below) ----
+  const undoLayout = useCallback(() => {
+    if (!undoTo) return;
+    ownerMoves.current += 1;
+    commit(undoTo.before);
+    setUndoTo(null);
+    setTurns((t) => t.map((x) => (x.id === undoTo.turn && x.answer ? { ...x, answer: { ...x.answer, undone: true } } : x)));
+  }, [undoTo, commit]);
+
+  // Plain names for the change line: a panel's title plus what it is about.
+  const names = useMemo<ChangeNames>(() => {
+    const scope = (m: Module | null, f: Fate | null, dealId?: string | null): string =>
+      [m ? MODULE[m].name : null, f ? BOARD_FATE[f].word : null, dealId ? model.byId.get(dealId)?.label ?? null : null].filter((x): x is string => !!x).join(', ');
+    const panel = (p: PanelSpec): string => {
+      const about = p.kind === 'decision' || p.kind === 'deal' ? scope(null, null, p.deal_id)
+        : p.kind === 'needs' || p.kind === 'rules' ? scope(p.module, null)
+          : p.kind === 'book' ? scope(p.module, p.fate) : '';
+      return about ? `${BOARD_PANEL_TITLE[p.kind]} (${about})` : BOARD_PANEL_TITLE[p.kind];
+    };
+    return { panel, scope };
   }, [model.byId]);
-  const filterTo = useCallback((m: Module | null, f: Fate | null) => { setFilter({ module: m, fate: f }); setHighlight(null); }, []);
-  const toggleRow = (m: Module) => setFilter((p) => ({ module: p.module === m ? null : m, fate: p.fate }));
-  const toggleCol = (f: Fate) => setFilter((p) => ({ module: p.module, fate: p.fate === f ? null : f }));
-  const more = (m: Module, f: Fate) => { setFilter({ module: m, fate: f }); setHighlight(null); setPanel({ kind: 'book', module: m, fate: f }); };
 
   // ---- the hand-off: approval_open, or the console ----
   const run = useCallback((r: Run) => {
@@ -133,43 +188,70 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
 
   const host = useMemo<PanelHost>(() => ({ model, run, pending: open.pending, error: open.error, locked, pick, filterTo }), [model, run, open.pending, open.error, locked, pick, filterTo]);
 
-  // ---- the assistant's ops ----
-  const apply = useCallback((reply: ValidatedReply) => {
-    let nextPanel: PanelSpec | null | undefined;
-    let nextFilter: Filter | undefined;
-    let nextHighlight: Highlight | null | undefined;
+  // ---- the assistant's ops: layout through the region's rules, proposals beside it ----
+  /** Applies a reply's layout ops to the arrangement as it is now, as one undo step for `turn`;
+   *  returns the line saying what changed on screen (null when nothing). */
+  const applyOps = useCallback((ops: readonly UiOp[], turn: number): string | null => {
+    const before = arrRef.current;
+    const after = applyLayout(before, ops, (id) => model.byId.has(id));
+    const change = diffArrangement(before, after);
+    commit(after);
+    // One step: the undo is always the last applied reply's, and only when it changed something.
+    setUndoTo(changedAnything(change) ? { before, turn } : null);
+    return changeLine(change, BOARD_CHANGED, names);
+  }, [model.byId, commit, names]);
+
+  /** Applies a reply. `layout: false` when she moved the board while it answered: then the layout is
+   *  held back and only the proposals appear. Returns the change line (null when nothing changed). */
+  const apply = useCallback((reply: ValidatedReply, turn: number, layout: boolean): string | null => {
+    const changed = layout ? applyOps(reply.ops, turn) : null;
     const props: Proposal[] = [];
-    for (const op of reply.ops) {
-      switch (op.op) {
-        case 'show': nextPanel = op.panel; break;
-        case 'focus':
-          if (op.deal_id !== null && !model.byId.has(op.deal_id)) break;
-          nextHighlight = op.module === null && op.fate === null && op.deal_id === null ? null : { module: op.module, fate: op.fate, deal_id: op.deal_id };
-          break;
-        case 'filter': nextFilter = { module: op.module, fate: op.fate }; break;
-        case 'propose': props.push({ id: props.length, action: op.action, why: op.why }); break;
-      }
-    }
-    if (nextPanel !== undefined) setPanel(nextPanel);
-    if (nextFilter !== undefined) setFilter(nextFilter);
-    if (nextHighlight !== undefined) setHighlight(nextHighlight);
+    for (const op of reply.ops) if (op.op === 'propose') props.push({ id: props.length, action: op.action, why: op.why });
     setProposals(props);
     setStale(new Set());
     setRepaired(reply.repaired);
-  }, [model.byId]);
+    return changed;
+  }, [applyOps]);
 
   const ask = useCallback(async (question: string) => {
     const id = ++turnId.current;
+    const movesAtAsk = ownerMoves.current;
     setTurns((t) => [...t.slice(-11), { id, question, answer: null }]);
     const out = await assistant.ask(question, model.digest);
+    // A stopped turn applies nothing: the arrangement stays exactly as the owner last saw it.
     if (out.kind === 'cancelled') {
-      setTurns((t) => t.map((x) => (x.id === id ? { ...x, answer: { say: '', dropped: 0, fellBack: false, cancelled: true, engine: null, hadOps: false } } : x)));
+      setTurns((t) => t.map((x) => (x.id === id ? { ...x, answer: { say: '', dropped: 0, fellBack: false, cancelled: true, engine: null, hadOps: false, changed: null, undone: false, held: false } } : x)));
       return;
     }
     const r = out.reply;
-    apply(r);
-    setTurns((t) => t.map((x) => (x.id === id ? { ...x, answer: { say: r.say, dropped: r.dropped.count, fellBack: out.fellBack, cancelled: false, engine: out.engine, hadOps: r.ops.length > 0 } } : x)));
-  }, [assistant, model.digest, apply]);
+    // She moved the board after asking: her move wins. The reply's layout is held on this turn (only
+    // if it would change something now) and applied only if she asks for it.
+    const moved = ownerMoves.current !== movesAtAsk;
+    const wouldChange = moved && changedAnything(diffArrangement(arrRef.current, applyLayout(arrRef.current, r.ops, (x) => model.byId.has(x))));
+    held.current = wouldChange ? { turn: id, ops: r.ops } : null;
+    const changed = apply(r, id, !moved);
+    setTurns((t) => t.map((x) => (x.id === id
+      ? { ...x, answer: { say: r.say, dropped: r.dropped.count, fellBack: out.fellBack, cancelled: false, engine: out.engine, hadOps: r.ops.length > 0, changed, undone: false, held: wouldChange } }
+      // one held layout at a time: a newer reply retires an older offer
+      : x.answer?.held ? { ...x, answer: { ...x.answer, held: false } } : x)));
+  }, [assistant, model.digest, model.byId, apply]);
+
+  /** She asked for the layout a reply suggested while she was moving: applied now, by the region's
+   *  rules, as an undo step of its own. */
+  const applyHeld = useCallback((turn: number) => {
+    const h = held.current;
+    if (!h || h.turn !== turn) return;
+    held.current = null;
+    ownerMoves.current += 1;
+    const changed = applyOps(h.ops, turn);
+    setTurns((t) => t.map((x) => (x.id === turn && x.answer ? { ...x, answer: { ...x.answer, held: false, changed } } : x)));
+  }, [applyOps]);
+
+  // The focused panel is brought into view (no animation: the region only says where it is).
+  useEffect(() => {
+    if (!arr.focus) return;
+    root.current?.querySelector<HTMLElement>('.sb-panel.focus')?.scrollIntoView?.({ block: 'nearest' });
+  }, [arr.focus]);
 
   // ---- keys the page owns: Esc backs out and never leaves; / goes to the input ----
   useEffect(() => {
@@ -208,25 +290,45 @@ export function Switchboard({ engine, deps }: { engine?: AssistantEngine; deps?:
         <ThemeSwitch />
       </header>
       <main className="sb-board" aria-label={BOARD_MAIN_LABEL}>
-        <InstrumentStrip inst={model.instruments} onOpen={(t) => { setHighlight(null); setPanel({ kind: t === 'money' ? 'money' : 'safety' }); }} />
+        <InstrumentStrip inst={model.instruments} onOpen={(t) => openPanel({ kind: t === 'money' ? 'money' : 'safety' })} />
         <div className="sb-matrixwrap">
           <Matrix model={model} filter={filter} highlight={highlight} selId={selId} onKey={pick} onMore={more} onRow={toggleRow} onCol={toggleCol} />
           {model.ready && model.keys.length === 0 ? <p className="sb-emptynote" data-empty-board>{BOARD_EMPTY_BOARD}</p> : null}
         </div>
       </main>
-      <ChatRail engine={assistant.engine} busy={assistant.busy} turns={turns} onAsk={(q) => void ask(q)} onCancel={assistant.cancel} inputRef={input}>
-        <section className="sb-answer" aria-label={BOARD_ANSWER_LABEL} data-answer={shown?.kind ?? 'none'}>
-          <nav className="sb-crumb" aria-label={BOARD_CRUMB_LABEL}>
-            {crumb.map((c, i) => <span key={i} className={i === crumb.length - 1 ? 'sb-here' : undefined} aria-current={i === crumb.length - 1 ? 'location' : undefined}>{i ? <i aria-hidden="true"> › </i> : null}{c}</span>)}
-            {filtered ? <button type="button" className="sb-linkbtn" onClick={() => setFilter(NO_FILTER)}>{BOARD_FILTER_CLEAR}</button> : null}
-          </nav>
-          {shown ? (
+      <ChatRail engine={assistant.engine} busy={assistant.busy} turns={turns} onAsk={(q) => void ask(q)} onCancel={assistant.cancel} onApplyHeld={applyHeld} inputRef={input}>
+        <section className="sb-answer" aria-label={BOARD_ANSWER_LABEL} data-answer={shown?.kind ?? 'none'} data-region={arr.region.length}>
+          <div className="sb-answer-top">
+            <nav className="sb-crumb" aria-label={BOARD_CRUMB_LABEL}>
+              {crumb.map((c, i) => <span key={i} className={i === crumb.length - 1 ? 'sb-here' : undefined} aria-current={i === crumb.length - 1 ? 'location' : undefined}>{i ? <i aria-hidden="true"> › </i> : null}{c}</span>)}
+              {filtered ? <button type="button" className="sb-linkbtn" onClick={() => move((a) => ({ ...a, filter: NO_FILTER }))}>{BOARD_FILTER_CLEAR}</button> : null}
+            </nav>
+            <Btn sm className="sb-layout-undo" disabled={!undoTo} onClick={undoLayout} title={undoTo ? BOARD_REGION.undoTitle : BOARD_REGION.undoNone} data-layout-undo={undoTo ? 'ready' : 'none'}>{BOARD_REGION.undo}</Btn>
+          </div>
+          {arr.region.length ? (
+            <ol className="sb-region" aria-label={BOARD_REGION.label}>
+              {arr.region.map((x) => {
+                const key = panelKey(x.spec);
+                const isFocus = key === arr.focus;
+                const pinOff = !x.pinned && !canPin(arr.region, key);
+                return (
+                  <li key={key} className={`sb-panel${isFocus ? ' focus' : ''}${x.pinned ? ' pinned' : ''}`} data-panel={x.spec.kind} data-panel-key={key} data-pinned={x.pinned ? 'true' : 'false'} aria-current={isFocus ? 'true' : undefined}>
+                    <div className="sb-answer-h">
+                      <h3><button type="button" className="sb-ptitle" onClick={() => move((a) => focusPanel(a, key))}>{panelTitle(x.spec)}</button></h3>
+                      <span className="sb-pactions">
+                        <button type="button" className="sb-pin" aria-pressed={x.pinned} disabled={pinOff} onClick={() => move((a) => setPinned(a, key, !x.pinned))} title={pinOff ? BOARD_REGION.pinFull(PIN_MAX) : x.pinned ? BOARD_REGION.unpinTitle : BOARD_REGION.pinTitle} data-pin={key}>{BOARD_REGION.pin}</button>
+                        <button type="button" className="sb-close" onClick={() => move((a) => closePanel(a, key))} aria-label={BOARD_ANSWER_CLOSE} title={BOARD_ANSWER_CLOSE} data-close={key}>×</button>
+                      </span>
+                    </div>
+                    <div className="sb-answer-b"><Answer panel={x.spec} host={host} primary={isFocus} /></div>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : setupShown ? (
             <>
-              <div className="sb-answer-h">
-                <h3>{panelTitle(shown)}</h3>
-                {panel ? <button type="button" className="sb-close" onClick={() => setPanel(null)} aria-label={BOARD_ANSWER_CLOSE} title={BOARD_ANSWER_CLOSE}>×</button> : null}
-              </div>
-              <div className="sb-answer-b"><Answer panel={shown} host={host} /></div>
+              <div className="sb-answer-h"><h3>{panelTitle(SETUP_PANEL)}</h3></div>
+              <div className="sb-answer-b"><Answer panel={SETUP_PANEL} host={host} /></div>
             </>
           ) : <p className="sb-quiet">{BOARD_ANSWER_EMPTY}</p>}
           {repaired ? <p className="sb-note" data-note="repaired">{BOARD_REPAIRED}</p> : null}

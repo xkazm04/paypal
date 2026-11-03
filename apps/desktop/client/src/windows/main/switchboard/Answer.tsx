@@ -42,10 +42,12 @@ export function panelTitle(p: PanelSpec): string {
   return BOARD_PANEL_TITLE[p.kind];
 }
 
-export function Answer({ panel, host }: { panel: PanelSpec; host: PanelHost }) {
+/** `primary`: this panel is the region's focus. Only the focus panel draws its hand-off gold, so the
+ *  page keeps exactly one gold action however many answers the region holds. */
+export function Answer({ panel, host, primary = true }: { panel: PanelSpec; host: PanelHost; primary?: boolean }) {
   switch (panel.kind) {
     case 'needs': return <NeedsPanel module={panel.module} host={host} />;
-    case 'decision': return <DecisionPanel id={panel.deal_id} host={host} />;
+    case 'decision': return <DecisionPanel id={panel.deal_id} host={host} primary={primary} />;
     case 'deal': return <DealPanel id={panel.deal_id} host={host} />;
     case 'money': return <MoneyPanel host={host} />;
     case 'rules': return <RulesPanel host={host} />;
@@ -53,7 +55,7 @@ export function Answer({ panel, host }: { panel: PanelSpec; host: PanelHost }) {
     case 'safety': return <SafetyPanel host={host} />;
     case 'book': return <BookPanel module={panel.module} fate={panel.fate} host={host} />;
     case 'week': return <WeekPanel host={host} />;
-    case 'setup': return <SetupPanel host={host} />;
+    case 'setup': return <SetupPanel host={host} primary={primary} />;
   }
 }
 
@@ -102,7 +104,7 @@ function KeyRow({ k, host, silence }: { k: BoardKey; host: PanelHost; silence?: 
   );
 }
 
-function DecisionPanel({ id, host }: { id: string; host: PanelHost }) {
+function DecisionPanel({ id, host, primary }: { id: string; host: PanelHost; primary: boolean }) {
   const k = host.model.byId.get(id);
   if (!k) return <p className="sb-quiet">{BOARD_DECISION.gone}</p>;
   if (k.fate !== 'needs') return <DealPanel id={id} host={host} note={BOARD_DECISION.notWaiting} />;
@@ -120,7 +122,7 @@ function DecisionPanel({ id, host }: { id: string; host: PanelHost }) {
       <p className="sb-quiet">{BOARD_DECISION.handoff}</p>
       <div className="sb-actions">
         {k.review
-          ? <HandOff label={BOARD_DECISION.review} title={BOARD_DECISION.reviewTitle} host={host} run={{ kind: 'approval', deal_id: k.id, target: null }} gold />
+          ? <HandOff label={BOARD_DECISION.review} title={BOARD_DECISION.reviewTitle} host={host} run={{ kind: 'approval', deal_id: k.id, target: null }} gold={primary} />
           : <HandOff label={BOARD_DEAL.open} title={BOARD_DEAL.openTitle} host={host} run={{ kind: 'console', hash: consoleHash(k.id) }} gold={false} />}
       </div>
       <ErrorLine host={host} />
@@ -283,7 +285,7 @@ function WeekPanel({ host }: { host: PanelHost }) {
 
 // ---- setup --------------------------------------------------------------------------------------------------
 
-function SetupPanel({ host }: { host: PanelHost }) {
+function SetupPanel({ host, primary }: { host: PanelHost; primary: boolean }) {
   const gs = useStart();
   const runFor = (key: StartStepKey): Run => {
     if (key === 'paypal') return { kind: 'approval', deal_id: null, target: 'credentials' };
@@ -299,7 +301,7 @@ function SetupPanel({ host }: { host: PanelHost }) {
       <p className="sb-quiet">{host.model.keys.length ? BOARD_SETUP.promise : `${BOARD_SETUP.empty} ${BOARD_SETUP.promise}`}</p>
       <div className="sb-actions">
         {next
-          ? <HandOff label={BOARD_SETUP.next(START_STEP[next].title)} title={START_STEP[next].where} host={host} run={runFor(next)} gold />
+          ? <HandOff label={BOARD_SETUP.next(START_STEP[next].title)} title={START_STEP[next].where} host={host} run={runFor(next)} gold={primary} />
           : gs.done === gs.total ? <span className="sb-quiet">{BOARD_SETUP.allDone}</span> : null}
       </div>
       <ErrorLine host={host} />

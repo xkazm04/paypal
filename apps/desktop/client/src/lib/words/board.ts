@@ -110,6 +110,34 @@ export const BOARD_PANEL_TITLE = {
   setup: 'Getting ready',
 } as const;
 export const BOARD_PANEL_KIND = 'Answer';
+/** The region of answers (windows/main/switchboard/region.ts): up to three, pins, the one-step undo. */
+export const BOARD_REGION = {
+  label: 'Answers on screen',
+  pin: 'Pin',
+  pinTitle: 'Keep this answer here. New answers will not take its place.',
+  unpinTitle: 'Unpin it. New answers may take its place again.',
+  pinFull: (n: number): string => `You can pin ${n} answers. Unpin one first.`,
+  undo: 'Undo last change',
+  undoTitle: 'Put the answers, the filter and the light back as they were before the board’s last reply. Your own moves stay.',
+  undoNone: 'Nothing the board changed is left to undo.',
+} as const;
+/** The one line under a reply that says what it changed on screen. Never shown when nothing changed. */
+export const BOARD_CHANGED = {
+  label: 'What changed on screen',
+  added: (names: string): string => `Added: ${names}.`,
+  kept: (names: string): string => `Kept: ${names}.`,
+  removed: (names: string): string => `Removed: ${names}.`,
+  pinned: (name: string): string => `${name} (pinned)`,
+  list: (names: readonly string[]): string => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`),
+  filtered: (what: string): string => `${BOARD_FILTER_ON(what)}.`,
+  unfiltered: 'Showing the whole board again.',
+  lit: (what: string): string => `${BOARD_FOCUS_ON(what)}.`,
+  unlit: 'The light is off.',
+  undone: 'Undone: the screen is back as it was.',
+  /** The reply arrived after she moved the board: her move wins, its layout is only offered. */
+  held: 'Nothing changed on screen, because you moved the board while it answered.',
+  applyHeld: 'Show what it suggested',
+} as const;
 export const BOARD_CRUMB_LABEL = 'Where you are';
 export const BOARD_CRUMB_BOARD = 'Board';
 

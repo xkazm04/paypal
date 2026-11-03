@@ -2964,3 +2964,20 @@ recording, `apps/desktop/client/src/mock/haggle.json` (table-runtime's haggle re
   reader also fills in a day's limit that the signed rules do not have (marked as filled in).
 - **Wall clock.** e5's two clock-bound tests are pinned to a Wednesday 10:00 (`sayit.test.tsx`, the whole
   "Say it on the Charter" block; `rewind.layer.test.tsx`, "says what happens first").
+
+## The board composes, and every change it makes can be undone (spark ai-driven-ux-golden-standard, P1, 2026-11-03)
+
+Built against the registry's new `model-composed-workspace` standard (composition-region, arrangement-memory,
+reversible-screen-ops). Client only; no Rust, IPC or bindings change.
+- **A composition region** (`switchboard/region.ts`, pure, tested) replaces the one answer panel: up to
+  `REGION_MAX = 3` answers; a `show` adds; an answer already on screen is focused, never duplicated or moved;
+  when full, the oldest unpinned answer leaves. Only the focused answer carries the gold hand-off.
+- **Pins** (at most `REGION_MAX - 1`) survive every reply for the board session; Esc clears the region and pins.
+- **What changed**: each reply that changed the screen says so in one plain line under its answer.
+- **Undo last change** restores the region, filter and light to what they were before the board's last reply;
+  any owner move supersedes it. Stop applies nothing.
+- **Her move wins**: if Maya moves the board while a reply is in flight, its layout is held, not applied; the
+  line says so and "Show what it suggested" applies it as an undoable step.
+- **Deferred to after 2026-11-12**: the prompt still says `show` replaces, because the prompt and op wording are
+  pinned in `crates/table-client/src/assistant_contract.json` (embedded in the shell). Proposed wording is in
+  `docs/features/conversational-home.md`.
