@@ -1,6 +1,6 @@
 # Conversational home: does it need MCP?
 
-Status: design note, 2026-10-31. Prototypes are in the (gitignored) contest arena; nothing here is built in the client.
+Status: design note, 2026-10-31. The board as built now looks and reads as [The Proof Table](the-proof-table.md) (2026-11-03). Prototypes are in the (gitignored) contest arena; nothing here is built in the client.
 
 ## The idea in one paragraph
 
