@@ -6,19 +6,43 @@
       "subject": "test-harness",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-14",
-      "evaluatedTs": "2026-10-14T23:18:09.459Z",
-      "worker": "a0c1a5ea-74bf-43ad-ba3e-7af40cca4f16",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T10:08:03.592Z",
+      "worker": "f0f0e2b7-8c74-467b-b79e-89cb272190f6",
       "techniques": [
         {
           "technique": "isolation-lanes",
           "verdict": "deviation",
-          "evidence": "crates/table-engine/tests/native.rs:9 The root helper creates a ULID directory and returns a plain PathBuf; no teardown or wrapper reaps these roots. Production RunDirectory cleanup removes only run subdirectories."
+          "evidence": "crates/table-engine/tests/native.rs:11 native.rs has no remove_dir and no startup sweep of .build/engine-tests. .gitignore hides the accumulation but does not reap it."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/tests/native.rs:23 The init watchdog bound was raised to stop a load flake. The 'stall' case (:179-185) only asserts is_err(), so nothing checks that the cutoff still comes from the init budget. native.rs:231 also uses a fixed 100 ms sleep before the process-death check."
         },
         {
           "technique": "unreached-decisions-pin-nothing",
           "verdict": "conformant",
-          "evidence": "crates/table-engine/tests/native.rs:147 The test observes the prompt received through the actual child's stdin, rather than merely checking a pre-spawn derivation; this certifies the fixture crossing, not real CLI compatibility."
+          "evidence": "crates/table-engine/tests/native.rs:159 The prompt is asserted as the child fixture received it across the process boundary, not as derived in-process. argv building is a separately pinned pure unit (engine.rs:17)."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/tests/native.rs:18 The fake CLI is one binary built once by cargo and spawned per test with a mode argument."
+        },
+        {
+          "technique": "configuration-axes-cross-the-ladder",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/tests/native.rs:2 The OS axis is declared at the file's front door, and the CI rust job runs a windows-latest leg, so the Windows-only cells are reached."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "crates/table-engine/tests/native.rs:11 Native tests create per-test scratch roots without a teardown or startup reaper, leaving their input and evidence directories behind.",
+          "evaluatedAt": "2026-10-14T23:18:09.459Z",
+          "worker": "a0c1a5ea-74bf-43ad-ba3e-7af40cca4f16",
+          "reason": "replaced by f0f0e2b7-8c74-467b-b79e-89cb272190f6"
         }
       ]
     },
@@ -27,24 +51,50 @@
       "subject": "test-harness",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-14",
-      "evaluatedTs": "2026-10-14T23:18:09.459Z",
-      "worker": "a0c1a5ea-74bf-43ad-ba3e-7af40cca4f16",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T10:08:03.592Z",
+      "worker": "f0f0e2b7-8c74-467b-b79e-89cb272190f6",
       "techniques": [
         {
-          "technique": "gate-scope-is-not-report-scope",
+          "technique": "negative-control-tests",
           "verdict": "deviation",
-          "evidence": "crates/table-runtime/src/checks_tests.rs:371 The test named a_ledger_change_after_the_summary_makes_its_real_hash_stale_for_every_money_decision manually lists six non-void variants; completeness is not mechanically tied to the Decision definition."
+          "evidence": "crates/table-runtime/src/rescue_tests.rs:393 The regression test on the lost-send recovery path says what it 'used to' do, but records no fix-revert control. A grep of the 15 money-control test files for negative control/mutation/revert finds nothing."
         },
         {
-          "technique": "isolation-lanes",
-          "verdict": "conformant",
-          "evidence": "crates/table-runtime/src/tests.rs:395 The shared runtime fixture constructs a fresh ledger, MemoryVault, OfflineHttp and TestClock for each caller, keeping these tests independent of machine credentials and prior-test wallet state."
+          "technique": "recorded-interaction-fixtures",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/rescue_tests.rs:42 PayPal invoicing is a hand-written fake at the API-trait level, above the wire. That is the 'hand-written fake' option the technique rejects. It captures the client's idea of the exchange, and it names no service version it would go stale against."
         },
         {
           "technique": "unreached-decisions-pin-nothing",
           "verdict": "conformant",
-          "evidence": "crates/table-runtime/src/tests.rs:359 The forgery helper re-signs changed bundles, requires the evidence signature to pass, and asserts that the named target check is applicable, executed and failed; an outer signature rejection cannot substitute for that target."
+          "evidence": "crates/table-runtime/src/checks_tests.rs:386 Re-check of the stale verdict: the loop lists all six non-Void Decision variants (service.rs:26-34), and asserts the specific producer (SUMMARY_CHANGED) plus no PayPal call and no audit write. Void's exemption is pinned separately at :89. Production puts any new variant under the check (service.rs:624), so it fails closed. The earlier 'manual array' deviation does not hold."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/reached_paypal_tests.rs:545 The structural pin over words.ts uses a quoted-literal needle, not a bare phrase. Its reason ('the only check before a merge') is stated in the asserting file at :533-534."
+        },
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/checks_tests.rs:371 The test named a_ledger_change_after_the_summary_makes_its_real_hash_stale_for_every_money_decision manually lists six non-void variants; completeness is not mechanically tied to the Decision definition.",
+          "carriedFrom": "2026-10-14"
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/tests.rs:395 The shared runtime fixture constructs a fresh ledger, MemoryVault, OfflineHttp and TestClock for each caller, keeping these tests independent of machine credentials and prior-test wallet state.",
+          "carriedFrom": "2026-10-14"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "crates/table-runtime/src/checks_tests.rs:371 The stale-checklist test claims every money decision but enumerates a manual array, allowing a new decision to escape the claimed coverage without failing this test.",
+          "evaluatedAt": "2026-10-14T23:18:09.459Z",
+          "worker": "a0c1a5ea-74bf-43ad-ba3e-7af40cca4f16",
+          "reason": "replaced by f0f0e2b7-8c74-467b-b79e-89cb272190f6"
         }
       ]
     },
@@ -8051,6 +8101,101 @@
       "evaluatedTs": "2026-10-26T22:41:08.591Z",
       "worker": "c2d68b94-4ce9-4e78-8e00-397696cde3e8",
       "techniques": []
+    },
+    "dca763f0-8645-4f2a-a617-a0be91dfdff7/test-harness": {
+      "context": "wallet-app-tests",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T10:08:03.592Z",
+      "worker": "f0f0e2b7-8c74-467b-b79e-89cb272190f6",
+      "techniques": [
+        {
+          "technique": "approval-snapshots-with-guarded-update",
+          "verdict": "deviation",
+          "evidence": "crates/table-app/tests/recorded/mod.rs:23 The record switch is a runtime env var plus a legacy alias (:20), with no integrity test and no pipeline refusal. A repo-wide grep finds no guard. Masking is also done in the comparison (masked() at :122), not in the serializer. The comparison is structural with a path (first_difference), which the technique does ask for."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/tests/rescue.rs:573 Controls are recorded in the test's own comment (also gauntlet.rs:701). The stale anchor rescue.rs:1058 is a #[tokio::test] attribute line; the regression test at rescue.rs:1009 still records no fix-revert."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/tests/gauntlet.rs:2097 The gauntlet reports how often each stage was actually reached next to its verdict, so a generator that stops reaching refusals or settlements cannot pass the predicate vacuously (comment at :2084-2085)."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/tests/support/mod.rs:65 Each test gets its own cheap in-memory ledger and throws it away whole. There is no shared mutable fixture."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/tests/gauntlet.rs:2043 Parallelism is declared and justified per lane by what the sessions share."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "crates/table-app/tests/rescue.rs:1058 regression test for the never-expire-unread fix records no fix-revert control, nor does any rescue/pipeline recovery test, so a wrong recovery arm stays green (negative-control-tests); gauntlet seeds its predicate red at crates/table-app/tests/gauntlet.rs:2098",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by f0f0e2b7-8c74-467b-b79e-89cb272190f6"
+        }
+      ]
+    },
+    "065d4555-d9ad-478c-b637-3d8eb494f76c/test-harness": {
+      "context": "runtime-actor-and-engines",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T10:08:03.592Z",
+      "worker": "f0f0e2b7-8c74-467b-b79e-89cb272190f6",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/authority_tests.rs:642 The name overstates what the test checks. 'Internal' (command() == None) is pinned only for Handoff and Select (:671-672), and the comment at :643 claims a property the loop does not test."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/authority_tests.rs:638 The authority matrix declares a floor on how many cells it ran, so a filter that selects nothing cannot pass green."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/deadline_and_attention_tests.rs:142 'A streak is one Fault' is read from a 3.5 s wall-clock window, not from a counted number of failing ticks. On a loaded runner the streak can shrink to one tick and the assertion passes without exercising the dedupe. A pure unit test at :162 covers the logic deterministically."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/tests.rs:405 runtime() hands each test a private in-memory ledger plus an offline transport, and they are thrown away whole."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/tests.rs:390 Tests never touch the machine-global OS keychain (KeyringVault). actor_runtime_tests.rs:505 asserts that reads do not reach the vault. Minor gap: the temp dir at actor_runtime_tests.rs:602 is removed only on success (:628)."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/authority_tests.rs:618 This T11 test checks that the runtime matches the authority table, the kind of correspondence probe the technique says is most likely tautological. It records no mutation that was shown to turn it red, and no test file in this context records one."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "crates/table-runtime/src/actor_runtime_tests.rs:6 money-path actor guard tests record no negative control (no test names the mutation that made it fail), and .github/workflows/ci.yml:61 is one undeclared lane mixing disk-sqlite and in-process server tests with pure units; no mutation lane for the guard code",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by f0f0e2b7-8c74-467b-b79e-89cb272190f6"
+        }
+      ]
     }
   }
 }

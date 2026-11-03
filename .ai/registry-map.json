@@ -6946,12 +6946,11 @@
           "changedAt": "2026-10-23",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "crates/table-runtime/src/actor_runtime_tests.rs:6 money-path actor guard tests record no negative control (no test names the mutation that made it fail), and .github/workflows/ci.yml:61 is one undeclared lane mixing disk-sqlite and in-process server tests with pure units; no mutation lane for the guard code",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-runtime/src/authority_tests.rs:642 The test name claims every Action, but it hand-checks 5 of the ~63 Action::command mappings. Its loop at :645-646 only checks each AUTHORITY row against the same table. So a new action wrongly returning None (and so skipping the dispatcher's authority gate) passes a test whose name says it is checked.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
+          "revisionsBehind": 1
         },
         {
           "subject": "quality-gates",
@@ -7283,12 +7282,11 @@
           "changedAt": "2026-10-23",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "crates/table-runtime/src/checks_tests.rs:371 The stale-checklist test claims every money decision but enumerates a manual array, allowing a new decision to escape the claimed coverage without failing this test.",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-runtime/src/rescue_tests.rs:393 A regression test on a rescue recovery arm names the defect it closes but does not record that reverting the fix turns it red, and none of the money-controls test files records a negative control, so a no-op repair or a test that only pins what was observed would stay green.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
+          "revisionsBehind": 1
         },
         {
           "subject": "prompt-assembly",
@@ -8351,12 +8349,11 @@
           "changedAt": "2026-10-23",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "crates/table-engine/tests/native.rs:11 Native tests create per-test scratch roots without a teardown or startup reaper, leaving their input and evidence directories behind.",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-engine/tests/native.rs:11 Every native test creates a ULID-named scratch root under .build/engine-tests and nothing removes it, at exit or at the next startup. The test scratch names no reaper, even though the product's own run-dir reaper is tested at :267.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-runtime-assembly",
@@ -9201,12 +9198,11 @@
           "changedAt": "2026-10-23",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "crates/table-app/tests/rescue.rs:1058 regression test for the never-expire-unread fix records no fix-revert control, nor does any rescue/pipeline recovery test, so a wrong recovery arm stays green (negative-control-tests); gauntlet seeds its predicate red at crates/table-app/tests/gauntlet.rs:2098",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:5521806124d93882",
-          "evaluatedRevision": 26,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-app/tests/gauntlet.rs:30 The arena and proof-bundle snapshots re-baseline from an environment variable. No test asserts the switch is off and nothing refuses to record in CI, so a run with TABLE_RECORD set rewrites the oracles and still reports green.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27,
+          "revisionsBehind": 1
         },
         {
           "subject": "mcp-tools",
