@@ -17,7 +17,7 @@
 import type { Module } from '@bindings/Module';
 import type { Fate, PanelSpec, UiOp } from '../../../lib/assistant';
 import { REGION_MAX } from '../../../lib/assistant/vocabulary';
-import type { Filter, Highlight } from './Matrix';
+import type { Filter, Highlight } from './lit';
 
 export { REGION_MAX };
 /** At most this many pinned panels: one slot always stays free for the assistant's next answer. */
@@ -25,6 +25,16 @@ export const PIN_MAX = REGION_MAX - 1;
 
 export type RegionPanel = { readonly spec: PanelSpec; readonly pinned: boolean };
 export type Region = readonly RegionPanel[];
+
+/** A fixed position on screen for an answer (spark the-proof-table). */
+export type Slot = 0 | 1 | 2;
+
+/** The region laid out by slot: index = Slot, null = an empty slot. Length REGION_MAX. A panel keeps
+ *  its slot for as long as it stays; a new panel takes the evicted panel's slot, else the lowest free
+ *  one. WP0 stub: index order; WP2 implements stable slots. */
+export function slotsOf(region: Region): (RegionPanel | null)[] {
+  return Array.from({ length: REGION_MAX }, (_, i) => region[i] ?? null);
+}
 
 export type Arrangement = {
   readonly region: Region;

@@ -16,9 +16,9 @@ import { CELL_PAD, pickDensity, visibleCount, type Density } from './fit';
 import { amountText, Amount, Shape } from './parts';
 import type { BoardKey, BoardModel } from './useBoardModel';
 
-export type Filter = { module: Module | null; fate: Fate | null };
-export type Highlight = { module: Module | null; fate: Fate | null; deal_id: string | null };
-export const NO_FILTER: Filter = { module: null, fate: null };
+import { passes, type Filter, type Highlight } from './lit';
+export { NO_FILTER, passes } from './lit';
+export type { Filter, Highlight } from './lit';
 
 type Slot = { m: Module; f: Fate; i: number };
 const sameSlot = (a: Slot | null, b: Slot | null): boolean => !!a && !!b && a.m === b.m && a.f === b.f && a.i === b.i;
@@ -33,9 +33,6 @@ export type MatrixProps = {
   onRow: (m: Module) => void;
   onCol: (f: Fate) => void;
 };
-
-/** Does a key pass the filter (a dimmed key is still drawn and still clickable). */
-export const passes = (f: Filter, module: Module, fate: Fate): boolean => (!f.module || f.module === module) && (!f.fate || f.fate === fate);
 
 function litKey(h: Highlight | null, k: BoardKey): boolean {
   if (!h) return false;
