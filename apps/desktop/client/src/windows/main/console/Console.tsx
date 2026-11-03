@@ -385,7 +385,7 @@ export function Console() {
   const placeLit = litRoute.level === 'place' ? litRoute.place : null;
 
   return (
-    <div className={`cs-app${depth > 1 ? ' deep' : ''}`} inert={find || undefined} onPointerOver={warmOnIntent} onFocus={warmOnIntent} style={{ '--seal': `var(--${SEAL_TONE[presence.state]})` } as CSSProperties}>
+    <div className={`cs-app ui-ground${depth > 1 ? ' deep' : ''}`} inert={find || undefined} onPointerOver={warmOnIntent} onFocus={warmOnIntent} style={{ '--seal': `var(--${SEAL_TONE[presence.state]})` } as CSSProperties}>
       <header className="cs-bar">
         <div className="cs-barl">
           <button type="button" className="cs-brand" onClick={goHome} title={BRAND_TITLE} aria-label={BRAND_TITLE}><Mark /><span>{BRAND_NAME}</span></button>

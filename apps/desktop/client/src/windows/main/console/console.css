@@ -4,8 +4,8 @@
    the kit's (design/kit.css, shared/brand/brand.css); this file places them. */
 body.w-main { --cs-bar: 3.25rem; --sheet-top: var(--cs-bar); }
 
-.cs-app { position: fixed; inset: 0; z-index: var(--z-app); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-width: 0;
-  background: radial-gradient(120% 90% at 70% 40%, color-mix(in srgb, var(--panel) 55%, var(--bg)) 0%, var(--bg) 62%, var(--bg-deep, var(--bg)) 100%); color: var(--text); }
+.cs-app { position: fixed; inset: 0; z-index: var(--z-app); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-width: 0; color: var(--text); }
+/* its ground is the kit's graticule (.ui-ground, design/kit.css), worn on the same element in Console.tsx */
 
 /* the rows are placed: the stale banner is there only when a read failed */
 .cs-bar { grid-row: 1; } .cs-stale-live { grid-row: 2; min-width: 0; } .cs-stale { grid-row: 2; } .cs-stage { grid-row: 3; } .cs-foot { grid-row: 4; }
