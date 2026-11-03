@@ -416,9 +416,9 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T00:19:25.867Z",
-      "worker": "96873694-4525-4f4e-9558-53ffb692ee42",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T16:03:55.447Z",
+      "worker": "9731e44a-7ffa-4387-8409-9382baed8276",
       "techniques": [
         {
           "technique": "addresses-before-compression",
@@ -600,6 +600,15 @@
           "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 Human-facing React state, not an agent's operative task store.",
           "carriedFrom": "2026-10-15"
         }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:171 The Tumbler is a stateless view that draws Rust's attention snapshot and keeps no state of its own; a case-insensitive search of its directory for episod, consolidat, belief, embedding and memories found nothing, so it has no agent working, episodic or consolidated store for the subject to govern.",
+          "evaluatedAt": "2026-10-24T00:19:25.867Z",
+          "worker": "96873694-4525-4f4e-9558-53ffb692ee42",
+          "reason": "replaced by 9731e44a-7ffa-4387-8409-9382baed8276"
+        }
       ]
     },
     "1b4ef14a-5a8a-438c-988d-365c439b153d/agent-memory": {
@@ -607,9 +616,9 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T00:19:25.867Z",
-      "worker": "96873694-4525-4f4e-9558-53ffb692ee42",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T16:03:55.447Z",
+      "worker": "9731e44a-7ffa-4387-8409-9382baed8276",
       "techniques": [
         {
           "technique": "addresses-before-compression",
@@ -791,6 +800,15 @@
           "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:86 Review component state is not an agent task-memory board.",
           "carriedFrom": "2026-10-15"
         }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:4 The deal-review modules build display text only from facts the wallet reports, and 'transcript' here means the signed negotiation record, not agent memory; a search of the approval directory for episod, consolidat, belief, embedding and memories found nothing, so there is no agent memory pipeline here.",
+          "evaluatedAt": "2026-10-24T00:19:25.867Z",
+          "worker": "96873694-4525-4f4e-9558-53ffb692ee42",
+          "reason": "replaced by 9731e44a-7ffa-4387-8409-9382baed8276"
+        }
       ]
     },
     "93ab9629-27c8-4024-bd9e-06c9761ea24d/agent-memory": {
@@ -798,149 +816,189 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T00:48:08.531Z",
-      "worker": "82872bcb-a2f5-4efd-9286-36bd53ac76da",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T16:03:55.447Z",
+      "worker": "9731e44a-7ffa-4387-8409-9382baed8276",
       "techniques": [
         {
-          "technique": "addresses-before-compression",
-          "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:212 Projects signed steps rather than merging memory items."
+          "technique": "loss-site-inventory",
+          "verdict": "deviation",
+          "evidence": "crates/table-core/src/agent.rs:223 Window of the newest N steps with no notice in the agent's channel naming how many older signed steps were dropped and why; the operator's transcript view shows them all, which is the 'second door' gap."
         },
         {
-          "technique": "addresses-not-atoms",
-          "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:215 Step granularity follows signed protocol events, not a knowledge-store design."
-        },
-        {
-          "technique": "baseline-ladder",
-          "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:563 Fixed role behavior; no memory-pipeline score or cost claim found."
+          "technique": "working-memory",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/agent.rs:245 The operative state (band, rounds left, last prices, turn, deadline) goes into named slots recomputed from the full step list on every build, so the history cut does not evict the goal or the constraints."
         },
         {
           "technique": "consolidation",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:215 Typed event projection performs no episode-to-belief judgment."
+          "evidence": "crates/table-core/src/agent.rs:161 Projection is a typed view of the signed ledger; no distillation into beliefs exists in this crate."
+        },
+        {
+          "technique": "addresses-before-compression",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:212 Projects signed steps rather than merging memory items.",
+          "carriedFrom": "2026-10-15"
+        },
+        {
+          "technique": "addresses-not-atoms",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 Step granularity follows signed protocol events, not a knowledge-store design.",
+          "carriedFrom": "2026-10-15"
+        },
+        {
+          "technique": "baseline-ladder",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:563 Fixed role behavior; no memory-pipeline score or cost claim found.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "container-carries-decision-status",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:218 Copies typed signed actions; does not extract decisions from planning documents."
+          "evidence": "crates/table-core/src/agent.rs:218 Copies typed signed actions; does not extract decisions from planning documents.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "coverage-instrumentation",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:318 Measures current tool eligibility, not knowledge coverage."
+          "evidence": "crates/table-core/src/agent.rs:318 Measures current tool eligibility, not knowledge coverage.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "cross-context-promotion",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:563 Compiled playbook, not lessons promoted between stores."
+          "evidence": "crates/table-core/src/agent.rs:563 Compiled playbook, not lessons promoted between stores.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "decay-and-forgetting",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:223 This is a read-window cut, not governed retirement of stored beliefs."
+          "evidence": "crates/table-core/src/agent.rs:223 This is a read-window cut, not governed retirement of stored beliefs.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "diagnosis-withheld-from-the-executor",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:563 No experience-driven playbook revision loop found."
+          "evidence": "crates/table-core/src/agent.rs:563 No experience-driven playbook revision loop found.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "durable-store-failure-posture",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:215 Projection accepts typed inputs; it does not parse or overwrite a memory artifact."
+          "evidence": "crates/table-core/src/agent.rs:215 Projection accepts typed inputs; it does not parse or overwrite a memory artifact.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "episodic-capture",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:218 Signed financial steps remain source records, not distilled memory episodes."
+          "evidence": "crates/table-core/src/agent.rs:218 Signed financial steps remain source records, not distilled memory episodes.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "filter-at-the-id-door",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:215 No model-selected shortlist of memory IDs."
+          "evidence": "crates/table-core/src/agent.rs:215 No model-selected shortlist of memory IDs.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "gap-directed-elicitation",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:563 No memory-coverage gap triggers questioning."
+          "evidence": "crates/table-core/src/agent.rs:563 No memory-coverage gap triggers questioning.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "lane-reconciliation",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:215 No memory record/index fan-out in these policy modules."
-        },
-        {
-          "technique": "loss-site-inventory",
-          "verdict": "deviation",
-          "evidence": "crates/table-core/src/agent.rs:223 Drops older stored steps without omission metadata; the 100-step test exercises the cut, and role prompts describe history as every signed step."
+          "evidence": "crates/table-core/src/agent.rs:215 No memory record/index fan-out in these policy modules.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "memory-governance",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:563 Role instructions are compiled in; no experience-derived belief-write lane found."
+          "evidence": "crates/table-core/src/agent.rs:563 Role instructions are compiled in; no experience-derived belief-write lane found.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "memory-value-model",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:223 Selects a chronological window, with no recall/retirement value model."
+          "evidence": "crates/table-core/src/agent.rs:223 Selects a chronological window, with no recall/retirement value model.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "observation-clock",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:220 Copies event timestamps without distilling relative temporal claims."
+          "evidence": "crates/table-core/src/agent.rs:220 Copies event timestamps without distilling relative temporal claims.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "owner-and-counterpart-scope",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:279 Counterparty is a typed deal label, not a memory-owner/counterpart namespace."
+          "evidence": "crates/table-core/src/agent.rs:279 Counterparty is a typed deal label, not a memory-owner/counterpart namespace.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "pending-beliefs-live-apart",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:308 Pending signed offers are protocol state, not proposed beliefs."
+          "evidence": "crates/table-core/src/agent.rs:308 Pending signed offers are protocol state, not proposed beliefs.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "probe-without-write-back",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:223 No recall-usage feedback or scheduled memory probe found."
+          "evidence": "crates/table-core/src/agent.rs:223 No recall-usage feedback or scheduled memory probe found.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "procedure-promotion",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:564 Hand-authored compiled procedure, not promotion from observed recurrence."
+          "evidence": "crates/table-core/src/agent.rs:564 Hand-authored compiled procedure, not promotion from observed recurrence.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "read-set-bounded-links",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:215 No model-authored links between memories."
+          "evidence": "crates/table-core/src/agent.rs:215 No model-authored links between memories.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "rejected-revision-leaves-its-evidence",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:564 No learned-procedure proposal, rollback or diagnostic-memory loop found."
+          "evidence": "crates/table-core/src/agent.rs:564 No learned-procedure proposal, rollback or diagnostic-memory loop found.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "rollup-compaction",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:223 Drops a read prefix without generating a superseding rollup."
+          "evidence": "crates/table-core/src/agent.rs:223 Drops a read prefix without generating a superseding rollup.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "scope-before-similarity",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:215 No similarity-based memory grouping or distillation."
+          "evidence": "crates/table-core/src/agent.rs:215 No similarity-based memory grouping or distillation.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "self-trained-capture-filter",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:215 No learned pre-distillation screen."
+          "evidence": "crates/table-core/src/agent.rs:215 No learned pre-distillation screen.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "stale-served-versus-stale-answered",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:218 Historical signed actions are not superseded belief versions."
+          "evidence": "crates/table-core/src/agent.rs:218 Historical signed actions are not superseded belief versions.",
+          "carriedFrom": "2026-10-15"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "crates/table-core/src/agent.rs:223 The agent-facing projection silently drops signed history beyond the newest 64 steps without an in-band notice naming the omitted content, count and cause.",
+          "evaluatedAt": "2026-10-15T00:48:08.531Z",
+          "worker": "82872bcb-a2f5-4efd-9286-36bd53ac76da",
+          "reason": "replaced by 9731e44a-7ffa-4387-8409-9382baed8276"
         }
       ]
     },
@@ -949,9 +1007,9 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T00:19:25.867Z",
-      "worker": "96873694-4525-4f4e-9558-53ffb692ee42",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T16:03:55.447Z",
+      "worker": "9731e44a-7ffa-4387-8409-9382baed8276",
       "techniques": [
         {
           "technique": "addresses-before-compression",
@@ -1132,6 +1190,15 @@
           "verdict": "not-applicable",
           "evidence": "apps/desktop/client/src/director/Director.tsx:266 Reconstructed UI scene is not an executing agent's task state.",
           "carriedFrom": "2026-10-15"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/stories.ts:4 The director is a browser-only rig that replays scripted story beats over a mock world, with no agent and no memory store; a search of src/director for episod, consolidat, belief, embedding and memories found nothing (the 'resetTourMemory' hits are onboarding-tour UI state), so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-10-24T00:19:25.867Z",
+          "worker": "96873694-4525-4f4e-9558-53ffb692ee42",
+          "reason": "replaced by 9731e44a-7ffa-4387-8409-9382baed8276"
         }
       ]
     },

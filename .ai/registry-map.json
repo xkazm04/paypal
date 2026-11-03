@@ -2634,12 +2634,11 @@
           "changedAt": "2026-10-25",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:4 The deal-review modules build display text only from facts the wallet reports, and 'transcript' here means the signed negotiation record, not agent memory; a search of the approval directory for episod, consolidat, belief, embedding and memories found nothing, so there is no agent memory pipeline here.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
-          "evaluatedRevision": 51,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:4 The deal-review modules only pick display words for the human owner from facts the wallet reports, and a case-insensitive search of the whole approval directory for episod, consolidat, belief, embedding and memories found nothing (the 'memory' hits are an in-RAM capability and a hold-button flag), so there is no agent memory pipeline here.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52,
+          "revisionsBehind": 1
         },
         {
           "subject": "hitl-approval",
@@ -3293,12 +3292,11 @@
           "changedAt": "2026-10-25",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "apps/desktop/client/src/director/stories.ts:4 The director is a browser-only rig that replays scripted story beats over a mock world, with no agent and no memory store; a search of src/director for episod, consolidat, belief, embedding and memories found nothing (the 'resetTourMemory' hits are onboarding-tour UI state), so the subject's precondition does not hold.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
-          "evaluatedRevision": 51,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/director/stories.ts:4 The director is a pure browser-only rig that maps a search string to scripted story beats over a mock world, and a case-insensitive search of src/director for episod, consolidat, belief, embedding and memories found nothing (the only memory-like hit is resetTourMemory, onboarding-tour UI state), so it has no agent memory store.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-runtime-assembly",
@@ -8102,12 +8100,11 @@
           "changedAt": "2026-10-25",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "crates/table-core/src/agent.rs:223 The agent-facing projection silently drops signed history beyond the newest 64 steps without an in-band notice naming the omitted content, count and cause.",
-          "evaluatedAt": "2026-10-15",
-          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
-          "evaluatedRevision": 51,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-core/src/agent.rs:223 The agent's table_view projection keeps only the newest 64 signed transcript steps and drops the older ones with no in-band notice of kind, count or cause, and AgentProjection (deny_unknown_fields) has no field that could carry one; max_rounds is a u8 that mandate validation only checks is nonzero, so deals with more than 64 steps can happen, and agent_tests.rs:282 pins the silent cut at 100 steps.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52,
+          "revisionsBehind": 1
         },
         {
           "subject": "module-design",
@@ -8746,12 +8743,11 @@
           "changedAt": "2026-10-25",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:171 The Tumbler is a stateless view that draws Rust's attention snapshot and keeps no state of its own; a case-insensitive search of its directory for episod, consolidat, belief, embedding and memories found nothing, so it has no agent working, episodic or consolidated store for the subject to govern.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
-          "evaluatedRevision": 51,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:171 The Tumbler draws Rust's attention snapshot and keeps no state of its own (it does not even remember a snooze), and a case-insensitive search of the tumbler directory for episod, consolidat, belief, embedding and memories found nothing, so there is no agent working, episodic or consolidated store here for the subject to govern.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52,
+          "revisionsBehind": 1
         },
         {
           "subject": "test-harness",
