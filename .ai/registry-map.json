@@ -8261,7 +8261,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-core/src/exposure_tests.rs:296 The test the_signed_bytes_are_domain_separated_and_commit_every_field claims every field of the owner-signed WalletEnvelope is committed, but its hand list of 5 mutations skips `currency` (the struct has 6 fields), so a change that dropped currency from the signed bytes would stay green under a name that says it is pinned.",
+          "evaluatedAt": "2026-11-03",
+          "evaluatedAgainst": "sha256-b2:c96e1ee699a88119",
+          "evaluatedRevision": 27
         },
         {
           "subject": "mcp-tools",

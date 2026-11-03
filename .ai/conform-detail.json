@@ -8605,6 +8605,27 @@
           "evidence": "apps/desktop/client/src/shared/tourAnchors.test.tsx:73 The reverse check first asserts its population (all three windows were rendered), so a filtered run or an empty map can't pass it vacuously."
         }
       ]
+    },
+    "93ab9629-27c8-4024-bd9e-06c9761ea24d/test-harness": {
+      "context": "spend-firewall-and-agent-policy",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-03",
+      "evaluatedTs": "2026-11-03T22:28:28.241Z",
+      "worker": "b7fd9cbe-ac3d-4d18-8ee5-5931ef20b21c",
+      "techniques": [
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "deviation",
+          "evidence": "crates/table-core/src/exposure_tests.rs:296 A hand-written list under an 'every field' claim covers 5 of the 6 WalletEnvelope fields (version, max_out_day, max_held, max_deals_day, expires), and the omitted one is currency. The same crate does the right thing elsewhere: agent_tests.rs:318 derives RefusalCode/Playbook ALL from serde's variant list with a floor, and exposure_tests.rs:353 uses an exhaustive match."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "crates/table-core/src/checks.rs:74 The name claims every field of ApprovalCheck is committed, but the body only varies status, text, detail and order, while `id` stays fixed at ApprovalCheckId::Amount in line(). The name claims a stronger guard than the assertions make."
+        }
+      ]
     }
   }
 }
