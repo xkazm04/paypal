@@ -36,9 +36,13 @@ terminal.
   when the live one cannot, and says so.
 - **Outside the app**, other agents reach the wallet through a role-scoped tool server; a small
   read view inside an assistant is planned (glimpse there, decision at home).
-- Use the fixtures staged under `data/` (a wallet with deals in every area and fate, replies of
-  every op kind, a reply with a dropped part, a held reply after her move, a pinned answer). Nothing
-  outside them is real.
+- Use the fixtures staged under `data/` (read `data/SCHEMA.md` first): Maya's week as the board
+  sees it (10 of the 24 area-by-fate cells are genuinely empty - the book row has no deals - and an
+  empty cell is a real state to design, not a gap to fill), a day-one wallet, a 500-deal scale
+  world, replies of every op kind (the three acts and the dropped part come from recorded live
+  replies, labelled), a held reply after her move, a session with a pinned answer and an undo, the
+  ten panels' real fields, the product's own words, and screenshots of today's board with its
+  known faults under `data/current/`. Nothing outside them is real; never invent a deal.
 
 ## 3. The wow, and what must never break
 
