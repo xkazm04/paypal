@@ -209,12 +209,16 @@ describe('the scripted engine’s sentences', () => {
     const model = await mockModel();
     const say = answerScripted('How much room is left today?', model.digest).say;
     const m = model.money;
-    expect(say).toBe(`Room left today is ${usd(m.room_left_minor)} of ${usd(m.day_cap_minor)}. ${usd(m.held_minor)} is held at PayPal. Paid today: ${usd(m.paid_today_minor)}. ${today(model)}.`);
+    expect(say).toBe(`Room left today is ${usd(m.room_left_minor)} of ${usd(m.day_cap_minor)}. ${usd(m.held_minor)} is held at PayPal or agreed and waiting to be paid. Paid today: ${usd(m.paid_today_minor)}. ${today(model)}.`);
     const fs = findFigures(say, model);
     wellFormed(say, fs);
     expect(texts(fs)).toEqual([usd(m.room_left_minor), usd(m.day_cap_minor), usd(m.held_minor), usd(m.paid_today_minor), today(model)]);
     expect(fs.map((f) => f.tone)).toEqual(['teal', 'market', 'coral', 'ok', 'teal']);
     expect(plainOf(say, fs)).not.toMatch(/\d/);
+    // honest: the held figure is held at PayPal plus agreed and waiting, and the sentence says both
+    expect(m.held_minor).toBe(model.instruments.held_at_paypal_minor! + model.instruments.held_before_minor!);
+    expect(model.instruments.held_before_minor).toBeGreaterThan(0);
+    expect(fs[2]!.what).toMatch(/held at PayPal, or agreed and waiting/);
   });
 
   it('the book, a module and a deal are fully linked; every suggestion is well formed', async () => {

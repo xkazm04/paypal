@@ -28,6 +28,7 @@ const h = vi.hoisted(() => ({
 vi.mock('../../../lib/runtime', () => ({ backend: () => h.current }));
 
 import { App } from '../App';
+import { openOnConsole } from './testing/home';
 
 function wrap(real: Backend): Backend {
   return {
@@ -67,6 +68,7 @@ async function quiet(): Promise<void> {
 /** Opens the main window at a URL (search + hash) on a fresh mock world. */
 async function open(url: string): Promise<Backend> {
   history.replaceState(null, '', url);
+  openOnConsole();
   resetMockState();
   const real = mockBackend('main');
   h.current = wrap(real);

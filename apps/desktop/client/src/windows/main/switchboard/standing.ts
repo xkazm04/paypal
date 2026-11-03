@@ -15,7 +15,8 @@
 //   silence.rs), so the only money that can move is money coming IN: a payment the buyer approved that
 //   the wallet collects or holds under the owner's rules. Any of those = teal "A payment can come in
 //   by itself". A line the board cannot read = dim "Nothing goes out by itself" (it promises only what
-//   the core guarantees). Otherwise ok "Nothing moves by itself", the detail saying what does happen.
+//   the core guarantees). Otherwise ok "Nothing moves by itself", the detail saying what does happen:
+//   at most two happenings by name, then "and N more" (it is read in two seconds).
 // - first run: safe is dim "Not set up yet"; needs is "Not set up yet" with the next setup step unless
 //   something already needs her (a practice deal is real and gold); nothing is dim "Nothing moves by
 //   itself" (true: no rules, no money) with "Nothing can be paid until setup is done".
@@ -58,6 +59,8 @@ export function silenceOutcome(text: string | null): SilenceOutcome {
 }
 
 const HAPPENS_ORDER = ['release', 'lapse', 'retry', 'check'] as const;
+/** How many happenings the detail names before it counts the rest (Director, WP2 review). */
+const HAPPENS_SHOWN = 2;
 
 const dim = (key: StandingKey, headline: string, detail: string | null = null): StandingAnswer => ({ key, tone: 'dim', headline, detail });
 
@@ -99,8 +102,12 @@ function nothingAnswer(model: BoardModel): StandingAnswer {
   if (comesIn.length) return { key: 'nothing', tone: 'teal', headline: BOARD_STANDING.comesIn(comesIn.length), detail: BOARD_STANDING.comesInDetail(comesIn) };
   const unknown = labels('unknown');
   if (unknown.length) return dim('nothing', BOARD_STANDING.goesOutNothing, BOARD_STANDING.unknownDetail(unknown));
-  const parts: string[] = HAPPENS_ORDER.filter((o) => by.has(o)).map((o) => BOARD_STANDING.happens[o]);
-  const detail = parts.length === 0 ? BOARD_STANDING.staysOnly : BOARD_STANDING.happensLine(by.has('stays') ? [...parts, BOARD_STANDING.happens.stays] : parts);
+  const happens: string[] = HAPPENS_ORDER.filter((o) => by.has(o)).map((o) => BOARD_STANDING.happens[o]);
+  if (happens.length === 0) return { key: 'nothing', tone: 'ok', headline: BOARD_STANDING.stays, detail: BOARD_STANDING.staysOnly };
+  const all = by.has('stays') ? [...happens, BOARD_STANDING.happens.stays] : happens;
+  // A two-second answer: at most two happenings by name, the rest counted.
+  const parts = all.length > HAPPENS_SHOWN ? [...all.slice(0, HAPPENS_SHOWN), BOARD_STANDING.happensMore(all.length - HAPPENS_SHOWN)] : all;
+  const detail = BOARD_STANDING.happensLine(parts);
   return { key: 'nothing', tone: 'ok', headline: BOARD_STANDING.stays, detail };
 }
 

@@ -17,7 +17,7 @@ import { clockNow } from '../../../lib/clock';
 import { Countdown, WalletNotice } from '../../../shared/honesty';
 import { Glyph, MODULE } from '../../../shared/modules';
 import { StartSteps, type StepAction } from '../../../shared/start';
-import { Btn, Kv, Loading, Meter, Silence } from '../../../shared/ui';
+import { Btn, Hourglass, Kv, Loading, Meter, Silence } from '../../../shared/ui';
 import { agentTitle, rulesAnswer } from '../setup/limits';
 import { useStart } from '../setup/start';
 import { formatHash } from '../logic';
@@ -89,16 +89,21 @@ function NeedsPanel({ module, host }: { module: import('@bindings/Module').Modul
   );
 }
 
+/** One deal as a card (the Proof Table's deal row): title and amount, its state, area and label, and
+ *  for a needs-you deal what silence does. The rail on its edge is its fate's colour. */
 function KeyRow({ k, host, silence }: { k: BoardKey; host: PanelHost; silence?: boolean }) {
   const meta = MODULE[k.module];
   return (
     <li>
-      <button type="button" className="sb-lrow" style={{ '--mc': meta.cssVar } as React.CSSProperties} onClick={() => host.pick(k.id)} data-pick={k.id}>
-        <Glyph module={k.module} className="sb-kglyph" />
+      <button type="button" className={`sb-lrow f-${k.fate}`} style={{ '--mc': meta.cssVar } as React.CSSProperties} onClick={() => host.pick(k.id)} data-pick={k.id}>
         <span className="sb-t">{k.title}</span>
         <Amount k={k} />
-        <span className="sb-m"><Shape fate={k.fate} size={11} /> {k.fate === 'needs' ? (k.deadline_s !== null ? <Countdown deadline={k.deadline_s} /> : BOARD_NO_DEADLINE) : k.state_word}</span>
-        {silence && k.on_silence ? <span className="sb-q"><b>{BOARD_IF_NOTHING}:</b> {k.on_silence}</span> : null}
+        <span className="sb-m">
+          <span className={`sb-st c-${k.fate}`}><Shape fate={k.fate} size={11} /> {k.fate === 'needs' ? (k.deadline_s !== null ? <Countdown deadline={k.deadline_s} /> : BOARD_NO_DEADLINE) : k.state_word}</span>
+          <span className="sb-area"><Glyph module={k.module} className="sb-kglyph" />{meta.name}</span>
+          <span className="sb-ref">{k.label}</span>
+        </span>
+        {silence && k.on_silence ? <span className="sb-q"><Hourglass className="sb-q-ic" /><span><b>{BOARD_IF_NOTHING}:</b> {k.on_silence}</span></span> : null}
       </button>
     </li>
   );

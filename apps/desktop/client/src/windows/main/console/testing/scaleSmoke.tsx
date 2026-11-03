@@ -26,6 +26,7 @@ import { App } from '../../App';
 import { formatHash, type Route } from '../../logic';
 import type { LayerId } from '../layers';
 import { setHarnessBackend } from './runtime';
+import { openOnConsole } from './home';
 
 export type Scale = 'small' | 'large';
 
@@ -144,6 +145,7 @@ export async function renderLayerAtScale(route: LayerTarget, scale: Scale | null
   cleanup();
   localStorage.clear();
   sessionStorage.clear();
+  openOnConsole();
   const params = [scale ? `scale=${scale}` : '', o.search ?? ''].filter(Boolean).join('&');
   const q = params ? `?${params}` : '';
   history.replaceState(null, '', `/index.html${q}`);

@@ -57,7 +57,7 @@ describe('Does anything need me?', () => {
     const soonest = Math.min(...model.keys.filter((k) => k.deadline_s !== null).map((k) => k.deadline_s!));
     expect(needs).toEqual({
       key: 'needs', tone: 'gold', headline: '6 need you',
-      detail: `Tables 2 · Spend 1 · Counter 1 · Shield 1 · Rescue 1 · soonest ${clockLabel(soonest, Math.floor(Date.now() / 1000))}`,
+      detail: `soonest ${clockLabel(soonest, Math.floor(Date.now() / 1000))} · Tables 2 · Spend 1 · Counter 1 · Shield 1 · Rescue 1`,
     });
     // counted, not recomputed: the answer follows colCount
     expect(standingAnswers({ ...model, colCount: { ...model.colCount, needs: 1 } })[1].headline).toBe('1 needs you');
@@ -80,8 +80,14 @@ describe('What happens if I do nothing?', () => {
     const [, , nothing] = standingAnswers(await mockModel());
     expect(nothing).toEqual({
       key: 'nothing', tone: 'ok', headline: 'Nothing moves by itself',
-      detail: 'Holds are released, asks lapse, failed renewals retry at PayPal, payments being checked follow what PayPal shows and the rest waits for you',
+      // two happenings by name, the other three counted: it is read in two seconds
+      detail: 'Holds are released, asks lapse and 3 more',
     });
+  });
+  it('names at most two happenings: a third is counted, never listed', async () => {
+    const [, , nothing] = standingAnswers(await mockModel({ silence: (l) => (l === 'D-0190' ? 'the hold is released at the deadline, nothing is paid' : l === 'D-0188' ? 'the renewal retries at PayPal' : 'the offer lapses at the deadline, no money moves') }));
+    expect(nothing.detail).toBe('Holds are released, asks lapse and 1 more');
+    expect(nothing.detail).not.toMatch(/retry/);
   });
   it('only holds and asks: "Holds are released and asks lapse"', async () => {
     const [, , nothing] = standingAnswers(await mockModel({ silence: (l) => (l === 'D-0190' ? 'the hold is released at the deadline, nothing is paid' : 'the offer lapses at the deadline, no money moves') }));

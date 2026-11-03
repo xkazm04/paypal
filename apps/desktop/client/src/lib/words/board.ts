@@ -4,9 +4,7 @@
 // may be shown, because the product already names engines to the owner.
 import type { Module } from '@bindings/Module';
 
-export const BOARD_TITLE = 'Board';
-export const BOARD_SUB = 'every deal at a glance';
-export const BOARD_MAIN_LABEL = 'Your whole wallet, one deal per key';
+export const BOARD_MAIN_LABEL = 'The board: one answer, three questions and every deal counted';
 export const BOARD_TO_CONSOLE = 'Console';
 export const BOARD_TO_CONSOLE_TITLE = 'Back to the console, the detailed view';
 export const BOARD_TO_BOARD = 'Board';
@@ -24,25 +22,19 @@ export const BOARD_MODULE_ROLE: Record<Module, string> = {
   tables: 'haggling', spend: 'agent purchases', counter: 'your shop', book: 'all payments', shield: 'scam checks', rescue: 'failed renewals',
 };
 
-export const BOARD_NOTHING_YET = 'nothing yet';
 export const BOARD_EMPTY_CELL = 'Nothing here';
 export const BOARD_EMPTY_BOARD = 'Nothing on the board yet. Deals appear here as soon as you have one.';
 export const BOARD_NO_DEADLINE = 'no deadline';
 export const BOARD_NO_AMOUNT = 'no amount yet';
 export const BOARD_IF_NOTHING = 'If you do nothing';
 export const BOARD_MORE = (n: number): string => `+${n} more`;
-export const BOARD_MORE_TITLE = (n: number, module: string, fate: string): string => `Show the ${n} other ${n === 1 ? 'deal' : 'deals'} in ${module}, ${fate}`;
 export const BOARD_COUNT_SOON = (soonest: string): string => `soonest ${soonest}`;
 export const BOARD_NOT_AVAILABLE = 'not available yet';
 
-export const BOARD_KEY_LABEL = (module: string, fate: string, label: string, amount: string | null, left: string | null): string =>
-  `${module}, ${fate}: ${label}${amount ? `, ${amount}` : ''}${left ? `, ${left} left` : ''}`;
-
-export const BOARD_GRID_LABEL = 'Six modules by what is happening to each deal';
-export const BOARD_CORNER = 'Module';
-export const BOARD_WEEK_HEAD = 'This week';
-export const BOARD_WEEK_LABEL = (module: string, total: number): string => `${module}: ${total} ${total === 1 ? 'deal' : 'deals'} touched this week`;
-export const BOARD_WEEK_TODAY = 'today';
+export const BOARD_GRID_LABEL = 'Six areas by what is happening to each deal';
+export const BOARD_CORNER = 'Area';
+/** The board column's total column head. */
+export const BOARD_ALL = 'All';
 
 export const BOARD_FILTER_ROW = (module: string): string => `Show only ${module}`;
 export const BOARD_FILTER_COL = (fate: string): string => `Show only: ${fate}`;
@@ -50,52 +42,105 @@ export const BOARD_FILTER_ON = (what: string): string => `Showing only ${what}`;
 export const BOARD_FILTER_CLEAR = 'Show everything';
 export const BOARD_FOCUS_ON = (what: string): string => `Lit up: ${what}`;
 
-// ---- the instrument strip ----------------------------------------------------------------------
-export const BOARD_STRIP_LABEL = 'Your money today';
-export const BOARD_INST = {
-  room: 'Room left today',
-  roomOf: (cap: string): string => `of ${cap} a day`,
-  roomNone: 'No daily limit signed',
-  deals: 'Deals today',
-  dealsOf: (n: number): string => `of ${n} a day`,
-  held: 'Held',
-  heldAt: (m: string): string => `${m} at PayPal`,
-  heldBefore: (m: string): string => `${m} before PayPal`,
-  confirmed: 'Confirmed by PayPal',
-  confirmedOut: (m: string): string => `${m} out today`,
-  confirmedIn: (m: string): string => `${m} in, in your records`,
-  records: 'Your records',
-  recordsIntact: 'Intact',
-  recordsBroken: 'Broken',
-  recordsCount: (n: number): string => `${n} ${n === 1 ? 'entry' : 'entries'} checked`,
-  recordsBrokenLine: 'Look at your safety record now',
+// ---- the board column (BoardColumn.tsx): counts, what is lit, the sum and the lit keys ----------
+export const BOARD_COLUMN = {
+  title: 'The board',
+  /** A cell read aloud: "Spend, Needs you: 1 deal, lit". */
+  cell: (module: string, fate: string, n: number, lit: boolean): string => `${module}, ${fate}: ${n ? `${n} ${n === 1 ? 'deal' : 'deals'}` : BOARD_EMPTY_CELL}${lit ? ', lit' : ''}`,
+  row: (module: string, role: string, n: number): string => `${module}, ${role}: ${n} ${n === 1 ? 'deal' : 'deals'}. ${BOARD_FILTER_ROW(module)}`,
+  col: (fate: string, n: number): string => `${fate}: ${n} ${n === 1 ? 'deal' : 'deals'}. ${BOARD_FILTER_COL(fate)}`,
+  /** "= 6 deals lit". */
+  lit: (n: number): string => (n === 1 ? 'deal lit' : 'deals lit'),
+  sumLabel: (n: number): string => `The lit cells add up to ${n} ${n === 1 ? 'deal' : 'deals'}`,
+  noneLit: 'Nothing is lit. Hover a figure in the answer, or press a cell.',
+  emptyLit: 'No deals where it is lit.',
+  keysLabel: 'The lit deals, soonest first',
+  /** A lit key read aloud: "D-0193, Refurbished monitor, $329.00, Needs you". */
+  key: (label: string, title: string, amount: string | null, state: string): string => `${label}, ${title}, ${amount ?? BOARD_NO_AMOUNT}, ${state}`,
+  moreTitle: 'Show every lit deal as a list',
 } as const;
 
-// ---- the chat rail -----------------------------------------------------------------------------
-export const BOARD_RAIL_LABEL = 'Ask the board';
-export const BOARD_RAIL_TITLE = 'Ask the board';
+// ---- the says area (Says.tsx): the asked line, the one sentence, the wait, what changed --------
 export const BOARD_ENGINE_SCRIPTED = 'Scripted preview, not a live model';
 export const BOARD_ENGINE_LIVE = 'claude-code';
+export const BOARD_SAYS = 'The board says';
+export const BOARD_CANCELLED = 'Stopped. Nothing changed.';
+export const BOARD_FALLBACK_NOTICE = 'The live engine did not answer, so this answer is from the scripted preview.';
+export const BOARD_DROPPED = (n: number): string => `${n} ${n === 1 ? 'part' : 'parts'} could not be shown`;
+export const BOARD_EMPTY_REPLY = 'The board had nothing to show for that. Try one of the suggestions.';
+export const BOARD_SAYS_AREA = {
+  label: 'The answer in one sentence',
+  asked: 'You asked:',
+  /** The opening line is composed from the three standing answers; it is never a reply. */
+  opening: 'From your board, not an answer',
+  openingTitle: 'Composed from your three questions below. Nobody was asked; ask anything to get an answer.',
+  /** Said when a reply had no sentence but changed the screen. */
+  shown: 'The answer is on the table below.',
+  fallback: 'From the scripted preview',
+  repaired: 'Tidied before it was shown',
+  figureNote: 'What this figure is',
+  holdTitle: 'Press to keep this lit; press again or Esc to let go',
+} as const;
+/** The wait: what is really happening, in plain words (a reply does not stream; it takes 2 to 60 s). */
+export const BOARD_WAIT = {
+  live: (engine: string): string => `Asking the live engine, ${engine}.`,
+  scripted: 'The scripted preview is answering. No live model is running.',
+  fallback: 'The live engine did not answer. The scripted preview is answering instead.',
+  seconds: (n: number): string => `${n} s`,
+  secondsLabel: 'Time since you asked',
+  moveWins: 'If you move something on the board now, your move wins.',
+} as const;
+/** The top bar's way to the earlier answers of this sitting, read only. */
+export const BOARD_EARLIER = {
+  button: 'Earlier',
+  title: 'Earlier in this sitting',
+  none: 'Nothing has been asked yet.',
+  now: 'Now',
+  answering: 'Answering',
+  stopped: 'Stopped',
+  undone: 'Undone',
+  held: 'Held: you moved the board',
+  readOnly: 'Read only. The board shows the latest answer.',
+} as const;
+/** The keys help sheet. One row per binding of the board's one keymap (switchboard/keys.ts). */
+export const BOARD_KEYS = {
+  button: 'Keyboard shortcuts',
+  title: 'Keyboard shortcuts',
+  slash: 'Ask in your own words',
+  escape: 'Let go of a figure, clear the answers, their pins, the filter and the light',
+  arrows: 'Move between the cells and heads of the board',
+  enter: 'On a cell: light it and show only it',
+  tab: 'Reach every figure, answer action and lit deal',
+  help: 'This list',
+  arrowsShown: '← ↑ → ↓',
+} as const;
+
+// ---- the ask bar (AskBar.tsx) ----------------------------------------------------------------------
 export const BOARD_ASK_LABEL = 'Ask about your wallet';
 export const BOARD_ASK_PLACEHOLDER = 'Ask: what needs me, room left, failed renewals';
 export const BOARD_ASK = 'Ask';
 export const BOARD_STOP = 'Stop';
 export const BOARD_BUSY = 'Looking through your board';
-export const BOARD_CANCELLED = 'Stopped. Nothing changed.';
-export const BOARD_HINT = 'Enter asks · / focuses here · Esc back to the board · arrows move between keys';
 export const BOARD_CHIPS: readonly string[] = ['What needs me?', 'How much room is left today?', 'Show failed renewals', 'What was paid this week?', 'Which rules are in force?', 'Is my record intact?'];
 export const BOARD_CHIPS_LABEL = 'Suggested questions';
-export const BOARD_YOU = 'You';
-export const BOARD_THREAD_LABEL = 'Conversation';
-export const BOARD_THREAD_EMPTY = 'Ask a question and the board answers here, and lights up the part it means.';
-export const BOARD_FALLBACK_NOTICE = 'The live engine did not answer, so this answer is from the scripted preview.';
-export const BOARD_DROPPED = (n: number): string => `${n} ${n === 1 ? 'part' : 'parts'} could not be shown`;
-export const BOARD_EMPTY_REPLY = 'The board had nothing to show for that. Try one of the suggestions.';
-export const BOARD_SAYS = 'The board says';
 
-// ---- answer area ---------------------------------------------------------------------------------
-export const BOARD_ANSWER_LABEL = 'Answer';
-export const BOARD_ANSWER_EMPTY = 'Click a key on the board, or ask a question.';
+// ---- the slots (Slots.tsx): three fixed places for answers; an empty one offers a real question ----
+/** Each empty-slot offer: a question from BOARD_CHIPS, the panel it puts on the table and what it shows. */
+export const BOARD_GHOSTS: readonly { kind: 'money' | 'needs' | 'rescue' | 'rules' | 'safety' | 'book'; q: string; about: string }[] = [
+  { kind: 'money', q: 'How much room is left today?', about: 'Room left, what is held, what is paid' },
+  { kind: 'needs', q: 'What needs me?', about: 'Everything waiting on you, soonest first' },
+  { kind: 'rescue', q: 'Show failed renewals', about: 'Each failed renewal and what happens next' },
+  { kind: 'rules', q: 'Which rules are in force?', about: 'The limits you signed, in plain words' },
+  { kind: 'safety', q: 'Is my record intact?', about: 'What was stopped, and whether your record is intact' },
+  { kind: 'book', q: 'What was paid this week?', about: 'Your payments, newest first' },
+];
+export const BOARD_SLOT = {
+  ask: (q: string): string => `Ask: “${q}”`,
+  free: 'Another answer fits here',
+  pinned: 'Pinned',
+  unpin: 'Unpin',
+  focusTitle: 'Bring this answer into focus',
+} as const;
 export const BOARD_ANSWER_CLOSE = 'Close the answer';
 export const BOARD_PANEL_TITLE = {
   needs: 'What needs you',
@@ -335,20 +380,24 @@ const happensLine = (parts: readonly string[]): string => {
 export const BOARD_STANDING = {
   label: 'Your three questions',
   question: { safe: 'Is my money safe right now?', needs: 'Does anything need me?', nothing: 'What happens if I do nothing?' },
+  /** What pressing a standing answer asks the board. */
+  asks: { safe: 'Is my record intact?', needs: 'What needs me?', nothing: 'What if I do nothing?' },
+  ask: (q: string): string => `Ask the board: “${q}”`,
   notYet: 'Not available yet',
   notSetUp: 'Not set up yet',
   setUpFirst: 'Nothing can be paid until setup is done',
   nextStep: BOARD_SETUP.next,
   // Is my money safe right now? (the safety record)
   safe: 'Safe',
-  safeDetail: (entries: number | null): string => (entries === null ? 'Nothing broke your rules' : `${BOARD_INST.recordsCount(entries)} · nothing broke your rules`),
+  safeDetail: (entries: number | null): string => (entries === null ? 'Nothing broke your rules' : `${entries} ${entries === 1 ? 'entry' : 'entries'} checked · nothing broke your rules`),
   broken: BOARD_SAFETY.broken,
-  brokenDetail: BOARD_INST.recordsBrokenLine,
+  brokenDetail: 'Look at your safety record now',
   // Does anything need me? (the Needs you column)
   needsNone: 'Nothing needs you',
   needsSome: (n: number): string => `${n} ${n === 1 ? 'needs' : 'need'} you`,
   area: (name: string, n: number): string => `${name} ${n}`,
-  needsWhere: (areas: readonly string[], soonest: string | null): string => [...areas, ...(soonest ? [BOARD_COUNT_SOON(soonest)] : [])].join(' · '),
+  // The soonest deadline first: the strip is one line, and at 500 deals the areas run past its end.
+  needsWhere: (areas: readonly string[], soonest: string | null): string => [...(soonest ? [BOARD_COUNT_SOON(soonest)] : []), ...areas].join(' · '),
   // What happens if I do nothing? (the needs-you keys' If you do nothing lines)
   stays: 'Nothing moves by itself',
   happens: {
@@ -359,6 +408,8 @@ export const BOARD_STANDING = {
     stays: 'the rest waits for you',
   },
   staysOnly: 'Everything waits for you as it is',
+  /** The detail names at most two happenings; the rest are counted ("... and 3 more"). */
+  happensMore: (n: number): string => `${n} more`,
   happensLine,
   comesIn: (n: number): string => (n === 1 ? 'A payment can come in by itself' : `${n} payments can come in by themselves`),
   comesInDetail: (labels: readonly string[]): string => `${someLabels(labels)} · nothing goes out by itself`,
