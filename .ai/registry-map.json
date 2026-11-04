@@ -4436,14 +4436,13 @@
           "changedAt": "2026-10-27",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "crates/table-ledger/src/audit.rs:176 The one append door hashes and stores whatever time the caller passes. The only check is at>=0 (:169), and relay_clock_tests.rs exercises a clock that steps backwards, so seq order and `at` can disagree. append-only-design names this failure: the time should come from one clock assigned at insert. The door also states no retention horizon and validates no origin tag.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:154304c5d9578971",
-          "evaluatedRevision": 10,
+          "evidence": "crates/table-ledger/src/audit.rs:176 The one append door hashes and stores whatever time the caller passes. The only check is at>=0. relay_clock_tests.rs writes rows under a clock that steps backwards, so `at` and the seq order can disagree, and history_rows filters on `at` but orders by seq.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:b867761d55d912d1",
+          "evaluatedRevision": 11,
           "source": "conform",
           "adoptedFrom": "Money Pipeline & Persistence/ledger",
-          "revisionsBehind": 1,
-          "stale": true
+          "revisionsBehind": 1
         },
         {
           "subject": "supply-chain",
@@ -4677,12 +4676,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "crates/table-ledger/migrations/0001_table.sql:45 The audit schema lacks a structured outcome column and indexes for actor, action and time, preventing the indexed query axes required by audit-querying.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:154304c5d9578971",
-          "evaluatedRevision": 10,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-ledger/migrations/0002_integrity.sql:6 audit_log's only index is by deal. Actor, action and time have no index, and there is no outcome column, so the query axes audit-querying requires are not structured, indexed columns.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:b867761d55d912d1",
+          "evaluatedRevision": 11,
+          "revisionsBehind": 1
         },
         {
           "subject": "mcp-tools",
@@ -5592,7 +5590,11 @@
           "revision": 11,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-verify/src/lib.rs:426 The verifier rebuilds the audit-row preimage by hand instead of sharing the ledger's AuditPreimage type (audit.rs:29). The writer and the verifier each hold their own copy of the digest recipe, and a field added to one and not the other would read as a hash mismatch.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:b867761d55d912d1",
+          "evaluatedRevision": 11
         },
         {
           "subject": "proof-carrying-agent-actions",
@@ -6853,12 +6855,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "apps/desktop/client/src/windows/main/console/areas/rewind/RewindLayer.tsx:109 The tape's empty message ('Nothing happened this week. If you do nothing, no money moves.') is passed unconditionally. When deal_history fails or is still loading (steps = []), the tape still claims nothing happened, even though the header says the record couldn't be read. Separately, steps whose deal is not in the loaded list are silently dropped (:122). audit-querying forbids both: an empty result must not look like a broken query, and a filtered listing must say it is filtered.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:154304c5d9578971",
-          "evaluatedRevision": 10,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/rewind/RewindLayer.tsx:119 The tape's empty message ('Nothing happened this week. If you do nothing, no money moves.') is passed unconditionally. When deal_history fails or is still loading and steps is empty, the tape claims nothing happened while the header says the record couldn't be read. Steps whose deal is not in the loaded list are also dropped silently (:132), with no note that the list is filtered.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:b867761d55d912d1",
+          "evaluatedRevision": 11,
+          "revisionsBehind": 1
         },
         {
           "subject": "voice-io",
@@ -7358,12 +7359,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "crates/table-runtime/src/history_tests.rs:321 History reads deliberately leave the audit count unchanged, so access to sensitive money-history records is not itself recorded as audit-querying requires.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:154304c5d9578971",
-          "evaluatedRevision": 10,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-runtime/src/history_tests.rs:321 The test pins that reading the money history writes nothing to the trail. Access to a sensitive ledger is therefore never recorded, while audit-querying requires that reads of a sensitive trail go through the same door.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:b867761d55d912d1",
+          "evaluatedRevision": 11,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-runtime-assembly",
