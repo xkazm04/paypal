@@ -8626,6 +8626,16 @@
           "evidence": "crates/table-core/src/checks.rs:74 The name claims every field of ApprovalCheck is committed, but the body only varies status, text, detail and order, while `id` stays fixed at ApprovalCheckId::Amount in line(). The name claims a stronger guard than the assertions make."
         }
       ]
+    },
+    "c466e7a3-3699-46dc-9cf2-f95dab9a7dd8/mcp-tools": {
+      "context": "ledger-schema-migrations",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-04",
+      "evaluatedTs": "2026-11-04T22:03:45.554Z",
+      "worker": "174e604a-7e66-4b0a-8e41-907748ea3c6b",
+      "techniques": []
     }
   }
 }

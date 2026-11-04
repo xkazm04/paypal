@@ -4698,7 +4698,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-ledger/migrations/0001_table.sql:44 The migrations are SQLite DDL only; a grep of crates/table-ledger/migrations for mcp, tool and jsonrpc found no hits, so no tool surface is declared here, and the audit_log actor column is a free label whose value (minted id or name, the authentication-and-scoping concern) is decided by runtime code outside this context.",
+          "evaluatedAt": "2026-11-04",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "data-access",
