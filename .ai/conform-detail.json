@@ -8842,6 +8842,41 @@
       "evaluatedTs": "2026-11-05T22:54:27.016Z",
       "worker": "a3cd0b49-29c1-461a-85ce-9c5f979b71a7",
       "techniques": []
+    },
+    "bd6a5a80-3506-4c9d-bd06-06e18f3dd015/mcp-tools": {
+      "context": "native-shell",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T23:20:46.081Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "e9caff8d-b8d1-4a58-9b2e-d1ba5a0879c3",
+        "state": "not-applicable",
+        "at": "2026-11-05T23:22:15.792992+00:00",
+        "reason": "reviewer (sonnet): The evidence says the host's contact with the tool protocol is only a hand-off, but native.rs:342 calls table_runtime::spawn_networked, which binds a loopback table_mcp::Server and attaches it to the wallet actor (crates/table-runtime/src/actor.rs:556-580). The Tauri shell process therefore starts a"
+      }
+    },
+    "a1a41cac-6c94-418e-8740-5d1188336cb0/mcp-tools": {
+      "context": "director-takes-rig",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T23:20:46.081Z",
+      "worker": "e9caff8d-b8d1-4a58-9b2e-d1ba5a0879c3",
+      "techniques": []
+    },
+    "ff286e5d-5254-42d4-bb14-70a4d2d080f3/mcp-tools": {
+      "context": "client-data-layer",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T23:20:46.081Z",
+      "worker": "e9caff8d-b8d1-4a58-9b2e-d1ba5a0879c3",
+      "techniques": []
     }
   }
 }

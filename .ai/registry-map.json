@@ -3480,7 +3480,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/lib/rig.mjs:89 The rig drives the director demo through Playwright Chromium to capture stills and video. It neither publishes nor calls a tool protocol. Searching apps/desktop/client/scripts for jsonrpc, tools/call, inputSchema and McpGrant found 0 hits (those terms appear only under src/arena).",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "agent-memory",
@@ -10057,7 +10061,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/data/invoke.ts:72 The data layer wraps Tauri IPC invoke, the query cache and bus-driven invalidation for the UI. No model reads or calls through it. Searching apps/desktop/client/src/lib/data for mcp, jsonrpc, tools/call and inputSchema found 0 hits.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "read-serving-replicas",
