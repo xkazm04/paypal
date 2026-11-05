@@ -1407,7 +1407,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/book/Ask.tsx:46 The Book's ask surface reaches the wallet through a Tauri IPC command over a closed BookQuery, and understand.ts is a deterministic word-list reader with no model; a case-insensitive search of modules/book, console/areas, and lib/words for tools/call, jsonrpc, McpGrant, and inputSchema found nothing, so no tool-protocol wire lives in this context.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "invariant-placement",
@@ -6534,7 +6538,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "services/rendezvous/src/lib.rs:376 The relay's router serves only mailbox create, send/read, sync and healthz routes, and its dependencies are axum/hyper/table-relay only. A case-insensitive search of services/rendezvous for mcp, tools/call, jsonrpc, McpGrant, and inputSchema found nothing, so no model ever reads this RPC and the subject's precondition does not hold.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "prompt-assembly",

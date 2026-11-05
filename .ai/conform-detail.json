@@ -8822,6 +8822,26 @@
       "evaluatedTs": "2026-11-05T22:00:11.720Z",
       "worker": "93f27b7b-6a37-4ed5-a57c-ca22ca983681",
       "techniques": []
+    },
+    "44983015-e31a-41fb-92ee-ab6637c0cc3e/mcp-tools": {
+      "context": "book-module",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:54:27.016Z",
+      "worker": "a3cd0b49-29c1-461a-85ce-9c5f979b71a7",
+      "techniques": []
+    },
+    "e2d9b89f-2eb9-4157-b0fd-b7560f70a75c/mcp-tools": {
+      "context": "rendezvous-relay",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:54:27.016Z",
+      "worker": "a3cd0b49-29c1-461a-85ce-9c5f979b71a7",
+      "techniques": []
     }
   }
 }
