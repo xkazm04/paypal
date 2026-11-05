@@ -1003,8 +1003,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "apps/desktop/client/src/windows/approval/App.tsx:1 This is a React window shell for approvals that spawns and parses nothing. A case-insensitive search of the approval directory for stream-json, ANTHROPIC_API_KEY, permission-mode, dontAsk and jsonl found nothing. The engine names in the lazily mounted OwnerConfig.tsx are display labels only, and the transport lives in crates/table-engine.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "authorization",
@@ -2813,13 +2817,12 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:3 Review copy is derived from the deal and the wallet summary; the approval directory has no stream-json, jsonl, permission-mode, dontAsk, or ANTHROPIC_API_KEY.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
+          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:3 Review text is derived purely from deal data, with no model and no child process. A case-insensitive search of the approval directory for stream-json, ANTHROPIC_API_KEY, permission-mode, dontAsk and jsonl found nothing. The only claude/codex hit is a display label in OwnerConfig.tsx, which is outside this context.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "source": "retained",
-          "revisionsBehind": 1,
-          "stale": true
+          "revisionsBehind": 1
         }
       ],
       "governance": "governed"
@@ -3868,12 +3871,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "services/house-seller/src/hosted.rs:796 The house counters from a signed price schedule; services/house-seller has no claude, codex, stream-json, jsonl, or ANTHROPIC_API_KEY.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "services/house-seller/src/lib.rs:1 The house is a deterministic counterparty that negotiates from a signed policy and spawns no agent CLI. A case-insensitive search of services/house-seller (including entrypoint.sh) for claude, codex, stream-json, ANTHROPIC_API_KEY and dontAsk found nothing, and its only spawn is tokio::spawn.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
+          "revisionsBehind": 1
         },
         {
           "subject": "mcp-tools",
@@ -9132,13 +9134,12 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "crates/table-app/src/agent.rs:76 This crate names a playbook and executes signed wallet intents; a search of crates/table-app found no claude, codex, stream-json, jsonl, or ANTHROPIC_API_KEY.",
-          "evaluatedAt": "2026-10-16",
-          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
-          "evaluatedRevision": 9,
+          "evidence": "crates/table-app/src/lib.rs:1 This crate takes agent intents through the MCP request service and runs the money pipeline. It spawns no agent CLI: a case-insensitive search of crates/table-app for claude, codex, stream-json, ANTHROPIC_API_KEY, permission-mode, dontAsk and jsonl found nothing.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10,
           "source": "retained",
-          "revisionsBehind": 1,
-          "stale": true
+          "revisionsBehind": 1
         },
         {
           "subject": "docs-sync",

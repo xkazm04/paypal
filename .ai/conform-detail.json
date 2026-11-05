@@ -2230,14 +2230,16 @@
       "context": "approval-window-shell",
       "subject": "agent-cli-transport",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-26",
-      "evaluatedTs": "2026-10-26T22:38:12.517Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:14:15.493Z",
+      "worker": "7edf3cf7-8aa8-4fb8-b673-a090badda9f8",
       "techniques": [
         {
           "technique": "host-routed-approval-round-trip",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:3 The window approves deals and money releases. It does not answer a child CLI's own mid-turn permission requests, which the host removes by exposing only gated MCP tools."
+          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:3 The window approves deals and money releases. It does not answer a child CLI's own mid-turn permission requests, which the host removes by exposing only gated MCP tools.",
+          "carriedFrom": "2026-10-26"
         },
         {
           "technique": "availability-probe",
@@ -2287,67 +2289,79 @@
           "evidence": "apps/desktop/client/src/windows/approval/App.tsx:42 Session state is the selected deal, not a stored agent thread id.",
           "carriedFrom": "2026-10-16"
         }
-      ],
-      "withdrawn": {
-        "worker": "c65fbc16-ba6f-4623-83b0-ce45b99a8d46",
-        "state": "not-applicable",
-        "at": "2026-10-26T22:38:34.225317+00:00",
-        "reason": "reviewer (sonnet): gating.ts:3 says the module never grants anything and Rust re-checks every decision, so it doesn't show that the window has no agent-CLI transport; the 'host exposes only gated MCP tools' claim is not at that line or in any file I opened."
-      }
+      ]
     },
     "30af9627-32b0-465d-97de-4949dd83af41/agent-cli-transport": {
       "context": "wallet-app-services",
       "subject": "agent-cli-transport",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-16",
-      "evaluatedTs": "2026-10-16T01:24:42.741Z",
-      "worker": "44d81a87-3a87-4e14-8434-d6168d7b1d9a",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:14:15.493Z",
+      "worker": "7edf3cf7-8aa8-4fb8-b673-a090badda9f8",
       "techniques": [
         {
           "technique": "availability-probe",
           "verdict": "not-applicable",
-          "evidence": "crates/table-app/src/lib.rs:1 No agent binary is resolved or version-probed."
+          "evidence": "crates/table-app/src/lib.rs:1 No agent binary is resolved or version-probed.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "subscription-auth-selection",
           "verdict": "not-applicable",
-          "evidence": "crates/table-app/src/pipeline.rs:13 Authority is policy, mandate, or owner ticket for money steps, not CLI billing."
+          "evidence": "crates/table-app/src/pipeline.rs:13 Authority is policy, mandate, or owner ticket for money steps, not CLI billing.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "output-normalization",
           "verdict": "not-applicable",
-          "evidence": "crates/table-app/src/agent.rs:33 Refusals are wallet codes, not an agent CLI envelope."
+          "evidence": "crates/table-app/src/agent.rs:33 Refusals are wallet codes, not an agent CLI envelope.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "permission-stance-enforcement",
           "verdict": "not-applicable",
-          "evidence": "crates/table-app/src/agent.rs:23 Permission denied is a wallet error, not a scan/edit mode on a child CLI."
+          "evidence": "crates/table-app/src/agent.rs:23 Permission denied is a wallet error, not a scan/edit mode on a child CLI.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "dated-capability-matrix",
           "verdict": "not-applicable",
-          "evidence": "crates/table-app/src/agent.rs:76 The playbook is static role text; no CLI flag matrix is stored."
+          "evidence": "crates/table-app/src/agent.rs:76 The playbook is static role text; no CLI flag matrix is stored.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "fallback-ladder",
           "verdict": "not-applicable",
-          "evidence": "crates/table-app/src/pipeline.rs:19 The pipeline checks money steps; it does not descend an agent-CLI ladder."
+          "evidence": "crates/table-app/src/pipeline.rs:19 The pipeline checks money steps; it does not descend an agent-CLI ladder.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "child-observed-posture",
           "verdict": "not-applicable",
-          "evidence": "crates/table-app/src/agent.rs:77 No child process is launched whose argv or auth report could be read."
+          "evidence": "crates/table-app/src/agent.rs:77 No child process is launched whose argv or auth report could be read.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "host-routed-approval-round-trip",
           "verdict": "not-applicable",
-          "evidence": "crates/table-app/src/lib.rs:1 Intents are separated from money execution inside the wallet, not routed as CLI permission prompts."
+          "evidence": "crates/table-app/src/lib.rs:1 Intents are separated from money execution inside the wallet, not routed as CLI permission prompts.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "thread-custody-across-resume",
           "verdict": "not-applicable",
-          "evidence": "crates/table-app/src/agent.rs:70 Roles are negotiator, shopper, and assistant; no child thread id is stored."
+          "evidence": "crates/table-app/src/agent.rs:70 Roles are negotiator, shopper, and assistant; no child thread id is stored.",
+          "carriedFrom": "2026-10-16"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "crates/table-app/src/agent.rs:76 This crate names a playbook and executes signed wallet intents; a search of crates/table-app found no claude, codex, stream-json, jsonl, or ANTHROPIC_API_KEY.",
+          "evaluatedAt": "2026-10-16T01:24:42.741Z",
+          "worker": "44d81a87-3a87-4e14-8434-d6168d7b1d9a",
+          "reason": "replaced by 7edf3cf7-8aa8-4fb8-b673-a090badda9f8"
         }
       ]
     },
@@ -2356,54 +2370,72 @@
       "subject": "agent-cli-transport",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-16",
-      "evaluatedTs": "2026-10-16T01:24:42.741Z",
-      "worker": "44d81a87-3a87-4e14-8434-d6168d7b1d9a",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:14:15.493Z",
+      "worker": "7edf3cf7-8aa8-4fb8-b673-a090badda9f8",
       "techniques": [
         {
           "technique": "availability-probe",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:3 No agent binary is consulted to write the review."
+          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:3 No agent binary is consulted to write the review.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "subscription-auth-selection",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:3 Display text only; no child environment is built."
+          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:3 Display text only; no child environment is built.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "output-normalization",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:8 Input is the Rust deal summary, not a CLI envelope."
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:8 Input is the Rust deal summary, not a CLI envelope.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "permission-stance-enforcement",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:15 Controls are owner money decisions, not an agent read-only or edit mode."
+          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:15 Controls are owner money decisions, not an agent read-only or edit mode.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "dated-capability-matrix",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:2 No tool flags or versions are encoded."
+          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:2 No tool flags or versions are encoded.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "fallback-ladder",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:4 Missing facts are said as missing; there is no model rung to fall from."
+          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:4 Missing facts are said as missing; there is no model rung to fall from.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "child-observed-posture",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:7 No spawned child is observed."
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:7 No spawned child is observed.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "host-routed-approval-round-trip",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:1 The owner reviews a deal, not a coding agent's mid-turn tool prompt."
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:1 The owner reviews a deal, not a coding agent's mid-turn tool prompt.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "thread-custody-across-resume",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:16 Intent is a money action, not a resumed agent thread."
+          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:16 Intent is a money action, not a resumed agent thread.",
+          "carriedFrom": "2026-10-16"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:3 Review copy is derived from the deal and the wallet summary; the approval directory has no stream-json, jsonl, permission-mode, dontAsk, or ANTHROPIC_API_KEY.",
+          "evaluatedAt": "2026-10-16T01:24:42.741Z",
+          "worker": "44d81a87-3a87-4e14-8434-d6168d7b1d9a",
+          "reason": "replaced by 7edf3cf7-8aa8-4fb8-b673-a090badda9f8"
         }
       ]
     },
@@ -2412,54 +2444,72 @@
       "subject": "agent-cli-transport",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-16",
-      "evaluatedTs": "2026-10-16T01:24:42.741Z",
-      "worker": "44d81a87-3a87-4e14-8434-d6168d7b1d9a",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:14:15.493Z",
+      "worker": "7edf3cf7-8aa8-4fb8-b673-a090badda9f8",
       "techniques": [
         {
           "technique": "availability-probe",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/lib.rs:1 No local agent CLI is probed."
+          "evidence": "services/house-seller/src/lib.rs:1 No local agent CLI is probed.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "subscription-auth-selection",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/hosted.rs:331 The seller is configured with a floor, ask, and round cap, not a billed model seat."
+          "evidence": "services/house-seller/src/hosted.rs:331 The seller is configured with a floor, ask, and round cap, not a billed model seat.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "output-normalization",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/hosted.rs:803 The result is a Policy Decision, not a parsed CLI envelope."
+          "evidence": "services/house-seller/src/hosted.rs:803 The result is a Policy Decision, not a parsed CLI envelope.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "permission-stance-enforcement",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/lib.rs:16 The floor is a signed price rule, not a filesystem stance on an agent child."
+          "evidence": "services/house-seller/src/lib.rs:16 The floor is a signed price rule, not a filesystem stance on an agent child.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "dated-capability-matrix",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/hosted.rs:332 No agent CLI flags or versions are recorded."
+          "evidence": "services/house-seller/src/hosted.rs:332 No agent CLI flags or versions are recorded.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "fallback-ladder",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/hosted.rs:795 Negotiation always uses the policy; there is no model transport above it."
+          "evidence": "services/house-seller/src/hosted.rs:795 Negotiation always uses the policy; there is no model transport above it.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "child-observed-posture",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/hosted.rs:796 No child process is spawned."
+          "evidence": "services/house-seller/src/hosted.rs:796 No child process is spawned.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "host-routed-approval-round-trip",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/hosted.rs:811 Counters are wallet invokes under the mandate, not answers to a coding agent's permission prompts."
+          "evidence": "services/house-seller/src/hosted.rs:811 Counters are wallet invokes under the mandate, not answers to a coding agent's permission prompts.",
+          "carriedFrom": "2026-10-16"
         },
         {
           "technique": "thread-custody-across-resume",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/hosted.rs:793 Round count comes from the ledger, not a stored agent thread id."
+          "evidence": "services/house-seller/src/hosted.rs:793 Round count comes from the ledger, not a stored agent thread id.",
+          "carriedFrom": "2026-10-16"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:796 The house counters from a signed price schedule; services/house-seller has no claude, codex, stream-json, jsonl, or ANTHROPIC_API_KEY.",
+          "evaluatedAt": "2026-10-16T01:24:42.741Z",
+          "worker": "44d81a87-3a87-4e14-8434-d6168d7b1d9a",
+          "reason": "replaced by 7edf3cf7-8aa8-4fb8-b673-a090badda9f8"
         }
       ]
     },
