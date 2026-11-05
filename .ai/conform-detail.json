@@ -1207,10 +1207,15 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T00:19:25.867Z",
-      "worker": "96873694-4525-4f4e-9558-53ffb692ee42",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T23:35:32.876Z",
+      "worker": "c8d5ffb3-0bd0-4cdd-adaf-099d8278d32f",
       "techniques": [
+        {
+          "technique": "working-memory",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.test.tsx:10 'Tour memory' is persisted UI progress for onboarding, not agent state."
+        },
         {
           "technique": "addresses-before-compression",
           "verdict": "not-applicable",
@@ -1384,12 +1389,15 @@
           "verdict": "not-applicable",
           "evidence": "apps/desktop/client/src/shared/tour.tsx:99 No superseded belief versions or model answers.",
           "carriedFrom": "2026-10-15"
-        },
+        }
+      ],
+      "superseded": [
         {
-          "technique": "working-memory",
-          "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/shared/tour.tsx:101 Saved coach-mark position is UI progress, not an agent's operative task state.",
-          "carriedFrom": "2026-10-15"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/honesty.tsx:3 These are presentational honesty components (mode badges, money, countdowns, quarantine box), plus the start steps and coach-mark tour, whose only 'memory' is tour-progress UI state; a search of src/shared for episod, consolidat, belief, embedding and memories found nothing, so there is no agent memory for the subject to govern.",
+          "evaluatedAt": "2026-10-24T00:19:25.867Z",
+          "worker": "96873694-4525-4f4e-9558-53ffb692ee42",
+          "reason": "replaced by c8d5ffb3-0bd0-4cdd-adaf-099d8278d32f"
         }
       ]
     },
@@ -6366,10 +6374,25 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T00:19:25.867Z",
-      "worker": "96873694-4525-4f4e-9558-53ffb692ee42",
-      "techniques": []
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T23:35:32.876Z",
+      "worker": "c8d5ffb3-0bd0-4cdd-adaf-099d8278d32f",
+      "techniques": [
+        {
+          "technique": "working-memory",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-app/src/pipeline/read_state.rs:1 'In-memory' here means a process-local schedule for reading money state, not an agent's operative task state."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "crates/table-app/src/agent_request.rs:13 The trusted app layer checks agent intents against fixed role playbooks, mandates and the signed transcript, and holds no agent-learned memory (its 'in memory' comments refer to process-RAM read schedules); a search of crates/table-app for episod, consolidat, belief, embedding and memories found nothing, so nothing here captures, consolidates, decays or recalls agent memory.",
+          "evaluatedAt": "2026-10-24T00:19:25.867Z",
+          "worker": "96873694-4525-4f4e-9558-53ffb692ee42",
+          "reason": "replaced by c8d5ffb3-0bd0-4cdd-adaf-099d8278d32f"
+        }
+      ]
     },
     "3be5eb78-fe5d-4f61-ae53-ffceafebc9a6/test-harness": {
       "context": "offline-proof-verifier",
@@ -8877,6 +8900,42 @@
       "evaluatedTs": "2026-11-05T23:20:46.081Z",
       "worker": "e9caff8d-b8d1-4a58-9b2e-d1ba5a0879c3",
       "techniques": []
+    },
+    "44983015-e31a-41fb-92ee-ab6637c0cc3e/agent-memory": {
+      "context": "book-module",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T23:35:32.876Z",
+      "worker": "c8d5ffb3-0bd0-4cdd-adaf-099d8278d32f",
+      "techniques": []
+    },
+    "dfb10fbf-b52a-4c2d-a63f-c8203148b8fa/agent-memory": {
+      "context": "design-system-styles",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T23:35:32.876Z",
+      "worker": "c8d5ffb3-0bd0-4cdd-adaf-099d8278d32f",
+      "techniques": []
+    },
+    "f4937131-9b2b-4830-92bf-e739e6fbaab4/agent-memory": {
+      "context": "deal-detail",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T23:35:32.876Z",
+      "worker": "c8d5ffb3-0bd0-4cdd-adaf-099d8278d32f",
+      "techniques": [
+        {
+          "technique": "episodic-capture",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/deal/shown.ts:3 deal_history is the wallet's audit record shown to the owner. It is not an episodic store that an agent distills."
+        }
+      ]
     }
   }
 }

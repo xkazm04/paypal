@@ -1390,8 +1390,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:7 The Book reads the ledger rows the window already has and turns typed questions into a closed query language without any engine. Searching the book module, lib/words and console/areas for memories, episod, consolidat, belief and embedding found nothing, so no agent memory exists here.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52
         },
         {
           "subject": "mcp-tools",
@@ -2424,8 +2428,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "apps/desktop/client/src/windows/main/deal/model.ts:1 The deal view is pure view-model and React code that renders the wallet's signed record and deal_history. Searching windows/main/deal, console/areas and lib/words for memories, episod, consolidat, belief and embedding found nothing, so no agent captures, distills or recalls memory here.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52
         },
         {
           "subject": "hitl-approval",
@@ -2923,8 +2931,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "apps/desktop/client/src/design/tokens.css:1 This context holds design tokens, CSS, motion helpers and brand SVG components. Searching src/design and src/shared/brand for memories, episod, consolidat, belief and embedding found nothing; the 'recall'/'remember' hits are prose in comments, so there is no agent memory for the subject to govern.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52
         },
         {
           "subject": "concurrency-guards",
@@ -7778,12 +7790,11 @@
           "changedAt": "2026-10-25",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "apps/desktop/client/src/shared/honesty.tsx:3 These are presentational honesty components (mode badges, money, countdowns, quarantine box), plus the start steps and coach-mark tour, whose only 'memory' is tour-progress UI state; a search of src/shared for episod, consolidat, belief, embedding and memories found nothing, so there is no agent memory for the subject to govern.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
-          "evaluatedRevision": 51,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/shared/honesty.tsx:3 These are presentational honesty components, start steps and a coach-mark tour. Searching src/shared for memories, episod, consolidat, belief and embedding found nothing; the only 'memory' is a reset helper for tour progress, so there is no agent memory for the subject to govern.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52,
+          "revisionsBehind": 1
         },
         {
           "subject": "test-harness",
@@ -9041,12 +9052,11 @@
           "changedAt": "2026-10-25",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "crates/table-app/src/agent_request.rs:13 The trusted app layer checks agent intents against fixed role playbooks, mandates and the signed transcript, and holds no agent-learned memory (its 'in memory' comments refer to process-RAM read schedules); a search of crates/table-app for episod, consolidat, belief, embedding and memories found nothing, so nothing here captures, consolidates, decays or recalls agent memory.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
-          "evaluatedRevision": 51,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-app/src/agent_request.rs:13 The trusted app layer checks agent intents against fixed role playbooks and holds no agent-learned memory. Searching crates/table-app/src for memories, episod, consolidat, belief and embedding found nothing; its 'memory'/'recall' hits are process-RAM read schedules for PayPal reads, so nothing here captures, consolidates, decays or recalls agent memory.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:6c06fb6d8d6c900f",
+          "evaluatedRevision": 52,
+          "revisionsBehind": 1
         },
         {
           "subject": "quality-gates",
