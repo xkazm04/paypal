@@ -8711,6 +8711,67 @@
           "evidence": "crates/table-verify/src/lib.rs:431 Each exported row's digest is recomputed offline. The verdicts distinguish passed, failed, not-checked and not-applicable, and the file's blind spot is stated plainly: KNOWN_LIMIT (:555) says tail truncation cannot be detected."
         }
       ]
+    },
+    "93ab9629-27c8-4024-bd9e-06c9761ea24d/mcp-tools": {
+      "context": "spend-firewall-and-agent-policy",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:00:11.720Z",
+      "worker": "93f27b7b-6a37-4ed5-a57c-ca22ca983681",
+      "techniques": [
+        {
+          "technique": "tool-identity-vs-tool-name",
+          "verdict": "deviation",
+          "evidence": "crates/table-core/src/agent.rs:136 No rename-stable id beside the name. The technique's 'single server, handful of tools' carve-out does not apply, because table-app's audit (intent.refused / mcp.withheld) stores the tool name over time."
+        },
+        {
+          "technique": "untrusted-result-handling",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/agent.rs:6 The agent projection is closed by type: no free String, so counterparty text cannot reach the model through table_view."
+        },
+        {
+          "technique": "caller-differentiated-capability",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/agent.rs:406 The agent surface is a strict subset held by subtraction: money tools such as capture do not exist for agent roles, while the owner keeps them."
+        },
+        {
+          "technique": "tool-schema-design",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/agent.rs:507 Refusals are a closed code set, each with a fixed in-band sentence the model can act on. Tool names are verb_object."
+        },
+        {
+          "technique": "server-composition",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/agent.rs:323 The per-turn allowed list and the dispatch refusal come from one function, so listed and callable cannot drift."
+        },
+        {
+          "technique": "ambient-selection-is-not-an-argument",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/agent.rs:410 Tools act on the deal the run was minted for (OutOfScope otherwise), not on whatever the desktop UI has selected."
+        }
+      ]
+    },
+    "9a4f1dcb-2f71-4b8d-835c-a38862a5c22a/mcp-tools": {
+      "context": "client-runtime-foundation",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:00:11.720Z",
+      "worker": "93f27b7b-6a37-4ed5-a57c-ca22ca983681",
+      "techniques": []
+    },
+    "7d8f5eca-7fb1-49f4-9000-ed9926d9ad5f/mcp-tools": {
+      "context": "table-wire-protocol",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-05",
+      "evaluatedTs": "2026-11-05T22:00:11.720Z",
+      "worker": "93f27b7b-6a37-4ed5-a57c-ca22ca983681",
+      "techniques": []
     }
   }
 }

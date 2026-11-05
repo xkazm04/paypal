@@ -2089,7 +2089,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/tauri.ts:1 The foundation's bridge is Tauri IPC (invoke/emit_to with an X-Wallet-Ipc token), not a tool protocol. A search of apps/desktop/client found no JSON-RPC, inputSchema, McpServer or tools/list. MCP mentions under client/src sit in sibling contexts (arena records, the assistant bridge's --strict-mcp-config), not in this context's files.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "demo-data-plane",
@@ -8285,7 +8289,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-core/src/agent.rs:136 AgentTool is identified only by its addressable MCP name (name() and serde snake_case give the same string), and the wallet's audit trail persists that name per refusal and withheld call, so renaming a tool would split its recorded history into a death and a birth.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "issuance-policy-ladder",
@@ -8624,7 +8632,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-proto/src/lib.rs:1 table-proto is a signed peer-to-peer deal protocol (JWS envelopes between wallets and HOUSE), not a model tool protocol. A search of crates/table-proto for mcp, jsonrpc, tools/call and inputSchema returned no hits.",
+          "evaluatedAt": "2026-11-05",
+          "evaluatedAgainst": "sha256-b2:ed8e615f51454325",
+          "evaluatedRevision": 34
         },
         {
           "subject": "module-design",
