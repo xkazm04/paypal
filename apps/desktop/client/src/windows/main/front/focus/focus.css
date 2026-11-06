@@ -1,16 +1,17 @@
-/* spark abstract-first-home, variant GREET: the assistant greets. Tokens only (design/tokens.css). */
+/* spark abstract-first-home round 2, fork FOCUS: the item takes the stage card. Tokens only (design/tokens.css). */
 .ff-app { position: fixed; inset: 0; z-index: var(--z-app); display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; color: var(--text); background: var(--bg); }
 .ff-bar { gap: var(--sp-3); padding: 0 var(--sp-4); background: var(--material); min-width: 0; }
 .ff-brand { display: inline-flex; align-items: center; gap: var(--sp-2); white-space: nowrap; }
 .ff-brand .br-mark { width: 22px; height: 22px; }
 .ff-brand b { font: var(--fw-semibold) var(--fs-title3)/1 var(--label); font-stretch: var(--label-stretch); letter-spacing: var(--track-label); text-transform: uppercase; }
 
-.ff-stage { display: grid; grid-template-columns: minmax(0, 1fr) 400px; min-height: 0; min-width: 0; }
+.ff-stage { display: grid; grid-template-columns: minmax(0, 1fr) 440px; min-height: 0; min-width: 0; }
 @media (max-width: 960px) { .ff-stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; } .ff-side { border-left: 0; border-top: 1px solid var(--line); max-height: 40vh; } }
 
-/* ---- the conversation ---- */
-.ff-talk { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; min-width: 0; }
-.ff-scroll { overflow: auto; min-height: 0; padding: var(--sp-6) var(--sp-4) var(--sp-4); scroll-behavior: smooth; }
+/* ---- the conversation: the opening (status + the slot) stays on top, the transcript scrolls under it ---- */
+.ff-talk { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-height: 0; min-width: 0; }
+.ff-head { width: 100%; max-width: 752px; margin: 0 auto; padding: var(--sp-6) var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-3); max-height: 66vh; overflow: auto; min-height: 0; }
+.ff-scroll { overflow: auto; min-height: 0; padding: var(--sp-2) var(--sp-4) var(--sp-4); scroll-behavior: smooth; }
 .ff-transcript { list-style: none; margin: 0 auto; padding: 0; max-width: 720px; display: flex; flex-direction: column; gap: var(--sp-4); }
 .ff-turn { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
 .ff-turn.is-you { align-items: flex-end; }
@@ -29,8 +30,11 @@
 .ff-sub { margin: 0; color: var(--muted); }
 .ff-prog { color: var(--gold-l); white-space: nowrap; }
 .ff-lines { margin: 0; padding-left: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-1); color: var(--text); }
-.ff-more { color: var(--muted); list-style: none; margin-left: calc(-1 * var(--sp-4)); padding-left: var(--sp-4); }
-.ff-away { display: flex; flex-direction: column; gap: var(--sp-1); }
+.ff-away { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-2); line-height: 1.5; }
+.ff-away .ff-kick { flex-basis: 100%; }
+.ff-away-l { color: var(--text); }
+.ff-more { font-size: var(--fs-body); white-space: nowrap; }
+.ff-needwrap { display: flex; flex-direction: column; gap: var(--sp-1); }
 .ff-change { margin: 0; color: var(--muted); font-size: var(--fs-small); display: flex; gap: var(--sp-2); align-items: baseline; flex-wrap: wrap; }
 .ff-undo { font-size: var(--fs-small); }
 
@@ -59,19 +63,65 @@
 .ff-hint { margin: var(--sp-2) 0 0; color: var(--dim); font-size: var(--fs-small); line-height: 1.45; }
 .ff-kick { margin: 0; color: var(--muted); font-size: var(--fs-small); text-transform: uppercase; letter-spacing: var(--track-label); }
 
-/* ---- the side: modules strip + composition region ---- */
+/* ---- the side: the module navigator ---- */
 .ff-side { border-left: 1px solid var(--line); background: var(--material); display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-.ff-mods { display: flex; justify-content: space-between; gap: var(--sp-1); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--line); }
-.ff-mod { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--r); background: transparent; border: 1px solid transparent; cursor: pointer; opacity: .55; transition: opacity var(--dur-med) var(--ease), border-color var(--dur-med) var(--ease); }
-.ff-mod:hover, .ff-mod:focus-visible { opacity: 1; background: var(--hover); }
-.ff-mod:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.ff-mod.is-lit { opacity: 1; border-color: var(--mc); background: var(--panel); }
-.ff-glyph { width: 28px; height: 28px; }
-.ff-dot { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+.ff-tabs { display: flex; gap: 2px; padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--line); }
+.ff-tab { --mc: var(--teal); position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1); min-width: 40px; height: 40px; padding: 0 var(--sp-2); border-radius: var(--r); background: transparent; border: 1px solid transparent; color: var(--muted); font: inherit; font-size: var(--fs-small); cursor: pointer; transition: background var(--dur-med) var(--ease), border-color var(--dur-med) var(--ease); }
+.ff-tab:hover { background: var(--hover); color: var(--text); }
+.ff-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ff-tab.is-on { flex: 1; justify-content: flex-start; background: var(--panel); border-color: var(--line2); color: var(--text); box-shadow: inset 0 -2px 0 var(--mc); }
+.ff-tab-g { width: 22px; height: 22px; flex: none; opacity: .7; }
+.ff-tab.is-on .ff-tab-g, .ff-tab:hover .ff-tab-g { opacity: 1; }
+.ff-tab-n { display: none; font-weight: var(--fw-semibold); white-space: nowrap; }
+.ff-tab.is-on .ff-tab-n { display: inline; }
+.ff-badge { position: absolute; top: 1px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--gold); color: var(--on-gold); font: var(--fw-bold) var(--fs-small)/16px var(--num); font-variant-numeric: tabular-nums lining-nums; text-align: center; }
+.ff-tab.is-on .ff-badge { position: static; margin-left: auto; }
 
-.ff-region { flex: 1; min-height: 0; overflow: auto; padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
+.ff-listhead { display: flex; align-items: baseline; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4) var(--sp-1); }
+.ff-listhead b { font-weight: var(--fw-semibold); }
+.ff-listcount { margin-left: auto; color: var(--dim); font-size: var(--fs-small); }
+.ff-list { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: minmax(0, 1fr) repeat(var(--cols, 1), auto); align-content: start; column-gap: var(--sp-3); padding: 0 var(--sp-2) var(--sp-3); outline: none; }
+.ff-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; min-height: 34px; padding: 0 var(--sp-2); border-radius: var(--r-tight); cursor: pointer; font-size: var(--fs-body); }
+.ff-row:hover { background: var(--hover); }
+.ff-list:focus-visible .ff-row.is-cursor { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ff-row.is-open { background: var(--panel); box-shadow: inset 3px 0 0 var(--mc); }
+.ff-row-h { position: sticky; top: 0; z-index: 1; min-height: 28px; cursor: default; background: var(--material); color: var(--dim); font-size: var(--fs-small); text-transform: uppercase; letter-spacing: var(--track-label); border-bottom: 1px solid var(--line); border-radius: 0; margin-bottom: 2px; }
+.ff-row-h:hover { background: var(--material); }
+.ff-t { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.ff-tt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ff-row.is-needs .ff-tt { font-weight: var(--fw-medium); }
+.ff-needdot { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--gold); }
+.ff-row.is-need:not(.is-open) { box-shadow: inset 2px 0 0 var(--gold-d); }
+.ff-c { white-space: nowrap; color: var(--muted); font-size: var(--fs-small); max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.ff-c.is-num { text-align: right; justify-self: end; font-family: var(--num); font-variant-numeric: tabular-nums lining-nums; color: var(--text); font-size: var(--fs-body); }
+.ff-row-h .ff-c { color: var(--dim); font-size: var(--fs-small); font-family: inherit; }
+.ff-rsub { grid-column: 1 / -1; padding: 0 0 var(--sp-2) calc(6px + var(--sp-2)); color: var(--muted); font-size: var(--fs-small); line-height: 1.4; }
+.ff-empty { grid-column: 1 / -1; margin: var(--sp-3) var(--sp-2); color: var(--dim); font-size: var(--fs-small); line-height: 1.45; }
+.ff-keys { margin: 0; padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--line); color: var(--dim); font-size: var(--fs-small); }
+.tn-needs { color: var(--gold-l); }
+.tn-moving { color: var(--teal-l); }
+.tn-stopped { color: var(--red-l); }
+.tn-paid { color: var(--ok); }
+.tn-warn { color: var(--coral-l); }
+.tn-quiet { color: var(--dim); }
+.ff-c.is-num.tn-quiet { color: var(--dim); }
+
+/* ---- the focus card: the item in the need card's slot ---- */
+.ff-focus { --mc: var(--teal); display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); border-radius: var(--r); background: var(--panel); border: 1px solid var(--line2); border-left: 3px solid var(--mc); box-shadow: var(--shadow-2); max-width: 640px; }
+.ff-focus-top { display: flex; align-items: center; gap: var(--sp-2); }
+.ff-back { font-size: var(--fs-small); }
+.ff-facts { margin: 0; display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-6); padding: var(--sp-2) 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.ff-fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ff-fact dt { color: var(--dim); font-size: var(--fs-small); text-transform: uppercase; letter-spacing: var(--track-label); }
+.ff-fact dd { margin: 0; font-size: var(--fs-body); color: var(--text); }
+.ff-fact dd.num { font-family: var(--num); font-variant-numeric: tabular-nums lining-nums; }
+.ff-detail { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.ff-detail .sb-decision > .sb-h, .ff-detail .sb-deal > .sb-h { display: none; }
+.ff-askabout { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.ff-askabout .ff-kick { margin-right: var(--sp-1); }
+
+/* suggestions under the reply that made them */
 .ff-card { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); min-width: 0; }
-.ff-card.is-focus { border-color: var(--line2); box-shadow: var(--shadow-2); }
 .ff-card.is-suggest { border-style: dashed; }
 .ff-card-h { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--line); font-size: var(--fs-small); min-width: 0; }
 .ff-card-h b { font-weight: var(--fw-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
