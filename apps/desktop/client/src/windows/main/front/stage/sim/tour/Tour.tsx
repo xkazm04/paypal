@@ -2,19 +2,19 @@
 // The conversation leads, one component per turn: ONE assistant turn = ONE step = ONE component, and
 // the next step's turn appears only once the wallet calls the current one done (useStart).
 //   1 Opening: the Stage status line stays; the first turn is one short sentence + the keys' secure step.
-//   2 Each step's turn: a tiny "n of 4", one sentence of why, the component, a quiet "Skip for now".
+//   2 Each step's turn: a tiny "n of 3", one sentence of why, the component, a quiet "Skip for now".
 //     Done -> the component's own success state, then one line ("Keys saved. Next, the rules your agents
 //     follow.") and the next turn; the older turn folds to a done line. Never two open components.
 //   3 Rules: the proposal in plain words first (rules.ts: per deal, per day, ask me above, the practice
 //     shop as payee), "Looks right" -> the secure step with that draft; "Change something" -> she says
 //     it in the ask box and the proposal is read again by the wallet's own reader (no model).
-//   4 Next steps: the practice shop (pairing_join HOUSE here, then the secure step's four words) and the
-//     agent app (one row of choices). Then "You're set" with three pointers that light their region.
+//   4 Practice (one turn): the agent app (one row of choices, folds when chosen), then the practice shop (pairing_join HOUSE here, then the secure step's four words) -
+//     Then "You're set" with three pointers that light their region.
 //   5 After each step at most ONE mark, on where the result now lives (Spot.tsx): leaves by itself.
 //   6 She can ask anything at any time: the answer stays in the conversation and the current step is
 //     offered again under it ("Back to: Rules."), the older turn folding to "Moved below".
 //   7 Skip for now: host.back(), a "Continue setup" turn; a reload resumes from useStart.
-// Order: keys -> rules -> practice shop -> agent app (START_ORDER). The rules can come before the shop
+// Order: keys -> rules -> practice (agent app + practice shop). The rules can come before the shop
 // because the proposal names the shop's payee up front, and the wallet signs that (rules.test.ts).
 // The tour never acts: every mutation is a control she presses (secure steps run in the approval context).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

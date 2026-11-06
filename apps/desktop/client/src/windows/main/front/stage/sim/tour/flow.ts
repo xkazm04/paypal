@@ -92,11 +92,17 @@ export function spotOn(target: SpotTarget, text: string): void { setFlow({ spot:
 export function spotOff(id?: number): void { if (state.spot && (id === undefined || state.spot.id === id)) setFlow({ spot: null }); }
 
 // ---- the steps, in the owner's order ---------------------------------------------------------------
-// The owner's order is START_ORDER: keys, rules, then the next steps (practice shop, agent app). The
-// rules can come before the shop because their proposal names the shop's payee up front (rules.ts).
-export const ORDER: readonly StartStepKey[] = START_ORDER;
+// Three turns: keys, rules, then one practice turn that holds the agent app and the practice shop
+// (owner, round 5: "fold agent app into practice step"). The wallet still counts four facts
+// (START_ORDER); the practice turn is done when both of its facts are. The rules can come before the
+// shop because their proposal names the shop's payee up front (rules.ts).
+export const ORDER: readonly StartStepKey[] = START_ORDER.filter((k) => k !== 'engine');
 
-export const isDone = (gs: GettingStarted, k: StartStepKey): boolean => gs.steps.find((s) => s.key === k)?.state === 'done';
+/** One wallet fact (useStart), as the world reports it. */
+export const factDone = (gs: GettingStarted, k: StartStepKey): boolean => gs.steps.find((s) => s.key === k)?.state === 'done';
+/** A turn's step done: the practice turn needs its agent app chosen too. */
+export const isDone = (gs: GettingStarted, k: StartStepKey): boolean =>
+  k === 'practice' ? factDone(gs, 'practice') && factDone(gs, 'engine') : factDone(gs, k);
 /** Every step's state is read (nothing 'unknown'): only then may the flow say which one is next. */
 export const allKnown = (gs: GettingStarted): boolean => gs.steps.length > 0 && gs.steps.every((s) => s.state !== 'unknown');
 /** The first step the world does not call done, in the owner's order; null when all are. */

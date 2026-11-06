@@ -32,10 +32,10 @@ export const STEP: Record<StartStepKey, StepWords> = {
     spot: 'Each purchase is checked against your rules. They show up in Spend.',
   },
   practice: {
-    short: 'Practice shop',
-    lead: 'Now meet the practice shop.',
-    why: 'A demo shop that is always open. Your first deal there uses sandbox money.',
-    done: 'The practice shop is connected.',
+    short: 'Practice',
+    lead: 'Last, pick who plays your agent and meet the practice shop.',
+    why: 'Choose the app your agent runs in, then connect a demo shop that is always open. Sandbox money only.',
+    done: 'Your agent is set and the practice shop is connected.',
     spot: 'Practice deals show up here, in Tables.',
   },
   engine: {
@@ -48,7 +48,7 @@ export const STEP: Record<StartStepKey, StepWords> = {
 };
 
 export const TOUR_W = {
-  open: 'Four quick steps and your agents can work.',
+  open: 'Three quick steps and your agents can work.',
   resume: 'Welcome back.',
   stepOf: (n: number, total: number): string => `${n} of ${total}`,
   skip: 'Skip for now',

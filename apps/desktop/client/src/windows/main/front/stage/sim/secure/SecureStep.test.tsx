@@ -28,12 +28,12 @@ afterEach(() => {
 });
 
 describe('presenter selection', () => {
-  it('?secure= picks inline, sheet or popup; anything else is inline', () => {
+  it('?secure= picks inline, sheet or popup; anything else is the sheet', () => {
     expect(securePresenter('?secure=sheet')).toBe('sheet');
     expect(securePresenter('?secure=popup')).toBe('popup');
     expect(securePresenter('?secure=inline')).toBe('inline');
-    expect(securePresenter('?secure=iframe')).toBe('inline');
-    expect(securePresenter('')).toBe('inline');
+    expect(securePresenter('?secure=iframe')).toBe('sheet');
+    expect(securePresenter('')).toBe('sheet');
   });
   it('a page can show the step only in a browser on the mock world; elsewhere it is the approval window', () => {
     expect(secureInPage()).toBe(false); // no backend

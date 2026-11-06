@@ -89,7 +89,7 @@ describe('TOUR sim (AI-led setup)', () => {
     await waitFor(() => expect(secure().map((s) => s.dataset.secure)).toEqual(['keys']), { timeout: 8000 });
     expect(live()).toHaveLength(1);
     expect(turns().filter((t) => t.includes(TOUR_W.open))).toHaveLength(1);
-    expect(live()[0]!.textContent).toContain(TOUR_W.stepOf(1, 4));
+    expect(live()[0]!.textContent).toContain(TOUR_W.stepOf(1, 3));
     expect(document.querySelector('[data-sim-region="status"]')).not.toBeNull();
 
     // Keys saved in the approval context (set_credentials is privileged: the tour never calls it).
@@ -118,13 +118,22 @@ describe('TOUR sim (AI-led setup)', () => {
     });
     await waitFor(() => expect(document.querySelector('.st-turn[data-st-turn="practice"]')).not.toBeNull(), { timeout: 6000 });
     expect(live()).toHaveLength(1);
+    // The practice turn holds the agent app first (folded in, round 5); the shop's form waits for it.
+    expect(live()[0]!.textContent).toContain(TOUR_W.stepOf(3, 3));
+    expect(live()[0]!.querySelector('[data-engine="scripted"]')).not.toBeNull();
+    expect(live()[0]!.querySelector('#st-payee')).toBeNull();
+    // Picking the practice agent folds the choice to its done line; the shop's form follows in the same turn.
+    fireEvent.click(live()[0]!.querySelector<HTMLButtonElement>('[data-engine="scripted"]')!);
+    await waitFor(() => expect(live()[0]!.querySelector('#st-payee')).not.toBeNull(), { timeout: 5000 });
+    expect(live()[0]!.querySelector('[data-st-turn="engine"][data-state="done"]')).not.toBeNull();
+    expect(live()[0]!.querySelector('[data-engine]')).toBeNull();
     expect(calls.some((c) => c === 'set_credentials' || c === 'mandate_sign' || c === 'approval_open')).toBe(false);
 
     // Skip for now: back to the home, one "Continue setup" line; Continue offers the same step again.
     fireEvent.click(btn(live()[0]!, TOUR_W.skip)!);
     const cont = await waitFor(() => { const c = document.querySelector<HTMLElement>('[data-st-continue]'); expect(c).not.toBeNull(); return c!; });
     expect(live()).toHaveLength(0);
-    expect(turns().some((t) => t.startsWith(TOUR_W.paused(3, 4, STEP.practice.short)))).toBe(true);
+    expect(turns().some((t) => t.startsWith(TOUR_W.paused(3, 3, STEP.practice.short)))).toBe(true);
     fireEvent.click(cont);
     await waitFor(() => expect(document.querySelector('.st-turn[data-st-turn="practice"]')).not.toBeNull());
     expect(document.querySelector('[data-st-continue]')).toBeNull();

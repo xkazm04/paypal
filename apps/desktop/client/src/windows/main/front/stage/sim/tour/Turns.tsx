@@ -26,7 +26,7 @@ import { useLocked, useSettings } from '../../../../world';
 import { tr, TRAVEL } from '../../fx';
 import type { SimRegion } from '../host';
 import { SecureStep } from '../secure/SecureStep';
-import { isDone, ORDER, setFlow, spotOn, stepN, useFlow } from './flow';
+import { factDone, isDone, ORDER, setFlow, spotOn, stepN, useFlow } from './flow';
 import { HOUSE_PAYEE, proposalOf, rulesCtx, type RulesProposal } from './rules';
 import { STEP, TOUR_W } from './words';
 
@@ -76,8 +76,7 @@ export function StepTurn({ step, serial, api }: { step: StartStepKey; serial: nu
       <p className="st-why">{w.why}</p>
       {step === 'paypal' ? <KeysBody done={done} /> : null}
       {step === 'rules' ? <RulesBody done={done} api={api} /> : null}
-      {step === 'practice' ? <PracticeBody done={done} /> : null}
-      {step === 'engine' ? <EngineBody done={done} /> : null}
+      {step === 'practice' ? <PracticeStep /> : null}
       {done ? null : (
         <footer className="st-turn-f">
           <button type="button" className="linkbtn st-skip" onClick={api.skip} title={TOUR_W.skipTitle}>{TOUR_W.skip}</button>
@@ -158,6 +157,21 @@ export function RulesSummary({ p }: { p: RulesProposal }) {
         {lines.map((l) => <li key={l.k} data-rule={l.k}>{l.text}</li>)}
       </ul>
     </section>
+  );
+}
+
+// ---- practice: the agent app first (one row of choices), then the practice shop -------------------
+// One turn, one thing at a time: the app choice folds to its done line before the shop's form shows.
+
+function PracticeStep() {
+  const gs = useStart();
+  const app = factDone(gs, 'engine');
+  const shop = factDone(gs, 'practice');
+  return (
+    <>
+      {app ? <DoneLine step="engine" /> : <EngineBody done={false} />}
+      {app || shop ? <PracticeBody done={shop} /> : null}
+    </>
   );
 }
 

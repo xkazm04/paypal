@@ -2,14 +2,15 @@
 // conversation turn. A secure step (save PayPal keys, sign rules, confirm the practice shop's words)
 // runs only in the approval context; the presenter decides how that context is shown. The approval
 // side renders a BARE surface for it (`approval.html?bare=<kind>`): just the one form, no approval
-// chrome. Prototype switch `?secure=inline|sheet|popup` picks the presenter; default inline.
+// chrome. Prototype switch `?secure=inline|sheet|popup` picks the presenter; default sheet (owner's
+// round-4 pick).
 export type SecureKind = 'keys' | 'rules' | 'pairing';
 export type SecurePresenter = 'inline' | 'sheet' | 'popup';
 export const SECURE_PRESENTERS: readonly SecurePresenter[] = ['inline', 'sheet', 'popup'];
 
 export function securePresenter(search: string = typeof location === 'undefined' ? '' : location.search): SecurePresenter {
   const v = new URLSearchParams(search).get('secure');
-  return (SECURE_PRESENTERS as readonly string[]).includes(v ?? '') ? (v as SecurePresenter) : 'inline';
+  return (SECURE_PRESENTERS as readonly string[]).includes(v ?? '') ? (v as SecurePresenter) : 'sheet';
 }
 
 export type SecureStepProps = {
