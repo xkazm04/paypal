@@ -60,10 +60,85 @@ pub(crate) fn stored_envelope(
     Ok(serde_json::from_slice(&bytes)?)
 }
 
+/// The `deals` columns a [`Deal`] is projected from, in [`DealRow`] order.
+macro_rules! deal_columns {
+    () => {
+        "kind,side,counterparty,mandate_id,mandate_version,item_ref,qty,unit_price_minor,currency,delivery,state,terms_hash,transcript_head,pp_order_id,pp_authorization_id,pp_capture_id,pp_subscription_id,mode,market_json,shield_verdict,created_at,updated_at,decided_by,shield_rule,shield_terms,shield_release_json"
+    };
+}
+type DealRow = (
+    String,
+    String,
+    String,
+    String,
+    u32,
+    String,
+    u32,
+    i64,
+    String,
+    String,
+    String,
+    Vec<u8>,
+    Vec<u8>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    String,
+    Option<String>,
+    Option<String>,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<Vec<u8>>,
+    Option<String>,
+);
+/// One `deal_columns!()` row, read from column 0 on.
+fn deal_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<DealRow> {
+    Ok((
+        r.get::<_, String>(0)?,
+        r.get::<_, String>(1)?,
+        r.get::<_, String>(2)?,
+        r.get::<_, String>(3)?,
+        r.get::<_, u32>(4)?,
+        r.get::<_, String>(5)?,
+        r.get::<_, u32>(6)?,
+        r.get::<_, i64>(7)?,
+        r.get::<_, String>(8)?,
+        r.get::<_, String>(9)?,
+        r.get::<_, String>(10)?,
+        r.get::<_, Vec<u8>>(11)?,
+        r.get::<_, Vec<u8>>(12)?,
+        r.get::<_, Option<String>>(13)?,
+        r.get::<_, Option<String>>(14)?,
+        r.get::<_, Option<String>>(15)?,
+        r.get::<_, Option<String>>(16)?,
+        r.get::<_, String>(17)?,
+        r.get::<_, Option<String>>(18)?,
+        r.get::<_, Option<String>>(19)?,
+        r.get::<_, String>(20)?,
+        r.get::<_, String>(21)?,
+        r.get::<_, Option<String>>(22)?,
+        r.get::<_, Option<String>>(23)?,
+        r.get::<_, Option<Vec<u8>>>(24)?,
+        r.get::<_, Option<String>>(25)?,
+    ))
+}
 pub(crate) fn read_deal(conn: &Connection, id: DealId) -> Result<Deal, LedgerError> {
-    let row=conn.query_row("SELECT kind,side,counterparty,mandate_id,mandate_version,item_ref,qty,unit_price_minor,currency,delivery,state,terms_hash,transcript_head,pp_order_id,pp_authorization_id,pp_capture_id,pp_subscription_id,mode,market_json,shield_verdict,created_at,updated_at,decided_by,shield_rule,shield_terms,shield_release_json FROM deals WHERE id=?1",[id.to_string()],|r|{
-        Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?,r.get::<_,u32>(4)?,r.get::<_,String>(5)?,r.get::<_,u32>(6)?,r.get::<_,i64>(7)?,r.get::<_,String>(8)?,r.get::<_,String>(9)?,r.get::<_,String>(10)?,r.get::<_,Vec<u8>>(11)?,r.get::<_,Vec<u8>>(12)?,r.get::<_,Option<String>>(13)?,r.get::<_,Option<String>>(14)?,r.get::<_,Option<String>>(15)?,r.get::<_,Option<String>>(16)?,r.get::<_,String>(17)?,r.get::<_,Option<String>>(18)?,r.get::<_,Option<String>>(19)?,r.get::<_,String>(20)?,r.get::<_,String>(21)?,r.get::<_,Option<String>>(22)?,r.get::<_,Option<String>>(23)?,r.get::<_,Option<Vec<u8>>>(24)?,r.get::<_,Option<String>>(25)?))
-    }).optional()?.ok_or(LedgerError::NotFound)?;
+    let row = conn
+        .query_row(
+            concat!("SELECT ", deal_columns!(), " FROM deals WHERE id=?1"),
+            [id.to_string()],
+            deal_row,
+        )
+        .optional()?
+        .ok_or(LedgerError::NotFound)?;
+    deal_from_row(id, row)
+}
+/// The projection and its integrity checks (stored terms hash, shield record, market ref), one
+/// rule for the by-id read and the list read.
+fn deal_from_row(id: DealId, row: DealRow) -> Result<Deal, LedgerError> {
     let currency: Currency = parse_enum(row.8)?;
     let terms = Terms {
         item_ref: table_core::ItemRef::new(row.5).map_err(|_| LedgerError::Integrity("item ID"))?,
@@ -596,7 +671,7 @@ impl Ledger {
             .ok_or(LedgerError::NotFound)
     }
     pub fn list_deals(&self) -> Result<Vec<Deal>, LedgerError> {
-        self.read_deals("SELECT id FROM deals ORDER BY id")
+        self.read_deals("ORDER BY id")
     }
     /// Every deal not in a terminal state, in id order. RECEIPTED is not terminal and is listed:
     /// the tick lapses a buyer's uncorroborated receipt. The state list is `DealState::ALL`
@@ -608,20 +683,23 @@ impl Ledger {
             .map(|state| enum_text(state).map(|text| format!("'{text}'")))
             .collect::<Result<Vec<_>, _>>()?
             .join(",");
-        self.read_deals(&format!(
-            "SELECT id FROM deals WHERE state NOT IN ({terminal}) ORDER BY id"
-        ))
+        self.read_deals(&format!("WHERE state NOT IN ({terminal}) ORDER BY id"))
     }
-    fn read_deals(&self, id_query: &str) -> Result<Vec<Deal>, LedgerError> {
-        let mut query = self.conn.prepare(id_query)?;
-        let ids = query
-            .query_map([], |r| r.get::<_, String>(0))?
+    /// Every deal the `tail` (a WHERE/ORDER BY clause, no input) selects, in one statement: the
+    /// desktop actor lists the whole wallet on each 1 s tick, so a statement per deal was
+    /// 1 + N round trips a second.
+    fn read_deals(&self, tail: &str) -> Result<Vec<Deal>, LedgerError> {
+        let mut query = self
+            .conn
+            .prepare(&format!("SELECT {},id FROM deals {tail}", deal_columns!()))?;
+        let rows = query
+            .query_map([], |r| Ok((deal_row(r)?, r.get::<_, String>(26)?)))?
             .collect::<Result<Vec<_>, _>>()?;
-        ids.into_iter()
-            .map(|id| {
-                read_deal(
-                    &self.conn,
+        rows.into_iter()
+            .map(|(row, id)| {
+                deal_from_row(
                     id.parse().map_err(|_| LedgerError::Integrity("deal id"))?,
+                    row,
                 )
             })
             .collect()
