@@ -1352,8 +1352,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.ts:2 Book's 'Ask' feature turns a typed question into a closed BookQuery using a fixed word list, explicitly with no model (model.ts:7 also says 'no engine involved'), so no prompt is assembled. The search found no prompt-assembly terms in the context's files. 'prompt' appears only in UI copy and a comment in sibling directories, so it was not used as an absence term.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "codebase-scanning",
@@ -2872,8 +2876,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/design/tokens.css:1 This context is CSS design tokens, styles and brand SVG components with no model call. A search of src/design and src/shared/brand for prompt, compaction, max_tokens and systemPrompt returned no hits, so prompt assembly has nothing to govern here.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "design-tokens",
@@ -5668,8 +5676,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "crates/table-verify/src/lib.rs:1 table-verify is an offline signature and proof checker that makes no model call. A search of crates/table-verify/src for prompt, compaction, max_tokens and system_prompt returned no hits; its only 'agent' hits are Ed25519 agent keys. So the subject's precondition does not hold.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "mcp-tools",

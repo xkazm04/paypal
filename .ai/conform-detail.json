@@ -8982,6 +8982,36 @@
         "at": "2026-11-06T00:15:06.393876+00:00",
         "reason": "reviewer (sonnet): Both anchors are incidental. OwnerConfig.tsx:1 is a header comment describing the owner checklist UI, and gating.ts:3 says the module never grants anything and Rust re-checks it. Neither line shows that no agent instruction file is written or read, and the only support is a filename grep over one di"
       }
+    },
+    "44983015-e31a-41fb-92ee-ab6637c0cc3e/prompt-assembly": {
+      "context": "book-module",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:03:36.979Z",
+      "worker": "28f57f0c-6865-4abb-ae46-8204266d9cc2",
+      "techniques": []
+    },
+    "dfb10fbf-b52a-4c2d-a63f-c8203148b8fa/prompt-assembly": {
+      "context": "design-system-styles",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:03:36.979Z",
+      "worker": "28f57f0c-6865-4abb-ae46-8204266d9cc2",
+      "techniques": []
+    },
+    "3be5eb78-fe5d-4f61-ae53-ffceafebc9a6/prompt-assembly": {
+      "context": "offline-proof-verifier",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:03:36.979Z",
+      "worker": "28f57f0c-6865-4abb-ae46-8204266d9cc2",
+      "techniques": []
     }
   }
 }
