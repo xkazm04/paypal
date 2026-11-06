@@ -40,7 +40,6 @@ export const GREET = {
   you: 'You',
   me: 'Assistant',
   askLabel: 'Ask your assistant',
-  engine: (name: string): string => `Answers by ${name}`,
   regionHint: 'Ask, or tap a module: answers land here, and Undo puts them back.',
   askPlaceholder: 'Ask anything: “what’s waiting on me?”, “show me Spend”…',
   send: 'Ask',
@@ -49,6 +48,11 @@ export const GREET = {
   stopped: 'Stopped. Nothing changed on screen.',
   nothingSaid: 'I had nothing to say to that.',
   undo: 'Undo',
+  // ---- coming back (round 3): after the approval window or an act, a line says what happened
+  backFromApproval: 'Back from the approval window.',
+  backStillWaiting: (title: string): string => `Back from the approval window - ${title} is still waiting for you.`,
+  backMoved: (title: string, state: string): string => `Back from the approval window - ${title}: ${state.charAt(0).toLowerCase()}${state.slice(1)}.`,
+  actDone: (title: string): string => `Done: ${title}. Undo is in the card below.`,
   // ---- the composition region
   modules: 'Your modules',
   moduleTitle: (name: string, long: string, needs: number): string => `${name} · ${long}${needs ? ` · ${needs} need you` : ''}`,
@@ -136,4 +140,22 @@ export const STAGE = {
   about: (title: string): string => `About ${title}`,
   // a show op that is not a row
   panelCrumb: (title: string): string => title,
+  // round 3: a reply about one deal offers its page instead of opening it
+  openLink: (title: string): string => `Open ${title}`,
+} as const;
+
+/** Round 3: the simulated first project (sim/host.ts) - the entry, the badge, the crumb. */
+export const SIM = {
+  try: 'Try a first project',
+  tryTitle: 'Walk through a brand-new wallet in a simulation: sandbox only, nothing real moves',
+  menuTitle: 'A simulated first project',
+  variant: {
+    guide: { name: 'Guided', what: 'The assistant walks you through each step, here in the conversation.' },
+    tour: { name: 'Tour', what: 'Spotlights on the screen, one region at a time.' },
+    story: { name: 'Story', what: 'A short story of a first week, played out on this screen.' },
+  },
+  badge: 'Simulation · first project',
+  leave: 'Leave simulation',
+  leaveTitle: 'Back to your wallet as it was',
+  crumb: 'First project',
 } as const;

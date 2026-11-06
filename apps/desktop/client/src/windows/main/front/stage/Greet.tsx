@@ -7,11 +7,16 @@
 //   (ItemStage.tsx): breadcrumb "Today > Module > title", facts, the story, actions, and the ask box
 //   scoped to the item (the engine gets the deal label as a prefix). Esc or the crumb puts the
 //   greeting and transcript back exactly as they were: they stay mounted, only hidden.
-// - Reply ops (nav.ts): filter / focus scope the list and ring a named deal's row; show of a deal opens
-//   its stage, any other show opens the panel as the stage. One Undo puts the navigation back.
+// - Reply ops (nav.ts routeReply, round 3): a reply stays IN the conversation. Its show panels render
+//   inline in its turn; a reply about one deal offers "Open <title>"; filter / focus scope the side
+//   list and ring a named deal's row. One Undo puts the list back. Main moves only on her click.
+// - Round 3: framer-motion for main (today <-> page, page <-> page by list order) and the side (fx.ts,
+//   values from design/motion.ts); StageHost for the simulated first projects (sim/host.ts); a quiet
+//   "Try a first project" entry in the top bar.
 // Numbers come from the world and the board model, never from reply text. Watch-only: approval_open,
 // engine_select, pairing_* (PairingDesk), assistant_act via the board's Proposals consent path.
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import type { Module } from '@bindings/Module';
 import type { Fate, PanelSpec } from '../../../../lib/assistant';
 import { clockNow } from '../../../../lib/clock';
@@ -20,15 +25,15 @@ import { BOARD_ACT, BOARD_CHANGED, BOARD_FATE, BOARD_PANEL_TITLE, BRAND_NAME, ty
 import { Mark } from '../../../../shared/brand';
 import { Countdown, MockBadge } from '../../../../shared/honesty';
 import { Glyph, MODULE } from '../../../../shared/modules';
-import { Btn, layerCount } from '../../../../shared/ui';
+import { Btn, layerCount, Popover } from '../../../../shared/ui';
+import { DUR, useCalm } from '../../../../design/motion';
 import { useAway } from '../../home/useAway';
 import { readLastSeen, startOfToday, writeLastSeen } from '../../home/away';
 import { useStart } from '../../setup/start';
-import type { PanelHost } from '../../switchboard/Answer';
+import { Answer, type PanelHost } from '../../switchboard/Answer';
 import { Amount } from '../../switchboard/parts';
 import { hasProposals, Proposals, type Acted, type Proposal } from '../../switchboard/Proposals';
 import { resolveAction, type BoardFacts, type Consent, type Run } from '../../switchboard/resolve';
-import { engineWords } from '../../switchboard/Says';
 import { standingAnswers } from '../../switchboard/standing';
 import { useBoardAssistant } from '../../switchboard/useBoardAssistant';
 import { useBoardModel, type BoardKey } from '../../switchboard/useBoardModel';
@@ -37,11 +42,13 @@ import { useDeals, useLocked, useNeeds, useRuns, useSettings } from '../../world
 import type { ModuleRow } from '../rows/rows';
 import { useModuleLists } from '../rows/useModuleLists';
 import { compose, partOfDay, type Chip, type PartOfDay } from './greeting';
-import { ItemStage } from './ItemStage';
-import { applyOps, findRow, openKey, pickFromSearch, rowOfDeal, sameNav, START_NAV, type Nav, type Scope } from './nav';
-import { SetupCard } from './SetupInline';
+import { TRAVEL, direction, tr } from './fx';
+import { Crumb, ItemStage } from './ItemStage';
+import { findRow, openKey, openRow as rowPage, pickFromSearch, routeReply, rowOfDeal, sameNav, START_NAV, visibleRows, type Nav, type Open, type Scope } from './nav';
+import { SetupCard, SetupOverview } from './SetupInline';
 import { Side } from './Side';
-import { GREET, STAGE, STEP_SAY } from './words';
+import { SIM_EXIT_URL, SIM_VARIANTS, simUrl, simVariant, type SimProps, type SimRegion, type SimTurn, type SimVariant, type StageHost } from './sim/host';
+import { GREET, SIM, STAGE, STEP_SAY } from './words';
 import '../../switchboard/switchboard.css';
 import './stage.css';
 
@@ -67,15 +74,25 @@ function usePartOfDay(): PartOfDay {
   return part;
 }
 
+/** A reply's turn: what it said, the panels it showed (inline), the one deal it offers as a page. */
+type ReplyEntry = { kind: 'reply'; say: string | null; changed: string | null; undone: boolean; cancelled: boolean; held: boolean; panels: readonly PanelSpec[]; link: Open | null };
+
 type Entry = { id: number; about: string | null } & (
   | { kind: 'you'; text: string }
-  | { kind: 'reply'; say: string | null; changed: string | null; undone: boolean; cancelled: boolean; held: boolean }
-  | { kind: 'local'; text: string; lines?: readonly string[] }
+  | ReplyEntry
+  | { kind: 'local'; text: string; lines?: readonly string[]; card?: ReactNode; panels?: readonly PanelSpec[] }
   | { kind: 'setup'; step: StartStepKey });
 
 type NewEntry =
   | { kind: 'you'; text: string }
-  | { kind: 'local'; text: string; lines?: readonly string[] };
+  | { kind: 'local'; text: string; lines?: readonly string[]; card?: ReactNode; panels?: readonly PanelSpec[] };
+
+const emptyReply = (): ReplyEntry => ({ kind: 'reply', say: null, changed: null, undone: false, cancelled: false, held: false, panels: [], link: null });
+
+// The simulations load only in a sim world (`?sim=`): the everyday Stage never pulls their code.
+// A sim that fails to load leaves Stage as it is (the badge and "Leave simulation" still show).
+type SimComponent = (p: SimProps & { variant: SimVariant }) => ReactNode;
+const Sim = lazy(() => import('./sim/Sim').then((m): { default: SimComponent } => ({ default: m.Sim }), (): { default: SimComponent } => ({ default: () => null })));
 
 const isSetupTarget = (t: Run): t is { kind: 'approval'; deal_id: null; target: 'credentials' | 'mandate' } =>
   t.kind === 'approval' && t.deal_id === null && (t.target === 'credentials' || t.target === 'mandate');
@@ -104,6 +121,8 @@ function Greet({ back }: { back: boolean }) {
   const undoAct = useMutation('assistant_act');
   const assistant = useBoardAssistant();
   const part = usePartOfDay();
+  const calm = useCalm();
+  const [sim] = useState<SimVariant | null>(() => simVariant());
 
   // ---- getting started: sticky once the wallet was seen brand-new, until every step is done
   const setupSeen = useRef(false);
@@ -139,11 +158,20 @@ function Greet({ back }: { back: boolean }) {
     picked.current = true;
     const n = pickFromSearch(window.location.search, lists);
     if (n) { commit(n); return; }
+    // Prototype-only, for headless screenshots: `?fs_query=<text>` types into the side filter,
+    // `?fs_ask=<question>` asks it once (after the opening is composed).
+    const sp = new URLSearchParams(window.location.search);
+    const fq = sp.get('fs_query');
+    const fa = sp.get('fs_ask');
+    if (fq) commit({ ...navRef.current, scope: 'all', query: fq });
+    if (fa) setTimeout(() => { void askRef.current(fa); }, 0);
+    if (fq || fa) return;
     const home = firstNeedId ? rowOfDeal(lists, firstNeedId)?.module ?? null : null;
     if (home && navRef.current.scope === 'all') commit({ ...navRef.current, scope: home });
   }, [model.ready, lists, commit, firstNeedId]);
 
-  const openRow = useCallback((r: ModuleRow) => move((n) => ({ ...n, open: { kind: 'row', module: r.module, id: r.id }, lit: null })), [move]);
+  const openRow = useCallback((r: ModuleRow) => move((n) => ({ ...n, open: rowPage(r), lit: null })), [move]);
+  const openPage = useCallback((o: Open) => move((n) => ({ ...n, open: o, lit: null })), [move]);
   const goBack = useCallback(() => move((n) => ({ ...n, open: null })), [move]);
 
   // ---- the conversation; every turn remembers the item that was open when it was asked
@@ -226,11 +254,52 @@ function Greet({ back }: { back: boolean }) {
     }
   }, [setup, gs.next, gs.steps, push, jump]);
 
+  // ---- coming back: after an act, the approval window or a sim step, main returns to the
+  // conversation with a line saying what happened - unless she went somewhere else meanwhile.
+  /** `since`: what main showed and how many of her moves had happened when the thing started. */
+  const returnToToday = useCallback((text: string, since: { key: string | null; moves: number } | null) => {
+    push({ kind: 'local', text });
+    const n = navRef.current;
+    if (!n.open) return;
+    if (since && (since.moves !== ownerMoves.current || since.key !== openKey(n.open))) return;
+    commit({ ...n, open: null });
+    setUndoTo(null);
+  }, [push, commit]);
+
+  // The approval window: no close event reaches this window, so "back" is this window regaining
+  // focus after it lost it to the approval window. The deal's fate is read again then.
+  const modelRef = useRef(model);
+  modelRef.current = model;
+  const awaiting = useRef<{ deal_id: string | null; key: string | null; moves: number; left: boolean } | null>(null);
+  useEffect(() => {
+    const onBlur = () => { if (awaiting.current) awaiting.current.left = true; };
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const onFocus = () => {
+      const a = awaiting.current;
+      if (!a || !a.left) return;
+      awaiting.current = null;
+      // the world's change event may land a moment after focus: read the deal's fate a beat later
+      clearTimeout(t);
+      t = setTimeout(() => {
+        const k = a.deal_id ? modelRef.current.byId.get(a.deal_id) : undefined;
+        const text = !k ? GREET.backFromApproval : k.fate === 'needs' ? GREET.backStillWaiting(k.title) : GREET.backMoved(k.title, k.state_word);
+        returnToToday(text, { key: a.key, moves: a.moves });
+      }, DUR.slow);
+    };
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('focus', onFocus);
+    return () => { window.removeEventListener('blur', onBlur); window.removeEventListener('focus', onFocus); clearTimeout(t); };
+  }, [returnToToday]);
+
   // ---- the hand-off: setup steps stay in the conversation; a decision goes to the approval window;
   // everything else is a door into the console
   const run = useCallback((r: Run) => {
     if (isSetupTarget(r)) { jump(r.target === 'credentials' ? 'paypal' : 'rules'); return; }
-    if (r.kind === 'approval') { void open.run({ deal_id: r.deal_id, target: r.target }); return; }
+    if (r.kind === 'approval') {
+      awaiting.current = { deal_id: r.deal_id, key: openKey(navRef.current.open), moves: ownerMoves.current, left: false };
+      void open.run({ deal_id: r.deal_id, target: r.target });
+      return;
+    }
     window.location.hash = r.hash === '#' ? '' : r.hash;
     setHomeView('console');
   }, [open, jump]);
@@ -256,11 +325,15 @@ function Greet({ back }: { back: boolean }) {
     const now = resolveAction(p.action, model.byId, factsRef.current);
     if (!now.armed || !now.act || now.consent.fingerprint !== shown.fingerprint) { setStale((s) => new Set(s).add(p.id)); return; }
     inflight.current = true;
+    const since = { key: openKey(navRef.current.open), moves: ownerMoves.current };
     try {
       const out = await doAct.run({ act: now.run.wire, consent: { words: now.consent.words, fingerprint: now.consent.fingerprint } });
-      if (out === null) setActed({ proposal: p, run: now.run, fingerprint: now.consent.fingerprint, reverse: now.consent.reverse, phase: 'done' });
+      if (out === null) {
+        setActed({ proposal: p, run: now.run, fingerprint: now.consent.fingerprint, reverse: now.consent.reverse, phase: 'done' });
+        returnToToday(GREET.actDone(now.consent.title), since);
+      }
     } finally { inflight.current = false; }
-  }, [model.byId, doAct]);
+  }, [model.byId, doAct, returnToToday]);
   const undo = useCallback(async (a: Acted) => {
     if (inflight.current || a.phase !== 'done') return;
     inflight.current = true;
@@ -280,24 +353,34 @@ function Greet({ back }: { back: boolean }) {
     const movesAtAsk = ownerMoves.current;
     push({ kind: 'you', text: q });
     const id = ++nextId.current;
-    setEntries((t) => [...t, { id, about: aboutRef.current, kind: 'reply', say: null, changed: null, undone: false, cancelled: false, held: false }]);
+    setEntries((t) => [...t, { id, about: aboutRef.current, ...emptyReply() }]);
     const out = await assistant.ask(scopeLabel ? `${scopeLabel}: ${q}` : q, model.digest);
     if (out.kind === 'cancelled') { patch(id, (e) => (e.kind === 'reply' ? { ...e, cancelled: true } : e)); return; }
-    // She moved while it answered: her move wins; the reply's layout is not applied.
+    // The routing rule (nav.ts routeReply): the answer stays in this turn, with its panels inline and
+    // at most an "Open <title>" link; only the side list may move. She moved while it answered: her
+    // move wins and the list is left alone (the panels still show: they are part of the answer).
+    const routed = routeReply(navRef.current, out.reply.ops, lists);
     const moved = ownerMoves.current !== movesAtAsk;
-    const changed = moved ? null : moveFor(applyOps(navRef.current, out.reply.ops, lists), id);
+    const changed = moved ? null : moveFor(routed.nav, id);
     const props: Proposal[] = [];
     for (const op of out.reply.ops) if (op.op === 'propose') props.push({ id: props.length, action: op.action, why: op.why });
     setProposals(props); setStale(new Set()); setActed(null);
-    patch(id, (e) => (e.kind === 'reply' ? { ...e, say: out.reply.say, changed, held: moved && out.reply.ops.some((o) => o.op !== 'propose') } : e));
+    patch(id, (e) => (e.kind === 'reply' ? {
+      ...e, say: out.reply.say, changed, panels: routed.panels, link: routed.link,
+      held: moved && out.reply.ops.some((o) => o.op === 'filter' || o.op === 'focus'),
+    } : e));
+    // the answer can be taller than the view: bring her question to the top, the answer under it
+    if (routed.panels.length) requestAnimationFrame(() => (navRef.current.open ? stageScroller.current : scroller.current)?.querySelector(`[data-entry="${id - 1}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
   }, [assistant, model.digest, moveFor, lists, push, patch, scopeLabel]);
+  const askRef = useRef(ask);
+  askRef.current = ask;
 
   /** A local answer that may also move the navigation, as one undoable step. */
-  const localAnswer = useCallback((question: string, text: string, to: ((n: Nav) => Nav) | null, lines?: readonly string[]) => {
+  const localAnswer = useCallback((question: string, text: string, to: ((n: Nav) => Nav) | null, lines?: readonly string[], panels: readonly PanelSpec[] = []) => {
     push({ kind: 'you', text: question });
     const id = ++nextId.current;
     const changed = to ? moveFor(to(navRef.current), id) : null;
-    setEntries((t) => [...t, lines ? { id, about: null, kind: 'local', text, lines } : { id, about: null, kind: 'reply', say: text, changed, undone: false, cancelled: false, held: false }]);
+    setEntries((t) => [...t, lines ? { id, about: null, kind: 'local', text, lines } : { id, about: null, ...emptyReply(), say: text, changed, panels }]);
   }, [push, moveFor]);
 
   const onChip = (c: Chip) => {
@@ -308,7 +391,7 @@ function Greet({ back }: { back: boolean }) {
       return;
     }
     if (c.kind === 'everything') { localAnswer(c.label, CHANGE.everything, (n) => ({ ...n, scope: 'all', fate: null, query: '', lit: null })); return; }
-    localAnswer(c.label, GREET.steps, (n) => ({ ...n, open: { kind: 'panel', spec: { kind: 'setup' } } }));
+    localAnswer(c.label, GREET.steps, null, undefined, [{ kind: 'setup' }]);
   };
 
   // ---- keys: `/` asks; Esc goes back (stage -> today, focus back on the row), then clears the side filters
@@ -336,6 +419,36 @@ function Greet({ back }: { back: boolean }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [move]);
 
+  // ---- StageHost (sim/host.ts): a simulation drives Stage only through this. Stable for the page's
+  // life (a sim may keep it in an effect); every call reads the latest state through refs.
+  const [simNode, setSimNode] = useState<ReactNode>(null);
+  const simN = useRef(0);
+  useEffect(() => { if (nav.open?.kind !== 'sim' && simNode !== null) setSimNode(null); }, [nav.open, simNode]);
+  const live = useRef({ ask, lists, move, push });
+  live.current = { ask, lists, move, push };
+  const stageHost = useMemo<StageHost>(() => ({
+    region: (r: SimRegion) => document.querySelector<HTMLElement>(`[data-front="stage"] [data-sim-region="${r}"]`),
+    ask: (q: string) => { void live.current.ask(q); },
+    pick: (m: Module | 'all', rowId: string | null) => {
+      const { lists: l, move: mv } = live.current;
+      const rows = visibleRows(l, { scope: m, query: '', fate: null });
+      const r = rowId === null ? null : rows.find((x) => x.id === rowId) ?? null;
+      mv((n) => ({ ...n, scope: m, fate: null, query: '', lit: null, open: r ? rowPage(r) : n.open }));
+    },
+    back: () => live.current.move((n) => ({ ...n, open: null })),
+    setMain: (node: ReactNode | null) => {
+      if (node === null) { live.current.move((n) => (n.open?.kind === 'sim' ? { ...n, open: null } : n)); setSimNode(null); return; }
+      setSimNode(node);
+      // the same sim page updates in place; a new one (after back) slides in
+      live.current.move((n) => (n.open?.kind === 'sim' ? n : { ...n, open: { kind: 'sim', n: ++simN.current } }));
+    },
+    say: (turn: SimTurn) => {
+      live.current.push({ kind: 'local', text: turn.text, card: turn.card });
+      live.current.move((n) => ({ ...n, open: null }));
+    },
+  }), []);
+  const exitSim = useCallback(() => window.location.assign(SIM_EXIT_URL), []);
+
   // Keep the latest turn in view (the conversation's, or the item's own thread).
   const stageScroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -343,6 +456,26 @@ function Greet({ back }: { back: boolean }) {
     if (el && entries.length) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [entries.length]);
   const stageKey = nav.open ? `${openKey(nav.open)}${nav.open.kind === 'panel' ? JSON.stringify(nav.open.spec) : ''}` : 'today';
+
+  // Direction of the main move: today -> a page goes forward, a page -> today back, page -> page by
+  // the pages' order in the side list (a page not in the list counts as forward).
+  const orderOf = (o: Open | null): number => {
+    if (!o) return -1;
+    if (o.kind !== 'row') return Number.MAX_SAFE_INTEGER;
+    return visibleRows(lists, nav).findIndex((r) => r.module === o.module && r.id === o.id);
+  };
+  const lastStage = useRef<{ key: string; open: Open | null; dir: -1 | 1 }>({ key: 'today', open: null, dir: 1 });
+  if (lastStage.current.key !== stageKey) {
+    const was = lastStage.current.open;
+    const d: -1 | 1 = !nav.open ? -1 : !was ? 1 : (direction(orderOf(was), orderOf(nav.open)) || 1) as -1 | 1;
+    lastStage.current = { key: stageKey, open: nav.open, dir: d };
+  }
+  const dir = lastStage.current.dir;
+  const pageMotion = {
+    enter: (d: number) => ({ opacity: 0, x: TRAVEL.main * d }),
+    center: { opacity: 1, x: 0 },
+    leave: (d: number) => ({ opacity: 0, x: -TRAVEL.main * d }),
+  };
 
   const [typed, setTyped] = useState('');
   const submit = (e: FormEvent) => { e.preventDefault(); const q = typed; setTyped(''); void ask(q); };
@@ -352,8 +485,23 @@ function Greet({ back }: { back: boolean }) {
   const staged = nav.open !== null;
   const selected = nav.open?.kind === 'row' ? openKey(nav.open) : null;
 
+  const linkTitle = (o: Open | null): string | null => (o?.kind === 'row' ? findRow(lists, o)?.title ?? null : null);
+  const inline = (panels: readonly PanelSpec[] | undefined): ReactNode => (panels?.length ? (
+    <div className="fs-inlines">
+      {panels.map((p, i) => (
+        <section key={i} className="fs-inline" data-inline={p.kind} aria-label={panelTitle(p)}>
+          <h3 className="fs-kick">{panelTitle(p)}</h3>
+          {p.kind === 'setup' ? <SetupOverview gs={gs} onJump={jump} /> : <Answer panel={p} host={host} primary={false} />}
+        </section>
+      ))}
+    </div>
+  ) : null);
+
+  // the newest setup card is the first-run "first need" (a sim's coach mark points at it)
+  const lastSetup = [...entries].reverse().find((e) => e.kind === 'setup')?.id ?? null;
   const renderEntry = (e: Entry, tag: boolean): ReactNode => (
-    <li key={e.id} className={`fs-turn ${e.kind === 'you' ? 'is-you' : 'is-me'}`} data-entry={e.id}>
+    <motion.li key={e.id} className={`fs-turn ${e.kind === 'you' ? 'is-you' : 'is-me'}`} data-entry={e.id}
+      initial={{ opacity: 0, y: TRAVEL.tick }} animate={{ opacity: 1, y: 0 }} transition={tr('med', calm)}>
       {e.kind === 'you' ? (
         <p className="fs-you">{tag && e.about ? <span className="fs-about">{STAGE.about(titleOf(e.about) ?? '')}</span> : null}{e.text}</p>
       ) : null}
@@ -361,14 +509,21 @@ function Greet({ back }: { back: boolean }) {
         <div className="fs-say">
           <p>{e.text}</p>
           {e.lines?.length ? <ul className="fs-lines">{e.lines.map((l, i) => <li key={i}>{l}</li>)}</ul> : null}
+          {e.card ? <div className="fs-simcard">{e.card}</div> : null}
+          {inline(e.panels)}
         </div>
       ) : null}
-      {e.kind === 'reply' ? <Reply e={e} canUndo={undoTo?.entry === e.id} onUndo={undoNav} /> : null}
-      {e.kind === 'setup' ? (
-        <SetupCard step={e.step} done={gs.steps.find((s) => s.key === e.step)?.state === 'done'}
-          opened={opened.has(e.step)} onOpened={() => setOpened((o) => new Set(o).add(e.step))} />
+      {e.kind === 'reply' ? (
+        <Reply e={e} canUndo={undoTo?.entry === e.id} onUndo={undoNav} panels={inline(e.panels)}
+          link={e.link && openKey(e.link) !== openKey(nav.open) ? { title: linkTitle(e.link) ?? '', go: () => openPage(e.link as Open) } : null} />
       ) : null}
-    </li>
+      {e.kind === 'setup' ? (
+        <div data-sim-region={!greeting.need && e.id === lastSetup ? 'need' : undefined}>
+          <SetupCard step={e.step} done={gs.steps.find((s) => s.key === e.step)?.state === 'done'}
+            opened={opened.has(e.step)} onOpened={() => setOpened((o) => new Set(o).add(e.step))} />
+        </div>
+      ) : null}
+    </motion.li>
   );
 
   const propsCard = showProps ? (
@@ -385,26 +540,49 @@ function Greet({ back }: { back: boolean }) {
   const scoped = selected ? entries.filter((e) => e.about === selected) : [];
   const firstNeedRow = greeting.need ? rowOfDeal(lists, greeting.need.id) : null;
 
+  const page: ReactNode = !nav.open ? null : nav.open.kind === 'sim' ? (
+    <article className="fs-item" data-stage="sim" aria-label={STAGE.stageLabel(SIM.crumb)}>
+      <Crumb onBack={goBack} module={null} title={SIM.crumb} />
+      {simNode}
+    </article>
+  ) : (
+    <ItemStage open={nav.open} row={openRowNow} list={openRowNow ? lists[openRowNow.module] : null} host={host} gs={gs} onJump={jump} onBack={goBack}
+      below={scoped.length || propsCard ? (
+        <section className="fs-isec fs-ithread" aria-label={STAGE.aboutThis}>
+          {scoped.length ? <h2 className="fs-kick">{STAGE.aboutThis}</h2> : null}
+          {scoped.length ? <ol className="fs-transcript">{scoped.map((e) => renderEntry(e, false))}</ol> : null}
+          {propsCard}
+        </section>
+      ) : null} />
+  );
+
   return (
-    <div className="fs-app ui-ground" data-front="stage" data-ready={model.ready ? 'true' : 'false'} data-staged={staged ? 'true' : 'false'}>
+    <MotionConfig reducedMotion={calm ? 'always' : 'user'} transition={tr('med', calm)}>
+    <div className="fs-app ui-ground" data-front="stage" data-ready={model.ready ? 'true' : 'false'} data-staged={staged ? 'true' : 'false'} data-sim={sim ?? undefined}>
       <header className="ui-toolbar fs-bar">
         <span className="fs-brand"><Mark /><b>{BRAND_NAME}</b></span>
         <MockBadge />
+        {sim ? <span className="fs-simbadge" data-sim-badge>{SIM.badge}</span> : null}
         <span className="ui-spacer" />
+        {sim ? <Btn sm kind="plain" onClick={exitSim} title={SIM.leaveTitle}>{SIM.leave}</Btn> : null}
+        {!sim && model.ready && !setup ? <TryFirst /> : null}
         <Btn sm kind="plain" onClick={() => setHomeView('console')} title={GREET.toConsoleTitle}>{GREET.toConsole}</Btn>
       </header>
       <main className="fs-stage" aria-label={GREET.mainLabel}>
         <section className={`fs-talk${staged ? ' is-staged' : ''}`}>
-          <div className="fs-views">
+          <div className="fs-views" data-sim-region="stage">
             {/* The conversation stays mounted under the stage: back is exactly where she left it. */}
-            <div className="fs-scroll fs-today" ref={scroller} aria-hidden={staged} inert={staged}>
-              <ol className="fs-transcript" aria-live="polite">
+            <motion.div className="fs-scroll fs-today" ref={scroller} aria-hidden={staged} inert={staged}
+              initial={false}
+              animate={staged ? { opacity: 0, x: -TRAVEL.main, transitionEnd: { visibility: 'hidden' } } : { opacity: 1, x: 0, visibility: 'visible' }}
+              transition={tr('med', calm)}>
+              <ol className="fs-transcript" aria-live="polite" data-sim-region="transcript">
                 <li className="fs-turn is-me" data-entry="greeting">
                   <Opening g={greeting} gsDone={gs.done} gsTotal={gs.total} host={host}
                     onDetails={firstNeedRow ? () => openRow(firstNeedRow) : null}
                     onAllNeeds={() => move((n) => ({ ...n, scope: 'all', fate: 'needs', query: '', lit: null }))} />
                   {greeting.chips.length ? (
-                    <div className="fs-chips" role="group" aria-label={GREET.suggested}>
+                    <div className="fs-chips" role="group" aria-label={GREET.suggested} data-sim-region="chips">
                       {greeting.chips.map((c) => <button key={c.label} type="button" className="fs-chip" disabled={busy} onClick={() => onChip(c)}>{c.label}</button>)}
                     </div>
                   ) : null}
@@ -412,39 +590,63 @@ function Greet({ back }: { back: boolean }) {
                 {entries.map((e) => renderEntry(e, true))}
                 {!staged && propsCard ? <li className="fs-turn is-me">{propsCard}</li> : null}
               </ol>
-            </div>
-            {nav.open ? (
-              <div className="fs-scroll fs-onstage" ref={stageScroller} key={stageKey}>
-                <ItemStage open={nav.open} row={openRowNow} list={openRowNow ? lists[openRowNow.module] : null} host={host} gs={gs} onJump={jump} onBack={goBack}
-                  below={scoped.length || propsCard ? (
-                    <section className="fs-isec fs-ithread" aria-label={STAGE.aboutThis}>
-                      {scoped.length ? <h2 className="fs-kick">{STAGE.aboutThis}</h2> : null}
-                      {scoped.length ? <ol className="fs-transcript">{scoped.map((e) => renderEntry(e, false))}</ol> : null}
-                      {propsCard}
-                    </section>
-                  ) : null} />
-              </div>
-            ) : null}
+            </motion.div>
+            <AnimatePresence initial={false} custom={dir}>
+              {nav.open ? (
+                <motion.div className="fs-scroll fs-onstage" ref={stageScroller} key={stageKey} custom={dir}
+                  variants={pageMotion} initial="enter" animate="center" exit="leave" transition={tr('med', calm)}>
+                  {page}
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           </div>
-          <div className="fs-askwrap">
+          <div className="fs-askwrap" data-sim-region="ask">
             <form className="fs-ask" onSubmit={submit} aria-label={GREET.askLabel}>
               <input ref={input} className="ui-field fs-input" type="text" value={typed} onChange={(e) => setTyped(e.target.value)}
                 placeholder={openRowNow ? STAGE.askAbout(openRowNow.title) : GREET.askPlaceholder}
                 aria-label={openRowNow ? STAGE.askAbout(openRowNow.title) : GREET.askLabel} maxLength={300} autoComplete="off" />
               {busy ? <Btn onClick={assistant.cancel}>{GREET.stop}</Btn> : <Btn kind={setup ? 'default' : 'primary'} type="submit" disabled={!typed.trim()}>{GREET.send}</Btn>}
             </form>
-            <p className="fs-answers" data-engine={assistant.engine.id}>{GREET.engine(engineWords(assistant.engine))}</p>
           </div>
         </section>
-        <Side lists={lists} nav={nav} model={model} selected={selected}
+        <Side lists={lists} nav={nav} model={model} selected={selected} calm={calm}
           onScope={(sc: Scope) => move((n) => ({ ...n, scope: sc, fate: null, lit: null }))}
           onQuery={(q) => move((n) => ({ ...n, query: q }))}
           onClearFate={() => move((n) => ({ ...n, fate: null }))}
           onOpen={openRow} />
       </main>
+      {sim ? <Suspense fallback={null}><Sim variant={sim} host={stageHost} exit={exitSim} /></Suspense> : null}
     </div>
+    </MotionConfig>
   );
 }
+
+/** The quiet entry to the simulated first projects: a menu of the three, each a fresh first-run world. */
+function TryFirst() {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  return (
+    <>
+      <Btn sm kind="plain" onClick={(e: React.MouseEvent<HTMLElement>) => setAnchor(anchor ? null : e.currentTarget)} title={SIM.tryTitle} aria-expanded={!!anchor} data-try-first>
+        {SIM.try}
+      </Btn>
+      {anchor ? (
+        <Popover anchor={anchor} onClose={() => setAnchor(null)} title={SIM.menuTitle} className="fs-trymenu">
+          <ul className="fs-trylist">
+            {SIM_VARIANTS.map((v) => (
+              <li key={v}>
+                <a className="fs-tryopt" href={simUrl(v)} data-sim-option={v}>
+                  <b>{SIM.variant[v].name}</b>
+                  <span>{SIM.variant[v].what}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </Popover>
+      ) : null}
+    </>
+  );
+}
+
 
 function Opening({ g, gsDone, gsTotal, host, onAllNeeds, onDetails }: {
   g: ReturnType<typeof compose>; gsDone: number; gsTotal: number; host: PanelHost; onAllNeeds: () => void; onDetails: (() => void) | null;
@@ -452,7 +654,7 @@ function Opening({ g, gsDone, gsTotal, host, onAllNeeds, onDetails }: {
   const [more, setMore] = useState(false);
   return (
     <div className={`fs-say fs-open t-${g.tone}`}>
-      <p className="fs-status">{g.status}</p>
+      <p className="fs-status" data-sim-region="status">{g.status}</p>
       {g.sub ? <p className="fs-sub">{g.sub}{g.mode === 'setup' ? <> <span className="fs-prog">{GREET.progress(gsDone, gsTotal)}</span></> : null}</p> : null}
       {g.away ? (
         <div className="fs-away">
@@ -472,7 +674,7 @@ function Opening({ g, gsDone, gsTotal, host, onAllNeeds, onDetails }: {
 function NeedCard({ k, n, host, onAll, onDetails }: { k: BoardKey; n: number; host: PanelHost; onAll: () => void; onDetails: (() => void) | null }) {
   const meta = MODULE[k.module];
   return (
-    <div className="fs-need" style={{ '--mc': meta.cssVar } as React.CSSProperties} data-need={k.id}>
+    <div className="fs-need" style={{ '--mc': meta.cssVar } as React.CSSProperties} data-need={k.id} data-sim-region="need">
       <div className="fs-need-h">
         <Glyph module={k.module} className="fs-need-g" />
         <b className="fs-need-t">{k.title}</b>
@@ -496,12 +698,18 @@ function NeedCard({ k, n, host, onAll, onDetails }: { k: BoardKey; n: number; ho
   );
 }
 
-function Reply({ e, canUndo, onUndo }: { e: Extract<Entry, { kind: 'reply' }>; canUndo: boolean; onUndo: () => void }) {
+function Reply({ e, canUndo, onUndo, panels, link }: {
+  e: Extract<Entry, { kind: 'reply' }>; canUndo: boolean; onUndo: () => void; panels: ReactNode; link: { title: string; go: () => void } | null;
+}) {
   if (e.cancelled) return <p className="fs-say is-quiet">{GREET.stopped}</p>;
   if (e.say === null) return <p className="fs-say is-quiet fs-thinking">{GREET.thinking}</p>;
   return (
     <div className="fs-say">
       <p>{e.say || GREET.nothingSaid}</p>
+      {panels}
+      {link && link.title ? (
+        <p className="fs-golink"><button type="button" className="linkbtn" onClick={link.go} data-open-link>{STAGE.openLink(link.title)} <span aria-hidden="true">›</span></button></p>
+      ) : null}
       {e.held ? <p className="fs-change">{BOARD_CHANGED.held}</p> : null}
       {e.changed && !e.held ? (
         <p className="fs-change">

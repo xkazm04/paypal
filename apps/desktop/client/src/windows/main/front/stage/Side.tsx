@@ -4,13 +4,19 @@
 // All shows title | module glyph | amount | state. The selected row (its stage is open in main) is
 // marked and shows its `sub` line; a row the assistant pointed at is ringed. Arrow keys move, Enter
 // opens. Columns align across rows through a CSS subgrid.
+// Round 3 motion (framer-motion, fx.ts values from design/motion.ts; calm = instant): a module switch
+// cross-fades the list with a slight slide in the switcher's order; filtering lets rows enter and
+// leave with a layout reflow; the selection highlight and the switcher's underline are shared layout
+// elements that glide; the selected row's second line opens to its height; the count ticks.
 import { useEffect, useRef, type KeyboardEvent } from 'react';
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import type { Module } from '@bindings/Module';
 import { BOARD_FATE } from '../../../../lib/words';
 import { Glyph, MODULE, MODULES } from '../../../../shared/modules';
 import { amountText } from '../../switchboard/parts';
 import type { BoardModel } from '../../switchboard/useBoardModel';
 import type { ModuleList, ModuleRow, RowCell } from '../rows/rows';
+import { direction, TRAVEL, tr } from './fx';
 import { allRows, rowKey, visibleRows, type Nav, type Scope } from './nav';
 import { STAGE } from './words';
 
@@ -19,6 +25,8 @@ export type SideProps = {
   nav: Nav;
   model: BoardModel;
   selected: string | null;
+  /** Calm motion (OS reduced motion or the in-app calm mode): every transition is instant. */
+  calm: boolean;
   onScope: (s: Scope) => void;
   onQuery: (q: string) => void;
   onClearFate: () => void;
@@ -33,7 +41,9 @@ function allCells(r: ModuleRow, model: BoardModel): RowCell[] {
   return [{ text: amt ?? '–', num: true, tone: amt ? undefined : 'quiet' }, state];
 }
 
-export function Side({ lists, nav, model, selected, onScope, onQuery, onClearFate, onOpen }: SideProps) {
+const SCOPES: readonly Scope[] = ['all', ...MODULES.map((m) => m.key)];
+
+export function Side({ lists, nav, model, selected, calm, onScope, onQuery, onClearFate, onOpen }: SideProps) {
   const rows = visibleRows(lists, nav);
   const mod: Module | null = nav.scope === 'all' ? null : nav.scope;
   const total = mod ? lists[mod]?.rows.length ?? 0 : allRows(lists).length;
@@ -41,6 +51,20 @@ export function Side({ lists, nav, model, selected, onScope, onQuery, onClearFat
   const columns: string[] = mod ? (lists[mod]?.columns ?? []) : ['', STAGE.colAmount, STAGE.colState];
   const box = useRef<HTMLDivElement>(null);
   const filter = useRef<HTMLInputElement>(null);
+
+  // the switch's direction, by the switcher's order (All first)
+  const prevScope = useRef<{ scope: Scope; dir: number }>({ scope: nav.scope, dir: 0 });
+  if (prevScope.current.scope !== nav.scope) {
+    prevScope.current = { scope: nav.scope, dir: direction(SCOPES.indexOf(prevScope.current.scope), SCOPES.indexOf(nav.scope)) };
+  }
+  const dir = prevScope.current.dir;
+  const listMotion = {
+    enter: (d: number) => ({ opacity: 0, x: TRAVEL.side * d }),
+    center: { opacity: 1, x: 0 },
+    leave: (d: number) => ({ opacity: 0, x: -TRAVEL.side * d }),
+  };
+  const med = tr('med', calm);
+  const fast = tr('fast', calm);
 
   // Keep the selected or ringed row in view when it changes (an assistant focus, a pick, Undo).
   const target = selected ?? nav.lit;
@@ -70,10 +94,12 @@ export function Side({ lists, nav, model, selected, onScope, onQuery, onClearFat
   };
 
   return (
-    <aside className="fs-side" aria-label={STAGE.side}>
-      <div className="fs-seg" role="tablist" aria-label={STAGE.side}>
+    <aside className="fs-side" aria-label={STAGE.side} data-sim-region="side">
+      <LayoutGroup id="fs-side">
+      <div className="fs-seg" role="tablist" aria-label={STAGE.side} data-sim-region="side-switcher">
         <button type="button" role="tab" aria-selected={isAll} className={`fs-segb is-all${isAll ? ' is-on' : ''}`} title={STAGE.allTitle} onClick={() => onScope('all')} data-scope="all">
-          {STAGE.all}
+          {isAll ? <motion.i layoutId="fs-seg-on" className="fs-segline" transition={med} aria-hidden="true" /> : null}
+          <span className="fs-segl">{STAGE.all}</span>
         </button>
         {MODULES.map((m) => {
           const l = lists[m.key];
@@ -83,6 +109,7 @@ export function Side({ lists, nav, model, selected, onScope, onQuery, onClearFat
           return (
             <button key={m.key} type="button" role="tab" aria-selected={on} aria-label={t} title={t} data-scope={m.key}
               className={`fs-segb${on ? ' is-on' : ''}`} style={{ '--mc': m.cssVar } as React.CSSProperties} onClick={() => onScope(m.key)}>
+              {on ? <motion.i layoutId="fs-seg-on" className="fs-segline" transition={med} aria-hidden="true" /> : null}
               <Glyph module={m.key} className="fs-segg" />
               {needs ? <i className="fs-dot" aria-hidden="true" /> : null}
             </button>
@@ -95,25 +122,39 @@ export function Side({ lists, nav, model, selected, onScope, onQuery, onClearFat
         {nav.fate ? (
           <button type="button" className="fs-fate" onClick={onClearFate} title={STAGE.clearFate}>{STAGE.fateOnly(BOARD_FATE[nav.fate].short)} <span aria-hidden="true">×</span></button>
         ) : null}
-        <span className="fs-count">{STAGE.count(rows.length, total)}</span>
+        <span className="fs-count" aria-live="polite">
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span key={STAGE.count(rows.length, total)} className="fs-countn"
+              initial={{ opacity: 0, y: -TRAVEL.tick }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: TRAVEL.tick }} transition={fast}>
+              {STAGE.count(rows.length, total)}
+            </motion.span>
+          </AnimatePresence>
+        </span>
       </div>
       <div className="fs-list" ref={box} role="listbox" aria-label={isAll ? STAGE.allTitle : (mod ? MODULE[mod].name : '')}
-        onKeyDown={onListKey} style={{ '--cols': columns.length } as React.CSSProperties}>
-        <div className="fs-grid">
+        onKeyDown={onListKey} data-sim-region="side-list">
+        <AnimatePresence mode="popLayout" initial={false} custom={dir}>
+        <motion.div key={nav.scope} className="fs-grid" style={{ '--cols': columns.length } as React.CSSProperties}
+          custom={dir} variants={listMotion} initial="enter" animate="center" exit="leave" transition={med}>
         <div className="fs-lh" aria-hidden="true">
           <span>{isAll ? STAGE.colItem : (mod ? MODULE[mod].name : '')}</span>
           {columns.map((c, i) => <span key={i} className={isAll ? (i === 0 ? '' : i === 1 ? 'is-num' : '') : ((mod ? lists[mod] : undefined)?.rows[0]?.cells[i]?.num ? 'is-num' : '')}>{c}</span>)}
         </div>
+        <AnimatePresence mode="popLayout" initial={false}>
         {rows.length === 0 ? (
-          <p className="fs-empty">{nav.query.trim() ? STAGE.noMatch(nav.query.trim()) : isAll ? STAGE.nothing : (mod ? lists[mod] : undefined)?.empty}</p>
+          <motion.p key="empty" className="fs-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fast}>
+            {nav.query.trim() ? STAGE.noMatch(nav.query.trim()) : isAll ? STAGE.nothing : (mod ? lists[mod] : undefined)?.empty}
+          </motion.p>
         ) : rows.map((r) => {
           const key = rowKey(r);
           const on = key === selected;
           const cells = isAll ? allCells(r, model) : r.cells;
           return (
-            <button key={key} type="button" role="option" aria-selected={on} data-row={key} tabIndex={on || (!selected && r === rows[0]) ? 0 : -1}
+            <motion.button key={key} type="button" role="option" aria-selected={on} data-row={key} tabIndex={on || (!selected && r === rows[0]) ? 0 : -1}
+              layout="position" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fast}
               className={`fs-row${on ? ' is-on' : ''}${nav.lit === key ? ' is-lit' : ''}${r.fate === 'needs' ? ' is-need' : ''}`}
               style={{ '--mc': MODULE[r.module].cssVar } as React.CSSProperties} title={r.sub ? `${r.title} · ${r.sub}` : r.title} onClick={() => onOpen(r)}>
+              {on ? <motion.span layoutId="fs-sel" className="fs-selbg" transition={med} aria-hidden="true" /> : null}
               <span className="fs-rt">{r.title}</span>
               {isAll ? <span className="fs-rc fs-rg"><Glyph module={r.module} className="fs-rgl" /></span> : null}
               {(isAll ? cells.slice(0, 2) : cells.slice(0, columns.length)).map((c, i) => (
@@ -121,12 +162,21 @@ export function Side({ lists, nav, model, selected, onScope, onQuery, onClearFat
               ))}
               {/* a module with fewer cells than columns still fills its grid row */}
               {!isAll && cells.length < columns.length ? Array.from({ length: columns.length - cells.length }, (_, i) => <span key={`x${i}`} className="fs-rc" />) : null}
-              {on && r.sub ? <span className="fs-rsub">{r.sub}</span> : null}
-            </button>
+              <AnimatePresence initial={false}>
+                {on && r.sub ? (
+                  <motion.span key="sub" className="fs-rsub" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={med}>
+                    <span className="fs-rsubt">{r.sub}</span>
+                  </motion.span>
+                ) : null}
+              </AnimatePresence>
+            </motion.button>
           );
         })}
-        </div>
+        </AnimatePresence>
+        </motion.div>
+        </AnimatePresence>
       </div>
+      </LayoutGroup>
       <p className="fs-keys">{STAGE.keysHint}</p>
     </aside>
   );

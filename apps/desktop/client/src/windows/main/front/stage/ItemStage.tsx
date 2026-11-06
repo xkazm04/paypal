@@ -30,7 +30,8 @@ import '../../console/areas/deal.css';
 const STORY_SHOWN = 6;
 
 export function ItemStage({ open, row, list, host, gs, onJump, onBack, below }: {
-  open: Open;
+  /** A sim's page is drawn by Greet (it holds the node); here a row or a panel. */
+  open: Exclude<Open, { kind: 'sim' }>;
   row: ModuleRow | null;
   list: ModuleList | null;
   host: PanelHost;
@@ -89,7 +90,7 @@ export function ItemStage({ open, row, list, host, gs, onJump, onBack, below }: 
   );
 }
 
-function Crumb({ onBack, module, title }: { onBack: () => void; module: Module | null; title: string }) {
+export function Crumb({ onBack, module, title }: { onBack: () => void; module: Module | null; title: string }) {
   return (
     <nav className="fs-crumb" aria-label={STAGE.back}>
       <button type="button" className="linkbtn fs-crumb-home" onClick={onBack} title={STAGE.back}>

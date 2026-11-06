@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { Module } from '@bindings/Module';
 import type { ModuleList, ModuleRow } from '../rows/rows';
 import { partOfDay } from './greeting';
-import { applyOps, pickFromSearch, START_NAV, visibleRows } from './nav';
+import { applyOps, pickFromSearch, routeReply, START_NAV, visibleRows } from './nav';
 
 const row = (module: Module, id: string, title: string, fate: ModuleRow['fate'], deal_id: string | null = id, deadline_s: number | null = null): ModuleRow =>
   ({ id, module, deal_id, title, cells: [], sub: null, fate, deadline_s });
@@ -26,12 +26,33 @@ describe('stage nav', () => {
     expect(visibleRows(l, { ...START_NAV, fate: 'needs' }).map((r) => r.id)).toEqual(['d3', 'd1']);
   });
 
-  it('show of a deal opens its row; other shows open a panel; focus rings the deal row; filter scopes', () => {
+  it('the routing rule: a reply never moves main; its shows render in its turn; one deal is offered as a link', () => {
     const l = lists();
-    const a = applyOps(START_NAV, [{ op: 'show', panel: { kind: 'decision', deal_id: 'd1' } }], l);
-    expect(a.open).toEqual({ kind: 'row', module: 'tables', id: 'd1' });
+    // chip "What if I do nothing?" (scripted silenceReply: show needs + focus needs) stays in the conversation
+    const silence = routeReply(START_NAV, [{ op: 'show', panel: { kind: 'needs', module: null } }, { op: 'focus', module: null, fate: 'needs', deal_id: null }], l);
+    expect(silence.nav.open).toBeNull();
+    expect(silence.panels).toEqual([{ kind: 'needs', module: null }]);
+    expect(silence.link).toBeNull();
+    expect(silence.nav.fate).toBe('needs');
+    // a reply that shows ONE deal: a turn with a link to its page, no navigation
+    const one = routeReply(START_NAV, [{ op: 'show', panel: { kind: 'decision', deal_id: 'd1' } }, { op: 'focus', module: 'tables', fate: 'needs', deal_id: 'd1' }], l);
+    expect(one.nav.open).toBeNull();
+    expect(one.link).toEqual({ kind: 'row', module: 'tables', id: 'd1' });
+    expect(one.panels).toEqual([{ kind: 'decision', deal_id: 'd1' }]);
+    // two deals: no single target, no link; an unknown deal: no link either
+    expect(routeReply(START_NAV, [{ op: 'show', panel: { kind: 'deal', deal_id: 'd1' } }, { op: 'show', panel: { kind: 'deal', deal_id: 'd3' } }], l).link).toBeNull();
+    expect(routeReply(START_NAV, [{ op: 'show', panel: { kind: 'deal', deal_id: 'nope' } }], l).link).toBeNull();
+    // the same panel twice renders once; a page she has open stays open
+    const open = { ...START_NAV, open: { kind: 'row' as const, module: 'spend' as const, id: 'd3' } };
+    const twice = routeReply(open, [{ op: 'show', panel: { kind: 'money' } }, { op: 'show', panel: { kind: 'money' } }], l);
+    expect(twice.panels).toEqual([{ kind: 'money' }]);
+    expect(twice.nav.open).toEqual(open.open);
+  });
+
+  it('a row click is the owner move to a page; a reply only scopes the list and rings rows', () => {
+    const l = lists();
     const b = applyOps(START_NAV, [{ op: 'show', panel: { kind: 'money' } }], l);
-    expect(b.open).toEqual({ kind: 'panel', spec: { kind: 'money' } });
+    expect(b.open).toBeNull();
     const c = applyOps(START_NAV, [{ op: 'focus', module: null, fate: null, deal_id: 'd3' }], l);
     expect(c).toMatchObject({ scope: 'spend', lit: 'spend:d3', open: null });
     const d = applyOps(START_NAV, [{ op: 'filter', module: 'tables', fate: 'needs' }], l);

@@ -1,7 +1,8 @@
-// STAGE fork (spark abstract-first-home round 2): the navigation state, pure. The side panel is one
+// STAGE fork (spark abstract-first-home rounds 2-3): the navigation state, pure. The side panel is one
 // list with a module switcher (All + the six), a title filter and an optional fate filter; the main
-// column is either the conversation (open === null) or one item's STAGE (a row, or a panel the
-// assistant showed). A reply's ops move this value and one Undo puts it back. No React, no IO.
+// column is either the conversation (open === null) or one item's STAGE (a row, a panel, or a
+// simulation's content). A reply moves only the side list (routeReply below); one Undo puts it back.
+// No React, no IO.
 import type { Module } from '@bindings/Module';
 import type { Fate, PanelSpec, UiOp } from '../../../../lib/assistant';
 import { MODULE_KEYS } from '../../../../lib/assistant';
@@ -9,10 +10,12 @@ import type { ModuleList, ModuleRow } from '../rows/rows';
 
 export type Scope = Module | 'all';
 
-/** What the main column shows instead of the conversation. */
+/** What the main column shows instead of the conversation: a row's page, a panel as a page, or the
+ *  content a simulation put there (StageHost.setMain; the node itself lives outside this pure value). */
 export type Open =
   | { kind: 'row'; module: Module; id: string }
-  | { kind: 'panel'; spec: PanelSpec };
+  | { kind: 'panel'; spec: PanelSpec }
+  | { kind: 'sim'; n: number };
 
 export type Nav = {
   scope: Scope;
@@ -26,7 +29,7 @@ export type Nav = {
 export const START_NAV: Nav = { scope: 'all', query: '', fate: null, lit: null, open: null };
 
 export const rowKey = (r: Pick<ModuleRow, 'module' | 'id'>): string => `${r.module}:${r.id}`;
-export const openKey = (o: Open | null): string | null => (o === null ? null : o.kind === 'row' ? `${o.module}:${o.id}` : `panel:${o.spec.kind}`);
+export const openKey = (o: Open | null): string | null => (o === null ? null : o.kind === 'row' ? `${o.module}:${o.id}` : o.kind === 'sim' ? `sim:${o.n}` : `panel:${o.spec.kind}`);
 
 /** Every row of every module, needs first by deadline, then the module's own order. A deal listed in
  *  two modules (the Book lists every deal's money too) shows once, under its own module. */
@@ -65,15 +68,40 @@ export function findRow(lists: Record<Module, ModuleList>, o: Open | null): Modu
   return lists[o.module]?.rows.find((r) => r.id === o.id) ?? null;
 }
 
-const openRow = (r: ModuleRow): Open => ({ kind: 'row', module: r.module, id: r.id });
+export const openRow = (r: Pick<ModuleRow, 'module' | 'id'>): Open => ({ kind: 'row', module: r.module, id: r.id });
 
 /**
- * A reply's layout ops applied to the navigation: `filter` scopes the list (module and fate),
- * `focus` scopes it and rings the named deal's row, `show` of a deal or decision opens that row's
- * stage, any other `show` opens the panel as the stage. `propose` is the Proposals' business.
+ * THE ROUTING RULE (round 3). Main is the owner's: only she moves it, and a reply never yanks it away.
+ *
+ *  Main changes to a page ONLY when
+ *   - she clicks a side row (or Enter on it, or Enter in the filter),
+ *   - she clicks a link inside a turn: the first need's "Details", a deal inside an inline panel, or
+ *     the "Open <title>" link of a reply that targets one deal,
+ *   - a simulation calls StageHost.setMain / pick (sim/host.ts),
+ *  and it returns to the conversation on the Today crumb, Esc, StageHost.back / say, a setup step
+ *  being shown, or the return after an act or the approval window (Greet: `returnToToday`).
+ *
+ *  A reply (to a chip or a typed question) stays IN the conversation:
+ *   - every `show` renders inline in that reply's turn (the board's Answer renderers, compact);
+ *   - a `show` of a decision or a deal for ONE deal_id also offers `link` = that deal's row page,
+ *     which the turn draws as "Open <title>": no automatic navigation;
+ *   - `filter` / `focus` still scope the side list and ring a deal's row (one Undo puts them back);
+ *   - `propose` is the Proposals' business.
  */
-export function applyOps(nav: Nav, ops: readonly UiOp[], lists: Record<Module, ModuleList>): Nav {
+export type Routed = {
+  /** The navigation after the reply: only the side list (scope, fate, query, lit) can differ. */
+  nav: Nav;
+  /** The panels the reply's turn renders inline, in op order, each once. */
+  panels: PanelSpec[];
+  /** The one deal the reply targets (show decision/deal for a single deal_id), as a page to offer. */
+  link: Open | null;
+};
+
+export function routeReply(nav: Nav, ops: readonly UiOp[], lists: Record<Module, ModuleList>): Routed {
   let n = nav;
+  const panels: PanelSpec[] = [];
+  const seen = new Set<string>();
+  const dealIds = new Set<string>();
   for (const op of ops) {
     if (op.op === 'filter') n = { ...n, scope: op.module ?? 'all', fate: op.fate, query: '', lit: null };
     else if (op.op === 'focus') {
@@ -81,14 +109,18 @@ export function applyOps(nav: Nav, ops: readonly UiOp[], lists: Record<Module, M
       const scope: Scope = op.module ?? r?.module ?? 'all';
       n = { ...n, scope, fate: r ? null : op.fate, query: '', lit: r ? rowKey(r) : null };
     } else if (op.op === 'show') {
-      const p = op.panel;
-      if (p.kind === 'deal' || p.kind === 'decision') {
-        const r = rowOfDeal(lists, p.deal_id);
-        n = r ? { ...n, open: openRow(r), lit: null, scope: n.scope === 'all' || n.scope === r.module ? n.scope : r.module } : n;
-      } else n = { ...n, open: { kind: 'panel', spec: p } };
+      const k = JSON.stringify(op.panel);
+      if (!seen.has(k)) { seen.add(k); panels.push(op.panel); }
+      if (op.panel.kind === 'deal' || op.panel.kind === 'decision') dealIds.add(op.panel.deal_id);
     }
   }
-  return n;
+  const only = dealIds.size === 1 ? rowOfDeal(lists, [...dealIds][0] as string) : null;
+  return { nav: { ...n, open: nav.open }, panels, link: only ? openRow(only) : null };
+}
+
+/** The side list's part of a reply (filter / focus); main is left as it is. */
+export function applyOps(nav: Nav, ops: readonly UiOp[], lists: Record<Module, ModuleList>): Nav {
+  return routeReply(nav, ops, lists).nav;
 }
 
 export function sameNav(a: Nav, b: Nav): boolean {
