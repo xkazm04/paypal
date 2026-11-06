@@ -1,0 +1,79 @@
+/* spark abstract-first-home round 3, sim TOUR: the spotlight, the coach mark, the setup page extras.
+   Tokens only (design/tokens.css). Position and size of the spot and the mark come from framer-motion
+   (CSSOM style, allowed by the CSP); motion values from design/motion.ts. Non-modal: the dim never
+   takes a click. */
+.st-spot { position: fixed; z-index: var(--z-popover); pointer-events: none; border-radius: var(--r);
+  box-shadow: 0 0 0 2px var(--focus), 0 0 0 200vmax var(--scrim); }
+
+.st-mark { position: fixed; z-index: var(--z-popover); width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto;
+  border-radius: var(--r-lg); background: var(--panel2); color: var(--text); box-shadow: var(--shadow-3); border: 1px solid var(--line2); }
+.st-mark-in { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4); }
+.st-mark-h { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; margin-right: calc(-1 * var(--sp-1)); }
+.st-kick { flex: 1; min-width: 0; margin: 0; font-size: var(--fs-small); color: var(--dim); text-transform: uppercase; letter-spacing: var(--track-label); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-mark-t { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.3 var(--display); color: var(--text); }
+.st-mark-x { margin: 0; font-size: var(--fs-body); line-height: 1.5; color: var(--muted); }
+.st-mark-f { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-top: var(--sp-1); }
+.st-keys { color: var(--dim); font-size: var(--fs-small); white-space: nowrap; }
+.st-mark :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* the spot and the mark fade in once (CSS, so a geometry update never restarts the fade) */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not(.calm) .st-spot, :root:not(.calm) .st-mark { animation: st-in var(--dur-med) var(--ease) both; }
+}
+@keyframes st-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* setup progress: four segments filling as the wallet says a step is done */
+.st-prog { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.st-prog-bar { list-style: none; margin: 0; padding: 0; flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-1); max-width: 240px; }
+.st-prog-seg { height: 4px; border-radius: 2px; background: var(--line2); overflow: hidden; }
+.st-prog-seg.is-here { box-shadow: 0 0 0 1px var(--gold); }
+.st-prog-seg i { display: block; height: 100%; background: var(--ok); transform-origin: left center; }
+.st-prog-t { color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
+
+/* the setup page: the Stage item page plus a numbered head, a do-it section, the secure frame */
+.st-page { --mc: var(--gold); display: flex; flex-direction: column; gap: var(--sp-4); padding-bottom: var(--sp-4); min-width: 0; }
+.st-path { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; min-width: 0; }
+.st-where { flex: none; }
+.st-where b { color: var(--text); font-weight: var(--fw-semibold); }
+.st-path .st-prog { flex: 1; justify-content: flex-end; min-width: 220px; }
+.st-ihead { align-items: center; }
+.st-num { display: inline-grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--gold); color: var(--gold-l); font: var(--fw-semibold) var(--fs-body)/1 var(--num); }
+.st-body { margin: 0; line-height: 1.55; }
+.st-quiet { margin: 0; color: var(--muted); font-size: var(--fs-small); line-height: 1.45; }
+.st-do { gap: var(--sp-3); }
+.st-embed { min-width: 0; }
+.st-pfoot { display: flex; align-items: center; gap: var(--sp-2); }
+
+.st-engines { display: flex; flex-direction: column; gap: var(--sp-2); }
+.st-engine { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-tight); cursor: pointer; }
+.st-engine.is-off { opacity: .6; cursor: default; }
+.st-engine span { color: var(--muted); font-size: var(--fs-small); }
+
+/* the house seller's join */
+.st-house { display: flex; flex-direction: column; gap: var(--sp-2); max-width: 420px; }
+.st-field { display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--fs-small); color: var(--muted); }
+
+/* the secure step, inline: the approval window's own page in a frame, sealed edge on top */
+.st-secure { display: flex; flex-direction: column; min-width: 0; scroll-margin-top: var(--sp-4); border: 1px solid var(--line2); border-top: 3px solid var(--teal); border-radius: var(--r); background: var(--bg); box-shadow: var(--shadow-2); overflow: hidden; }
+.st-secure-h { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--line); background: var(--material); font-size: var(--fs-small); }
+.st-secure-h b { font-weight: var(--fw-semibold); color: var(--text); }
+.st-secure-note { margin-left: auto; color: var(--gold-l); border: 1px dashed var(--gold); border-radius: var(--r-tight); padding: 1px var(--sp-2); }
+.st-seal { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); flex: none; }
+.st-secure-body { position: relative; }
+.st-secure-wait { position: absolute; inset: var(--sp-4) var(--sp-3) auto; }
+.st-secure-frame { display: block; width: 100%; height: 600px; border: 0; background: var(--bg); }
+.st-secure-why { padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); }
+
+/* the conversation's cards (the checklist, Continue setup, You're set up) */
+.st-card.st-check { padding: var(--sp-3) var(--sp-4); border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: var(--r); background: var(--panel); max-width: 560px; align-items: stretch; gap: var(--sp-3); }
+/* the conversation's cards (Continue setup, You're set up) */
+.st-card { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
+.st-done { padding: var(--sp-3) var(--sp-4); border: 1px solid var(--line); border-left: 3px solid var(--ok); border-radius: var(--r); background: var(--panel); max-width: 560px; align-items: stretch; }
+.st-done-list, .st-again { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-1); }
+.st-done-list li { display: flex; align-items: center; gap: var(--sp-2); color: var(--muted); }
+.st-done-list li.is-done { color: var(--text); }
+.st-tick { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--line2); font-size: var(--fs-small); color: var(--dim); flex: none; }
+.is-done .st-tick { background: var(--ok); border-color: var(--ok); color: var(--ink-0); }
+.st-again li { color: var(--muted); font-size: var(--fs-small); line-height: 1.45; padding-left: var(--sp-3); position: relative; }
+.st-again li::before { content: ""; position: absolute; left: 0; top: .6em; width: 4px; height: 4px; border-radius: 50%; background: var(--dim); }
+.st-done .st-kick { flex: none; margin-top: var(--sp-1); }
