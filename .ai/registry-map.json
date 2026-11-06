@@ -4831,12 +4831,11 @@
           "changedAt": "2026-10-23",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "precondition unmet: this is the in-document shell; apps/desktop/client/src/windows/main/App.tsx:121 its 'global' keys are a webview keydown listener, no OS-level capability is held here (native side is the native-shell context, judged there)",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:0ab230f2977430e7",
-          "evaluatedRevision": 4,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/windows/main/App.tsx:21 The main-window frame routes between in-document views and holds no OS capability. Searching apps/desktop/client/src/windows/main for globalShortcut, setIgnoreCursorEvents, SendInput, @tauri-apps and WebSocket found no hits. Its references to Windows Hello are UI copy for a capability the native shell owns, so this context sits on the in-document-shell side of the golden path's discriminator.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:838495bb60a986c6",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "app-shell",
@@ -10067,7 +10066,11 @@
           "revision": 5,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/data/bus.ts:115 The data layer only subscribes to events the native process pushes and turns them into cache invalidations; it holds no connection, stream or OS capability of its own. Searching apps/desktop/client/src/lib/data for WebSocket, EventSource, globalShortcut, setIgnoreCursorEvents and SendInput found no hits, so it is the pure-renderer end of a native-owned stream rather than a native integration.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:838495bb60a986c6",
+          "evaluatedRevision": 6
         },
         {
           "subject": "mcp-tools",

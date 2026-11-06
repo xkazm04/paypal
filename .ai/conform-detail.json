@@ -9012,6 +9012,35 @@
       "evaluatedTs": "2026-11-06T22:03:36.979Z",
       "worker": "28f57f0c-6865-4abb-ae46-8204266d9cc2",
       "techniques": []
+    },
+    "defa1695-a720-4e76-9d97-b09ece4d4394/native-shell-integration": {
+      "context": "main-window-shell",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:28:07.364Z",
+      "worker": "1f137112-b77c-4331-abd1-416d40eb7766",
+      "techniques": [],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "precondition unmet: this is the in-document shell; apps/desktop/client/src/windows/main/App.tsx:121 its 'global' keys are a webview keydown listener, no OS-level capability is held here (native side is the native-shell context, judged there)",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by 1f137112-b77c-4331-abd1-416d40eb7766"
+        }
+      ]
+    },
+    "ff286e5d-5254-42d4-bb14-70a4d2d080f3/native-shell-integration": {
+      "context": "client-data-layer",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:28:07.364Z",
+      "worker": "1f137112-b77c-4331-abd1-416d40eb7766",
+      "techniques": []
     }
   }
 }
