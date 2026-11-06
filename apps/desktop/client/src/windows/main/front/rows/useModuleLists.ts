@@ -1,32 +1,44 @@
 // spark abstract-first-home round 2: useModuleLists - the six module lists for the side panel.
-// STUB with the final signature: a generic row per deal from the board model. The rows builder replaces
-// the body with each module's own columns (see the round-2 rows brief); consumers must not depend on
-// the stub's columns.
+// Gathers what the console's module pages read (the World's deals, needs, displays and modules, plus
+// mandate_list, counterparty_list and rescue_book - all main-window reads, shared through the query
+// cache) and hands them to the pure builder (moduleLists.ts). Recomputes when an input changes or the
+// minute turns (time-left cells), never on every clock second.
+import { useMemo, useSyncExternalStore } from 'react';
+import type { Deal } from '@bindings/Deal';
 import type { Module } from '@bindings/Module';
-import { MODULE_KEYS, type Fate } from '../../../../lib/assistant/contract';
-import { useBoardModel } from '../../switchboard/useBoardModel';
-import type { ModuleList, ModuleRow } from './rows';
+import { clockNow, onClockChange } from '../../../../lib/clock';
+import { useQuery } from '../../../../lib/hooks';
+import { useDeals, useNeeds, useWorldSelector, type World } from '../../world';
+import { moduleLists, whoFrom } from './moduleLists';
+import type { ModuleList } from './rows';
 
-const FATE_ORDER: Record<Fate, number> = { needs: 0, moving: 1, stopped: 2, paid: 3 };
+const NO_DEALS: readonly Deal[] = [];
+const selDisplay = (w: World) => w.display;
+const selModuleOf = (w: World) => w.moduleOfDeal;
+
+// The minute the lists were cut at: one shared interval, a re-render only when the minute changes
+// (or the preview clock jumps).
+const minute = {
+  subscribe(cb: () => void): () => void {
+    const t = setInterval(cb, 15_000);
+    const off = onClockChange(cb);
+    return () => { clearInterval(t); off(); };
+  },
+  get: (): number => Math.floor(clockNow() / 60),
+};
 
 export function useModuleLists(): Record<Module, ModuleList> {
-  const model = useBoardModel();
-  const out = {} as Record<Module, ModuleList>;
-  for (const m of MODULE_KEYS) {
-    const rows: ModuleRow[] = model.keys
-      .filter((k) => k.module === m)
-      .map((k) => ({
-        id: k.id,
-        module: m,
-        deal_id: k.id,
-        title: k.title,
-        cells: [{ text: k.fate, tone: k.fate }],
-        sub: k.why,
-        fate: k.fate,
-        deadline_s: k.deadline_s,
-      }))
-      .sort((a, b) => (FATE_ORDER[a.fate!] - FATE_ORDER[b.fate!]) || ((a.deadline_s ?? Infinity) - (b.deadline_s ?? Infinity)));
-    out[m] = { module: m, columns: ['State'], rows, empty: 'Nothing here yet.' };
-  }
-  return out;
+  const deals = useDeals().data ?? NO_DEALS;
+  const needs = useNeeds();
+  const display = useWorldSelector(selDisplay);
+  const moduleOfDeal = useWorldSelector(selModuleOf);
+  const cps = useQuery('counterparty_list', null, { refreshOn: ['deal:changed'] }).data;
+  const cp = useMemo(() => whoFrom(cps), [cps]);
+  const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed', 'deal:changed'] }).data ?? null;
+  const rescue = useQuery('rescue_book', null, { refreshOn: ['deal:changed', 'receipt:created', 'attention:changed'] }).data ?? null;
+  const min = useSyncExternalStore(minute.subscribe, minute.get, minute.get);
+  return useMemo(
+    () => moduleLists({ deals, needs, display, moduleOfDeal, who: cp, mandates, rescue, nowSec: Math.max(clockNow(), min * 60) }),
+    [deals, needs, display, moduleOfDeal, cp, mandates, rescue, min],
+  );
 }
