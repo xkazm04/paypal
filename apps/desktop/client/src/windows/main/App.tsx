@@ -11,14 +11,17 @@ import { Console } from './console/Console';
 import { Switchboard } from './switchboard/Switchboard';
 import { useHomeView } from './switchboard/view';
 import { WorldProvider } from './world';
+import { Front } from './front/Front';
+import { frontVariant } from './front/variant';
 
 export function App() {
   const view = useHomeView();
+  const front = frontVariant();
   return (
     <ToastProvider>
       <WorldProvider>
         <CounterpartyProvider>
-          {view === 'board' ? <Switchboard /> : <Console />}
+          {front && view === 'board' ? <Front variant={front} /> : view === 'board' ? <Switchboard /> : <Console />}
         </CounterpartyProvider>
       </WorldProvider>
     </ToastProvider>
