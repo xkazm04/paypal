@@ -1,4 +1,4 @@
-// spark abstract-first-home round 4 (prototype): pieces every bare form shares. Gate puts the approval
+// spark abstract-first-home round 4: pieces every bare form shares. Gate puts the approval
 // window's own lock in front of a form's action (the wallet would refuse a locked or tokenless call
 // anyway; this says so before she tries), BareDone is the finished state.
 import type { ReactNode } from 'react';

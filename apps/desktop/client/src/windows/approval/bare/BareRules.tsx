@@ -1,4 +1,4 @@
-// spark abstract-first-home round 4 (prototype): the bare rules form, the sign sheet only. The draft is
+// spark abstract-first-home round 4: the bare rules form, the sign sheet only. The draft is
 // the approval window's own: a rules draft The Table handed over (approval_handoff, `draft=` as
 // approval_open carries it, MandateEditor's seedRules path: draftFromRules) or, without one, a
 // starter template (`template=careful|restock|haggle`, default careful; templates.ts, with the

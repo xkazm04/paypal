@@ -1,4 +1,4 @@
-// spark abstract-first-home round 4 (prototype): the shape check of a pasted PayPal sandbox key, before
+// spark abstract-first-home round 4: the shape check of a pasted PayPal sandbox key, before
 // Save is offered. It is the wallet's own rule (table-runtime configuration.rs credentials(): trimmed,
 // not empty, at most 1024 characters, no control character) plus what every PayPal REST key looks
 // like (base64url letters, digits, - and _, tens of characters). Shape only: the wallet checks again.

@@ -24,8 +24,10 @@ import { clockLabel } from '../../../lib/format';
 import { MODULE_KEYS } from '../../../lib/assistant';
 import { ASSISTANT_MODULE_NAME, ASSISTANT_SETUP_STEP } from '../../../lib/words/assistant';
 import { BOARD_STANDING } from '../../../lib/words/board';
-import type { Tone } from './lit';
 import type { BoardKey, BoardModel } from './useBoardModel';
+
+/** The tone a standing answer is drawn in (the board's lit tones, kept for the home's opening). */
+export type Tone = 'gold' | 'teal' | 'coral' | 'refuse' | 'ok' | 'market';
 
 export type StandingKey = 'safe' | 'needs' | 'nothing';
 

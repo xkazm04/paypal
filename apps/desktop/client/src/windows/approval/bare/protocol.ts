@@ -1,6 +1,6 @@
-// spark abstract-first-home round 4 (prototype): the approval window's BARE mode. `approval.html?bare=keys|rules|pairing`
+// spark abstract-first-home round 4: the approval window's BARE mode. `approval.html?bare=keys|rules|pairing`
 // renders only that one secure form, for a host page that shows it as one component of the setup
-// conversation (main/front/stage/sim/secure). Everything else about the page is the approval window's:
+// conversation (main/home/secure). Everything else about the page is the approval window's:
 // the same SessionProvider (the capability in a ref, never state), the same privileged calls and the
 // same gates in the wallet (label, token, idle lock). Bare mode removes chrome, never a check.
 //

@@ -7,8 +7,8 @@ import type { Module } from '@bindings/Module';
 export const BOARD_MAIN_LABEL = 'The board: one answer, three questions and every deal counted';
 export const BOARD_TO_CONSOLE = 'Console';
 export const BOARD_TO_CONSOLE_TITLE = 'Back to the console, the detailed view';
-export const BOARD_TO_BOARD = 'Board';
-export const BOARD_TO_BOARD_TITLE = 'Every module and every deal on one page';
+export const BOARD_TO_BOARD = 'Home';
+export const BOARD_TO_BOARD_TITLE = 'Back home: how things stand, what needs you, and your assistant';
 
 /** The four columns: what is happening to the money. */
 export const BOARD_FATE = {

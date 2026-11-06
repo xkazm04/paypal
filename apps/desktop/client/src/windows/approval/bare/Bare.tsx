@@ -1,4 +1,4 @@
-// spark abstract-first-home round 4 (prototype): the approval window in bare mode (protocol.ts): the same
+// spark abstract-first-home round 4: the approval window in bare mode (protocol.ts): the same
 // session and toasts as App.tsx, then only the one form. No header, badges, demo strip, coach tour,
 // graticule or way back: the host page owns the frame around it. The body is transparent when the
 // page is framed (it sits on the host's surface) and has the app's ground when it is its own window.

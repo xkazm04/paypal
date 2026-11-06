@@ -1,4 +1,4 @@
-// spark abstract-first-home round 4 (prototype): the bare secure forms' words (keys, rules, pairing).
+// spark abstract-first-home round 4: the bare secure forms' words (keys, rules, pairing).
 export const BARE_KEYS = {
   title: 'PayPal sandbox keys',
   what: 'Test keys from PayPal’s developer site. They move test money only, never real money.',

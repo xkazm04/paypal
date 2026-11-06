@@ -1,4 +1,4 @@
-/* spark abstract-first-home round 4 (prototype): the approval window's bare mode (protocol.ts). One form, no
+/* spark abstract-first-home round 4: the approval window's bare mode (protocol.ts). One form, no
    chrome. Framed: transparent, sized to its content (the host reads secure-size). Its own window
    (popup): the app's ground. Tokens only; prefix sc-. */
 html:has(body.w-bare:not(.w-bare-top)), body.w-approval.w-bare:not(.w-bare-top) { background: transparent; }

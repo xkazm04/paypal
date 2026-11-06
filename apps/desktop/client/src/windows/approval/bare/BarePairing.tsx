@@ -1,4 +1,4 @@
-// spark abstract-first-home round 4 (prototype): the bare pairing confirm, the four words and Confirm.
+// spark abstract-first-home round 4: the bare pairing confirm, the four words and Confirm.
 // The words come from Rust for the pairing selected for this window (approval_pairing; the mock
 // selects it from `pairing=` as approval_open writes it), never from the host page. The calls are
 // PairingConfirm's exactly: pairing_confirm (privileged, idle-locked: pins the peer) and

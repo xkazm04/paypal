@@ -1,6 +1,6 @@
 // The Proof Table's kit classes (design/kit.css, last section; spark the-proof-table WP1): the eight
 // classes exist, the tone-to-ink mapping lives in one block that covers every `Tone` the board
-// names (switchboard/lit.ts), every value is a token or one of the two tone locals, each tone's ink
+// names (switchboard/standing.ts), every value is a token or one of the two tone locals, each tone's ink
 // reads at AA on every surface the classes put it on in both themes, and the console wears the
 // ground. The look itself is checked by screenshot (night and day).
 import { readFileSync } from 'node:fs';
@@ -35,7 +35,7 @@ describe('the Proof Table kit classes', () => {
   });
 
   it('the tone block covers exactly the board’s Tone set', () => {
-    const lit = readFileSync(root('src/windows/main/switchboard/lit.ts'), 'utf8');
+    const lit = readFileSync(root('src/windows/main/switchboard/standing.ts'), 'utf8');
     const union = /export type Tone = ([^;]+);/.exec(lit)?.[1] ?? '';
     const want = [...union.matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
     expect(want.length).toBeGreaterThan(0);

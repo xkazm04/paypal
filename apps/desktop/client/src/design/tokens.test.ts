@@ -5,7 +5,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { contrast, hexTokens, parseHex, type Rgb } from '../lib/contrast';
-import { DUR, HOLD_MS } from './motion';
+import { DUR, EASE, HOLD_MS } from './motion';
 
 // vitest runs from the client package root
 const root = (p: string) => resolve(process.cwd(), p);
@@ -150,6 +150,13 @@ describe('motion: CSS and code agree', () => {
   });
   it('every named duration matches', () => {
     for (const [k, v] of Object.entries(DUR)) expect(decl(`dur-${k}`), k).toBe(`${v}ms`);
+  });
+  it('every easing curve matches', () => {
+    const css: Record<keyof typeof EASE, string> = { settle: 'ease', out: 'ease-out', in: 'ease-in' };
+    for (const [k, v] of Object.entries(EASE)) {
+      const m = /^cubic-bezier\(([^)]*)\)$/.exec(decl(css[k as keyof typeof EASE]) ?? '');
+      expect(m?.[1]?.split(',').map((x) => Number(x.trim())), k).toEqual([...v]);
+    }
   });
 });
 

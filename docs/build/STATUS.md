@@ -2996,3 +2996,24 @@ reversible-screen-ops). Client only; no Rust, IPC or bindings change.
   70.0% pass, 100% schema-valid, 20% false trigger (all eight: a sentence-shaped question given a panel), 12.9%
   missed (all four: a two-panel question given one). Both live failure classes come from the pinned prompt (see
   "Known gaps" in `docs/features/conversational-home.md`).
+
+## The home: status first, setup led by the conversation (spark abstract-first-home, 2026-11-06)
+
+Five prototype rounds of three variants each, chosen by the owner; design and verdicts in
+`docs/design/abstract-first-home.md`, behaviour in `docs/features/conversational-home.md`. Client only; no Rust,
+IPC, bindings or reply-contract change.
+- **The home replaces the counts board** as the main window's default view (`windows/main/home/`, view name still
+  `board`). It opens with one status line and the first need; a module list on the side (one row per item, each
+  module's own columns) opens item pages in main; replies stay in the conversation and only scope the list.
+- **Setup is led by the conversation** (`home/guide/`): keys, rules (proposed in plain words with the practice
+  shop as payee, so they can be signed before the shop is connected), practice (agent app, then the practice
+  shop), one step per turn, at most one spotlight after each.
+- **Secure steps stay in the window** (`home/secure/`, `windows/approval/bare/`): in the browser a sheet framing
+  the approval side's one-form surface (same token and gates; keys never reach an app page); in the desktop app
+  the approval window itself.
+- **Removed:** `Switchboard.tsx` and its board-only parts (slots, board column, standing strip, ask bar, earlier,
+  says, figures, lit, region, keymap) and their tests; the board model, standing answers, panels, proposals,
+  resolver and assistant hook stay in `switchboard/`. `EASE` moved into `design/motion.ts` with a CSS parity test.
+- **Open:** desktop has no framed bare surface (needs a CSP/Rust change); the sample-data demo still opens a
+  decision's approval page in place of the main tab; the console's setup and the Tumbler still follow
+  `START_ORDER`; Book repeats other modules' deals; `switchboard.css` still carries the board's layout rules.

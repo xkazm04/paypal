@@ -38,9 +38,11 @@ describe('the main window never names a release command', () => {
     }
     expect(found).toEqual([]);
   });
-  it('the board and its assistant never name a decision, owner or session command; their only calls are approval_open and act-tier safe acts', () => {
+  it('the home, the board model and the assistant never name a decision, owner or session command; they call only reads, approval_open and act-tier commands', () => {
     const lib = join(root, '..', '..', 'lib', 'assistant');
-    const board = [...sources(join(root, 'switchboard')), ...sources(lib)];
+    const board = [...sources(join(root, 'home')), ...sources(join(root, 'switchboard')), ...sources(lib)];
+    expect(board.some((f) => f.path.endsWith(join('home', 'Home.tsx')))).toBe(true);
+    expect(board.some((f) => f.path.endsWith(join('secure', 'SecureStep.tsx')))).toBe(true);
     expect(board.some((f) => f.path.endsWith(join('switchboard', 'resolve.ts')))).toBe(true);
     expect(board.some((f) => f.path.endsWith(join('assistant', 'vocabulary.ts')))).toBe(true);
     const high = Object.entries(AUTHORITY).filter(([, a]) => a.tier === 'decision' || a.tier === 'owner' || a.tier === 'session').map(([name]) => name);
@@ -61,7 +63,11 @@ describe('the main window never names a release command', () => {
       expect(a.release, name).toBe(false);
       expect(['read', 'ui', 'act'], name).toContain(a.tier);
     }
-    expect(new Set(called)).toEqual(new Set(['approval_open', 'assistant_ask', 'assistant_status', 'assistant_act']));
+    expect(called).toEqual(expect.arrayContaining(['approval_open', 'assistant_ask', 'assistant_status', 'assistant_act']));
+    // the only mutations: the approval window's door, the consent-path safe acts, and the setup guide's
+    // own act-tier steps (the agent app, joining the practice shop, waking it)
+    const muts = board.flatMap((f) => [...f.text.matchAll(/useMutation\s*(?:<[^>]*>)?\(\s*['"`]([a-z_]+)['"`]/g)].map((m) => m[1]!));
+    expect(new Set(muts)).toEqual(new Set(['approval_open', 'assistant_act', 'engine_select', 'pairing_join', 'house_wake']));
   });
   it('the decision centre opens the approval window and nothing else', () => {
     const centre = files.find((f) => f.path.endsWith(join('console', 'Centre.tsx')))?.text ?? '';

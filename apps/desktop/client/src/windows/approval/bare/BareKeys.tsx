@@ -1,4 +1,4 @@
-// spark abstract-first-home round 4 (prototype): the bare keys form, the secure step's first and best
+// spark abstract-first-home round 4: the bare keys form, the secure step's first and best
 // moment. What it can honestly be depends on where it runs:
 //   desktop app  the keys never pass through a page. set_credentials opens the Windows credential
 //                dialog (table-os credential_prompt.rs: Client ID in User name, Secret in Password)
