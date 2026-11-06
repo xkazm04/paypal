@@ -1,6 +1,7 @@
 // The opening message, composed locally (no model, no latency, no invented figures): one status
-// sentence from the standing answers, the away summary in at most two lines, the ONE first need,
-// and two or three suggested replies the scripted engine (or a local answer) handles well.
+// sentence from the standing answers, the away summary in ONE line (the rest one chip away), the ONE
+// first need, and at most two suggested replies the scripted engine (or a local answer) handles well.
+// Budget (round 2): status, away line, need card, two chips, ask box = 6 items on first paint.
 // Pure: no React, no IO.
 import type { BoardKey, BoardModel } from '../../switchboard/useBoardModel';
 import type { StandingAnswer } from '../../switchboard/standing';
@@ -29,9 +30,12 @@ export type Greeting = {
   chips: Chip[];
 };
 
-export function partOfDay(nowMs: number): 'morning' | 'afternoon' | 'evening' {
+export type DayPart = 'morning' | 'afternoon' | 'evening' | null;
+
+/** The local part of the day, or null in the small hours (no "good morning" at 2 a.m.). */
+export function partOfDay(nowMs: number): DayPart {
   const h = new Date(nowMs).getHours();
-  return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+  return h < 5 ? null : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
 }
 
 /** Needs-you keys, soonest deadline first, none last, then id. */
@@ -39,14 +43,16 @@ export function needsFirst(model: Pick<BoardModel, 'keys'>): BoardKey[] {
   return model.keys.filter((k) => k.fate === 'needs').sort((a, b) => (a.deadline_s ?? Infinity) - (b.deadline_s ?? Infinity) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
-export const AWAY_SHOWN = 2;
+export const AWAY_SHOWN = 1;
+export const CHIPS_SHOWN = 2;
 
 export function compose(o: {
   model: Pick<BoardModel, 'ready' | 'firstRun' | 'keys' | 'instruments'>;
   standing: readonly [StandingAnswer, StandingAnswer, StandingAnswer];
   away: AwaySummary | null;
   setup: boolean;
-  nowMs: number;
+  /** The part of the day the caller's ticking clock reads (useDayPart), so the hello follows it. */
+  part: DayPart;
 }): Greeting {
   const { model, standing, away, setup } = o;
   if (setup) {
@@ -62,7 +68,7 @@ export function compose(o: {
   const n = list.length;
   const safePart = safe.tone === 'ok' ? GREET.safe : safe.tone === 'refuse' ? GREET.broken : GREET.safeUnknown;
   const needsPart = n === 0 ? GREET.needsNone : n === 1 ? GREET.needsOne : GREET.needsSome(n);
-  const status = `${GREET.hello(partOfDay(o.nowMs))} ${safePart} ${needsPart}`;
+  const status = [GREET.hello(o.part), safePart, needsPart].filter(Boolean).join(' ');
   const tone = safe.tone === 'refuse' ? 'refuse' : n ? 'gold' : safe.tone === 'ok' ? 'ok' : 'dim';
 
   const awayOut = away
@@ -75,5 +81,5 @@ export function compose(o: {
   if (awayOut && awayOut.more > 0) chips.push({ kind: 'away', label: GREET.chipAway });
   if (n) chips.push({ kind: 'ask', label: GREET.chipSilence });
   chips.push({ kind: 'everything', label: GREET.chipEverything });
-  return { mode: 'everyday', status, sub: n === 0 ? GREET.needsNoneSub : null, tone, away: awayOut, need: list[0] ?? null, needs: n, chips: chips.slice(0, 3) };
+  return { mode: 'everyday', status, sub: n === 0 ? GREET.needsNoneSub : null, tone, away: awayOut, need: list[0] ?? null, needs: n, chips: chips.slice(0, CHIPS_SHOWN) };
 }

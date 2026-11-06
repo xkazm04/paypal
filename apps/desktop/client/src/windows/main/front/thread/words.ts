@@ -1,4 +1,4 @@
-// Prototype strings for the GREET front door (spark abstract-first-home, round 1). The opening
+// Prototype strings for the THREAD front door (spark abstract-first-home, round 2; forked from GREET). The opening
 // message is composed here, locally, from what the board model already reads: no model call, no
 // figure the model typed. Every number reaches these functions as an argument from the model.
 import type { StartStepKey } from '../../../../lib/words';
@@ -8,7 +8,7 @@ export const GREET = {
   toConsole: 'Everything',
   toConsoleTitle: 'Open the full console: every module, every deal',
   // ---- the opening message
-  hello: (part: 'morning' | 'afternoon' | 'evening'): string => `Good ${part}.`,
+  hello: (part: 'morning' | 'afternoon' | 'evening' | null): string => (part ? `Good ${part}.` : ''),
   safe: 'Your money is safe.',
   broken: 'Your safety record found something that broke your rules.',
   safeUnknown: 'I can’t read your safety record yet.',
@@ -21,6 +21,7 @@ export const GREET = {
   reading: 'Reading your wallet…',
   away: (since: string): string => `While you were away (${since})`,
   awayMore: (n: number): string => `and ${n} more`,
+  awayMoreLine: (n: number): string => ` · and ${n} more`,
   // ---- the first need, as a card
   ifNothing: 'If you do nothing',
   review: 'Review in the approval window',
@@ -34,14 +35,13 @@ export const GREET = {
   chipSteps: 'Show me all four steps',
   // ---- local answers
   awayAnswerQuiet: 'Nothing happened while you were away. No money moved.',
-  everything: 'Here is every deal, newest first. Each module has a door at the top right.',
+  everything: 'Here is every deal, newest first. Each module also lists its own on the side.',
   steps: 'These are the four steps. Each one happens here, in this conversation.',
   // ---- the conversation
   you: 'You',
   me: 'Assistant',
   askLabel: 'Ask your assistant',
   engine: (name: string): string => `Answers by ${name}`,
-  regionHint: 'Ask, or tap a module: answers land here, and Undo puts them back.',
   askPlaceholder: 'Ask anything: “what’s waiting on me?”, “show me Spend”…',
   send: 'Ask',
   stop: 'Stop',
@@ -59,6 +59,29 @@ export const GREET = {
   suggested: 'Suggested',
   go: 'Go',
   goConsole: (where: string): string => `Open ${where} in the console`,
+  // ---- the module navigator (side) and looking at an item (round 2)
+  navLabel: 'Your modules, one row per item',
+  sectionTitle: (name: string, long: string, n: number, needs: number): string => `${name} · ${long} · ${n} ${n === 1 ? 'item' : 'items'}${needs ? ` · ${needs} need you` : ''}`,
+  more: (n: number): string => `${n} more`,
+  fewer: 'Show fewer',
+  looking: (title: string): string => `Looking at ${title}`,
+  lookAgain: 'You looked at this above.',
+  lookNoDeal: (module: string): string => `A listing, not a deal: its offers and history are in ${module}.`,
+  lookGone: 'This item is no longer in the list.',
+  openModule: (name: string): string => `Open ${name}`,
+  facts: 'Key facts',
+  about: (title: string): string => `About ${title}`,
+  aboutPlaceholder: (title: string): string => `Ask about ${title}…`,
+  aboutClear: 'Back to today',
+  aboutClearTitle: 'Stop asking about this item (Esc)',
+  /** What the engine is sent: the item named first, then the question as typed. */
+  aboutPrefix: (label: string, q: string): string => `About ${label}: ${q}`,
+  undoTurn: 'Undo',
+  undoTurnTitle: 'Remove this turn from the conversation',
+  // what a reply did in the side panel
+  navOpened: (names: string): string => `Opened ${names} on the side.`,
+  navPicked: (title: string): string => `Selected ${title} on the side.`,
+  shownBelow: 'Shown here:',
   // ---- set up together
   welcome: 'Welcome. Let’s set up together.',
   welcomeSub: 'Four short steps, right here. Nothing can pay until you say so, and waiting never sends money.',
