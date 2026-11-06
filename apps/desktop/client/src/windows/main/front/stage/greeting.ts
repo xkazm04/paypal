@@ -21,17 +21,20 @@ export type Greeting = {
   /** One quiet line under it, or null. */
   sub: string | null;
   tone: 'ok' | 'gold' | 'refuse' | 'dim';
-  /** Up to two away lines and how many more there are; null when there is no away news. */
-  away: { since: string; lines: string[]; more: number } | null;
+  /** The away news: ONE line on first paint (the budget), the rest behind "n more"; null when none. */
+  away: { since: string; lines: string[]; more: number; all: string[] } | null;
   /** The first need (soonest deadline first), or null. */
   need: BoardKey | null;
   needs: number;
   chips: Chip[];
 };
 
-export function partOfDay(nowMs: number): 'morning' | 'afternoon' | 'evening' {
+export type PartOfDay = 'morning' | 'afternoon' | 'evening' | null;
+
+/** The salutation follows the wallet's clock in local time; deep night (23:00-04:59) gets none. */
+export function partOfDay(nowMs: number): PartOfDay {
   const h = new Date(nowMs).getHours();
-  return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+  return h < 5 || h >= 23 ? null : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
 }
 
 /** Needs-you keys, soonest deadline first, none last, then id. */
@@ -39,14 +42,14 @@ export function needsFirst(model: Pick<BoardModel, 'keys'>): BoardKey[] {
   return model.keys.filter((k) => k.fate === 'needs').sort((a, b) => (a.deadline_s ?? Infinity) - (b.deadline_s ?? Infinity) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
-export const AWAY_SHOWN = 2;
+export const AWAY_SHOWN = 1;
 
 export function compose(o: {
   model: Pick<BoardModel, 'ready' | 'firstRun' | 'keys' | 'instruments'>;
   standing: readonly [StandingAnswer, StandingAnswer, StandingAnswer];
   away: AwaySummary | null;
   setup: boolean;
-  nowMs: number;
+  part: PartOfDay;
 }): Greeting {
   const { model, standing, away, setup } = o;
   if (setup) {
@@ -62,18 +65,17 @@ export function compose(o: {
   const n = list.length;
   const safePart = safe.tone === 'ok' ? GREET.safe : safe.tone === 'refuse' ? GREET.broken : GREET.safeUnknown;
   const needsPart = n === 0 ? GREET.needsNone : n === 1 ? GREET.needsOne : GREET.needsSome(n);
-  const status = `${GREET.hello(partOfDay(o.nowMs))} ${safePart} ${needsPart}`;
+  const status = `${o.part ? `${GREET.hello(o.part)} ` : ''}${safePart} ${needsPart}`;
   const tone = safe.tone === 'refuse' ? 'refuse' : n ? 'gold' : safe.tone === 'ok' ? 'ok' : 'dim';
 
   const awayOut = away
     ? (away.quiet || away.lines.length === 0
-      ? { since: away.sinceWords, lines: [away.lead ?? GREET.awayAnswerQuiet], more: 0 }
-      : { since: away.sinceWords, lines: away.lines.slice(0, AWAY_SHOWN).map((l) => l.text), more: Math.max(0, away.lines.length - AWAY_SHOWN) })
+      ? { since: away.sinceWords, lines: [away.lead ?? GREET.awayAnswerQuiet], more: 0, all: [] }
+      : { since: away.sinceWords, lines: away.lines.slice(0, AWAY_SHOWN).map((l) => l.text), more: Math.max(0, away.lines.length - AWAY_SHOWN), all: away.lines.map((l) => l.text) })
     : null;
 
   const chips: Chip[] = [];
-  if (awayOut && awayOut.more > 0) chips.push({ kind: 'away', label: GREET.chipAway });
   if (n) chips.push({ kind: 'ask', label: GREET.chipSilence });
   chips.push({ kind: 'everything', label: GREET.chipEverything });
-  return { mode: 'everyday', status, sub: n === 0 ? GREET.needsNoneSub : null, tone, away: awayOut, need: list[0] ?? null, needs: n, chips: chips.slice(0, 3) };
+  return { mode: 'everyday', status, sub: n === 0 ? GREET.needsNoneSub : null, tone, away: awayOut, need: list[0] ?? null, needs: n, chips: chips.slice(0, 2) };
 }

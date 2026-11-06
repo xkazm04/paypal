@@ -1,6 +1,7 @@
-// Smoke for the GREET front door on the browser mock world (jsdom, the real App and hooks): each state
-// renders its opening message, a chip and a typed question drill through the scripted engine into the
-// side region and the module strip, and getting started stays in the conversation.
+// Smoke for the STAGE fork on the browser mock world (jsdom, the real App and hooks): each state renders
+// its opening message; a row click turns main into the item's stage and Esc puts today back as it was;
+// a chip and a typed question drive the stage and the side list through the scripted engine; getting
+// started stays in the conversation.
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Backend } from '../../../../lib/contract';
@@ -54,25 +55,51 @@ function world(search: string): void {
 const ready = () => waitFor(() => expect(document.querySelector('[data-front="stage"][data-ready="true"]')).not.toBeNull(), { timeout: 5000 });
 const chip = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('.fs-chip')].find((b) => b.textContent === label);
 
-describe('GREET front door', () => {
-  it('opens on a status sentence and the one first need; a chip and a question drill into the side', async () => {
+describe('STAGE front door', () => {
+  it('a row opens its stage, Esc returns to today exactly as it was', async () => {
     world('?home=stage');
     render(<App />);
     await ready();
     await waitFor(() => expect(document.querySelector('[data-need]')).not.toBeNull());
     expect(document.querySelector('.fs-status')?.textContent).toMatch(/need/);
-    // nothing composed yet: no grid, no panels
-    expect(document.querySelectorAll('.fs-card').length).toBe(0);
+    // the side opens on the first need's module, one row per item
+    const row = await waitFor(() => { const r = document.querySelector<HTMLButtonElement>('[data-row]'); expect(r).not.toBeNull(); return r!; });
+    const key = row.dataset.row!;
+    await act(async () => { fireEvent.click(row); });
+    expect(document.querySelector(`[data-stage="${key}"]`)).not.toBeNull();
+    expect(document.querySelector('[data-front="stage"]')?.getAttribute('data-staged')).toBe('true');
+    expect(row.getAttribute('aria-selected')).toBe('true');
+    expect(document.querySelector<HTMLInputElement>('.fs-input')?.placeholder).toMatch(/^Ask about /);
+    // a question asked on the stage stays with the item (and is tagged in today's transcript)
+    const input = document.querySelector<HTMLInputElement>('.fs-input')!;
+    fireEvent.change(input, { target: { value: 'What if I do nothing?' } });
+    await act(async () => { fireEvent.submit(input.form!); });
+    await waitFor(() => expect(document.querySelector('.fs-ithread .fs-you')?.textContent).toBe('What if I do nothing?'));
+    await waitFor(() => expect(document.querySelector('.fs-thinking')).toBeNull());
+    if (!document.querySelector(`[data-stage="${key}"]`)) await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }); });
+    await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }); });
+    expect(document.querySelector('.fs-about')).not.toBeNull();
+    expect(document.querySelector('[data-stage]')).toBeNull();
+    expect(document.querySelector('[data-front="stage"]')?.getAttribute('data-staged')).toBe('false');
+    expect(document.querySelector('[data-need]')).not.toBeNull();
+  });
 
+  it('a chip and a question drive the stage and the side list; Undo puts the navigation back', async () => {
+    world('?home=stage');
+    render(<App />);
+    await ready();
+    await waitFor(() => expect(document.querySelector('[data-need]')).not.toBeNull());
     await act(async () => { fireEvent.click(chip(GREET.chipSilence)!); });
-    await waitFor(() => expect(document.querySelector('[data-panel="needs:*"]')).not.toBeNull());
-    expect(document.querySelector('.fs-undo')).not.toBeNull();
+    await waitFor(() => expect(document.querySelector('[data-stage^="panel:"]')).not.toBeNull());
+    const undo = document.querySelector<HTMLButtonElement>('.fs-undo');
+    expect(undo).not.toBeNull();
+    await act(async () => { fireEvent.click(undo!); });
+    expect(document.querySelector('[data-stage]')).toBeNull();
 
     const input = document.querySelector<HTMLInputElement>('.fs-input')!;
     fireEvent.change(input, { target: { value: 'What is happening at the tables?' } });
     await act(async () => { fireEvent.submit(input.form!); });
-    await waitFor(() => expect(document.querySelector('[data-module="tables"].is-lit')).not.toBeNull());
-    expect(document.querySelector('[data-panel="book:tables:*"]')).not.toBeNull();
+    await waitFor(() => expect(document.querySelector('[data-scope="tables"][aria-selected="true"]')).not.toBeNull());
   });
 
   it('back after away: the summary says what happened since the start of today', async () => {

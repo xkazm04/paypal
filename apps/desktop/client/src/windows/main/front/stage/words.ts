@@ -97,3 +97,43 @@ export const STEP_SAY: Record<StartStepKey, string> = {
   practice: 'try a practice deal',
   engine: 'choose your agent app',
 };
+
+/** STAGE fork (round 2): the side navigator and the item's stage. */
+export const STAGE = {
+  side: 'Everything, one row per item',
+  all: 'All',
+  allTitle: 'Every module',
+  scopeTitle: (name: string, long: string, n: number, needs: number): string => `${name} · ${long} · ${n} ${n === 1 ? 'item' : 'items'}${needs ? `, ${needs} need you` : ''}`,
+  filter: 'Filter by name',
+  filterLabel: 'Filter the rows by name',
+  colItem: 'Item',
+  colAmount: 'Amount',
+  colState: 'State',
+  nothing: 'Nothing here yet.',
+  noMatch: (q: string): string => `Nothing here matches “${q}”.`,
+  fateOnly: (word: string): string => `Only: ${word}`,
+  clearFate: 'Show all states',
+  count: (shown: number, total: number): string => (shown === total ? `${total} ${total === 1 ? 'item' : 'items'}` : `${shown} of ${total}`),
+  keysHint: '↑ ↓ to move, Enter to open, Esc to go back',
+  // the stage
+  today: 'Today',
+  back: 'Back to today',
+  stageLabel: (title: string): string => `${title}, item page`,
+  facts: 'Where it stands',
+  story: 'What happened',
+  storyReading: 'Reading what happened…',
+  storyNone: 'No signed messages on this deal yet.',
+  storyUnread: 'What happened could not be read just now.',
+  storyMore: (n: number): string => `and ${n} earlier`,
+  openFull: 'Open the full deal page',
+  openFullTitle: 'Every view of this deal, in the console',
+  openModule: (name: string): string => `Open ${name}`,
+  details: 'Details',
+  notADeal: 'This row is not a deal: there is no story or decision behind it here.',
+  gone: 'This item is no longer listed. Go back to today, or pick another row.',
+  askAbout: (title: string): string => `Ask about ${title}`,
+  aboutThis: 'You asked about this',
+  about: (title: string): string => `About ${title}`,
+  // a show op that is not a row
+  panelCrumb: (title: string): string => title,
+} as const;
