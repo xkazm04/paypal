@@ -1,14 +1,24 @@
-target
-.build
-.git
-prototype
-.research
-bindings
-.env
-.env.*
-.contest
-.claude
-.personas
+# Allowlist: the house image builds one Rust binary (Dockerfile), so the context carries only what
+# `cargo build --locked --release -p house-seller` reads. Everything else (the client, film, uat,
+# docs, media) stays out, so a commit outside these paths no longer invalidates `COPY . .`.
+# Measured over tracked files: 1396 files / 16.7 MB before, 359 files / 4.9 MB after.
+*
+!Cargo.toml
+!Cargo.lock
+!.cargo
+!crates
+!services
+# A workspace member: cargo loads its manifest and targets to resolve the workspace.
+!apps/desktop/src-tauri
+# include_str! in crates/table-core/src/agent.rs (release code).
+!prompts
+
+# Not re-included on purpose: rust-toolchain.toml. Its channel "1.97" is a different rustup
+# toolchain from the image's 1.97.x, so carrying it made an uncached build download a second
+# toolchain plus clippy and rustfmt. The FROM tag is the compiler pin.
+
+**/target
 **/node_modules
 **/dist
-docs
+**/.env
+**/.env.*
