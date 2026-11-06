@@ -131,7 +131,9 @@ function Greet({ back }: { back: boolean }) {
 
   const away = useAway({ active: true, enabled: back && model.ready && !setup, needs: model.colCount.needs, deals: deals ?? [] });
   const standing = standingAnswers(model);
-  const greeting = compose({ model, standing, away: away.summary, setup, part });
+  const composed = compose({ model, standing, away: away.summary, setup, part });
+  // a sim owns the setup story: its opening is the status line only (sim/host.ts)
+  const greeting = sim && composed.mode === 'setup' ? { ...composed, sub: null, chips: [] } : composed;
 
   // ---- the navigation (side list + what main shows); the ref is what the next reply is applied to
   const [nav, setNavState] = useState<Nav>(START_NAV);
@@ -359,11 +361,13 @@ function Greet({ back }: { back: boolean }) {
     // The routing rule (nav.ts routeReply): the answer stays in this turn, with its panels inline and
     // at most an "Open <title>" link; only the side list may move. She moved while it answered: her
     // move wins and the list is left alone (the panels still show: they are part of the answer).
-    const routed = routeReply(navRef.current, out.reply.ops, lists);
+    const r0 = routeReply(navRef.current, out.reply.ops, lists);
+    // in a sim's setup the sim owns the steps: no setup panels or setup proposals from replies
+    const routed = sim && setup ? { ...r0, panels: r0.panels.filter((p) => p.kind !== 'setup') } : r0;
     const moved = ownerMoves.current !== movesAtAsk;
     const changed = moved ? null : moveFor(routed.nav, id);
     const props: Proposal[] = [];
-    for (const op of out.reply.ops) if (op.op === 'propose') props.push({ id: props.length, action: op.action, why: op.why });
+    for (const op of out.reply.ops) if (op.op === 'propose' && !(sim && setup)) props.push({ id: props.length, action: op.action, why: op.why });
     setProposals(props); setStale(new Set()); setActed(null);
     patch(id, (e) => (e.kind === 'reply' ? {
       ...e, say: out.reply.say, changed, panels: routed.panels, link: routed.link,
