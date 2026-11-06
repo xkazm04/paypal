@@ -228,6 +228,7 @@ pub fn run() -> Result<(), tauri::Error> {
             deal_evidence,
             deal_reconcile,
             engine_status,
+            engine_brief,
             attention_list,
             main_open,
             approval_open,

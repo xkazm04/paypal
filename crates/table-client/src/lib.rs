@@ -308,6 +308,7 @@ pub struct CommandContract {
     pub deal_evidence: Command<DealArgs, table_core::DealEvidence>,
     pub deal_reconcile: Command<ReconcileArgs, table_core::DealEvidence>,
     pub engine_status: Command<(), Vec<table_engine::EngineInfo>>,
+    pub engine_brief: Command<(), Vec<table_engine::EngineBrief>>,
     pub attention_list: Command<(), AttentionSnapshot>,
     pub main_open: Command<MainRoute, ()>,
     pub approval_open: Command<ApprovalOpenArgs, ()>,

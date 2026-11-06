@@ -227,6 +227,7 @@ impl Fixture {
                 .await
             }
             "engine_status" => self.exec(&c, Action::Engines).await,
+            "engine_brief" => self.exec(&c, Action::EngineBrief).await,
             "attention_list" => self.exec(&c, Action::Attention).await,
             "approval_open" => {
                 self.exec(

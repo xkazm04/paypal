@@ -286,6 +286,10 @@ pub const AUTHORITY: &[CommandAuthority] = &[
     row("agent_pause",            MAIN,     Act,      OPEN,       ANY,         R),
     row("agent_resume",           MAIN,     Act,      OPEN,       ANY,         R),
     row("assistant_act",          MAIN,     Act,      OPEN,       ANY,         R),
+    // The agent app's state in one word for every window: which engines are usable, nothing else
+    // (no version, no probe text: `engine_status` stays main-only). A read of the same facts the
+    // owner sees on the Connections page, so the approval window and the Tumbler agree with it.
+    row("engine_brief",           ALL,      Read,     OPEN,       ANY,         R),
 ];
 
 const fn release_count() -> usize {

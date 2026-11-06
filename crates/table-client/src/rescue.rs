@@ -23,6 +23,12 @@ pub struct RescueView {
     /// PayPal showed it paid and the wallet receipted it, on a failure PayPal reported: this is
     /// the only money counted as recovered.
     pub counted: bool,
+    /// Why the wallet would not send this fix, when it would not: the engine's own refusal as a
+    /// closed reason, never text. Absent when the fix is inside the signed rules. For display; the
+    /// engine refuses the send itself, whatever the page shows.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub refusal: Option<table_core::RescueRefusal>,
 }
 /// Shop around (T8): group open buyer tables for one item, each with a different paired seller,
 /// under one signed mandate. The first table to agree wins; the wallet withdraws the others with

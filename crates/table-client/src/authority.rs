@@ -241,7 +241,7 @@ mod tests {
     /// up in review as an edit to this line (and to `bindings/authority.ts`). Update it only when
     /// the table change is intended.
     const PINNED_MANIFEST: &str =
-        "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd";
+        "8d6b860c0260fd3afab404b9338991d963bdc7c23642304b0db8cc7b2fa3d42f";
 
     /// Written out by hand: the board assistant's two commands are reads the main window alone
     /// may call, answered by the shell, with no token, unlock or selection. Its reply is text the
@@ -260,6 +260,25 @@ mod tests {
                 "{name}"
             );
         }
+    }
+
+    /// The agent-app brief is a plain read for every window; it must not drag anything into the
+    /// release set (written out by hand, independent of the table).
+    #[test]
+    fn the_engine_brief_is_an_open_read_for_every_window_and_not_a_release_command() {
+        let a = authority("engine_brief").unwrap();
+        assert_eq!(a.labels, &WindowLabel::ALL[..]);
+        assert_eq!(a.tier, Tier::Read);
+        assert_eq!(a.enforcer, Enforcer::Runtime);
+        assert_eq!(a.selection, Selection::None);
+        assert!(!a.token && !a.unlock && !a.release());
+        assert!(!RELEASE_COMMANDS.contains(&"engine_brief"));
+        for label in ["main", "tumbler", "approval"] {
+            assert!(admits("engine_brief", label), "{label}");
+        }
+        assert!(!admits("engine_brief", "devtools"));
+        // The detailed status stays main only.
+        assert!(!admits("engine_status", "tumbler") && !admits("engine_status", "approval"));
     }
 
     #[test]

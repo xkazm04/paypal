@@ -52,6 +52,7 @@
     "allow-deal-lapse-undo",
     "allow-agent-pause",
     "allow-agent-resume",
-    "allow-assistant-act"
+    "allow-assistant-act",
+    "allow-engine-brief"
   ]
 }

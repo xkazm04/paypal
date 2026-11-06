@@ -454,6 +454,28 @@ async fn a_fix_whose_send_ended_is_refused_in_plain_words_and_writes_nothing() {
     r.pipeline.wallet.ledger.verify_audit().unwrap();
 }
 
+#[tokio::test]
+async fn the_rescue_view_names_a_closed_refusal_only_when_the_wallet_would_not_send() {
+    let (mut r, vault, _, clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, _) = rescue_ready(&mut r).await;
+    // Inside the signed rules: no refusal, and the key is omitted or null on the wire.
+    let view = r.rescue_view(deal.id).unwrap().unwrap();
+    assert_eq!(view.refusal, None);
+    // The rules revoked: the same check the send runs now refuses, as one closed reason.
+    r.pipeline
+        .wallet
+        .ledger
+        .revoke_mandate(deal.mandate_id, clock.now())
+        .unwrap();
+    let view = r.rescue_view(deal.id).unwrap().unwrap();
+    assert_eq!(view.refusal, Some(RescueRefusal::RulesNotInForce));
+    let wire = serde_json::to_value(&view).unwrap();
+    assert_eq!(wire["refusal"], "rules_not_in_force");
+    let book = r.rescue_book().unwrap();
+    assert_eq!(book.cases[0].refusal, Some(RescueRefusal::RulesNotInForce));
+}
+
 /// The rescue rules revoked while a fix's send is unknown: with no agent key the send is still
 /// read back, and at PayPal's retry the draft closes not done and the fix expires. Before, the
 /// tick returned at once, the rescue stayed open and refused every later one for the
