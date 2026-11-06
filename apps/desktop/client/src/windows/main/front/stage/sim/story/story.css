@@ -1,0 +1,87 @@
+/* spark abstract-first-home round 3, sim STORY ("learn by doing a first deal"). Tokens only (design/tokens.css). */
+
+/* ---- cards in the transcript ---- */
+.ss-card { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); border-radius: var(--r); background: var(--panel); border: 1px solid var(--line); max-width: 640px; }
+.ss-secure-card { border-top: 3px solid var(--teal); }
+.ss-body { margin: 0; line-height: 1.5; color: var(--text); }
+.ss-quiet { margin: 0; color: var(--muted); font-size: var(--fs-small); line-height: 1.45; }
+.ss-kick { margin: 0; color: var(--muted); font-size: var(--fs-small); text-transform: uppercase; letter-spacing: var(--track-label); }
+.ss-acts { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.ss-done { margin: 0; display: flex; gap: var(--sp-2); align-items: baseline; color: var(--muted); line-height: 1.45; }
+.ss-done-mark { flex: none; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--ok); color: var(--ink-0); align-self: center; }
+.ss-tag { font-size: var(--fs-small); border-radius: var(--r-tight); padding: 1px var(--sp-2); white-space: nowrap; }
+.ss-tag.is-secure { color: var(--teal); border: 1px solid var(--teal); }
+.ss-tag.is-sim { color: var(--gold-l); border: 1px dashed var(--gold); }
+
+/* goals */
+.ss-goal { display: flex; flex-direction: column; gap: var(--sp-1); text-align: left; font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line2); border-radius: var(--r); padding: var(--sp-3) var(--sp-4); cursor: pointer; }
+.ss-goal b { font-weight: var(--fw-semibold); }
+.ss-goal span { color: var(--muted); font-size: var(--fs-small); }
+.ss-goal:hover:not(:disabled) { border-color: var(--teal); background: var(--hover); }
+.ss-goal:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ss-goal:disabled { cursor: default; opacity: .55; }
+.ss-goal.is-on { opacity: 1; border-color: var(--gold); }
+
+/* engine */
+.ss-engines { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ss-engine { display: flex; flex-direction: column; gap: 2px; text-align: left; font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line2); border-radius: var(--r-tight); padding: var(--sp-2) var(--sp-3); cursor: pointer; min-width: 160px; }
+.ss-engine span { color: var(--muted); font-size: var(--fs-small); }
+.ss-engine:hover:not(:disabled) { border-color: var(--teal); }
+.ss-engine:disabled { opacity: .55; cursor: default; }
+
+/* practice shop */
+.ss-form { display: flex; flex-direction: column; gap: var(--sp-3); }
+.ss-field { display: flex; flex-direction: column; gap: var(--sp-1); max-width: 360px; }
+.ss-field > span:first-child { font-size: var(--fs-small); color: var(--muted); }
+.ss-words { margin: 0; display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ss-words span { padding: var(--sp-1) var(--sp-3); border-radius: var(--r-tight); background: var(--panel2); border: 1px solid var(--line2); }
+
+/* rules */
+.ss-reads { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); border-radius: var(--r-tight); background: var(--panel2); }
+.ss-sentence { color: var(--text); font-style: italic; }
+
+/* ---- pages in the stage slot ---- */
+.ss-page { display: flex; flex-direction: column; gap: var(--sp-4); width: min(100%, 820px); margin: 0 auto; min-width: 0; }
+.ss-h { margin: 0; font: var(--fw-semibold) var(--fs-title2)/1.3 var(--display); letter-spacing: var(--track-display); }
+.ss-secure-h, .ss-deal-h { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.ss-glyph { width: 24px; height: 24px; flex: none; }
+.ss-glyph-sm { width: 16px; height: 16px; flex: none; }
+.ss-frame { border-radius: var(--r); border: 1px solid var(--line2); border-top: 3px solid var(--teal); overflow: hidden; background: var(--bg); box-shadow: var(--shadow-2); }
+.ss-iframe { display: block; width: 100%; height: 660px; border: 0; }
+.ss-wait { display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start; padding: var(--sp-4); border-radius: var(--r); background: var(--panel); border: 1px solid var(--line2); }
+.ss-wait p { margin: 0; }
+
+/* the practice deal */
+.ss-sec { display: flex; flex-direction: column; gap: var(--sp-2); }
+.ss-tl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.ss-tl-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: var(--sp-3); align-items: baseline; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-tight); background: var(--panel); }
+.ss-tl-row.by-agent { background: var(--panel2); }
+.ss-tl-row.by-owner { border-left: 3px solid var(--gold); }
+.ss-tl-row.is-held { border-left: 3px solid var(--teal); }
+.ss-tl-n { color: var(--dim); font-size: var(--fs-small); }
+.ss-tl-said b { font-weight: var(--fw-semibold); }
+.ss-tl-why { color: var(--teal); }
+.ss-tl-price { font-weight: var(--fw-medium); }
+.ss-decide, .ss-result { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); border-radius: var(--r); background: var(--panel); border: 1px solid var(--line2); box-shadow: var(--shadow-2); }
+.ss-decide { border-left: 3px solid var(--gold); }
+.ss-decide p, .ss-result p { margin: 0; line-height: 1.5; }
+.ss-decide-lead, .ss-result-lead { font: var(--fw-semibold) var(--fs-title3)/1.3 var(--display); }
+.ss-where { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-2); }
+.ss-where li { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.ss-end { border-left: 3px solid var(--ok); }
+.ss-end .ss-where li::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); flex: none; }
+
+/* ---- the progress pill (fixed over the main column's top right) ---- */
+.ss-pill { position: fixed; z-index: var(--z-app); top: 4px; left: 0; right: 0; margin: 0 auto; width: max-content; height: 32px; display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-1) var(--sp-1) var(--sp-1) var(--sp-3); border-radius: 999px; background: var(--material); border: 1px solid var(--line2); box-shadow: var(--shadow-2); font-size: var(--fs-small); }
+@media (max-width: 1180px) { .ss-pill-t { display: none; } }
+.ss-pill-t { color: var(--text); white-space: nowrap; }
+.ss-dots { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--sp-1); }
+.ss-dot { position: relative; width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--line2); background: transparent; }
+.ss-dot.is-done { background: var(--ok); border-color: var(--ok); }
+.ss-dot-ring { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--gold); }
+.ss-dot-n { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ---- pointing at a Stage region (host.region) ---- */
+.ss-pulse { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: var(--r); animation: ss-ring var(--dur-sheet) var(--ease) 3 alternate; }
+@keyframes ss-ring { from { outline-color: transparent; } to { outline-color: var(--gold); } }
+@media (prefers-reduced-motion: reduce) { .ss-pulse { animation: none; } }
