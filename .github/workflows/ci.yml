@@ -39,6 +39,10 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      # Every run starts from an empty target/, so incremental state is written and never read.
+      # Measured (cold table-runtime test build, 2 runs each): 49-57 s -> 46-48 s, 1398 -> 754 MB.
+      CARGO_INCREMENTAL: 0
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # The Tauri shell embeds apps/desktop/client/dist at compile time, so build the client first.
