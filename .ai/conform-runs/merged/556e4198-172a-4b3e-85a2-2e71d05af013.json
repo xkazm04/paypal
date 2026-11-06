@@ -1,0 +1,62 @@
+{
+  "schema": "conform-run/1",
+  "worker": "556e4198-172a-4b3e-85a2-2e71d05af013",
+  "subject": "agent-instruction-files",
+  "evaluatedAt": "2026-11-06T00:14:41.046489+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "agent-instruction-files",
+      "context": "offline-proof-verifier",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "agent-instruction-files",
+      "context": "ipc-contract-and-authority-table",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "agent-instruction-files",
+      "context": "agent-tool-surface",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "agent-instruction-files",
+      "context": "owner-mandate-config",
+      "reason": "withdrawn after review: reviewer (sonnet): Both anchors are incidental. OwnerConfig.tsx:1 is a header comment describing the owner checklist UI, and gating.ts:3 says the module never grants anything and Rust re-checks it. Neither line shows that no agent instruction file is written or read, and the only support is a filename grep over one di"
+    },
+    {
+      "subject": "agent-instruction-files",
+      "context": "approval-window-shell",
+      "reason": "withdrawn after review: reviewer (sonnet): Both anchors are incidental. OwnerConfig.tsx:1 is a header comment describing the owner checklist UI, and gating.ts:3 says the module never grants anything and Rust re-checks it. Neither line shows that no agent instruction file is written or read, and the only support is a filename grep over one di"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-06T00:14:41.046489+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-instruction-files"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "owner-mandate-config",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T00:14:41.046489+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-instruction-files"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "approval-window-shell",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

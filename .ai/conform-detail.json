@@ -8951,6 +8951,37 @@
         "at": "2026-11-06T00:01:40.395896+00:00",
         "reason": "reviewer (sonnet): The anchor model.ts:1 is a header comment ('pure, no React, no IPC') for model.ts only, so it is incidental to the rest of the context (AskChips, AskReading, MoneyWent, ProofCheck, rules), and the absence search terms don't test for a supply-chain crossing."
       }
+    },
+    "7fde48d9-00af-4ebc-868e-cb93d7cdedfd/agent-instruction-files": {
+      "context": "owner-mandate-config",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T00:14:41.046Z",
+      "techniques": [],
+      "registryProposal": "The registry-map matched this pair on the generic tokens 'owner', 'templates' and 'config', which have nothing to do with instruction files. Matching on use_when tokens produces false pairings for this subject.",
+      "withdrawn": {
+        "worker": "556e4198-172a-4b3e-85a2-2e71d05af013",
+        "state": "not-applicable",
+        "at": "2026-11-06T00:15:06.393876+00:00",
+        "reason": "reviewer (sonnet): Both anchors are incidental. OwnerConfig.tsx:1 is a header comment describing the owner checklist UI, and gating.ts:3 says the module never grants anything and Rust re-checks it. Neither line shows that no agent instruction file is written or read, and the only support is a filename grep over one di"
+      }
+    },
+    "60b8c7a9-421c-43fa-aff2-d1ede8cf38d9/agent-instruction-files": {
+      "context": "approval-window-shell",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T00:14:41.046Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "556e4198-172a-4b3e-85a2-2e71d05af013",
+        "state": "not-applicable",
+        "at": "2026-11-06T00:15:06.393876+00:00",
+        "reason": "reviewer (sonnet): Both anchors are incidental. OwnerConfig.tsx:1 is a header comment describing the owner checklist UI, and gating.ts:3 says the module never grants anything and Rust re-checks it. Neither line shows that no agent instruction file is written or read, and the only support is a filename grep over one di"
+      }
     }
   }
 }
