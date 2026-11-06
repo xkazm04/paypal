@@ -9041,6 +9041,36 @@
       "evaluatedTs": "2026-11-06T22:28:07.364Z",
       "worker": "1f137112-b77c-4331-abd1-416d40eb7766",
       "techniques": []
+    },
+    "bd217e93-0597-4295-bb91-2bc80cc91ab4/prompt-assembly": {
+      "context": "rescue-spend-shield-modules",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:59:29.721Z",
+      "worker": "69659c83-5ea3-4be9-a0cd-05bdc757175d",
+      "techniques": []
+    },
+    "30af9627-32b0-465d-97de-4949dd83af41/prompt-assembly": {
+      "context": "wallet-app-services",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:59:29.721Z",
+      "worker": "69659c83-5ea3-4be9-a0cd-05bdc757175d",
+      "techniques": []
+    },
+    "1b4ef14a-5a8a-438c-988d-365c439b153d/prompt-assembly": {
+      "context": "deal-review",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T22:59:29.721Z",
+      "worker": "69659c83-5ea3-4be9-a0cd-05bdc757175d",
+      "techniques": []
     }
   }
 }

@@ -2716,8 +2716,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:3 The deal-review text modules (says, why, next, diff) choose plain words from the wallet's facts for the owner, with no model involved ('No model, no guess'), so no prompt is assembled; the 'prompt' hits in windows/approval are the native face-scan and credential dialogs, in files outside this context.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-runtime-assembly",
@@ -6666,8 +6670,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/windows/main/modules/rescue/model.ts:1 These modules are pure view-models and React panels that compute lever, gate and shield previews for a human; a search of the context's files for prompt/llm/system_prompt/compaction/max_tokens/cache_control/context_window/token_budget found no prompt construction, and the only 'claude' hit is rescue.test.tsx:115, which asserts that the UI text never names a vendor.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "hitl-approval",
@@ -9099,8 +9107,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "crates/table-app/src/checks.rs:3 The text table-app composes is the owner-facing approval checklist, not text sent to a model; the only 'prompt' in crates/table-app/src is the OS re-auth prompt (auth.rs:61), and no system prompt, context budget, compaction or cache key exists in the crate.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "voice-io",
