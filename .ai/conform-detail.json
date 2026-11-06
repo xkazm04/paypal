@@ -9081,6 +9081,57 @@
       "evaluatedTs": "2026-11-06T23:40:35.597Z",
       "worker": "f7226a82-a2c7-460e-87c9-c262d4d9d20e",
       "techniques": []
+    },
+    "4a906b90-6f4d-4f72-92fb-1091ca69ebff/hitl-approval": {
+      "context": "agent-tool-surface",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T23:56:55.890Z",
+      "worker": "4ba01f0e-e12e-49fe-b4e8-551802888e27",
+      "techniques": [
+        {
+          "technique": "gate-state-machines",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/src/lib.rs:535 A pending grant lists tools but every tools/call is refused until the host calls enable(); the model has no path to flip enabled."
+        },
+        {
+          "technique": "consent-gates",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/src/lib.rs:226 Grant is keyed to the AgentScope tuple (deal, role, category) plus run, expires after SESSION_SECS, and revoke removes it so the next request at the gate finds it gone (handle() re-reads the session per request)."
+        },
+        {
+          "technique": "fail-closed-profile-for-headless",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/src/lib.rs:546 Headless agent: a tool outside the role's closed catalog, a malformed call or an over-budget call is refused with a code and audited, never prompted and never passed."
+        },
+        {
+          "technique": "fail-loud-classification-default",
+          "verdict": "conformant",
+          "evidence": "crates/table-shield/src/lib.rs:44 Missing (or stale) market reference falls to ASK, not CLEAR; the unreadable case is never spelled as the mild bucket."
+        },
+        {
+          "technique": "truncated-verdict-space",
+          "verdict": "conformant",
+          "evidence": "crates/table-shield/src/lib.rs:67 The model assessor's verdict can only raise caution over the deterministic rules; it has no expression that admits on its own."
+        },
+        {
+          "technique": "handoff-is-a-declared-door",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/src/lib.rs:359 The only way the shopper model reaches the owner is a declared tool in its role's closed catalog; the set of doors is enumerable from catalog()."
+        },
+        {
+          "technique": "fixed-policy-amendable-plan",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/tests/server.rs:1072 The signed band is the fixed tier: supplied to the model read-only via table_view and enforced at send_offer; offers inside it need no gate. A separate amendable-plan record is not modelled."
+        },
+        {
+          "technique": "author-advisories-yield-to-the-users-mode",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-mcp/src/lib.rs:407 Playbooks are fixed in Rust per role/side; no third-party-authored agent definition carrying approval config is loaded."
+        }
+      ]
     }
   }
 }

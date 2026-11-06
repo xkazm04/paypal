@@ -803,7 +803,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "crates/table-mcp/tests/server.rs:806 An agent ACCEPT above the owner's in-person threshold is refused in code with the closed owner_approval code, so the gate lives in the substrate the tool call passes through, not in the prompt.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         },
         {
           "subject": "prompt-safety",
