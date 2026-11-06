@@ -1,6 +1,14 @@
 # Backend status
 
-Updated 2026-10-06: **wave 0 port gaps** are built end to end (see "Wave 0 port gaps" below; seven
+Status date: 2026-11-06 (README and this file share it). Sections below keep their own dated entries, the
+newest at the end of the file. Built vs deferred, in one line: B0-B8 and P1, P2, P4, P5 are built and
+offline-tested; **rescue is partial** (only the discount lever executes, offline; the other levers and
+rescue detection from live PayPal data are deferred), and the catalog tools and financial crash-gap
+recovery are deferred; native engines, live PayPal spikes and deployment are unverified. The in-person
+approval line is a per-mandate clause: the sandbox mandate uses $200 (`crates/table-sandbox/src/lib.rs`
+`RULE_IN_PERSON`), the recorded Maya mandate $250 (`apps/desktop/client/src/mock/haggle.json`).
+
+Wave 0 entry, 2026-10-06: **wave 0 port gaps** are built end to end (see "Wave 0 port gaps" below; seven
 new read/restrict commands, one event, four contract fields, no migration, no dependency).
 Earlier (2026-10-03): **all seven client backend requests are implemented and offline-tested.**
 Owner ACCEPT, pairing handoff, safe display reads, browser handoff events, timestamp/
