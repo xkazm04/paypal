@@ -88,3 +88,11 @@ export const BARE_GATE = {
   locked: 'Locked after 15 quiet minutes · unlock to go on',
   token: 'This window can’t approve right now',
 } as const;
+
+/** The desktop sheet window's own thin bar (it has no title bar of its own). */
+export const BARE_SHEET = {
+  lock: 'Secure step',
+  where: 'only this window can save keys or sign',
+  close: 'Close',
+  closeEsc: 'Close (Esc)',
+} as const;

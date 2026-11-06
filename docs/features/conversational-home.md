@@ -40,7 +40,7 @@ The main window opens on the home (stored view name `board`, `table-home-view`; 
   Then "You're set" with three pointers. After each step, at most one spotlight shows where the result lives. A question at any time is answered in place, and the step is offered again under it. "Skip for now" pauses, and a reload resumes from the wallet's own facts.
 - **Secure steps never leave the window.**
   - In a browser on the sample world, keys, rules and pairing open as a focused sheet over the dimmed app. The sheet holds the approval side's one-form surface (`approval.html?bare=keys|rules|pairing`), with the same session token and gates; keys never pass through an app page.
-  - In the desktop app the step is the approval window itself, and the turn waits for it.
+  - In the desktop app the step is the approval window itself, opened as a sheet: one form, frameless, docked over the home, which dims until the shell says it closed (`approval:sheet`; [`desktop-secure-sheet.md`](../design/desktop-secure-sheet.md)).
 - **Motion.** framer-motion, with durations and curves from `design/motion.ts` (`DUR`, `EASE`).
 
 ## How the assistant works

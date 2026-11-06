@@ -8,13 +8,14 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { Backend, WindowLabel } from '../../../lib/contract';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 import { cleanKey, keyProblem, keysReady, pairProblem, splitPair } from './keyShape';
-import { BARE_KINDS, bareHeadless, bareKind, postToHost } from './protocol';
+import { BARE_KINDS, bareHeadless, bareKind, postToHost, SELF_EVENT } from './protocol';
 import { ruleLines, starterKey } from './BareRules';
 import { templateDraft } from '../templates';
-import { BARE_GATE, BARE_KEYS, BARE_PAIRING, BARE_RULES, KEY_PROBLEM } from './words';
+import { BARE_GATE, BARE_KEYS, BARE_PAIRING, BARE_RULES, BARE_SHEET, KEY_PROBLEM } from './words';
 
-const h = vi.hoisted(() => ({ current: null as Backend | null, calls: [] as { cmd: string; args: unknown; token: boolean }[] }));
+const h = vi.hoisted(() => ({ current: null as Backend | null, calls: [] as { cmd: string; args: unknown; token: boolean }[], close: null as null | (() => Promise<void>) }));
 vi.mock('../../../lib/runtime', () => ({ backend: () => h.current }));
+vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ close: () => h.close?.() }) }));
 
 const { BareApp } = await import('./Bare');
 
@@ -79,6 +80,42 @@ describe('the bare protocol', () => {
       [{ type: 'secure-done', kind: 'keys' }, location.origin],
       [{ type: 'secure-cancel' }, location.origin],
     ]);
+  });
+});
+
+describe('the desktop sheet window (its own frameless window, no host)', () => {
+  it('with no host the page hears its own messages', () => {
+    Object.defineProperty(window, 'opener', { configurable: true, value: null });
+    const heard: unknown[] = [];
+    const on = (e: Event) => heard.push((e as CustomEvent).detail);
+    window.addEventListener(SELF_EVENT, on);
+    postToHost({ type: 'secure-cancel' });
+    window.removeEventListener(SELF_EVENT, on);
+    expect(heard).toEqual([{ type: 'secure-cancel' }]);
+  });
+
+  it('in the desktop app it draws its own bar; the close button and Esc close the window, nothing else', async () => {
+    Object.defineProperty(window, 'opener', { configurable: true, value: null });
+    resetMockState();
+    const real = mockBackend('approval');
+    h.current = { ...real, kind: 'tauri' } as Backend;
+    const closed = vi.fn(async () => {});
+    h.close = closed;
+    render(<BareApp kind="keys" />);
+    const bar = document.querySelector('[data-sheetbar]');
+    expect(bar?.textContent).toContain(BARE_SHEET.lock);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: BARE_SHEET.close })); });
+    expect(closed).toHaveBeenCalledTimes(1);
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }); });
+    expect(closed).toHaveBeenCalledTimes(2);
+    h.close = null;
+  });
+
+  it('framed or in the browser preview there is no own bar', () => {
+    resetMockState();
+    h.current = mockBackend('approval');
+    render(<BareApp kind="keys" />);
+    expect(document.querySelector('[data-sheetbar]')).toBeNull();
   });
 });
 

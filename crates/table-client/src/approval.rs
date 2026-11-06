@@ -19,6 +19,26 @@ pub struct ApprovalOpenArgs {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub draft: Option<ApprovalDraft>,
+    /// How the window shows. Absent: the full approval window, as before. `sheet`: a setup step
+    /// (credentials, mandate or pairing, never a deal) as one form in a frameless window docked
+    /// over The Table. The same window label, capability, token and gates either way.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub presentation: Option<ApprovalPresentation>,
+}
+/// How the approval window shows (spark desktop-secure-sheet).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ApprovalPresentation {
+    Window,
+    Sheet,
+}
+/// Main is told when a sheet-presented approval window opens or goes away, so it can dim itself
+/// while the secure step is up. `serial` counts sheets: a late "closed" of an older sheet is ignored.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ApprovalSheet {
+    pub open: bool,
+    pub serial: u32,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]

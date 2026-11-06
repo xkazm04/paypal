@@ -30,6 +30,20 @@ impl Runtime {
         if !shape {
             return Err(invalid());
         }
+        // A sheet is a setup step opened from The Table: keys, rules or the practice shop's words.
+        if args.presentation == Some(ApprovalPresentation::Sheet) {
+            if label != "main" {
+                return Err(permission());
+            }
+            if !matches!(
+                target,
+                Some(
+                    ApprovalTarget::Credentials | ApprovalTarget::Mandate | ApprovalTarget::Pairing
+                )
+            ) {
+                return Err(invalid());
+            }
+        }
         if let Some(draft) = &args.draft {
             // Drafts are typed in Main's pages; the Tumbler only routes.
             if label != "main" {

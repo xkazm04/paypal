@@ -435,6 +435,8 @@ pub struct EventContract {
     pub main_route: MainRoute,
     #[serde(rename = "pairing:pinned")]
     pub pairing_pinned: PairingPinned,
+    #[serde(rename = "approval:sheet")]
+    pub approval_sheet: ApprovalSheet,
 }
 /// Declares [`WindowEvent`]: one variant per `EventContract` field, borrowing its payload, with
 /// the field's serde name. `tests/bindings.rs` checks every (name, payload type) pair against
@@ -487,6 +489,7 @@ window_events! {
     ApprovalSummary(ApprovalSummary) = "approval:summary",
     MainRoute(MainRoute) = "main:route",
     PairingPinned(PairingPinned) = "pairing:pinned",
+    ApprovalSheet(ApprovalSheet) = "approval:sheet",
 }
 impl WindowEvent<'_> {
     /// Every window this event is sent to: its row in the authority table (`authority::EVENTS`).

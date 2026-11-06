@@ -14,7 +14,6 @@ export const SC = {
   waiting: 'Finish in the secure window',
   waitingSub: 'This turns into a tick when the wallet confirms it.',
   focus: 'Bring it to front',
-  desktopNote: 'In the app this is the approval window itself.',
   // done
   done: { keys: 'PayPal sandbox keys saved', rules: 'Rules signed with your owner key', pairing: 'Practice shop connected' } satisfies Record<SecureKind, string>,
   doneSub: { keys: 'Kept in your computer’s credential store, never in the app’s pages.', rules: 'Your agents follow them from their next request.', pairing: 'Its offers can reach your agents, within your rules.' } satisfies Record<SecureKind, string>,

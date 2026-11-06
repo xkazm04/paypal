@@ -3017,3 +3017,13 @@ IPC, bindings or reply-contract change.
 - **Open:** desktop has no framed bare surface (needs a CSP/Rust change); the sample-data demo still opens a
   decision's approval page in place of the main tab; the console's setup and the Tumbler still follow
   `START_ORDER`; Book repeats other modules' deals; `switchboard.css` still carries the board's layout rules.
+
+## Desktop secure sheet (spark desktop-secure-sheet, 2026-11-06)
+
+The desktop app's setup secure steps (keys, rules, the practice shop's words) open as a sheet: the approval
+window, frameless and fixed-size per step, docked over The Table on `approval.html?bare=<kind>`, while the home
+dims. `ApprovalOpenArgs.presentation` (`sheet` only from main, only for credentials, mandate or pairing; the
+runtime and the mock refuse anything else) and the main-only event `approval:sheet` are new. The permissions
+fingerprint moved (`PINNED_MANIFEST`) and the recorded samples were re-recorded. CSP, capabilities, labels and
+tokens are unchanged (`frame-src 'none'` still pinned). Design: `docs/design/desktop-secure-sheet.md`. Not yet
+clicked through in the real window.

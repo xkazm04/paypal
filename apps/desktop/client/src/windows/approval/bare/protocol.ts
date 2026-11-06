@@ -1,6 +1,7 @@
 // spark abstract-first-home round 4: the approval window's BARE mode. `approval.html?bare=keys|rules|pairing`
 // renders only that one secure form, for a host page that shows it as one component of the setup
-// conversation (main/home/secure). Everything else about the page is the approval window's:
+// conversation (main/home/secure), or as the desktop app's sheet window (approval_open with
+// presentation 'sheet': its own frameless window docked over The Table). Everything else about the page is the approval window's:
 // the same SessionProvider (the capability in a ref, never state), the same privileged calls and the
 // same gates in the wallet (label, token, idle lock). Bare mode removes chrome, never a check.
 //
@@ -44,9 +45,17 @@ export function isFramed(w: Window = window): boolean {
   try { return w.parent !== w; } catch { return true; }
 }
 
-/** Post one message to the host, same origin only (a page elsewhere never hears it). */
+/** The event a page with no host (the desktop sheet window: its own top-level window) hears its
+ *  own messages on, so it can close itself when done or cancelled. */
+export const SELF_EVENT = 'secure-self';
+
+/** Post one message to the host, same origin only (a page elsewhere never hears it). With no host
+ *  the page tells itself (SELF_EVENT). */
 export function postToHost(msg: BareMessage, w: Window = window): void {
   const to = hostWindow(w);
-  if (!to) return;
+  if (!to) {
+    w.dispatchEvent(new CustomEvent<BareMessage>(SELF_EVENT, { detail: msg }));
+    return;
+  }
   try { to.postMessage(msg, w.location.origin); } catch { /* the host went away */ }
 }

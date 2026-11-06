@@ -37,6 +37,8 @@ struct DesktopState {
     tray: Mutex<table_client::tray::TrayModel>,
     /// The board assistant (`assistant_ask`); `None` only if its pinned contract failed to load.
     assistant: Option<table_engine::AssistantDoor>,
+    /// Counts sheet-presented approval windows (`approval:sheet`), so main can ignore a late close.
+    sheet_serial: std::sync::atomic::AtomicU32,
 }
 /// The board assistant's door: the installed `claude-code`, found and contained exactly as the
 /// agent engines are (`resolve_command`, `NativeEngine`), in its own run root, with the pinned
@@ -366,6 +368,7 @@ pub fn run() -> Result<(), tauri::Error> {
                     table_core::Clock::now(&table_runtime::SystemClock),
                 )),
                 assistant: assistant_door(&data),
+                sheet_serial: std::sync::atomic::AtomicU32::new(0),
             });
             tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .on_navigation(navigation::permits)

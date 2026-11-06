@@ -2,15 +2,17 @@
 // side's BARE surface (`approval.html?bare=<kind>`, windows/approval/bare):
 //   sheet   in a browser on the mock world: a focused sheet over the dimmed app; Esc or ✕ cancels;
 //           closes itself with a tick when done (owner's pick, spark abstract-first-home round 4)
-//   window  in the desktop app frames are blocked, so the step is the approval window itself
-//           (approval_open) and the card waits for the wallet
+//   window  in the desktop app frames are blocked (CSP frame-src 'none'), so the step is the
+//           approval window itself, opened as a sheet (approval_open, presentation 'sheet': one
+//           form, frameless, docked over The Table; spark desktop-secure-sheet). The home dims
+//           while the shell says it is up (approval:sheet) and the card waits for the wallet.
 // `done` comes from the caller (useStart): the component never decides it on its own; the page's
 // secure-done only lets the card say "confirming" a moment sooner.
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { HOLD_MS, useCalm } from '../../../../design/motion';
-import { useMutation } from '../../../../lib/hooks';
+import { useEvent, useMutation } from '../../../../lib/hooks';
 import { NOTICE_WHAT } from '../../../../lib/words';
 import { WalletNotice } from '../../../../shared/honesty';
 import { Btn, trapTab, useLayer, useReturnFocus } from '../../../../shared/ui';
@@ -119,13 +121,38 @@ type WinState = 'idle' | 'open';
 // ---- the desktop app: the approval window itself -----------------------------------------------
 
 function WindowStep({ kind, draft, pairing, done }: SecureStepProps) {
+  const calm = useCalm();
   const open = useMutation('approval_open');
   const [state, setState] = useState<WinState>('idle');
+  // The shell says when its sheet window is up (approval:sheet); only the newest sheet counts.
+  const serial = useRef(0);
+  const [up, setUp] = useState(false);
+  useEvent('approval:sheet', (e) => {
+    if (e.open) { serial.current = e.serial; setUp(true); return; }
+    if (e.serial !== serial.current) return;
+    setUp(false);
+    setState('idle');
+  });
   const openIt = async () => { if ((await open.run(openArgs(kind, draft, pairing))) === null) setState('open'); };
+  // Like the browser's sheet, the step opens at once: the turn IS this step.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current || done) return;
+    opened.current = true;
+    void openIt();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <>
-      <Waiting kind={kind} done={done} state={state} onOpen={() => void openIt()} onFocus={() => void openIt()} busy={open.pending} note={SC.desktopNote} />
+      <Waiting kind={kind} done={done} state={up ? 'open' : state} onOpen={() => void openIt()} onFocus={() => void openIt()} busy={open.pending} />
       {open.error ? <WalletNotice error={open.error} what={NOTICE_WHAT.approval} /> : null}
+      {createPortal(
+        <AnimatePresence>
+          {up && !done ? <motion.div key="dim" className="sc-scrim is-under" aria-hidden="true"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr('med', calm)} /> : null}
+        </AnimatePresence>,
+        document.body,
+      )}
     </>
   );
 }

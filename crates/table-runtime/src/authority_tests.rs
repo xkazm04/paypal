@@ -237,6 +237,7 @@ impl Fixture {
                         pairing: None,
                         target: None,
                         draft: None,
+                        presentation: None,
                     }),
                 )
                 .await

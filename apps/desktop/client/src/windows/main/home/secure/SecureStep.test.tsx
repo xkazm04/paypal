@@ -1,7 +1,7 @@
 // The secure step's host side: the sheet in a browser on the mock world, the approval window in the
 // desktop app; the bare page's address in this page's world; the message filter (own origin, own
 // window, known shapes only); the sheet's and the desktop card's first states.
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Backend } from '../../../../lib/contract';
 
@@ -53,11 +53,11 @@ describe('the bare page address and the desktop fallback', () => {
     expect([p.get('bare'), p.get('target'), p.get('pairing'), p.get('first_run')]).toEqual(['pairing', 'pairing', '[1,2,3]', '1']);
   });
   it('approval_open gets the same step', () => {
-    expect(openArgs('keys', null, null)).toEqual({ deal_id: null, target: 'credentials' });
+    expect(openArgs('keys', null, null)).toEqual({ deal_id: null, target: 'credentials', presentation: 'sheet' });
     const draft = { type: 'rules', agent: 'shopper', not_before: 1, expires: 2, clauses: [] };
-    expect(openArgs('rules', JSON.stringify(draft), null)).toEqual({ deal_id: null, target: 'mandate', draft });
-    expect(openArgs('rules', 'careful', null)).toEqual({ deal_id: null, target: 'mandate', draft: null });
-    expect(openArgs('pairing', null, '[1,2]')).toEqual({ deal_id: null, pairing: [1, 2], target: 'pairing' });
+    expect(openArgs('rules', JSON.stringify(draft), null)).toEqual({ deal_id: null, target: 'mandate', draft, presentation: 'sheet' });
+    expect(openArgs('rules', 'careful', null)).toEqual({ deal_id: null, target: 'mandate', draft: null, presentation: 'sheet' });
+    expect(openArgs('pairing', null, '[1,2]')).toEqual({ deal_id: null, pairing: [1, 2], target: 'pairing', presentation: 'sheet' });
   });
 });
 
@@ -94,15 +94,32 @@ describe('the sheet and the desktop card', () => {
     expect(screen.getByRole('button', { name: `${SC.sheetTitle.keys}…` })).toBeTruthy();
   });
 
-  it('the desktop app: the step opens the real approval window through approval_open', async () => {
+  it('the desktop app: the step opens at once as the approval window\'s sheet; the home dims while the shell says it is up', async () => {
     const invoke = mock();
-    h.current = { ...h.current!, kind: 'tauri' } as Backend;
+    const heard: ((p: unknown) => void)[] = [];
+    h.current = { ...h.current!, kind: 'tauri', listen: vi.fn(async (name: string, cb: (p: unknown) => void) => { if (name === 'approval:sheet') heard.push(cb); return () => {}; }) } as unknown as Backend;
     (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
     history.replaceState(null, '', '/index.html');
     const { container } = render(<SecureStep kind="keys" draft={null} pairing={null} done={false} onCancel={vi.fn()} />);
     expect(container.querySelector('iframe')).toBeNull();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: SC.open.keys })); });
-    expect(invoke).toHaveBeenCalledWith('approval_open', { deal_id: null, target: 'credentials' }, undefined);
+    await act(async () => {});
+    expect(invoke).toHaveBeenCalledWith('approval_open', { deal_id: null, target: 'credentials', presentation: 'sheet' }, undefined);
+    expect(invoke.mock.calls.filter((c) => (c as unknown[])[0] === 'approval_open')).toHaveLength(1);
+    await waitFor(() => expect(heard.length).toBeGreaterThan(0));
+    await act(async () => { heard.forEach((f) => f({ open: true, serial: 2 })); });
+    expect(document.querySelector('.sc-scrim.is-under')).not.toBeNull();
     expect(await screen.findByText(SC.waiting)).toBeTruthy();
+    // a late close of an older sheet changes nothing; this sheet's close lifts the dim
+    await act(async () => { heard.forEach((f) => f({ open: false, serial: 1 })); });
+    expect(document.querySelector('.sc-scrim.is-under')).not.toBeNull();
+    await act(async () => { heard.forEach((f) => f({ open: false, serial: 2 })); });
+    await waitFor(() => expect(document.querySelector('.sc-scrim.is-under')).toBeNull());
+    expect(screen.getByRole('button', { name: SC.open.keys })).toBeTruthy();
+  });
+
+  it('the desktop app: rules and pairing ask for the sheet too, carrying the draft and the pairing', () => {
+    const draft = { type: 'rules', agent: 'shopper', not_before: 1, expires: 2, clauses: [] };
+    expect(openArgs('rules', JSON.stringify(draft), null)).toEqual({ deal_id: null, target: 'mandate', draft, presentation: 'sheet' });
+    expect(openArgs('pairing', null, '[1,2]')).toEqual({ deal_id: null, pairing: [1, 2], target: 'pairing', presentation: 'sheet' });
   });
 });

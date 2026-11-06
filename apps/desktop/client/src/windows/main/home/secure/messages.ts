@@ -56,12 +56,13 @@ export function bareUrl(kind: SecureKind, draft: string | null, pairing: string 
   return `approval.html${world ? withDemoSearch(`?${q.toString()}`, world) : `?${q.toString()}`}`;
 }
 
-/** approval_open's arguments for the same step (the desktop fallback). */
+/** approval_open's arguments for the same step in the desktop app: the approval window as a sheet
+ *  (one form, frameless, docked over The Table; spark desktop-secure-sheet). */
 export function openArgs(kind: SecureKind, draft: string | null, pairing: string | null): ApprovalOpenArgs {
-  if (kind === 'keys') return { deal_id: null, target: 'credentials' };
-  if (kind === 'pairing') return { deal_id: null, pairing: parse<H256>(pairing), target: 'pairing' };
+  if (kind === 'keys') return { deal_id: null, target: 'credentials', presentation: 'sheet' };
+  if (kind === 'pairing') return { deal_id: null, pairing: parse<H256>(pairing), target: 'pairing', presentation: 'sheet' };
   const d = draft && draft.trim().startsWith('{') ? parse<ApprovalDraft>(draft) : null;
-  return { deal_id: null, target: 'mandate', draft: d?.type === 'rules' ? d : null };
+  return { deal_id: null, target: 'mandate', draft: d?.type === 'rules' ? d : null, presentation: 'sheet' };
 }
 
 function parse<T>(s: string | null): T | null {

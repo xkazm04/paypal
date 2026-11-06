@@ -53,3 +53,6 @@
 .sc-done-t b { font-weight: var(--fw-semibold); }
 .sc-done-t small { font-size: var(--fs-small); color: var(--muted); }
 .sc-done.big .sc-done-t b { font-size: var(--fs-title3); }
+
+/* the desktop app: the home dims under the shell's sheet window; clicks still reach nothing below */
+.sc-scrim.is-under { cursor: default; }

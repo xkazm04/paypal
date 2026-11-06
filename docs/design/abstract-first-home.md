@@ -57,7 +57,7 @@ Gates: client typecheck, the full client test suite (new tests pin the clock and
 
 ## Not in this change (follow-ups)
 
-- **Desktop bare mode.** The desktop app keeps the approval window for secure steps; a framed bare surface there needs a Rust/CSP change.
+- **Desktop bare mode.** Done in [desktop-secure-sheet.md](desktop-secure-sheet.md): the approval window opens as a frameless sheet over The Table; the CSP is unchanged.
 - **Decision review in the sample-data demo.** `openDemoApproval` still replaces the tab, so the conversation is rebuilt on return. Setup steps no longer go there.
 - **Other getting-started surfaces.** The console's setup and the Tumbler still follow `START_ORDER` (paypal, rules, practice, engine). Rules on a new wallet need a payee, which the guide supplies via its draft but those surfaces do not.
 - **Module lists.** Book repeats other modules' deals; Counter's "Now" column mixes counts and words; badge counts use board needs, not row fates.

@@ -376,6 +376,8 @@ pub const EVENTS: &[EventAudience] = &[
     event("approval:summary",  APPROVAL),
     event("main:route",        MAIN),
     event("pairing:pinned",    MAIN),
+    // A sheet-presented approval window opened or went away: main dims while it is up.
+    event("approval:sheet",    MAIN),
 ];
 
 /// The windows told this event, if it is one.

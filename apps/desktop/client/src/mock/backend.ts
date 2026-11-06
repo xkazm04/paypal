@@ -760,13 +760,20 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       else openWindow(`index.html${deal_id ? `#d=${deal_id}` : ''}`, 'the-table-main');
       return null;
     },
-    approval_open: ({ deal_id, pairing, target, draft }) => {
+    approval_open: ({ deal_id, pairing, target, draft, presentation }) => {
       if (deal_id && pairing) fail('INVALID', 'choose one approval selection');
       // As Runtime::open_approval: the target must fit the selection, and a draft (pre-fill only,
       // from Main only) must bind to that target. Nothing is signed or rebound here.
       const t = target ?? (pairing ? 'pairing' : deal_id ? 'deal' : null);
       const shape = t === 'deal' ? !!deal_id && !pairing : t === 'pairing' ? !!pairing && !deal_id : !deal_id && !pairing;
       if (!shape) fail('INVALID', 'the approval target does not match the selection');
+      // As Runtime::open_approval: a sheet is a setup step from Main only (keys, rules, the words).
+      const sheetKinds: Partial<Record<string, string>> = { credentials: 'keys', mandate: 'rules', pairing: 'pairing' };
+      const bare = presentation === 'sheet' ? sheetKinds[t ?? ''] ?? null : null;
+      if (presentation === 'sheet') {
+        if (label !== 'main') fail('PERMISSION', 'only The Table opens a secure sheet');
+        if (!bare) fail('INVALID', 'a sheet is a setup step: keys, rules or pairing');
+      }
       if (draft) {
         if (label !== 'main') fail('PERMISSION', 'only The Table carries a draft');
         checkDraft(t, deal_id ?? null, draft);
@@ -779,6 +786,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
         cardRung(deal_id, 'review_opened');
       }
       const q = new URLSearchParams();
+      if (bare) q.set('bare', bare);
       if (pairing) q.set('pairing', JSON.stringify(pairing));
       else if (deal_id) q.set('deal', deal_id);
       if (t) q.set('target', t);

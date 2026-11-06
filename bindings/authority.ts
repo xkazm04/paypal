@@ -8,7 +8,7 @@ export type AuthorityEnforcer = "runtime" | "shell";
 export type CommandAuthority = { labels: Array<AuthorityLabel>, token: boolean, unlock: boolean, selection: AuthoritySelection, tier: AuthorityTier, release: boolean, enforcer: AuthorityEnforcer, };
 
 /** Lowercase hex SHA-256 of the canonical table; get_settings reports the same value. */
-export const AUTHORITY_MANIFEST = "8d6b860c0260fd3afab404b9338991d963bdc7c23642304b0db8cc7b2fa3d42f";
+export const AUTHORITY_MANIFEST = "33b4e591ab30b89d9f9e920ba869de343e089b26338d9c1026aa62f3695f00fd";
 
 export const AUTHORITY = {
   deal_snooze: { labels: ["tumbler"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
@@ -110,4 +110,5 @@ export const EVENT_AUDIENCE = {
   "approval:summary": ["approval"],
   "main:route": ["main"],
   "pairing:pinned": ["main"],
+  "approval:sheet": ["main"],
 } satisfies Record<string, Array<AuthorityLabel>>;
