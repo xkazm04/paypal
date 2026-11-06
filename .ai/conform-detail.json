@@ -9071,6 +9071,16 @@
       "evaluatedTs": "2026-11-06T22:59:29.721Z",
       "worker": "69659c83-5ea3-4be9-a0cd-05bdc757175d",
       "techniques": []
+    },
+    "78691638-b912-45fd-98f8-083cec08e3a9/prompt-assembly": {
+      "context": "tumbler-window",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-06",
+      "evaluatedTs": "2026-11-06T23:40:35.597Z",
+      "worker": "f7226a82-a2c7-460e-87c9-c262d4d9d20e",
+      "techniques": []
     }
   }
 }

@@ -8914,8 +8914,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:3 The Tumbler is a pure projection of Rust attention snapshots into window forms; a recursive grep of apps/desktop/client/src/windows/tumbler for prompt, system_prompt, compaction and 'context window' returned zero files, so no prompt is assembled here.",
+          "evaluatedAt": "2026-11-06",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-instruction-files",
