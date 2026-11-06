@@ -237,7 +237,7 @@ function Greet({ back }: { back: boolean }) {
   }, [commit]);
   const lastNext = useRef<StartStepKey | null | undefined>(undefined);
   useEffect(() => {
-    if (!setup) return;
+    if (!setup || sim) return; // a sim owns the setup story (sim/host.ts)
     const now = gs.next;
     const was = lastNext.current;
     if (was === now) return;
@@ -252,7 +252,7 @@ function Greet({ back }: { back: boolean }) {
     } else if (was !== undefined) {
       push({ kind: 'local', text: GREET.allDone });
     }
-  }, [setup, gs.next, gs.steps, push, jump]);
+  }, [setup, sim, gs.next, gs.steps, push, jump]);
 
   // ---- coming back: after an act, the approval window or a sim step, main returns to the
   // conversation with a line saying what happened - unless she went somewhere else meanwhile.
