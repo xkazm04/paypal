@@ -10,7 +10,8 @@
 //   practice              the pairing wizard (PairingDesk) stays here in Main; only its final
 //                         confirm hands off. Done on pairing:pinned (counterparty_list).
 //   agent                 the agent app picker here in Main (engine_status, engine_select).
-import { NOTICE_WHAT } from '../../../lib/words';
+import { AGENT_APP, NOTICE_WHAT } from '../../../lib/words';
+import { useAgentApp } from '../../../lib/engine';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { EngineId } from '@bindings/EngineId';
 import { useMutation, useQuery } from '../../../lib/hooks';
@@ -177,7 +178,7 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
         <section className="ch-note" aria-label={CHARTER_MEANS_TITLE}>
           <h2 className="cs-h3">{CHARTER_MEANS_TITLE}</h2>
           <ul>
-            <li><i className="led gold" aria-hidden="true" />{charterDone(doneKeys.length, SETUP_STEPS.length)}</li>
+            <li><i className="led gold" aria-hidden="true" />{charterDone(gs.done, gs.total)}</li>
             <li><i className="led teal" aria-hidden="true" />{CHARTER_MEANS_APPROVAL}</li>
             <li data-tour="safety-promise"><i className="led ok" aria-hidden="true" />{SAFETY_PROMISE}</li>
           </ul>
@@ -228,11 +229,14 @@ function AgentStep() {
   const toast = useToast();
   const engines = useQuery('engine_status', null, { refreshOn: ['settings:changed'] });
   const select = useMutation('engine_select');
+  // The one reading of the chosen app's state (engine_brief, as every window reads it).
+  const app = useAgentApp(s?.selected_engine).state;
   const pick = async (id: EngineId) => { if ((await select.run({ engine: id })) === null) toast(CONNECTIONS_ENGINE.set(id === 'scripted' ? CONNECTIONS_ENGINE.practiceShort : id), 'ok'); };
   return (
     <div className="ch-engines">
       {engines.error ? <WalletNotice error={engines.error} what={NOTICE_WHAT.agentApp} /> : null}
       {select.error ? <WalletNotice error={select.error} what={NOTICE_WHAT.agentApp} /> : null}
+      <p className="dim" data-agent-app={app.kind}>{app.kind === 'connected' && app.engine === 'scripted' ? AGENT_APP.label.practice : AGENT_APP.label[app.kind]}</p>
       <div role="radiogroup" aria-label={START_STEP.engine.title}>
         {(engines.data ?? []).filter((e) => e.id !== 'scripted').map((e) => (
           <label key={e.id} className={`ch-engine${e.available ? '' : ' off'}`}>

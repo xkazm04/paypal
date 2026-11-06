@@ -7,7 +7,6 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { DealEvidence } from '@bindings/DealEvidence';
-import { dealKey } from '../../../../../lib/data/keys';
 import { useDataClient } from '../../../../../lib/data/provider';
 import { clockLabel } from '../../../../../lib/format';
 import { useNow, useQuery } from '../../../../../lib/hooks';
@@ -20,7 +19,7 @@ import { bucketOf, dirOf, toCSV, type Bucket } from '../../../modules/book/model
 import { useLayerNav } from '../../layers';
 import { fewRows, ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
 import { Amount } from '../../rows';
-import { useEvidenceOf } from './evidence';
+import { evidenceForExport, useEvidenceOf } from './evidence';
 import { stampOf } from './model';
 import { RowDetail, RowStatement, StatusChip, Totals, type BookWorld } from './parts';
 
@@ -46,20 +45,24 @@ export function useExport(b: BookWorld) {
   const toast = useToast();
   const now = useNow();
   const client = useDataClient();
-  return (rows: readonly Deal[], query: string, name: string) => {
-    // A statement already read (a row that was in view, the deal page) is exported as read; one
-    // never read is "unknown", never guessed.
-    const stmt = (d: Deal) => client.getQueryData<DealEvidence>(dealKey('deal_evidence', d.id))?.reconciliation ?? 'unknown';
+  return async (rows: readonly Deal[], query: string, name: string) => {
+    // Every row's statement is read before the file is written (rows not yet in view included), so
+    // "unknown" in the file means the read failed, never that it had not happened yet.
+    const reads = new Map<string, DealEvidence | null>();
+    await Promise.all(rows.map(async (d) => { reads.set(d.id, await evidenceForExport(client, d.id)); }));
+    const stmt = (d: Deal) => reads.get(d.id)?.reconciliation ?? 'unknown';
+    const unread = rows.filter((d) => stmt(d) === 'unknown').length;
     const csv = toCSV([...rows], { stmt, cpName: b.who, checking: b.checking, label: b.label }, query);
     const modes = [...new Set(rows.map((d) => d.mode))].join('+') || 'empty';
     const file = `${name}-${modes}-${new Date(now * 1000).toISOString().slice(0, 10)}.csv`;
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    // UTF-8 byte-order mark: without it Excel reads the file as ANSI and garbles the middle dot in decided_by.
+    a.href = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }));
     a.download = file;
     document.body.appendChild(a);
     a.click();
     queueMicrotask(() => { URL.revokeObjectURL(a.href); a.remove(); });
-    toast(BOOK.saved(file, rows.length, modes), 'ok');
+    toast(BOOK.saved(file, rows.length, modes) + (unread ? ` ${BOOK.savedUnread(unread)}` : ''), 'ok');
   };
 }
 

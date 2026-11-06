@@ -127,7 +127,7 @@ export function decisionWhy(d: Pick<Deal, 'shield'>, need: Pick<AttentionItem, '
 
 /** What "Review & approve" will do, without ever saying it moves money from this window. */
 export function reviewMeans(d: QDeal, locked: boolean): string {
-  const unlock = locked ? ' You unlock with Windows Hello first.' : '';
+  const unlock = locked ? ' You unlock with fingerprint, face or PIN first.' : '';
   const base = d.state === 'AUTHORIZED' ? 'Opens the approval window, where you can pay the held amount or release it.'
     : d.kind === 'rescue' ? 'Opens the approval window to pick a fix.'
       : d.kind === 'haggle' ? `Opens the approval window to accept ${formatMoney(d.terms.unit_price)}.`

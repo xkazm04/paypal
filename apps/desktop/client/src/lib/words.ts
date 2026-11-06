@@ -725,7 +725,7 @@ export const START_STEP: Record<StartStepKey, { title: string; sub: string; done
     where: 'Opens Connections on the house seller, a practice shop built into the app',
   },
   engine: {
-    title: 'Choose your agent app', sub: 'claude-code or codex-cli · the practice agent plays until then', done: 'Agent app chosen', doneLine: 'Your agents run in it', act: 'Choose agent app',
+    title: 'Choose your agent app', sub: 'Pick the app your agents run in · the practice agent plays until then', done: 'Agent app chosen', doneLine: 'Your agents run in it', act: 'Choose agent app',
     where: 'Opens Setup in The Table on the agent app your agents run in',
   },
 };
@@ -750,15 +750,15 @@ export const TOUR_STOP: Record<TourStopId, { title: string; text: string }> = {
   'main.hub': { title: 'Start here', text: 'These steps get your wallet ready for a first safe deal. The gold button always takes you to the next one.' },
   'main.promise': { title: 'Your money stays put', text: 'This promise holds on every screen. If you do nothing, no money moves.' },
   'main.steps': { title: 'One click to each step', text: 'Each step opens where it happens. A tick means it is done, and you can do them in any order.' },
-  'main.engine': { title: 'Your agent app', text: 'Your agents run in claude-code or codex-cli on this computer. Until you choose one, a practice agent with fixed price rules plays for you.' },
+  'main.engine': { title: 'Your agent app', text: 'Your agents run in an agent app on this computer. Until you choose one, a practice agent with fixed price rules plays for you.' },
   'main.approval': { title: 'Approvals have their own window', text: 'Paying, saving your PayPal keys and signing rules happen only in the approval window. It locks after 15 quiet minutes.' },
   'tumbler.what': { title: 'Your mini window', text: 'It stays small at the edge of your screen while The Table is closed. Your agents keep working.' },
   'tumbler.needs': { title: 'It shows what needs you', text: 'A gold ring means something needs you. Each step here opens where it happens.' },
-  'tumbler.engine': { title: 'Agent app: in The Table', text: 'You choose claude-code or codex-cli in The Table. This step opens it for you.' },
+  'tumbler.engine': { title: 'Agent app: in The Table', text: 'You choose your agent app in The Table. This step opens it for you.' },
   'tumbler.waiting': { title: 'If you do nothing', text: 'Waiting never sends your money. At a deadline the wallet starts nothing new, and what PayPal shows decides.' },
   'approval.only': { title: 'Money decisions happen here', text: 'This is the only window that can approve a payment, save your PayPal keys or sign rules.' },
   'approval.steps': { title: 'The same steps as The Table', text: 'The steps for this window are one click here. The others say where they happen.' },
-  'approval.engine': { title: 'Agent app: in The Table', text: 'You choose claude-code or codex-cli in The Table. This window shows which one your agents use.' },
+  'approval.engine': { title: 'Agent app: in The Table', text: 'You choose your agent app in The Table. This window shows which one your agents use.' },
   'approval.config': { title: 'Your wallet setup', text: 'Unlock, your PayPal keys, market prices and the agent app are kept here. Nothing on this page pays anyone.' },
 };
 /** The tour's own buttons and labels. */
@@ -853,8 +853,8 @@ export const SETUP_STEP_COPY: Record<SetupStepKey, { lead: string; text: string;
     act: 'Choose agent app', done: 'Agent app chosen. Your agents run in it.',
   },
   unlock: {
-    lead: 'Unlock approving', text: 'Approving asks for Windows Hello. Unlock once now so your first approval is quick.',
-    act: 'Unlock with Windows Hello', done: 'Unlocked. You are ready for your first safe deal.',
+    lead: 'Unlock approving', text: 'Approving asks for your fingerprint, face or PIN. Unlock once now so your first approval is quick.',
+    act: 'Unlock with fingerprint, face or PIN', done: 'Unlocked. You are ready for your first safe deal.',
   },
 };
 export const SETUP_WAITING = { title: 'Waiting for you in the approval step', text: 'Finish it there. This page moves on by itself, and nothing is sent until you do.', reopen: 'Reopen' };
@@ -960,7 +960,7 @@ export const OPEN_THE_DEAL = 'Open the deal';
 export const WHY = 'Why?';
 /** The gold action's titles: it only opens the approval window. */
 export const APPROVAL_OPEN_TITLE = 'Opens the approval window, the only place money can be released';
-export const APPROVAL_LOCKED_TITLE = 'Locked after 15 quiet minutes: you unlock with Windows Hello first';
+export const APPROVAL_LOCKED_TITLE = 'Locked after 15 quiet minutes: you unlock with fingerprint, face or PIN first';
 /** The facts strip under a decision. */
 export const FACT = { amount: 'Amount', held: 'On hold at PayPal', now: 'Money now', why: 'Why it asks you', time: 'Time left', noRule: 'No rule named' } as const;
 export const factWith = (who: string): string => `with ${who}`;
@@ -1024,8 +1024,8 @@ export const DEAL_GONE = { text: 'This deal isn’t here any more.', back: 'Back
 /** The idle-lock button in the top bar (it only opens the approval window, where Windows Hello unlocks). */
 export const LOCK = {
   locked: 'Locked', unlocked: 'Unlocked',
-  lockedTitle: 'Locked after 15 quiet minutes. You can still look around; approving money asks for Windows Hello. Click to unlock.',
-  unlockedTitle: 'Approvals lock after 15 quiet minutes, then ask for Windows Hello.',
+  lockedTitle: 'Locked after 15 quiet minutes. You can still look around; approving money asks for your fingerprint, face or PIN. Click to unlock.',
+  unlockedTitle: 'Approvals lock after 15 quiet minutes, then ask for your fingerprint, face or PIN.',
 } as const;
 /** The Tumbler's state in the footer. */
 export const MINI_WINDOW = { name: 'Mini window', title: 'The small always-on-top window', shown: 'shown', hidden: 'hidden', waiting: 'waiting' } as const;
@@ -1046,7 +1046,7 @@ export const charterLine = (n: string): string => `Line ${n} of V`;
 export const CHARTER_IN_APPROVAL = 'in the approval window';
 export const CHARTER_SEALED = { kicker: 'Your wallet’s charter · signed', title: 'Your charter is signed. Nothing pays without you or a rule you signed.' } as const;
 export const CHARTER_MEANS_TITLE = 'What signing the charter means';
-export const charterDone = (n: number, of: number): string => `${n} of ${of} lines signed. Each line takes a minute or two.`;
+export const charterDone = (n: number, of: number): string => `${n} of ${of} steps done. Unlocking comes and goes as the wallet locks, so it is not counted. Each step takes a minute or two.`;
 export const CHARTER_MEANS_APPROVAL = 'Lines marked “in the approval window” open the separate approval window, where only you can sign.';
 export const CHARTER_SKIP = 'Skip: open the sample wallet';
 export const CHARTER_SKIP_TITLE = 'Preview only: the sample wallet is already set up';

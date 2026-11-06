@@ -15,7 +15,7 @@ import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Kv } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { dealTotal, sumByCurrency } from '../../../logic';
-import { atRiskOf, isReplay, recovered, watchStatus, type Col, type NotCountedWhy } from '../../../modules/rescue/model';
+import { atRiskOf, ifNothingOf, isReplay, recovered, refusalLine, recoveredThisMonth, watchStatus, type Col, type NotCountedWhy } from '../../../modules/rescue/model';
 import { moneyList, rescueStrip } from '../../../modules/rescue/preview';
 import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
@@ -55,16 +55,20 @@ const ROW_COLS = { '--cols': 'minmax(9rem, 1.2fr) 7rem minmax(8rem, max-content)
  *  rescue.css). */
 const CMP_COLS = { '--cols': 'minmax(9rem, 1.2fr) repeat(5, minmax(0, 1fr))' } as CSSProperties;
 
+/** The head of the one "if you do nothing" answer (the same one the deal page and approval window print). */
+const quietHead = (d: Deal, r: RescueWorld): string => silenceParts(ifNothingOf(d, r.need(d)?.on_silence, r.view(d)) ?? '').head;
+
 function FailedRow({ deal, r }: { deal: Deal; r: RescueWorld }) {
   const need = r.need(deal);
   const t = atRiskOf(deal, r.book);
+  const refused = refusalLine(r.view(deal));
   return (
     <span className={`row1 rs-row${need ? ' needs' : ''}`} style={ROW_COLS} title={`${cap(r.name(deal))} · ${r.title(deal)}`}>
       <b className="rs-who" title={r.name(deal)}>{cap(r.name(deal))}</b>
       <span className="rs-amt num">{formatMinor(t.minor, t.currency)}</span>
       <span className="rs-st">{need ? <Chip tone="gold">{RESCUE.yourCall}</Chip> : <RescueState deal={deal} />}</span>
       <span className="rs-st"><Countdown deadline={r.deadline(deal)} /></span>
-      <span className="rs-sub c-note">{r.title(deal)}{need ? <> · {RESCUE.ifNothing}: {silenceParts(need.on_silence).head}</> : null}</span>
+      <span className="rs-sub c-note">{r.title(deal)}{need ? <> · {RESCUE.ifNothing}: {quietHead(deal, r)}</> : null}{refused ? <> · <span className="rs-refusal">{refused}</span></> : null}</span>
     </span>
   );
 }
@@ -79,7 +83,7 @@ function ProgressRow({ deal, r }: { deal: Deal; r: RescueWorld }) {
       <span className="rs-amt num">{formatMinor(t.minor, t.currency)}</span>
       <span className="rs-st"><RescueState deal={deal} /></span>
       <span className="rs-st"><CountChip deal={deal} view={view} /></span>
-      <span className="rs-sub c-note">{need ? `${RESCUE.ifNothing}: ${silenceParts(need.on_silence).head}` : deskLine(deal, view)}</span>
+      <span className="rs-sub c-note">{need ? `${RESCUE.ifNothing}: ${quietHead(deal, r)}` : deskLine(deal, view)}</span>
     </span>
   );
 }
@@ -128,11 +132,14 @@ function Recovered({ r }: { r: RescueWorld }) {
   const nav = useLayerNav();
   const rec = useMemo(() => recovered(r.all, r.book), [r.all, r.book]);
   const rows = useMemo<RecoveredRow[]>(() => [...rec.counted.map((deal) => ({ deal, why: null })), ...rec.notCounted.map((x) => ({ deal: x.deal, why: x.why as NotCountedWhy }))], [rec]);
+  const now = useNow();
+  const month = useMemo(() => recoveredThisMonth(r.all, r.book, now), [r.all, r.book, now]);
   const total = rec.totals.length ? rec.totals.map((t) => formatMinor(t.minor, t.currency)).join(' · ') : null;
   return (
     <div className="rs-list">
       {r.bookError ? <WalletNotice error={r.bookError} what={RESCUE.bookWhat} /> : null}
       <p className="rs-total">{RESCUE.recovered.total} <b className={`money${total ? ' okc' : ''}`}>{total ?? RESCUE.recovered.noneYet}</b></p>
+      <p className="rs-total">{RESCUE.recovered.month} <b className={`money${month?.length ? ' okc' : ''}`}>{month ? moneyList(month) ?? RESCUE.recovered.noneYet : RESCUE.recovered.monthUnknown}</b></p>
       <p className="ui-hint">{RESCUE.recovered.rule}</p>
       <ListEngine<RecoveredRow> className={fewRows(rows.length)} label={RESCUE_VIEWS_TITLE.recovered} rows={rows} getKey={(x) => x.deal.id} filters={RECOVERED_FILTERS} estimateSize={36}
         searchText={(x) => `${r.name(x.deal)} ${r.title(x.deal)}`}
@@ -255,18 +262,19 @@ export function RescueLayer({ nav }: LayerProps) {
   const first = asking[0];
   const firstNeed = first ? r.need(first) : undefined;
   const watching = r.book?.watching.length ?? 0;
+  const month = recoveredThisMonth(r.all, r.book, now);
   return (
     <div className="ar-rescue">
       <ModuleLayer module="rescue" answer={answer} sub={sub} latest={latestOf(r, (v) => route.open(v), nav.deal)}
-        yourCall={first && firstNeed ? { count: asking.length, ifNothing: silenceParts(firstNeed.on_silence).head, onOpen: () => route.open('failed', 'your-call') } : null}
-        action={first && firstNeed ? <HandOff deal={first} /> : undefined}
+        yourCall={first && firstNeed ? { count: asking.length, ifNothing: quietHead(first, r), onOpen: () => route.open('failed', 'your-call') } : null}
+        action={first && firstNeed ? <HandOff deal={first} quiet={refusalLine(r.view(first)) !== null} /> : undefined}
         cards={[
           { id: 'failed', view: 'failed', label: RESCUE_VIEWS_TITLE.failed, value: r.rows.failing.length ? RESCUE.cards.renewals(r.rows.failing.length) : RESCUE.none,
             note: r.rows.failing.length ? RESCUE.cards.atRisk(moneyList(strip.atRisk) ?? RESCUE.cards.nothing) : RESCUE.cards.nothingToFix,
-            chip: asking.length ? RESCUE.yourCall : undefined, chipTone: 'gold', ifNothing: firstNeed ? silenceParts(firstNeed.on_silence).head : null },
+            chip: asking.length ? RESCUE.yourCall : undefined, chipTone: 'gold', ifNothing: first && firstNeed ? quietHead(first, r) : null },
           { id: 'progress', view: 'progress', label: RESCUE_VIEWS_TITLE.progress, value: r.rows.inflight.length ? RESCUE.cards.fixes(r.rows.inflight.length) : RESCUE.none,
             note: r.rows.inflight.length ? RESCUE.cards.waitingFor(moneyList(strip.inProgress) ?? '') : RESCUE.cards.nothingWaiting },
-          { id: 'recovered', view: 'recovered', label: RESCUE_VIEWS_TITLE.recovered, value: moneyList(strip.recovered) ?? RESCUE.cards.noneYet, note: RESCUE.cards.countedOnce },
+          { id: 'recovered', view: 'recovered', label: RESCUE_VIEWS_TITLE.recovered, value: moneyList(strip.recovered) ?? RESCUE.cards.noneYet, note: `${RESCUE.cards.thisMonth(month ? moneyList(month) : null)} · ${RESCUE.cards.countedOnce}` },
           { id: 'watch', view: 'watch', label: RESCUE_VIEWS_TITLE.watch, value: r.book ? watchingWords(watching) : r.bookError ? RESCUE.cards.unread : RESCUE.cards.reading,
             note: r.book ? watchLines(r.book, now).note : RESCUE.cards.watchNote },
         ]}

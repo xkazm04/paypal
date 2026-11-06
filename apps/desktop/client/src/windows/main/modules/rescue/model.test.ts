@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
-import { atRiskOf, cellState, COLS, moveCell, NOT_BUILT, paypalRetry, pickable, recovered, retryLeft, rulesFor, splitFixes, splitRows } from './model';
+import { atRiskOf, cellState, COLS, ifNothingOf, moveCell, NOT_BUILT, paypalRetry, pickable, recovered, recoveredThisMonth, retryLeft, rulesFor, splitFixes, splitRows } from './model';
 import { invoiceText, proposeDiscount } from '../../../../mock/rescue';
 import type { RescueView } from '@bindings/RescueView';
 
@@ -18,7 +18,7 @@ const view = (id: string, o: Partial<RescueView> = {}): RescueView => ({ deal_id
 
 describe('lever cells', () => {
   it('"do nothing" is always the default and names PayPal’s retry', () => {
-    expect(cellState(deal('a'), 'NONE', NOW + 4 * 86400, NOW)).toEqual({ kind: 'default', sub: 'retry 4 d' });
+    expect(cellState(deal('a'), 'NONE', NOW + 4 * 86400, NOW)).toEqual({ kind: 'default', sub: 'retry 4 days' });
     expect(cellState(deal('a'), 'NONE', null, NOW)).toEqual({ kind: 'default', sub: 'retry time not known' });
   });
   it('reads PayPal’s retry from the wallet’s rescue read only, never from the fix’s deadline', () => {
@@ -129,5 +129,71 @@ describe('what a failed renewal puts at risk (polish 3)', () => {
     // Without the wallet's read it falls back to the deal's own terms.
     expect(atRiskOf(d, null)).toEqual({ minor: 960, currency: 'USD' });
     expect(atRiskOf(d, { cases: [view('other')] })).toEqual({ minor: 960, currency: 'USD' });
+  });
+});
+
+describe('ifNothingOf: the one "if you do nothing" answer', () => {
+  const raw = 'nothing is sent · PayPal retries the payment by itself';
+  it('says a replay has nothing to retry, whatever the attention item carries', () => {
+    const a = ifNothingOf({ mode: 'replay', kind: 'rescue' }, raw, null);
+    expect(a).toContain('PayPal has nothing to retry');
+    expect(a).not.toContain('retries the payment');
+    expect(ifNothingOf({ mode: 'sandbox', kind: 'rescue' }, raw, { source: 'replay' })).toBe(a);
+  });
+  it('keeps the wallet’s own words for a real failure, and a safe default when it has none', () => {
+    expect(ifNothingOf({ mode: 'sandbox', kind: 'rescue' }, raw, null)).toBe(raw);
+    expect(ifNothingOf({ mode: 'sandbox', kind: 'rescue' }, null, null)).toContain('PayPal retries');
+    expect(ifNothingOf({ mode: 'sandbox', kind: 'purchase' }, null, null)).toBeNull();
+  });
+});
+
+describe('recoveredThisMonth', () => {
+  const m = (minor: number) => ({ minor, currency: 'USD' as const });
+  const view = (id: string, counted: boolean) => ({ deal_id: id, counted, offer: { invoice: m(700) } }) as never;
+  const now = Date.UTC(2026, 10, 15) / 1000;
+  const deal = (id: string, updated_at?: number) => ({ id, kind: 'rescue', updated_at }) as never;
+  it('adds only counted rescues updated this month', () => {
+    const book = { cases: [view('a', true), view('b', true), view('c', false)] };
+    expect(recoveredThisMonth([deal('a', now - 100), deal('b', now - 40 * 86400), deal('c', now)], book, now)).toEqual([m(700)]);
+  });
+  it('is unknown, never a guess, when a counted rescue has no date or there is no book', () => {
+    expect(recoveredThisMonth([deal('a')], { cases: [view('a', true)] }, now)).toBeNull();
+    expect(recoveredThisMonth([], null, now)).toBeNull();
+  });
+});
+
+describe('one sentence for a replay renewal on every surface', () => {
+  const replay = { mode: 'replay', kind: 'rescue' } as const;
+  it('Rescue, the deal page and the approval window all print the same "if you do nothing" line', () => {
+    const rescue = ifNothingOf(replay, null, { source: 'replay' });
+    const dealPage = ifNothingOf(replay, 'PayPal retries on its own and nothing is discounted', null);
+    const approval = ifNothingOf(replay, 'PayPal retries in 3 days 23 h', null);
+    expect(dealPage).toBe(rescue);
+    expect(approval).toBe(rescue);
+    expect(rescue).not.toMatch(/PayPal retries/);
+  });
+  it('one rounding rule: whole days floored, then hours', () => {
+    expect(retryLeft(NOW + 4 * 86400 - 60, NOW)).toBe('3 days 23 h');
+    expect(retryLeft(NOW + 4 * 86400, NOW)).toBe('4 days');
+  });
+});
+
+describe('refusalLine', () => {
+  it('words every closed reason in one quiet sentence, and says nothing when the wallet would send', async () => {
+    const { refusalLine } = await import('./model');
+    const { RESCUE } = await import('../../../../lib/words');
+    expect(refusalLine(view('a'))).toBeNull();
+    expect(refusalLine(view('a', { refusal: null }))).toBeNull();
+    expect(refusalLine(undefined)).toBeNull();
+    const keys = Object.keys(RESCUE.refusal.why);
+    expect(keys).toEqual(['fixes_clause_missing', 'lever_not_allowed', 'currency_differs', 'invoice_not_cycle_less_discount', 'over_discount_cap', 'over_discount_share', 'share_mismatch', 'deal_not_invoicing_offer', 'rules_not_in_force']);
+    for (const k of keys) {
+      const line = refusalLine(view('a', { refusal: k as never }));
+      expect(line).toMatch(/^The wallet won’t allow this offer: .+\. Nothing is sent\.$/);
+    }
+  });
+  it('does not change what "if you do nothing" says', () => {
+    const d = deal('a');
+    expect(ifNothingOf(d, null, view('a', { refusal: 'over_discount_cap' }))).toBe(ifNothingOf(d, null, view('a')));
   });
 });

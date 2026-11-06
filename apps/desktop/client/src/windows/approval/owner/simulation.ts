@@ -3,7 +3,9 @@
 // counts and words that answer. Layer 1 names rules in words, never a clause number.
 import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
-import { ruleNameOf } from '../../../lib/words';
+import type { Money } from '@bindings/Money';
+import { formatMoney } from '../../../lib/format';
+import { ruleNameOf, WHATIF_FIRST_RULE, WHATIF_NO_CHANGE } from '../../../lib/words';
 
 export type Outcome = 'refused' | 'asks' | 'policy' | 'unknown';
 export const OUTCOMES: readonly Outcome[] = ['refused', 'asks', 'policy', 'unknown'];
@@ -26,6 +28,36 @@ export function sameVerdict(a: SimulatedVerdict, b: SimulatedVerdict): boolean {
   return true;
 }
 export const changed = (l: SimulatedLine): boolean => !sameVerdict(l.before, l.after);
+/** The deal's OUTCOME differs (refused / asks / agent may); a refusal that only changes which rule stops it does not count. */
+export const outcomeChanged = (l: SimulatedLine): boolean => outcomeOf(l.before) !== outcomeOf(l.after);
+/** Still the same outcome, but a different rule or reason stops or asks. */
+export const ruleOnlyChanged = (l: SimulatedLine): boolean => changed(l) && !outcomeChanged(l);
+
+/** "1 deal", "3 deals". */
+export const countOf = (n: number, one: string, many = `${one}s`): string => `${n} ${n === 1 ? one : many}`;
+
+/** Money on deals whose outcome changes, from each row's own amount, one total per currency.
+ *  null when nothing moves or any such row has no known amount (shown as a dash, never guessed). */
+export function movedMoney(lines: readonly SimulatedLine[]): Money[] | null {
+  const rows = lines.filter(outcomeChanged);
+  if (!rows.length || rows.some((l) => !l.amount || l.before.type === 'not_simulated' || l.after.type === 'not_simulated')) return null;
+  const by = new Map<string, number>();
+  for (const l of rows) by.set(l.amount!.currency, (by.get(l.amount!.currency) ?? 0) + l.amount!.minor);
+  return [...by].map(([currency, minor]) => ({ minor, currency }) as Money);
+}
+export const movedMoneyWords = (lines: readonly SimulatedLine[]): string => {
+  const m = movedMoney(lines);
+  return m ? m.map((x) => formatMoney(x)).join(' + ') : '—';
+};
+
+/** The headline: only deals whose outcome changes are "gone differently"; rule-only changes are said apart. */
+export function headlineWords(lines: readonly SimulatedLine[], firstRule = false): string {
+  if (firstRule) return WHATIF_FIRST_RULE;
+  const o = lines.filter(outcomeChanged).length;
+  const r = lines.filter(ruleOnlyChanged).length;
+  const head = o ? `${countOf(o, 'deal would', 'deals would')} have gone differently this week (${movedMoneyWords(lines)} moved differently).` : WHATIF_NO_CHANGE;
+  return r ? `${head} ${countOf(r, 'other deal is', 'other deals are')} still refused, by a different rule.` : head;
+}
 
 /** What withdrawing does to every line: with no rules in force, the check refuses (as Rust does). */
 export function ifWithdrawn(lines: readonly SimulatedLine[]): SimulatedLine[] {

@@ -47,6 +47,8 @@ export const BOARD_COLUMN = {
   title: 'The board',
   /** A cell read aloud: "Spend, Needs you: 1 deal, lit". */
   cell: (module: string, fate: string, n: number, lit: boolean): string => `${module}, ${fate}: ${n ? `${n} ${n === 1 ? 'deal' : 'deals'}` : BOARD_EMPTY_CELL}${lit ? ', lit' : ''}`,
+  /** The Book row counts invoices only; the Book page lists every payment. */
+  bookRowTitle: (inv: number, all: number): string => `This row counts ${inv} invoice ${inv === 1 ? 'deal' : 'deals'}. The Book page lists all ${all} payments.`,
   row: (module: string, role: string, n: number): string => `${module}, ${role}: ${n} ${n === 1 ? 'deal' : 'deals'}. ${BOARD_FILTER_ROW(module)}`,
   col: (fate: string, n: number): string => `${fate}: ${n} ${n === 1 ? 'deal' : 'deals'}. ${BOARD_FILTER_COL(fate)}`,
   /** "= 6 deals lit". */

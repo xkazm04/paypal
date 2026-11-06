@@ -23,13 +23,14 @@ import { lazyPart, preloadWhenIdle } from '../../../../../lib/lazy';
 import { RECORDED_DEAL_ID, RECORDED_DEAL_LABEL as RECORDED_LABEL } from '../../../../../lib/proof/sampleId';
 import { backend } from '../../../../../lib/runtime';
 import {
-  DEAL_ACT, DEAL_CARD, DEAL_DETAILS, DEAL_FIGS, DEAL_KICKER, DEAL_SIDE, DEAL_STORY, DEAL_WHO, houseRecordWord, houseWords, INSTRUCTIONS, kindWord, LATEST_OF, NOTICE_WHAT, OPEN_THE_DEAL, PROOF_CHECKER, rulesName, silenceWords, TABLES_WATCH,
+  DEAL_ACT, DEAL_CARD, DEAL_DETAILS, DEAL_FIGS, DEAL_KICKER, DEAL_SIDE, DEAL_STORY, DEAL_WHO, houseRecordWord, houseWords, INSTRUCTIONS, kindWord, LATEST_OF, NOTICE_WHAT, OPEN_THE_DEAL, PROOF_CHECKER, rulesName, TABLES_WATCH,
 } from '../../../../../lib/words';
 import { RunBadge, WalletNotice } from '../../../../../shared/honesty';
 import { MODULE } from '../../../../../shared/modules';
 import { Btn, Chip, Hint, Kv, Popover, Silence } from '../../../../../shared/ui';
 import { actingRun, heldRefs, lastFinishedRun, latestText, mayWithdraw, mirrorStrip, readClauses, stepWords, timelineRows } from '../../../deal/model';
 import { acceptedAtFloorLine, dealAnswer, ruleChecks, rulesBadge, standingFacts } from '../../../deal/story';
+import { ifNothingOf } from '../../../modules/rescue/model';
 import { canStartAgent, isLive, isTerminal, pairingFact } from '../../../logic';
 import { watchTable, worthWatching } from '../../../modules/tables/watchPick';
 import { useCpLookup, useToast } from '../../../ui';
@@ -164,7 +165,7 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
   const strips = [onDeal, withThem].filter((x): x is LatestProps => !!x);
 
   const consequence = !need && !ended && isLive(deal) && disp.on_silence
-    ? <p className="dv-consequence"><Silence text={silenceWords(disp.on_silence)} deadline={deadline} /></p> : null;
+    ? <p className="dv-consequence"><Silence text={ifNothingOf(deal, disp.on_silence, null) ?? ''} deadline={deadline} /></p> : null;
 
   return (
     <PlaceFrame root="ar-deal" place="deal" tone={MODULE[module].cssVar}

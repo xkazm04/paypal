@@ -79,8 +79,8 @@ export const APPROVAL_TABLE = {
   noSellRules: 'No signed rules let an agent sell at a table yet. Sign rules for haggling as a seller first.',
   ended: 'This table’s haggling time is over. Connect with the house seller again for a new one.',
   notNow: 'Not now',
-  unlock: 'Unlock with Windows Hello',
-  unlocking: 'Waiting for Windows Hello…',
+  unlock: 'Unlock with fingerprint, face or PIN',
+  unlocking: 'Waiting for your fingerprint, face or PIN…',
   join: 'Join the table',
   joining: 'Joining…',
   open: 'Open the table',
@@ -119,3 +119,11 @@ export const APPROVAL_TABLE = {
   codeCopied: 'Code copied',
   codeNoCopy: 'Couldn’t copy. Select the code and copy it by hand.',
 } as const;
+
+/** The next step when this computer has no sign-in set up for confirming it is the owner (OMAR-09). Plain words; appended to every "isn't set up" line. */
+export const HELLO_NEXT_STEP = 'To turn it on: Windows Settings, Accounts, Sign-in options, add a PIN, fingerprint or face. Then come back and try again.';
+
+/** The accessible name of one signed rule set's row: its name, version and state, so rows for the same agent never share a name. */
+export const ruleRowLabel = (name: string, version: number, updated: string, state: string, which = ''): string => `Open ${name}${which ? ` ${which}` : ''}, version ${version}, updated ${updated} (${state}), to see or change them`;
+/** "set 2 of 3": which of one agent's signed rule sets a row is, so rows alike in version, date and state still differ. */
+export const ruleSetOrdinal = (i: number, n: number): string => (n > 1 ? `set ${i} of ${n}` : '');

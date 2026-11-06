@@ -121,7 +121,7 @@ export function BoardColumn({ model, filter, lit, crumb, active, onShowEverythin
                     </button>
                   );
                 })}
-                <span className="sb-tot num">{model.rowCount[m]}</span>
+                <span className="sb-tot num" title={m === 'book' && model.keys.length !== model.rowCount.book ? BOARD_COLUMN.bookRowTitle(model.rowCount.book, model.keys.length) : undefined}>{m === 'book' && model.keys.length !== model.rowCount.book ? `${model.rowCount.book} of ${model.keys.length}` : model.rowCount[m]}</span>
               </div>
             ))}
           </div>

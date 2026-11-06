@@ -17,7 +17,8 @@ import type { RescueLever } from '@bindings/RescueLever';
 import { WalletError, toWalletError } from '../../lib/contract';
 import { useCounterparties, useDealDisplay } from '../../lib/display';
 import { formatMoney, nowUnix, shortId } from '../../lib/format';
-import { APPROVAL_SEAL, houseWords, PAYMENT_CANNOT_BE_UNDONE, RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, silenceWords, sellerSaysOnly } from '../../lib/words';
+import { APPROVAL_SEAL, HELLO_NEXT_STEP, houseWords, PAYMENT_CANNOT_BE_UNDONE, RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, sellerSaysOnly } from '../../lib/words';
+import { ifNothingOf } from '../main/modules/rescue/model';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { MODULES } from '../../shared/modules';
@@ -329,7 +330,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const moduleName = moduleMeta?.name ?? null;
   const deadline = display?.deadline ?? attn?.deadline ?? null;
   const rawSilence = attn?.on_silence ?? display?.on_silence ?? null;
-  const silence = rawSilence ? silenceWords(rawSilence) : null;
+  const silence = ifNothingOf(d, rawSilence, null);
   const steps = buildStrip(summary, phase, locked);
   const checking = phase === 'checking';
   const showLock = locked && (phase === 'locked' || phase === 'hold' || phase === 'ready' || phase === 'in_browser') && moneyRelevant(g);
@@ -591,7 +592,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
           }
         >
           <p className="pop-p">{d.state === 'APPROVED' ? `You walk away from this deal. The approved order is never paid, and no money moves.` : `You walk away from this deal with ${who}. No money moves.`}</p>
-          <p className="ui-hint">Withdrawing can only stop money, so it doesn’t need Windows Hello.</p>
+          <p className="ui-hint">Withdrawing can only stop money, so it doesn’t need your fingerprint, face or PIN.</p>
         </Sheet>
       ) : null}
     </div>
@@ -713,10 +714,10 @@ export function Actions(p: {
       {quiet.map(btn)}
       {p.locked ? (
         p.unlocking ? (
-          <Btn kind="gold" locked disabled>Windows Hello…</Btn>
+          <Btn kind="gold" locked disabled>Fingerprint, face or PIN…</Btn>
         ) : (
           <Btn kind="gold" locked onClick={p.onUnlock} disabled={!p.canUnlock} onKeyDown={p.guardEnter}>
-            Unlock with Windows Hello
+            Unlock with fingerprint, face or PIN
           </Btn>
         )
       ) : (
@@ -740,7 +741,7 @@ function Hint(p: {
     return (
       <p className="dr-hint" role="status">
         <HelloGlyph />
-        <span className="t"><b>Windows Hello</b> is checking it’s you…</span>
+        <span className="t"><b>Your computer</b> is checking it’s you…</span>
       </p>
     );
   }
@@ -749,7 +750,7 @@ function Hint(p: {
       <p className="dr-hint">
         <span className="ui-chip gold"><LockGlyph /> Locked</span>
         <span className="t">
-          {p.helloUnsupported ? 'Windows Hello isn’t set up on this computer, so this window can’t unlock. Nothing was unlocked.' : 'Money stays where it is. You can still read everything.'}
+          {p.helloUnsupported ? `Sign-in by fingerprint, face or PIN isn’t set up on this computer, so this window can’t unlock. Nothing was unlocked. ${HELLO_NEXT_STEP}` : 'Money stays where it is. You can still read everything.'}
         </span>
         <Btn kind="plain" sm aria-label="Why it is locked" onClick={(e) => p.onLock(e.currentTarget)}>ⓘ</Btn>
       </p>
@@ -810,7 +811,7 @@ function verb(d: Deal, ownerAccept: boolean): string {
 
 function clockLabelFor(d: Deal, phase: Phase): string {
   if (phase === 'hold') return 'Request ends in';
-  if (d.kind === 'rescue') return d.state === 'AGREED' ? 'PayPal retries in' : 'Invoice open for';
+  if (d.kind === 'rescue') return d.state === 'AGREED' ? 'This fix closes in' : 'Invoice open for';
   switch (d.state) {
     case 'AWAITING_APPROVAL': return 'Time to approve on PayPal';
     case 'AUTHORIZED': return 'Hold releases in';

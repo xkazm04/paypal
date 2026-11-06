@@ -15,7 +15,7 @@ import { NOT_A_PROOF } from '../../lib/proof/read';
 import { writtenWrong } from '../../lib/proof/text';
 import { PROOF_FILE_LIMIT, readProofFile, TOO_LARGE } from '../../lib/proof/verify';
 import { isCalm } from '../../design/motion';
-import { modeWord, PROOF_ALL_THAT_APPLY, PROOF_CAUGHT, PROOF_CHECKER as W, PROOF_SHORT, PROOF_CHECKS, PROOF_SOME_UNCHECKED, PROOF_VERSION_MATCH, PERMISSIONS_FINGERPRINT, TAMPER_WORDS, TAMPERS_SHOWN } from '../../lib/words';
+import { modeWord, PROOF_ALL_THAT_APPLY, PROOF_CAUGHT, PROOF_PRICE_PAYEE_CHECKS, PROOF_SEAL_ONLY, PROOF_CHECKER as W, PROOF_SHORT, PROOF_CHECKS, PROOF_SOME_UNCHECKED, PROOF_VERSION_MATCH, PERMISSIONS_FINGERPRINT, TAMPER_WORDS, TAMPERS_SHOWN } from '../../lib/words';
 import { KeyId } from '../ownerKey';
 import { Btn, Chip, Kv, Seg } from '../ui';
 import { caption, changed, dashedWords, kindOf, reportText } from './describe';
@@ -327,7 +327,7 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
           </div>
           <ol className="pk-list">
             {CHECK_IDS.map((cid, i) => (
-              <Row key={cid} rowId={`${id}-row-${cid}`} id={cid} line={state.lines[i] ?? null} before={state.before?.[i] ?? null} current={running && made === i} stale={running && i >= made && state.before !== null} first={i === firstBad} run={state.run} />
+              <Row key={cid} rowId={`${id}-row-${cid}`} id={cid} line={state.lines[i] ?? null} before={state.before?.[i] ?? null} current={running && made === i} stale={running && i >= made && state.before !== null} first={i === firstBad} run={state.run} skipped={cid === 'evidence' ? CHECK_IDS.filter((x, n) => PROOF_PRICE_PAYEE_CHECKS.includes(x) && state.lines[n] && kindOf(state.lines[n] as CheckLine) === 'dashed') : []} />
             ))}
           </ol>
           {state.facts && !state.facts.signatures ? <p className="pk-refused" role="alert">{W.noSignatures}</p> : null}
@@ -433,7 +433,7 @@ function Verdict({ state, made, bad, dashed, caught, onRun }: { state: RunState;
   );
 }
 
-function Row({ id, rowId, line, before, current, stale, first, run }: { id: string; rowId: string; line: CheckLine | null; before: CheckLine | null; current: boolean; stale: boolean; first: boolean; run: number }) {
+function Row({ id, rowId, line, before, current, stale, first, run, skipped }: { skipped: string[]; id: string; rowId: string; line: CheckLine | null; before: CheckLine | null; current: boolean; stale: boolean; first: boolean; run: number }) {
   const kind = line ? kindOf(line) : null;
   // A line that holds still stays put; the one that changes is the one that moves.
   const moved = before !== null && line !== null && !stale && kindOf(before) !== kind;
@@ -449,7 +449,7 @@ function Row({ id, rowId, line, before, current, stale, first, run }: { id: stri
           <details open={kind === 'bad' || undefined}>
             <summary><span className="sr-only">{sr}. </span>{words}{first ? <Chip tone="red" className="pk-first">{W.first}</Chip> : null}</summary>
             {kind === 'dashed' ? <p className="pk-note">{dashedWords(line)}</p> : null}
-            {kind === 'bad' ? <p className="pk-note bad"><b>{W.caught}:</b> {PROOF_CAUGHT[id]}</p> : null}
+            {kind === 'bad' ? <p className="pk-note bad"><b>{W.caught}:</b> {id === 'evidence' && skipped.length > 0 ? PROOF_SEAL_ONLY(skipped) : PROOF_CAUGHT[id]}</p> : null}
             <p className="pk-detail mono"><span className="dim">{W.checkerSaid}: </span>{line.detail}</p>
           </details>
         ) : <span className="pk-pending">{words}</span>}

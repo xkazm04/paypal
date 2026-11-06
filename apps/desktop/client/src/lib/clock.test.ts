@@ -61,3 +61,26 @@ describe('the one client clock', () => {
     vi.useRealTimers();
   });
 });
+
+describe('one time-left rule from first paint on', () => {
+  it('floors whole days and hours the same in the ticking clock, the spoken words and a first render', async () => {
+    const { timeLeftWords } = await import('./words');
+    const deadline = 1_800_000_000 + 4 * 86400;
+    // one second short of four days: every formatter says 3 days 23 h, never 4 days
+    const now = 1_800_000_000 + 1;
+    expect(countdown(deadline, now)).toBe('3 days 23 h');
+    expect(timeLeftWords(deadline - now)).toBe('3 days 23 h');
+    expect(countdown(deadline, 1_800_000_000)).toBe('4 days');
+  });
+
+  it('useNow reads the live clock on first paint, not a cached tick', () => {
+    expect(simulateClock()).toBe(true);
+    setClockOffset(0);
+    const a = renderHook(() => useNow());
+    setClockOffset(100);
+    const b = renderHook(() => useNow());
+    expect(b.result.current).toBe(nowUnix());
+    expect(a.result.current).toBe(b.result.current);
+    a.unmount(); b.unmount();
+  });
+});

@@ -183,6 +183,11 @@ export const PROOF_CAUGHT: Readonly<Record<string, string>> = {
   evidence: 'The deal’s agent signed the whole file when it was saved, so any change at all breaks that seal. It says something changed, not what; the lines above say what.',
 };
 
+/** The checks that compare the price and payee. When some read “not checked” the seal alone caught a change to them. */
+export const PROOF_PRICE_PAYEE_CHECKS: readonly string[] = ['countersign', 'paypal_order', 'receipt', 'market'];
+/** The seal's red note when price/payee checks were skipped: which ones, and that only the whole-file seal caught the change. */
+export const PROOF_SEAL_ONLY = (skipped: readonly string[]): string => `The deal’s agent signed the whole file when it was saved, so any change at all breaks that seal. Here ${skipped.map((id) => (PROOF_SHORT[id] ?? id).toLowerCase()).join(', ')} ${skipped.length === 1 ? 'was' : 'were'} not checked, so only the whole-file seal caught the change. It says something changed, not what.`;
+
 /** The tamper buttons: what the person does, in their words. */
 export const TAMPER_WORDS: Readonly<Record<TamperId, { label: string; what: string }>> = {
   price: { label: 'Raise the price', what: 'the price in the deal’s terms' },

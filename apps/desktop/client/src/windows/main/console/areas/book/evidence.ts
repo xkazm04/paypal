@@ -7,7 +7,7 @@
 // evidence calls are unsettled at once, however many rows ask: the gate has no timeout, so a call
 // that never answers keeps its place and the rest wait behind it (nothing is abandoned while its
 // invoke is still out). Read-only: nothing here moves money.
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery, type QueryClient } from '@tanstack/react-query';
 import { useMemo, useRef } from 'react';
 import type { DealEvidence } from '@bindings/DealEvidence';
 import { toWalletError, type WalletError } from '../../../../../lib/contract';
@@ -82,4 +82,15 @@ export function useEvidenceOf(ids: readonly string[]): EvidenceMap {
   const firstError = rs.find((r) => r.error)?.error ?? null;
   const loading = rs.some((r) => r.status === 'pending');
   return { map: kept.current.map, error: firstError ? toWalletError(firstError) : null, loading };
+}
+
+/** One deal's evidence for an export: the cached read, else one read through the same gate and cache.
+ *  Null only when the read failed (the export then says "unknown", which then means could not read). */
+export async function evidenceForExport(client: QueryClient, id: string): Promise<DealEvidence | null> {
+  const info = keyOf('deal_evidence', { deal_id: id });
+  const cached = client.getQueryData<DealEvidence>(info.key);
+  if (cached) return cached;
+  try {
+    return await client.fetchQuery<DealEvidence>({ queryKey: info.key, queryFn: () => evidenceGate(() => readCommand('deal_evidence', { deal_id: id })), staleTime: info.policy.staleTime });
+  } catch { return null; }
 }

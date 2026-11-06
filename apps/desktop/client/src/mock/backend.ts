@@ -691,6 +691,8 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       return d.evidence;
     },
     engine_status: () => state.engines,
+    // The same facts as engine_status minus version and reason (what every window may read).
+    engine_brief: () => state.engines.map((e) => ({ id: e.id, available: e.available })),
     engine_select: ({ engine }) => {
       const e = state.engines.find((x) => x.id === engine);
       if (!e?.available) fail('UNAVAILABLE', `${engine} is installed but waits for its isolation spike`);

@@ -16,7 +16,7 @@ import { clockLabel, shortId } from '../../lib/format';
 import { useNow, useQuery } from '../../lib/hooks';
 import { WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Hourglass, Kv, Popover, Sheet } from '../../shared/ui';
-import { houseWords } from '../../lib/words';
+import { HELLO_NEXT_STEP, houseWords } from '../../lib/words';
 import { footerNoticeText, UNLOCK_HEADING } from './model';
 import { useSession } from './session';
 
@@ -46,7 +46,7 @@ const POP = {
   how: ['How it works', 'Both wallets turn the code into the same four words. Read them to each other; each of you confirms in your own approval window. Connecting never touches PayPal and pays nobody.'],
   why: ['Why the words', 'If someone tried to sit between you, your two screens would show different words. Comparing them is how that gets caught: if even one word differs, stop, and nothing is connected.'],
   house: ['The house seller', 'A demo shop built into this app. The wallet already checks it is the real one; compare the words with its page all the same.'],
-  lock: ['Why it’s locked', 'After 15 quiet minutes the wallet locks. Connecting a wallet asks for Windows Hello. Stopping never needs it.'],
+  lock: ['Why it’s locked', 'After 15 quiet minutes the wallet locks. Connecting a wallet asks for your fingerprint, face or PIN. Stopping never needs it.'],
   again: ['Why start again', 'Words that differ can mean someone is in the middle. Nothing was connected or saved, and this attempt is over. Start again in The Table, and share the new code another way (a call instead of chat).'],
 } as const;
 type PopKey = keyof typeof POP;
@@ -190,7 +190,7 @@ export function PairingConfirm({ pending, readError, onSettled }: Props) {
       <div className="ow-decide">
         {locked ? (
           <Btn kind="gold" locked disabled={!s.tokenReady || s.unlocking || unsupported} onClick={() => void s.unlock()}>
-            {s.unlocking ? 'Waiting for Windows Hello…' : 'Unlock with Windows Hello'}
+            {s.unlocking ? 'Waiting for your fingerprint, face or PIN…' : 'Unlock with fingerprint, face or PIN'}
           </Btn>
         ) : (
           <Btn kind="gold" disabled={problem !== null || !s.tokenReady || s.pending !== null} title={problem ? `${problem.charAt(0).toUpperCase()}${problem.slice(1)}` : undefined} onClick={() => void confirm()}>
@@ -201,7 +201,7 @@ export function PairingConfirm({ pending, readError, onSettled }: Props) {
       </div>
       {locked ? (
         <p className="ui-hint gold">
-          {unsupported ? 'Windows Hello isn’t set up on this computer, so connecting can’t unlock here. Stopping still works.' : 'Locked · connecting asks for Windows Hello; stopping doesn’t.'} <Info k="lock" open={pop} setOpen={setPop} />
+          {unsupported ? 'Sign-in by fingerprint, face or PIN isn’t set up on this computer, so connecting can’t unlock here. Stopping still works. ' + HELLO_NEXT_STEP : 'Locked · connecting asks for your fingerprint, face or PIN; stopping doesn’t.'} <Info k="lock" open={pop} setOpen={setPop} />
         </p>
       ) : null}
       {s.unlockError ? <WalletNotice error={s.unlockError} what={UNLOCK_HEADING} message={footerNoticeText('unlock', s.unlockError)} /> : null}

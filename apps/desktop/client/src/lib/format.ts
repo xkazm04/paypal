@@ -2,6 +2,7 @@ import type { Currency } from '@bindings/Currency';
 import type { Money } from '@bindings/Money';
 import type { H256 } from '@bindings/H256';
 import { clockNow } from './clock';
+import { timeLeftWords } from './words';
 
 /** Minor-unit exponents, matching the Rust Currency table. Money never touches floats in Rust;
  *  the client only formats it for display. */
@@ -110,9 +111,7 @@ export function shortHash(h: H256 | null | undefined): string {
 export function countdown(deadline: number, now: number): string {
   let s = Math.max(0, Math.floor(deadline - now));
   if (s >= 86400) {
-    const d = Math.floor(s / 86400);
-    const h = Math.floor((s % 86400) / 3600);
-    return `${d} ${d === 1 ? 'day' : 'days'}${h ? ` ${h} h` : ''}`;
+    return timeLeftWords(s); // the one time-left formatter: whole days floored, then hours
   }
   const h = Math.floor(s / 3600);
   s -= h * 3600;

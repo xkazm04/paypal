@@ -6,10 +6,11 @@ import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney } from '../../../lib/format';
+import { WHATIF_FIRST_RULE, WHATIF_NO_CHANGE } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
 import { Btn, Chip, Empty, Loading, type ChipTone } from '../../../shared/ui';
 import { refusalWords } from '../mandateDraft';
-import { changed, counts, OUTCOME_LABEL, OUTCOMES, outcomeOf, verdictWords, type Outcome } from './simulation';
+import { changed, countOf, counts, OUTCOME_LABEL, OUTCOMES, outcomeOf, verdictWords, type Outcome } from './simulation';
 
 export const OUTCOME_TONE: Record<Outcome, ChipTone> = { refused: 'red', asks: 'gold', policy: 'teal', unknown: 'dashed' };
 
@@ -68,7 +69,7 @@ function Rows({ lines }: { lines: readonly SimulatedLine[] }) {
   );
 }
 
-export function WhatIfTable({ lines, error, updating, signedName, draftName }: { lines: readonly SimulatedLine[] | null; error: WalletError | null; updating: boolean; signedName: string; draftName: string }) {
+export function WhatIfTable({ lines, error, updating, signedName, draftName, firstRule = false }: { lines: readonly SimulatedLine[] | null; error: WalletError | null; updating: boolean; signedName: string; draftName: string; firstRule?: boolean }) {
   const [open, setOpen] = useState(false);
   if (error) {
     return (
@@ -105,14 +106,14 @@ export function WhatIfTable({ lines, error, updating, signedName, draftName }: {
         <tbody>
           {moved.length ? <Rows lines={moved} /> : (
             <tr className="none">
-              <td colSpan={5} className="dim">No deal this week would have gone differently.</td>
+              <td colSpan={5} className="dim">{firstRule ? WHATIF_FIRST_RULE : WHATIF_NO_CHANGE}</td>
             </tr>
           )}
           {same.length ? (
             <tr className="fold">
               <td colSpan={5}>
                 <Btn kind="plain" sm aria-expanded={open} onClick={() => setOpen((x) => !x)}>
-                  {open ? 'Hide' : 'Show'} the {same.length} {same.length === 1 ? 'deal' : 'deals'} that stay the same {open ? '‹' : '›'}
+                  {open ? 'Hide' : 'Show'} the {countOf(same.length, 'deal that stays', 'deals that stay')} the same {open ? '‹' : '›'}
                 </Btn>
               </td>
             </tr>

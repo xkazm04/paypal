@@ -47,6 +47,15 @@ export function canSubmit(mode: PairMode, fields: { payee: string; code: string 
   return true;
 }
 
+/** Why the primary act cannot run yet, as a key of PAIR.blocked; null when it can. */
+export function submitBlocker(mode: PairMode, fields: { payee: string; code: string }, house: 'unavailable' | 'idle' | 'waking' | 'ready'): 'payee' | 'code' | 'waking' | null {
+  if (!fields.payee.trim()) return 'payee';
+  if (canSubmit(mode, fields, house)) return null;
+  if (mode === 'join' && joinCode(fields.code) === null) return 'code';
+  if (mode === 'house' && house === 'waking') return 'waking';
+  return null;
+}
+
 // ---- the wizard (docs/ux/ROUND-1.md): three large panels, one active at a time -----------------
 
 export type WizardKey = 'code' | 'words' | 'confirm';

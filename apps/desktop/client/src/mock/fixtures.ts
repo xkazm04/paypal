@@ -560,6 +560,8 @@ export function buildMockState(now: number): MockState {
     rescue[d.deal.id] = {
       deal_id: d.deal.id, source, offer, text: invoiceText(offer), failed_payments: 1, next_retry_at: retry,
       recipient: `${email.slice(0, 1)}•••@example.com`, invoice: d.deal.paypal.order, counted,
+      // One sample the wallet would refuse (Runtime::rescue_refusal): the share is over what the rules allow.
+      refusal: label === 'D-0188' ? 'over_discount_share' : null,
     };
   }
 

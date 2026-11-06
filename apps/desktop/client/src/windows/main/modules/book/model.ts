@@ -22,7 +22,7 @@ export const BUCKETS: readonly Bucket[] = ['captured', 'held', 'motion', 'unconf
 export const BUCKET_LABEL: Record<Bucket, string> = { captured: 'Paid', held: 'On hold', motion: 'In progress', unconfirmed: 'Not confirmed', stopped: 'Stopped' };
 export const BUCKET_SUB: Record<Bucket, string> = {
   captured: 'the money moved', held: 'held at PayPal, not paid yet', motion: 'nothing paid yet',
-  unconfirmed: 'ended: the seller said it was paid, but your wallet has no match for it on PayPal’s statement', stopped: 'never paid, or paid back',
+  unconfirmed: 'ended: the seller said it was paid, but your wallet has no match for it on PayPal’s statement', stopped: 'never paid, or paid back: includes refused, withdrawn and expired offers',
 };
 
 /** Captured = settled; held = authorized at PayPal; stopped = ended without (or reversing) payment; else in motion. */
@@ -288,15 +288,25 @@ export function csvCell(v: string | number | null | undefined): string {
 
 export type CsvCtx = Ctx & { label: (d: Deal) => string };
 
+/** Hex of a 32-byte digest; "unknown" when the shell sent none (never an all-zero stand-in). */
+export function hashHex(h: readonly number[] | null | undefined): string {
+  return h && h.length === 32 ? h.map((b) => (b & 255).toString(16).padStart(2, '0')).join('') : 'unknown';
+}
+
+export const CSV_HEAD = ['mode', 'deal', 'day', 'kind', 'side', 'counterparty', 'item', 'money_state', 'amount', 'currency', 'state', 'paypal_statement', 'paypal_order', 'paypal_capture', 'paypal_authorization', 'deal_id', 'decided_by', 'transcript_hash', 'query'] as const;
+
 /** Every exported record carries its mode. A payment being checked with PayPal (ctx.checking) is
- *  exported as `checking`: the totals count it neither paid nor held, and neither does the file. */
+ *  exported as `checking`: the totals count it neither paid nor held, and neither does the file.
+ *  Added from data the Deal already holds: the PayPal authorization id ("none" when PayPal issued
+ *  none), the deal id (ULID), who decided ("unknown" until something decided; never blank or 0) and
+ *  the hash of the deal's transcript head. No fee column: the wallet holds no PayPal fee. */
 export function toCSV(rows: readonly Deal[], ctx: CsvCtx, query: string): string {
-  const head = ['mode', 'deal', 'day', 'kind', 'side', 'counterparty', 'item', 'money_state', 'amount', 'currency', 'state', 'paypal_statement', 'paypal_order', 'paypal_capture', 'query'];
-  const lines = [head.join(',')];
+  const lines = [CSV_HEAD.join(',')];
   for (const d of rows) {
     const t = dealTotal(d);
+    const who = decidedBy(d);
     lines.push([d.mode, ctx.label(d), dayKey(d) ?? '', d.kind, d.side, ctx.cpName(d), d.terms.item_ref, ctx.checking?.(d) ? 'checking' : bucketOf(d), decimal(t.minor, t.currency), t.currency, d.state,
-      STATEMENT_SHORT[ctx.stmt(d)], d.paypal.order ?? '', d.paypal.capture ?? '', query].map(csvCell).join(','));
+      STATEMENT_SHORT[ctx.stmt(d)], d.paypal.order ?? '', d.paypal.capture ?? '', d.paypal.authorization ?? 'none', d.id, who.who === 'none' ? 'unknown' : who.text, hashHex(d.transcript_head), query].map(csvCell).join(','));
   }
   return `${lines.join('\r\n')}\r\n`;
 }

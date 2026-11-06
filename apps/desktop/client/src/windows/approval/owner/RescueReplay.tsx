@@ -37,7 +37,7 @@ export function RescueReplay({ entries, locked, onClose, onReplayed }: {
       <Btn className="left" onClick={onClose}>Not now</Btn>
       {locked ? (
         <Btn kind="gold" locked disabled={!s.tokenReady || busy} onClick={() => void s.unlock()}>
-          {s.unlocking ? 'Waiting for Windows Hello…' : 'Unlock with Windows Hello'}
+          {s.unlocking ? 'Waiting for your fingerprint, face or PIN…' : 'Unlock with fingerprint, face or PIN'}
         </Btn>
       ) : (
         <Btn kind="gold" disabled={!s.tokenReady || busy || !built.ok || !rules} onClick={() => void replay()}>

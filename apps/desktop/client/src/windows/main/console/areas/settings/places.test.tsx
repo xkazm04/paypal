@@ -76,7 +76,7 @@ describe('Settings', () => {
     expect(sent.findIndex((c) => c.cmd === 'get_settings')).toBeLessThan(sent.findIndex((c) => c.cmd === 'settings_write'));
     expect(write?.args).toMatchObject({ dnd: true, notifications: true, form: 'rest', pinned: true });
     await waitFor(() => expect(within(r.layer).getByRole('switch', { name: SETTINGS_NOTIFY.dndLabel }).getAttribute('aria-checked')).toBe('true'));
-    expect(sent.filter((c) => c.cmd !== 'get_settings' && c.cmd !== 'settings_write' && !/^(list_deals|attention_list|deal_display|agent_runs|counterparty_list|engine_status|mandate_list|owner_facts)$/.test(c.cmd))).toEqual([]);
+    expect(sent.filter((c) => c.cmd !== 'get_settings' && c.cmd !== 'settings_write' && !/^(list_deals|attention_list|deal_display|agent_runs|counterparty_list|engine_status|engine_brief|mandate_list|owner_facts)$/.test(c.cmd))).toEqual([]);
   }, 60_000);
 
   it('P pauses every agent (one key, no confirmation); it never resumes them', async () => {
