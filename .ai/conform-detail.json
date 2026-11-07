@@ -9162,6 +9162,36 @@
           "evidence": "crates/table-mcp/src/lib.rs:407 Playbooks are fixed in Rust per role/side; no third-party-authored agent definition carrying approval config is loaded."
         }
       ]
+    },
+    "f4937131-9b2b-4830-92bf-e739e6fbaab4/mcp-tools": {
+      "context": "deal-detail",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:29:38.369Z",
+      "worker": "0440ffb1-13dc-4a5d-99b9-455fb202acdf",
+      "techniques": []
+    },
+    "82440528-c2ad-4c04-b22b-0874f0723589/mcp-tools": {
+      "context": "money-guidance-and-onboarding",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:29:38.369Z",
+      "worker": "0440ffb1-13dc-4a5d-99b9-455fb202acdf",
+      "techniques": []
+    },
+    "ed618215-bf0a-4dfc-8c2c-3c3a805321b1/mcp-tools": {
+      "context": "prototype-dial-shell-and-design-system",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:29:38.369Z",
+      "worker": "0440ffb1-13dc-4a5d-99b9-455fb202acdf",
+      "techniques": []
     }
   }
 }

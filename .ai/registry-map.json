@@ -2493,7 +2493,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/deal/model.ts:2 The deal view is pure client presentation logic. It neither serves nor calls any tool protocol: protocol terms (inputSchema, jsonrpc, tools/call, tools/list, McpServer) do not appear in its directories. 'mcp' appears once, in a comment in outOfFence.test.tsx, which is outside the listed files and describes the Rust side.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:cb2b1c9f6fef5eb9",
+          "evaluatedRevision": 35
         },
         {
           "subject": "voice-io",
@@ -5372,7 +5376,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/fairPrice.ts:3 These are pure client helpers for prices, limits, first run and the tour, and they expose or consume no tool protocol. A search of the listed files for mcp/tool found only a tooltip comment, and the protocol terms below do not occur anywhere under client/src/lib.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:cb2b1c9f6fef5eb9",
+          "evaluatedRevision": 35
         },
         {
           "subject": "agent-instruction-files",
@@ -6249,7 +6257,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "prototype/build-index.mjs:1 This is a static HTML/JS design prototype and gallery builder with no tool server or client. MCP is mentioned only as UI copy in modules.js:297 ('runs with no tools and no MCP servers'), and protocol terms (inputSchema, jsonrpc, tools/call, tools/list, McpServer) do not occur in prototype/main or prototype/shared.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:cb2b1c9f6fef5eb9",
+          "evaluatedRevision": 35
         },
         {
           "subject": "module-design",
