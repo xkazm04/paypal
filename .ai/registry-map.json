@@ -7827,7 +7827,11 @@
           "revision": 5,
           "changedAt": "2026-10-27",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:177 The component treats a missing anchor as 'drop the stop' with no per-step policy and no degradation record. Combined with Next-only advancement and a skip that forgets its step, three techniques fall short even though anchors, overlay conduct and focus are handled well.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:5fd51481dedaf230",
+          "evaluatedRevision": 5
         },
         {
           "subject": "agent-memory",
