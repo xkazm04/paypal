@@ -1660,11 +1660,7 @@
           "confidence": "probable",
           "state": "not-applicable",
           "evidence": "apps/desktop/client/src/mock/backend.ts:990 The browser-opening mock only emits wallet UI events, and searches found no daemon, locator or WebSocket constructs in this context; repository matches elsewhere do not establish an agent browser-control surface here.",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:0d439bfcafe8cabd",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 2,
-          "stale": true
+          "evaluatedAt": "2026-10-17"
         },
         {
           "subject": "agent-runtime-assembly",
@@ -4239,13 +4235,12 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "crates/table-client/src/authority_table.rs:228 The browser-related command is a privileged approval-window wallet decision, and searches found no daemon, locator or WebSocket constructs in this context; repository matches elsewhere do not turn this IPC contract into an agent browser controller.",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:0d439bfcafe8cabd",
-          "evaluatedRevision": 3,
+          "evidence": "crates/table-client/src/authority_table.rs:228 The one browser-named command is a privileged approval-window wallet decision that hands a link to the system browser, and searching crates/table-client for puppeteer, chromium, websocket, locator, daemon and webdriver found nothing, so this IPC contract is not an agent browser-control surface.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:a5e059a866a49108",
+          "evaluatedRevision": 5,
           "source": "retained",
-          "revisionsBehind": 2,
-          "stale": true
+          "revisionsBehind": 2
         },
         {
           "subject": "error-handling",
@@ -4621,12 +4616,11 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "crates/table-ledger/src/audit.rs:330 The ledger writes directly through SQLite transactions, and searches of this context and repository sources found no consensus, applied_index, modified_since or replicated_log machinery requiring the subject's transaction protocol.",
-          "evaluatedAt": "2026-10-21",
-          "evaluatedAgainst": "sha256-b2:230a37319e1dd059",
-          "evaluatedRevision": 2,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-ledger/src/audit.rs:310 The ledger writes straight into a local rusqlite IMMEDIATE transaction with no log to propose to. Case-insensitive searches of crates/ and this crate for consensus, applied_index, replicated_log, quorum and modified_since found nothing, and crates/table-ledger/Cargo.toml lists no consensus or log library. That means the subject's precondition, a store whose only writer is a consensus log, does not hold.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:10473b2ddfd2ef20",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 1
         },
         {
           "subject": "table",
@@ -9859,12 +9853,11 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:146 The console filters and virtualizes supplied UI rows, and searches of its directory and repository sources found no consensus, applied_index, modified_since or replicated_log machinery implementing replicated transactions.",
-          "evaluatedAt": "2026-10-21",
-          "evaluatedAgainst": "sha256-b2:230a37319e1dd059",
-          "evaluatedRevision": 2,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:149 The console only filters, searches and sorts rows it is handed, in memory, and never commits a transaction to any store. A case-insensitive search of the console directory for consensus, applied_index, replicated_log, quorum and modified_since found nothing, so there is no replicated log here for the subject to govern.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:10473b2ddfd2ef20",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 1
         },
         {
           "subject": "voice-io",

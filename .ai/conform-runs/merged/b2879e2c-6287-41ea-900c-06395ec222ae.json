@@ -1,0 +1,65 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b2879e2c-6287-41ea-900c-06395ec222ae",
+ "subject": "transactions-over-a-replicated-log",
+ "evaluatedAt": "2026-11-07T22:03:35.254422+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "ledger-repositories-audit-evidence",
+   "subject": "transactions-over-a-replicated-log",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-ledger/src/audit.rs:310 The ledger writes straight into a local rusqlite IMMEDIATE transaction with no log to propose to. Case-insensitive searches of crates/ and this crate for consensus, applied_index, replicated_log, quorum and modified_since found nothing, and crates/table-ledger/Cargo.toml lists no consensus or log library. That means the subject's precondition, a store whose only writer is a consensus log, does not hold.",
+   "techniques": [],
+   "absenceTerms": [
+    "consensus",
+    "applied_index",
+    "quorum",
+    "modified_since"
+   ]
+  },
+  {
+   "context": "console-navigation-and-lists",
+   "subject": "transactions-over-a-replicated-log",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:149 The console only filters, searches and sorts rows it is handed, in memory, and never commits a transaction to any store. A case-insensitive search of the console directory for consensus, applied_index, replicated_log, quorum and modified_since found nothing, so there is no replicated log here for the subject to govern.",
+   "techniques": [],
+   "absenceTerms": [
+    "consensus",
+    "applied_index",
+    "quorum",
+    "modified_since"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-07T22:03:35.254422+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "transactions-over-a-replicated-log"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "ledger-repositories-audit-evidence",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T22:03:35.254422+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "transactions-over-a-replicated-log"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "console-navigation-and-lists",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
