@@ -43,7 +43,8 @@
 .fs-need-s b { color: var(--text); font-weight: var(--fw-medium); }
 .fs-acts { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
 
-.fs-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.fs-chips, .fs-flowchips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.fs-flowchips { margin-top: var(--sp-2); }
 .fs-chip { font: inherit; font-size: var(--fs-small); color: var(--text); background: transparent; border: 1px solid var(--line2); border-radius: 999px; padding: 5px var(--sp-3); cursor: pointer; }
 .fs-chip:hover { background: var(--hover); border-color: var(--teal); }
 .fs-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

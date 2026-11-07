@@ -65,9 +65,11 @@ describe('the main window never names a release command', () => {
     }
     expect(called).toEqual(expect.arrayContaining(['approval_open', 'assistant_ask', 'assistant_status', 'assistant_act']));
     // the only mutations: the approval window's door, the consent-path safe acts, and the setup guide's
-    // own act-tier steps (the agent app, joining the practice shop, waking it)
+    // own act-tier steps (the agent app, joining the practice shop, waking it) and the chat flows' own
+    // (home/flows: pairing create/poll/abort for the secure sheet, settings, pausing agents); the loop above
+    // still proves each is a non-release read, ui or act command
     const muts = board.flatMap((f) => [...f.text.matchAll(/useMutation\s*(?:<[^>]*>)?\(\s*['"`]([a-z_]+)['"`]/g)].map((m) => m[1]!));
-    expect(new Set(muts)).toEqual(new Set(['approval_open', 'assistant_act', 'engine_select', 'pairing_join', 'house_wake']));
+    expect(new Set(muts)).toEqual(new Set(['approval_open', 'assistant_act', 'engine_select', 'pairing_join', 'house_wake', 'pairing_create', 'pairing_poll', 'pairing_abort', 'settings_write', 'pause_all_agents', 'resume_all_agents']));
   });
   it('the decision centre opens the approval window and nothing else', () => {
     const centre = files.find((f) => f.path.endsWith(join('console', 'Centre.tsx')))?.text ?? '';

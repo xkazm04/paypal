@@ -50,6 +50,10 @@ import { SetupOverview } from './SetupInline';
 import { Side } from './Side';
 import { offerSetup, type GuideHost, type GuideProps, type GuideTurn, type HomeRegion } from './guide/host';
 import { GREET, STAGE } from './words';
+import { FlowTurnView } from './flows/FlowTurnView';
+import { matchFlow } from './flows/intent';
+import { FLOW_KINDS, startFlow, useFlows } from './flows/store';
+import { FLOW_WORDS } from './flows/words';
 import '../switchboard/switchboard.css';
 import './home.css';
 
@@ -173,6 +177,7 @@ function Greet({ back }: { back: boolean }) {
 
   // ---- the conversation; every turn remembers the item that was open when it was asked
   const [entries, setEntries] = useState<Entry[]>([]);
+  const flows = useFlows();
   const nextId = useRef(0);
   const aboutRef = useRef<string | null>(null);
   aboutRef.current = nav.open?.kind === 'row' ? openKey(nav.open) : null;
@@ -324,6 +329,10 @@ function Greet({ back }: { back: boolean }) {
     if (!q) return;
     const movesAtAsk = ownerMoves.current;
     push({ kind: 'you', text: q });
+    // A request to change limits, settings or connections, or to replay days, starts a step-by-step flow
+    // (flows/): a card per question in this conversation, never the full page pasted into a reply.
+    const flow = matchFlow(q);
+    if (flow) { startFlow(flow, 'start'); return; }
     const id = ++nextId.current;
     setEntries((t) => [...t, { id, about: aboutRef.current, ...emptyReply() }]);
     const out = await assistant.ask(scopeLabel ? `${scopeLabel}: ${q}` : q, model.digest);
@@ -418,7 +427,7 @@ function Greet({ back }: { back: boolean }) {
   useEffect(() => {
     const el = navRef.current.open ? stageScroller.current : scroller.current;
     if (el && entries.length) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [entries.length]);
+  }, [entries.length, flows.turns.length]);
   const stageKey = nav.open ? `${openKey(nav.open)}${nav.open.kind === 'panel' ? JSON.stringify(nav.open.spec) : ''}` : 'today';
 
   // Direction of the main move: today -> a page goes forward, a page -> today back, page -> page by
@@ -533,8 +542,14 @@ function Greet({ back }: { back: boolean }) {
                       {greeting.chips.map((c) => <button key={c.label} type="button" className="fs-chip" disabled={busy} onClick={() => onChip(c)}>{c.label}</button>)}
                     </div>
                   ) : null}
+                  {greeting.mode === 'everyday' ? (
+                    <div className="fs-flowchips" role="group" aria-label={FLOW_WORDS.chipsLabel} data-region="flow-chips">
+                    {FLOW_KINDS.map((k) => <button key={k} type="button" className="fs-chip" disabled={busy} onClick={() => { startFlow(k, 'start'); }}>{FLOW_WORDS.chip[k]}</button>)}
+                  </div>
+                  ) : null}
                 </li>
                 {entries.map((e) => renderEntry(e, true))}
+                {flows.turns.map((t) => <li key={`flow-${t.serial}`} className="fs-turn is-me" data-entry={`flow-${t.serial}`}><FlowTurnView turn={t} /></li>)}
                 {!staged && propsCard ? <li className="fs-turn is-me">{propsCard}</li> : null}
               </ol>
             </motion.div>

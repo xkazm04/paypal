@@ -11,10 +11,12 @@ export type FlowCardProps = {
   /** The step's place in its flow, 1-based; omit for an open-ended flow (Rewind). */
   n?: number;
   of?: number;
+  /** False hides Cancel (a step after the change was applied: nothing is left to cancel). */
+  cancel?: boolean;
   children: ReactNode;
 };
 
-export function FlowCard({ turn, n, of, children }: FlowCardProps) {
+export function FlowCard({ turn, n, of, cancel = true, children }: FlowCardProps) {
   if (turn.summary !== null) {
     return <p className="fc-folded" data-flow={turn.kind} data-step={turn.step}>{turn.summary || FLOW_WORDS.left}</p>;
   }
@@ -26,7 +28,7 @@ export function FlowCard({ turn, n, of, children }: FlowCardProps) {
           {n && of ? <span className="fc-n">{FLOW_WORDS.stepOf(n, of)}</span> : null}
         </header>
         <div className="fc-body">{children}</div>
-        <footer className="fc-foot"><button type="button" className="fc-cancel" onClick={() => endFlow(FLOW_WORDS.cancelled)}>{FLOW_WORDS.cancel}</button></footer>
+        {cancel ? <footer className="fc-foot"><button type="button" className="fc-cancel" onClick={() => endFlow(FLOW_WORDS.cancelled)}>{FLOW_WORDS.cancel}</button></footer> : null}
       </section>
     </Reveal>
   );

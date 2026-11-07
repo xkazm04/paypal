@@ -9,6 +9,7 @@ export const FLOW_WORDS = {
   cancel: 'Cancel',
   cancelled: 'Left as it was. Nothing changed.',
   left: 'Left as it was.',
+  chipsLabel: 'Change something, step by step',
   /** The chips the chat offers for each flow, in order. */
   chip: { rules: 'Change my limits', settings: 'Change a setting', connections: 'Connect a shop', rewind: 'Replay a day' } satisfies Record<FlowKind, string>,
 } as const;
