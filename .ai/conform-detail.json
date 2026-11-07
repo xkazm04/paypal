@@ -9360,6 +9360,48 @@
       "evaluatedTs": "2026-11-07T23:20:07.125Z",
       "worker": "3a7ca045-54ac-41a5-b2ce-fe3609a233ee",
       "techniques": []
+    },
+    "93ab9629-27c8-4024-bd9e-06c9761ea24d/prompt-assembly": {
+      "context": "spend-firewall-and-agent-policy",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T23:41:10.748Z",
+      "worker": "ecce230f-0df5-451a-9087-b1d61424a50a",
+      "techniques": [
+        {
+          "technique": "context-budgeting",
+          "verdict": "deviation",
+          "evidence": "crates/table-core/src/agent.rs:223 The cut does not say what it dropped, and the prompt text says the list is complete. The standard says a truncation must name what it removed."
+        },
+        {
+          "technique": "capability-documentation",
+          "verdict": "deviation",
+          "evidence": "crates/table-core/src/agent.rs:549 The tool entries (names, arguments, formats) are hand-written markdown compiled in by include_str, not rendered from the AgentTool / MCP catalog. Two things soften this: a test pins refusal codes into every playbook (agent_tests.rs), and an off-context table-mcp test checks tool names. Argument prose is still a second copy."
+        },
+        {
+          "technique": "context-reachability",
+          "verdict": "conformant",
+          "evidence": "prompts/buyer-haggler.md:10 Live table state is reachable by a tool and is pulled through it, not inlined into the standing prompt, so it cannot go stale in the prefix."
+        },
+        {
+          "technique": "pinned-prompt-clock",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent_tests.rs:341 The system prompt has no date slot. `now` appears only in the table_view tool result, so there is no midnight drift in the standing layer."
+        }
+      ],
+      "registryProposal": "context-budgeting's rule that a truncation must name what it dropped is written for assembled prompt layers. It should say explicitly that it also covers bounded tool-result projections that a standing prompt describes as complete, because that is where this defect hides."
+    },
+    "eec42666-8620-4b0d-8d2e-bc418a280b71/prompt-assembly": {
+      "context": "house-seller-service",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T23:41:10.748Z",
+      "worker": "ecce230f-0df5-451a-9087-b1d61424a50a",
+      "techniques": []
     }
   }
 }

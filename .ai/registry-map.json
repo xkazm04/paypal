@@ -3837,8 +3837,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "services/house-seller/src/lib.rs:1 A search of services/house-seller for prompt, llm, playbook, system_prompt and compaction found no hits: the house counterparty uses the deterministic table_core::negotiation Policy and puts no model prompt together.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "deployment-contract",
@@ -8331,8 +8335,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "deviation",
+          "priorNotApplicable": 8,
+          "evidence": "crates/table-core/src/agent.rs:223 The table projection the negotiator reads silently keeps only the newest 64 steps and has no omitted-count field, while the compiled-in playbook (prompts/buyer-haggler.md:34) calls `history` \"every signed step\"; mandate.rs:225 only rejects max_rounds == 0, so a u8 band of up to 255 own rounds plus counters can go past the cap and the model is misinformed rather than warned.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "test-harness",
