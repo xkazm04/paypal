@@ -160,6 +160,12 @@ inside the app, on the owner's own ledger, as "Your safety record".
       marked. Links made for showing it: `?check=1`, `?break=price`, `?edit=1`.
     - **The deal page and the Book**, in the browser preview only (the shell keeps file bytes away from
       the page, so inside the app the native "Check a proof file" is unchanged).
+    - **Owner's checklist** (proof.html only, `shared/proofcheck/OwnerChecklist.tsx`, model
+      `lib/proof/receipts.ts`): once a file is checked, each owner decision is a card with the six
+      lines in the owner's words, "Owner key signed · HH:MM" (or "Not signed", "Not signed by the
+      owner key"), "Older file: …" for a hash-only row, and "N checked later, all passed before money
+      moved" when a later decision in the file shows those lines passed before the capture. The
+      `checklist` and `forged decision` tamper buttons turn `owner_saw` red and the card with it.
     - **Two sides.** A deal has two files, one from each wallet. The checker takes the other side's file
       and compares the deal, the signed messages' end, the price, the payment and the owner keys each file
       names ("Provable by both sides").

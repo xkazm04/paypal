@@ -7,12 +7,12 @@
 // the deal has nothing of that kind, or the file lacks the record the check compares. It never reads
 // as passed.
 import type { ApprovalCheck } from '@bindings/ApprovalCheck';
-import { type Bytes, byteArray, same, sha256, toHex, utf8, ZERO32 } from './bytes';
+import { type Bytes, byteArray, same, sha256, toHex, ZERO32 } from './bytes';
 import { type AuditRow, type Bundle, type DecidedBy, readDecidedBy, sameMoney, showMoney, decimal } from './bundle';
 import { canonical, canonicalBytes } from './jcs';
 import { isPublicKey, verifyStrict } from './ed25519';
 import { verifyEnvelope, signedBody, ProtocolError } from './envelope';
-import { checksHash, readChecklist, unkept } from './checklist';
+import { checksHash, decisionStatement, readChecklist, unkept } from './checklist';
 import { SHIELD_RULES } from './clauses';
 import { clauseOf, invalidPayload } from './mandate';
 import { compareHeads, headSigned, headsConsistent, prefixContradicts, prefixSigned, releaseHolds } from './house';
@@ -360,10 +360,6 @@ function standsBehind(row: AuditRow, d: unknown, lines: Lines, op: string): stri
   return null;
 }
 
-/** Rust's `OWNER_DECISION_DOMAIN`: the owner key's statement over one decision. */
-const OWNER_DECISION_DOMAIN = 'table.owner-decision.v1\0';
-const u8 = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 255;
-
 /** Whether the owner key the file names signed this decision for the step it names (v2.rs
  *  `signed_by_owner`): unsigned when the row has no signature; a signature that does not verify, or a
  *  signed row missing a field the statement needs, fails. */
@@ -372,24 +368,13 @@ async function signedByOwner(run: Run, row: AuditRow, d: unknown): Promise<boole
   const signature = field(d, 'signature');
   if (signature === undefined) return false;
   needSignatures(run);
-  const by = decidedIn(d, 'decided_by');
-  const [decision, operation, attempt] = [textField(d, 'decision'), textField(d, 'operation'), field(d, 'attempt')];
-  const [terms, checks] = [byteArray(field(d, 'terms_hash'), 32), byteArray(field(d, 'checks_hash'), 32)];
+  const statement = decisionStatement(b.deal.id, d);
   const sig = byteArray(signature);
-  const statement = by?.type === 'human' && decision !== null && operation !== null && u8(attempt) && terms !== null && checks !== null
-    ? { deal_id: b.deal.id, decision, operation, attempt, terms_hash: Array.from(terms), checks_hash: Array.from(checks), at: by.at }
-    : null;
-  if (statement === null || sig === null || !(await verifyStrict(b.owner_key, concat(utf8(OWNER_DECISION_DOMAIN), canonicalBytes(statement)), sig))) {
+  if (statement === null || sig === null || !(await verifyStrict(b.owner_key, statement, sig))) {
     throw new Why(`the owner's decision (record #${row.seq}) is not signed by the owner key`);
   }
   return true;
 }
-const concat = (a: Bytes, c: Bytes): Bytes => {
-  const out = new Uint8Array(a.length + c.length);
-  out.set(a);
-  out.set(c, a.length);
-  return out;
-};
 
 /** One decision as the file lets a checker read it: its checklist and whether the owner key signed it. */
 type Seen = { lines: Lines; signed: boolean };

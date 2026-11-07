@@ -57,7 +57,7 @@ export function ProofPage({ host = 'page' }: { host?: 'page' | 'console' } = {})
         </p>
       </header>
       <Reveal wave={1} sizeKey="proof:checker" skeleton={<Skeleton h="62rem" />}>
-        {source ? <ProofChecker key={source.name} source={source} samples={SAMPLES} own={AUTHORITY_MANIFEST} heading={false} lede={false} level={2} {...way} />
+        {source ? <ProofChecker key={source.name} source={source} samples={SAMPLES} own={AUTHORITY_MANIFEST} heading={false} lede={false} level={2} ownerChecklist {...way} />
           : <p className="pf-lede" role="status">{ARENA_PROOF.loading}</p>}
       </Reveal>
     </Shell>

@@ -228,8 +228,10 @@ IPC commands granted to the approval window (from `authority_table.rs`):
   compares the paired key's declared payee.
 - `deal_export_proof` from the approval window is not bound to that window's deal; `attention_list`
   in approval filters to its own deal rather than refusing. Both are deliberate looks left open.
-- There is no Proof drawer that shows an `owner.decision` row ("owner saw: …") yet, and no action to
-  re-send an owner-decided step under a fresh ticket after a lost answer.
+- The Proof page (proof.html) shows each `owner.decision` row as an "Owner's checklist" card (the six
+  lines, "Owner key signed · HH:MM" or "Not signed", the lines checked later); the deal page and the
+  Book's checker do not show it yet. There is no action to re-send an owner-decided step under a
+  fresh ticket after a lost answer.
 - Wallet limits hold one currency; a decision does not yet show "after this: $X of $Y today".
 - A receipt that fails to sign or store after a confirmed capture is not retried by the wallet's
   read-back (only open operations are); the deal stays captured without a receipt until a later
