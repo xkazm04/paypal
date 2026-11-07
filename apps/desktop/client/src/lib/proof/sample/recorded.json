@@ -1253,14 +1253,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "mandate 01M6VY3XJ90BR6HKW5221A9ETV v1",
+          "detail": "mandate 01M6VZSAST8T2M62C0VDSNX38E v1",
           "id": "mandate",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "agent signed 5 outbound, peer signed 6 inbound; head ea8602905b54",
+          "detail": "agent signed 5 outbound, peer signed 6 inbound; head 6c0be834e903",
           "id": "transcript",
           "ok": true
         },
@@ -1288,7 +1288,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "43 deal rows hash-consistent; chain head #45 655fe50e42d8",
+          "detail": "43 deal rows hash-consistent; chain head #45 a74f52edcbea",
           "id": "audit",
           "ok": true
         },
@@ -1351,14 +1351,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head a710e2fa8c0d signed by the deal's agent",
+          "detail": "evidence head c9e34b59d383 signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
       ],
-      "deal_id": "01M6VY3XJCWZ10W8EF5AD3NRWS",
+      "deal_id": "01M6VZSASWYT07YWAWAP13AKXA",
       "mode": "sandbox",
-      "owner_key_id": "c9786fb3f6786199c74e97e6b8f1c7205036a070feaf5eb55cdf5d42fde5f3e1",
+      "owner_key_id": "f87c2aee648d503560a193e32658455d814ada1b1318927f0759e21f17f7f6c9",
       "same_version": true,
       "verified": true
     }
