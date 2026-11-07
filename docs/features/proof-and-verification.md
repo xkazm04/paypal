@@ -74,7 +74,7 @@ inside the app, on the owner's own ledger, as "Your safety record".
    | `paypal_order` | each 2xx order create, authorize and read matches the signed terms (custom id, invoice id, payee, amount) |
    | `audit` | audit rows are hash-consistent |
    | `receipt` | any receipt is inside the transcript |
-   | `owner_saw` | every owner-decided money step has an earlier `owner.decision` row with a checks hash |
+   | `owner_saw` | every owner-decided money step has an earlier `owner.decision` row with a checks hash; when the row carries its lines (`checks`) they hash again to it, none failed (shield exempt on a release) and its `operation` is the step that follows; older rows read "hash only", a line the audit door redacted (an email-shaped payee) reads "not checked" |
    | `one_request` | resolved, re-sent and parked steps reuse one reserved request id |
    | `group` | at most one agreed table in a group, the winner; withdrawals follow the win |
    | `shield` | no non-void money step while BLOCK or an unreleased HOLD covers these terms |

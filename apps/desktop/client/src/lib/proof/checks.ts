@@ -6,17 +6,19 @@
 // market price worked out again included. A line reads "not checked" only where the verifier's does:
 // the deal has nothing of that kind, or the file lacks the record the check compares. It never reads
 // as passed.
+import type { ApprovalCheck } from '@bindings/ApprovalCheck';
 import { type Bytes, byteArray, same, sha256, toHex, ZERO32 } from './bytes';
 import { type AuditRow, type Bundle, type DecidedBy, readDecidedBy, sameMoney, showMoney, decimal } from './bundle';
 import { canonical, canonicalBytes } from './jcs';
 import { isPublicKey, verifyStrict } from './ed25519';
 import { verifyEnvelope, signedBody, ProtocolError } from './envelope';
+import { checksHash, readChecklist, unkept } from './checklist';
 import { SHIELD_RULES } from './clauses';
 import { clauseOf, invalidPayload } from './mandate';
 import { compareHeads, headSigned, headsConsistent, prefixContradicts, prefixSigned, releaseHolds } from './house';
 import { marketDigest, marketValid, type MarketRef, ordinal, percentile, productValid, readMarketRef } from './market';
 import {
-  callHasOperation, decisionFits, detailOf, field, judge, moneyKind, rule, rulesFor, sameDecided, termsAmount, textField, Why,
+  callHasOperation, decisionFits, detailOf, field, judge, moneyKind, operationFits, rule, rulesFor, sameDecided, termsAmount, textField, Why,
   type Rules,
 } from './authority';
 
@@ -330,9 +332,50 @@ async function evidence(run: Run): Promise<string> {
 
 const older = (b: Bundle): Miss | null => (b.format === V1 ? absent('not checked: a file in the first proof format does not carry this record') : null);
 
+/** What the file lets a checker say about the checklist recorded with one owner decision. */
+type Lines = { k: 'hash-only' } | { k: 'again'; lines: ApprovalCheck[] } | { k: 'unkept' };
+
+/** The lines recorded with a decision, hashed again (v2.rs `lines_of`). */
+async function linesOf(row: AuditRow, d: unknown): Promise<Lines> {
+  const raw = field(d, 'checks');
+  if (raw === undefined) return { k: 'hash-only' };
+  const lines = readChecklist(raw);
+  if (lines === null) throw new Why(`the checklist recorded with the owner's decision (record #${row.seq}) cannot be read`);
+  if (unkept(lines)) return { k: 'unkept' };
+  const recorded = byteArray(field(d, 'checks_hash'), 32);
+  if (recorded === null || !same(await checksHash(lines), recorded)) {
+    throw new Why(`the checklist recorded with the owner's decision (record #${row.seq}) does not hash to the hash recorded with it`);
+  }
+  return { k: 'again', lines };
+}
+
+/** Whether a decision row may stand behind the owner's money step `op` (v2.rs `stands_behind`). */
+function standsBehind(row: AuditRow, d: unknown, lines: Lines, op: string): string | null {
+  const named = textField(d, 'operation');
+  if (named !== null && !operationFits(named, op)) return `the owner's decision (record #${row.seq}) names the ${named} step, not the ${op} step that follows it`;
+  if (lines.k === 'again') {
+    const release = textField(d, 'decision') === 'shield_release';
+    if (lines.lines.some((c) => c.status === 'fail' && !(release && c.id === 'shield'))) return `the owner's ${op} step (record #${row.seq}) was decided on a checklist with a failed line`;
+  }
+  return null;
+}
+
+/** How the decisions' checklists were checked, counted (v2.rs `tally`). */
+function tally(all: readonly Lines[]): string {
+  const n = (k: Lines['k']) => all.filter((l) => l.k === k).length;
+  const parts: string[] = [];
+  if (n('again') > 0) parts.push(`${n('again')} checklist(s) hashed again from the lines in the file`);
+  if (n('hash-only') > 0) parts.push(`${n('hash-only')} hash only (the lines are not in this file)`);
+  if (n('unkept') > 0) parts.push(`${n('unkept')} not checked: a line names an address the record does not keep`);
+  return parts.join('; ');
+}
+
 async function ownerSaw({ b }: Run): Promise<string> {
   const o = older(b);
   if (o) throw o;
+  const decisions = rowsOf(b, 'owner.decision').map((row) => ({ row, d: detailOf(row) }));
+  const lines: Lines[] = [];
+  for (const { row, d } of decisions) lines.push(await linesOf(row, d));
   const owner = (by: DecidedBy): boolean => by.type === 'human';
   const steps: Array<{ row: AuditRow; op: string; by: DecidedBy }> = [];
   for (const row of rowsOf(b, 'money.authorized')) {
@@ -342,23 +385,36 @@ async function ownerSaw({ b }: Run): Promise<string> {
     if (op !== null && by !== null && owner(by) && op !== 'void') steps.push({ row, op, by });
   }
   const decided = b.operations.filter((op) => owner(op.decided_by) && op.operation !== 'void');
-  if (steps.length === 0 && decided.length === 0) throw absent('not checked: no money step in this deal was the owner\'s decision');
+  if (steps.length === 0 && decided.length === 0) {
+    if (lines.every((l) => l.k === 'hash-only')) throw absent('not checked: no money step in this deal was the owner\'s decision');
+    return `${decisions.length} owner decision(s), no money step yet; ${tally(lines)}`;
+  }
   for (const op of decided) {
     if (!steps.some((s) => s.op === op.operation && sameDecided(s.by, op.decided_by))) {
       throw new Why(`the owner's ${op.operation} step (attempt ${op.attempt}) has no record in the deal's rows`);
     }
   }
+  const behind: Lines[] = [];
   for (const { row, op, by } of steps) {
-    const saw = rowsOf(b, 'owner.decision')
-      .filter((r) => r.seq < row.seq)
-      .map(detailOf)
-      .some((d) => {
-        const decidedBy = decidedIn(d, 'decided_by');
-        return decidedBy !== null && sameDecided(decidedBy, by) && decisionFits(textField(d, 'decision'), op) && isHash(field(d, 'checks_hash'));
-      });
-    if (!saw) throw new Why(`the owner's ${op} step (record #${row.seq}) has no earlier record of the checklist the owner saw`);
+    let why: string | null = null;
+    let found: Lines | null = null;
+    for (const [i, { row: r, d }] of decisions.entries()) {
+      const decidedBy = decidedIn(d, 'decided_by');
+      const candidate = r.seq < row.seq && decidedBy !== null && sameDecided(decidedBy, by) && decisionFits(textField(d, 'decision'), op) && isHash(field(d, 'checks_hash'));
+      if (!candidate) continue;
+      const l = lines[i] as Lines;
+      const miss = standsBehind(r, d, l, op);
+      if (miss === null) {
+        found = l;
+        break;
+      }
+      why = miss;
+    }
+    if (found !== null) behind.push(found);
+    else if (why !== null) throw new Why(why);
+    else throw new Why(`the owner's ${op} step (record #${row.seq}) has no earlier record of the checklist the owner saw`);
   }
-  return `${steps.length} owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step`;
+  return `${steps.length} owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; ${tally(behind)}`;
 }
 
 async function oneRequest({ b }: Run): Promise<string> {

@@ -4,10 +4,11 @@
 // An edit that leads nowhere in a given file (a file with no such record) is not offered for it.
 import { decimal, type Money } from './bundle';
 import { applyEdits, type Edit, readAt } from './edits';
+import { canonical } from './jcs';
 
 export type TamperId =
   | 'price' | 'paypal-amount' | 'payee' | 'receipt' | 'audit-line' | 'audit-gap' | 'signature' | 'refund' | 'rules' | 'relabel' | 'owner-key'
-  | 'shield-release' | 'market-price' | 'group-winner' | 'group-agreed' | 'request-id' | 'transcript-head';
+  | 'shield-release' | 'market-price' | 'group-winner' | 'group-agreed' | 'request-id' | 'transcript-head' | 'checklist';
 
 type Doc = unknown;
 const rows = (doc: Doc): Array<{ action: string; at: number }> => {
@@ -118,6 +119,22 @@ export const TAMPERS: ReadonlyArray<{ id: TamperId; edits: (doc: Doc) => Edit[] 
     },
   },
   { id: 'owner-key', edits: (d) => [{ op: 'set', path: '/owner_key', value: readAt(d, '/counterparty/owner_key') }] },
+  {
+    // One line of the checklist recorded with the owner's first decision reads as passed when it did not
+    // (sample_proof.rs `checklist_flip`): the first line that was not a pass; on a list of passes, the first
+    // line reads failed instead.
+    id: 'checklist',
+    edits: (d) => {
+      const path = `/audit/${nth(d, 'owner.decision', 0)}/detail_json`;
+      const detail = JSON.parse(text(d, path)) as { checks?: unknown };
+      const lines = detail.checks;
+      if (!Array.isArray(lines) || lines.length === 0) throw new Error('no recorded checklist');
+      const at = lines.findIndex((l) => (l as { status?: unknown }).status !== 'pass');
+      const line = lines[at < 0 ? 0 : at] as { status?: unknown };
+      line.status = at < 0 ? 'fail' : 'pass';
+      return [{ op: 'set', path, value: canonical(detail) }];
+    },
+  },
 ];
 
 /** The edits for one tamper on this file, or null when the file has nothing there to change. */

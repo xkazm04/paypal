@@ -130,7 +130,9 @@ available (it is the safe direction).
    summary changed. Review it again.") or any failing line ("A check on this deal failed, so
    nothing was done.", the shield line exempt for a release); mints an owner ticket bound to deal,
    terms hash and attempt that expires after 60 seconds; appends one `owner.decision` audit row
-   (`{decision, decided_by: human, checks_hash, terms_hash, attempt}`); and only then runs the step.
+   (`{decision, operation, decided_by: human, checks, checks_hash, terms_hash, attempt}`: the six lines
+   the owner saw and the step the decision starts, create, authorize, capture, invoice-create, or accept,
+   release, hand-off when no PayPal call follows); and only then runs the step.
    Void is the safe direction and needs no checklist hash.
 7. **Who decides.** Every money step started here is recorded as `decided_by: human` (authority 1 in
    AGENTS.md). The pipeline still re-checks the mandate, wallet limits and shield inside the step.

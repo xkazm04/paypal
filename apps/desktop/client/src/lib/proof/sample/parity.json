@@ -49,7 +49,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
+            "detail": "39 deal rows hash-consistent; chain head #350 a799db498c55",
             "id": "audit",
             "ok": true
           },
@@ -63,7 +63,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+            "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
             "id": "owner_saw",
             "ok": true
           },
@@ -112,7 +112,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "evidence head e2a73bbc830d signed by the deal's agent",
+            "detail": "evidence head e185228a3173 signed by the deal's agent",
             "id": "evidence",
             "ok": true
           }
@@ -181,7 +181,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "38 deal rows hash-consistent; chain head #350 b7c5636f68a8",
+                  "detail": "38 deal rows hash-consistent; chain head #350 a799db498c55",
                   "id": "audit",
                   "ok": true
                 },
@@ -195,7 +195,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -319,7 +319,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
+                  "detail": "39 deal rows hash-consistent; chain head #350 a799db498c55",
                   "id": "audit",
                   "ok": true
                 },
@@ -333,7 +333,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -457,7 +457,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
+                  "detail": "39 deal rows hash-consistent; chain head #350 a799db498c55",
                   "id": "audit",
                   "ok": true
                 },
@@ -471,7 +471,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -595,7 +595,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
+                  "detail": "39 deal rows hash-consistent; chain head #350 a799db498c55",
                   "id": "audit",
                   "ok": true
                 },
@@ -609,7 +609,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -733,7 +733,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "39 deal rows hash-consistent; chain head #350 b7c5636f68a8",
+                  "detail": "39 deal rows hash-consistent; chain head #350 a799db498c55",
                   "id": "audit",
                   "ok": true
                 },
@@ -747,7 +747,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -865,7 +865,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "19 deal rows hash-consistent; chain head #43 7acd91e6d929",
+            "detail": "19 deal rows hash-consistent; chain head #43 b802f6c5cefa",
             "id": "audit",
             "ok": true
           },
@@ -877,11 +877,11 @@
             "ok": true
           },
           {
-            "applies": false,
-            "checked": false,
-            "detail": "not checked: no money step in this deal was the owner's decision",
+            "applies": true,
+            "checked": true,
+            "detail": "1 owner decision(s), no money step yet; 1 checklist(s) hashed again from the lines in the file",
             "id": "owner_saw",
-            "ok": false
+            "ok": true
           },
           {
             "applies": false,
@@ -928,7 +928,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "evidence head 9822ca38340c signed by the deal's agent",
+            "detail": "evidence head 2e48e32f0d65 signed by the deal's agent",
             "id": "evidence",
             "ok": true
           }
@@ -998,7 +998,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "19 deal rows hash-consistent; chain head #43 7acd91e6d929",
+                  "detail": "19 deal rows hash-consistent; chain head #43 b802f6c5cefa",
                   "id": "audit",
                   "ok": true
                 },
@@ -1010,11 +1010,11 @@
                   "ok": false
                 },
                 {
-                  "applies": false,
-                  "checked": false,
-                  "detail": "not checked: no money step in this deal was the owner's decision",
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 owner decision(s), no money step yet; 1 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
-                  "ok": false
+                  "ok": true
                 },
                 {
                   "applies": false,
@@ -1169,7 +1169,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "19 deal rows hash-consistent; chain head #43 7acd91e6d929",
+                  "detail": "19 deal rows hash-consistent; chain head #43 b802f6c5cefa",
                   "id": "audit",
                   "ok": true
                 },
@@ -1181,11 +1181,11 @@
                   "ok": true
                 },
                 {
-                  "applies": false,
-                  "checked": false,
-                  "detail": "not checked: no money step in this deal was the owner's decision",
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 owner decision(s), no money step yet; 1 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
-                  "ok": false
+                  "ok": true
                 },
                 {
                   "applies": false,
@@ -1300,7 +1300,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+            "detail": "34 deal rows hash-consistent; chain head #343 c89a1c62fee0",
             "id": "audit",
             "ok": true
           },
@@ -1314,7 +1314,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+            "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
             "id": "owner_saw",
             "ok": true
           },
@@ -1363,7 +1363,7 @@
           {
             "applies": true,
             "checked": true,
-            "detail": "evidence head e11e3a661faf signed by the deal's agent",
+            "detail": "evidence head 1a5090d71ad3 signed by the deal's agent",
             "id": "evidence",
             "ok": true
           }
@@ -1433,7 +1433,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "detail": "34 deal rows hash-consistent; chain head #343 c89a1c62fee0",
                   "id": "audit",
                   "ok": true
                 },
@@ -1447,7 +1447,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -1587,7 +1587,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -1710,7 +1710,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "33 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "detail": "33 deal rows hash-consistent; chain head #343 c89a1c62fee0",
                   "id": "audit",
                   "ok": true
                 },
@@ -1849,7 +1849,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "detail": "34 deal rows hash-consistent; chain head #343 c89a1c62fee0",
                   "id": "audit",
                   "ok": true
                 },
@@ -1863,7 +1863,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -1987,7 +1987,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "detail": "34 deal rows hash-consistent; chain head #343 c89a1c62fee0",
                   "id": "audit",
                   "ok": true
                 },
@@ -2001,7 +2001,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -2126,7 +2126,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "detail": "34 deal rows hash-consistent; chain head #343 c89a1c62fee0",
                   "id": "audit",
                   "ok": true
                 },
@@ -2140,7 +2140,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -2264,7 +2264,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "detail": "34 deal rows hash-consistent; chain head #343 c89a1c62fee0",
                   "id": "audit",
                   "ok": true
                 },
@@ -2278,7 +2278,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -2402,7 +2402,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "detail": "34 deal rows hash-consistent; chain head #343 c89a1c62fee0",
                   "id": "audit",
                   "ok": true
                 },
@@ -2416,7 +2416,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -2540,7 +2540,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "detail": "34 deal rows hash-consistent; chain head #343 c89a1c62fee0",
                   "id": "audit",
                   "ok": true
                 },
@@ -2554,7 +2554,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -2680,7 +2680,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "detail": "34 deal rows hash-consistent; chain head #343 c89a1c62fee0",
                   "id": "audit",
                   "ok": true
                 },
@@ -2851,7 +2851,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "34 deal rows hash-consistent; chain head #343 cc416254bb71",
+                  "detail": "34 deal rows hash-consistent; chain head #343 c89a1c62fee0",
                   "id": "audit",
                   "ok": true
                 },
@@ -2865,7 +2865,7 @@
                 {
                   "applies": true,
                   "checked": true,
-                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+                  "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file",
                   "id": "owner_saw",
                   "ok": true
                 },
@@ -2928,6 +2928,145 @@
           },
           "red": [
             "mandate",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
+              "path": "/audit/12/detail_json",
+              "value": "{\"attempt\":1,\"checks\":[{\"detail\":\"no payment request yet; making the order verifies its amount against the signed terms 1 × 212.00 USD = 212.00 USD (terms 1bebe28c…d01b) and stops the deal as MISMATCH otherwise\",\"id\":\"amount\",\"status\":\"pass\",\"text\":\"Checked when the PayPal order is made, before any money moves.\"},{\"detail\":\"order payee maya-monitors = the single payee on clause 7 approved payees [maya-monitors]\",\"id\":\"payee\",\"status\":\"pass\",\"text\":\"Paid to your own payee from your rules.\"},{\"detail\":\"no approval link yet; making the order verifies the link is on the allowlist (www.sandbox.paypal.com)\",\"id\":\"host\",\"status\":\"wait\",\"text\":\"The PayPal link is checked when the order is made.\"},{\"detail\":\"invoice_id 01K8W2R6Q4N5M9T3VXZ7B1CD0E-1 is bound into the order and the countersign when the order is made\",\"id\":\"invoice\",\"status\":\"wait\",\"text\":\"The order number is set when the order is made.\"},{\"detail\":\"shield verdict CLEAR (rules re-run now, combined with any stored verdict)\",\"id\":\"shield\",\"status\":\"pass\",\"text\":\"Scam check: looks safe.\"},{\"detail\":\"mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2: clause 6 asks the owner above 150.00 USD; the owner decision satisfies it\",\"id\":\"mandate\",\"status\":\"pass\",\"text\":\"Above your ask-me limit of $150.00, so it’s your call.\"}],\"checks_hash\":[131,229,6,177,93,26,245,7,12,52,200,187,23,212,15,186,167,176,181,34,203,15,204,155,38,254,216,69,108,122,92,133],\"decided_by\":{\"at\":1793001800,\"type\":\"human\"},\"decision\":\"deal_countersign\",\"operation\":\"create\",\"terms_hash\":[27,235,226,140,38,191,122,211,166,242,110,192,10,9,110,242,83,58,25,3,175,26,191,3,234,86,130,3,115,44,208,27]}"
+            }
+          ],
+          "name": "checklist",
+          "outcome": {
+            "report": {
+              "authority_manifest": "33b4e591ab30b89d9f9e920ba869de343e089b26338d9c1026aa62f3695f00fd",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "row 96: hash does not match its contents",
+                  "id": "audit",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "the checklist recorded with the owner's decision (record #96) does not hash to the hash recorded with it",
+                  "id": "owner_saw",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint 33b4e591ab30b89d9f9e920ba869de343e089b26338d9c1026aa62f3695f00fd",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "audit",
+            "owner_saw",
             "evidence"
           ]
         },

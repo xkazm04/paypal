@@ -1253,14 +1253,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "mandate 01M6RYH5TGATD480NTAC816RHN v1",
+          "detail": "mandate 01M6VX3P0GPXVGZ2RT4A04S03R v1",
           "id": "mandate",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "agent signed 5 outbound, peer signed 6 inbound; head d5e902ba2eea",
+          "detail": "agent signed 5 outbound, peer signed 6 inbound; head 316d387bad1e",
           "id": "transcript",
           "ok": true
         },
@@ -1288,7 +1288,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "43 deal rows hash-consistent; chain head #45 d4b5cb86a475",
+          "detail": "43 deal rows hash-consistent; chain head #45 11712d60c842",
           "id": "audit",
           "ok": true
         },
@@ -1300,11 +1300,11 @@
           "ok": true
         },
         {
-          "applies": false,
-          "checked": false,
-          "detail": "not checked: no money step in this deal was the owner's decision",
+          "applies": true,
+          "checked": true,
+          "detail": "1 owner decision(s), no money step yet; 1 checklist(s) hashed again from the lines in the file",
           "id": "owner_saw",
-          "ok": false
+          "ok": true
         },
         {
           "applies": false,
@@ -1351,14 +1351,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head afa7999bf213 signed by the deal's agent",
+          "detail": "evidence head e9bfef07b3ca signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
       ],
-      "deal_id": "01M6RYH5TJ85A194C2AD8K6R5P",
+      "deal_id": "01M6VX3P0KMVTHC7S4JEC3V1H8",
       "mode": "sandbox",
-      "owner_key_id": "19beb0dc411608a7cfa48790d73bd46adb78d746a26e76d7edfb9872bef700ae",
+      "owner_key_id": "d0543926687d3e6c62ec9897a17d8735bc9229fd50ee1b4a7fd83e9668969cb3",
       "same_version": true,
       "verified": true
     }

@@ -54,6 +54,10 @@ export const decisionFits = (decision: string | null, operation: string): boolea
   return decision !== null && op !== null && OWNER_DECISION[op] === decision;
 };
 
+/** Whether a decision recorded as starting the step `recorded` may stand before the money step `step`: the step
+ *  it names, or, for the fix's one decision (invoice-create), the send that follows it. */
+export const operationFits = (recorded: string, step: string): boolean => recorded === step || (recorded === 'invoice-create' && step === 'invoice-send');
+
 /** An audit row's parsed detail; null when it does not parse. */
 export function detailOf(row: AuditRow): unknown {
   try {

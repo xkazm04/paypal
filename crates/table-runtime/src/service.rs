@@ -555,23 +555,30 @@ impl Runtime {
         &mut self,
         id: DealId,
         decision: Decision,
+        operation: &str,
         args: &DecisionArgs,
-        checks: Option<H256>,
+        checks: Option<&(Vec<ApprovalCheck>, H256)>,
         now: Timestamp,
     ) -> Result<(), CommandError> {
-        checks.map_or(Ok(()), |hash| {
-            self.record_decision(id, decision, args, hash, now)
+        checks.map_or(Ok(()), |(lines, hash)| {
+            self.record_decision(id, decision, operation, args, lines, *hash, now)
         })
     }
-    /// Appends the owner's decision row: what was decided, `decided_by` and the hash of the
-    /// checklist the owner saw. Written just before the step it starts; the money rows that
-    /// follow carry the same `decided_by` (human at the same second).
+    /// Appends the owner's decision row: what was decided, the step it starts (`operation`, named
+    /// as the pipeline names it: create, authorize, capture, invoice-create; or accept, release,
+    /// hand-off for a decision that starts no PayPal call), `decided_by`, the checklist the owner
+    /// saw (the lines just recomputed, so a checker can hash them again offline) and its hash.
+    /// Written just before the step it starts; the money rows that follow carry the same
+    /// `decided_by` (human at the same second).
+    #[allow(clippy::too_many_arguments)]
     fn record_decision(
         &mut self,
         id: DealId,
         decision: Decision,
+        operation: &str,
         args: &DecisionArgs,
-        checks: H256,
+        checks: &[ApprovalCheck],
+        checks_hash: H256,
         now: Timestamp,
     ) -> Result<(), CommandError> {
         app(self
@@ -585,8 +592,10 @@ impl Runtime {
                 deal_id: Some(id),
                 detail: serde_json::json!({
                     "decision": decision.name(),
+                    "operation": operation,
                     "decided_by": DecidedBy::Human { at: now },
-                    "checks_hash": checks,
+                    "checks": checks,
+                    "checks_hash": checks_hash,
                     "terms_hash": args.terms_hash,
                     "attempt": args.attempt,
                 }),
@@ -638,7 +647,7 @@ impl Runtime {
             {
                 return Err(check_failed());
             }
-            Some(hash)
+            Some((checks, hash))
         };
         let now = self.clock.now();
         let ticket = self.pipeline.approval.ticket(
@@ -653,7 +662,7 @@ impl Runtime {
             Decision::OwnerAccept => {
                 self.select_signer(deal.id)?;
                 let category = app(self.pipeline.wallet.ledger.deal_category(deal.id))?;
-                self.record(deal.id, decision, &args, checks, now)?;
+                self.record(deal.id, decision, "accept", &args, checks.as_ref(), now)?;
                 self.pipeline.owner_accept(
                     deal.id,
                     args.counter_hash.ok_or_else(invalid)?,
@@ -677,7 +686,7 @@ impl Runtime {
                 })?
             }
             Decision::ReleaseHold => {
-                self.record(deal.id, decision, &args, checks, now)?;
+                self.record(deal.id, decision, "release", &args, checks.as_ref(), now)?;
                 self.pipeline
                     .owner_release_hold(deal.id, args.attempt, ticket, now)?
             }
@@ -699,7 +708,14 @@ impl Runtime {
                     return Err(unavailable("Enter PayPal sandbox credentials"));
                 }
                 self.select_signer(deal.id)?;
-                self.record(deal.id, decision, &args, checks, now)?;
+                self.record(
+                    deal.id,
+                    decision,
+                    "invoice-create",
+                    &args,
+                    checks.as_ref(),
+                    now,
+                )?;
                 let before = self.operations_reserved(deal.id)?;
                 let sent = self.pipeline.rescue_approve(deal.id, ticket, now).await;
                 sent.map_err(|e| self.after_paypal(deal.id, before, e.into()))?;
@@ -709,7 +725,7 @@ impl Runtime {
                 let category = app(self.pipeline.wallet.ledger.deal_category(deal.id))?;
                 self.pipeline.wallet.check_mandate(deal.id, category, now)?;
                 let url = self.pipeline.approval_link(deal.id, args.attempt)?;
-                self.record(deal.id, decision, &args, checks, now)?;
+                self.record(deal.id, decision, "hand-off", &args, checks.as_ref(), now)?;
                 // The link leaves Rust here: the handoff is recorded with the owner's decision,
                 // before the browser opens (Action::Handoff records it again, harmlessly). A
                 // seller's receipt on a buyer deal with no handoff is refused (receipt.rs).
@@ -730,7 +746,7 @@ impl Runtime {
                 let before = self.operations_reserved(deal.id)?;
                 match (decision, deal.state) {
                     (Decision::Countersign, DealState::Agreed) => {
-                        self.record(deal.id, decision, &args, checks, now)?;
+                        self.record(deal.id, decision, "create", &args, checks.as_ref(), now)?;
                         let sent = self
                             .pipeline
                             .create(
@@ -744,7 +760,7 @@ impl Runtime {
                         sent.map_err(|e| self.after_paypal(deal.id, before, e.into()))?;
                     }
                     (Decision::Countersign, DealState::Approved) => {
-                        self.record(deal.id, decision, &args, checks, now)?;
+                        self.record(deal.id, decision, "authorize", &args, checks.as_ref(), now)?;
                         let sent = self
                             .pipeline
                             .authorize(
@@ -758,7 +774,7 @@ impl Runtime {
                         sent.map_err(|e| self.after_paypal(deal.id, before, e.into()))?
                     }
                     (Decision::Capture, DealState::Authorized) => {
-                        self.record(deal.id, decision, &args, checks, now)?;
+                        self.record(deal.id, decision, "capture", &args, checks.as_ref(), now)?;
                         let sent = self
                             .pipeline
                             .capture(

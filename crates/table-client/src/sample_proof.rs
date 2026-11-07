@@ -29,12 +29,13 @@ use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use ed25519_dalek::SigningKey;
 use serde::Serialize;
 use serde_json::{Value, json};
+use table_app::{CheckFacts, MandateFact, PayeeFact, SettleFact, compose};
 use table_core::{
-    Category, Clause, ClosedMandate, CpRule, Currency, Deal, DealId, DealKind, DealState,
-    DecidedBy, Delivery, GroupId, H256, ItemRef, MandatePayload, MarketCertificate,
+    ApprovalCheck, Category, Clause, ClosedMandate, CpRule, Currency, Deal, DealId, DealKind,
+    DealState, DecidedBy, Delivery, GroupId, H256, ItemRef, MandatePayload, MarketCertificate,
     MarketComparable, MarketMatch, MarketRef, Mode, Money, OpenMandate, PayeeRef, PaypalRefs, Role,
     ShieldRelease, ShieldRule, ShieldVerdict, Side, Terms, WatchedItem, canonical_bytes,
-    invoice_id,
+    checks_hash, invoice_id,
 };
 use table_proto::{
     AgentSigner, Body, Envelope, Intent, MsgType, OwnerAccept, PROOF_FORMAT, ProofAuditHead,
@@ -467,6 +468,81 @@ fn build(busy: bool) -> Made<ProofBundle> {
         DecidedBy::Human { at: t_capture },
     );
     let seller_rule = DecidedBy::SellerMandate { mandate_hash };
+    let deal = Deal {
+        id: deal_id,
+        created_at: t_list,
+        updated_at: t_receipt,
+        kind: DealKind::Haggle,
+        side: Side::Seller,
+        counterparty: peer_id.clone(),
+        terms: terms.clone(),
+        state: DealState::Receipted,
+        mandate_id,
+        mandate_version: 2,
+        transcript_head,
+        paypal: PaypalRefs {
+            order: Some(order.into()),
+            authorization: Some(authorization.into()),
+            capture: Some(capture.into()),
+            subscription: None,
+        },
+        mode: Mode::Sandbox,
+        market: market.clone(),
+        shield: Some(if busy {
+            ShieldVerdict::Hold
+        } else {
+            ShieldVerdict::Clear
+        }),
+        decided_by: Some(owner_capture.clone()),
+        shield_rule: busy.then_some(ShieldRule::PriceOverMarket),
+        shield_release: busy.then(|| ShieldRelease {
+            terms_hash,
+            rules: vec![ShieldRule::PriceOverMarket],
+            at: t_owner - 40,
+        }),
+    };
+    // What the owner saw before each decision: the six lines as the wallet composes them
+    // (table-app `compose`) for the deal as it stood then, recorded with the decision.
+    let seen = |state: DealState, settle: Option<SettleFact>| -> Made<Vec<ApprovalCheck>> {
+        let then = Deal {
+            state,
+            ..deal.clone()
+        };
+        Ok(compose(&CheckFacts {
+            deal: &then,
+            attempt: 1,
+            settle: Ok(settle),
+            offer_terms: None,
+            payee: PayeeFact::Bound {
+                payee: PayeeRef::new(PAYEE)?,
+                own: true,
+                paired: true,
+                approved: Some(vec![PayeeRef::new(PAYEE)?]),
+            },
+            shield: Some(if busy {
+                ShieldVerdict::Ask
+            } else {
+                ShieldVerdict::Clear
+            }),
+            shield_rule: busy.then_some(ShieldRule::PriceOverMarket),
+            shield_released: busy,
+            mandate: MandateFact::Ask {
+                clause: 6,
+                threshold: Some(money(15_000)?),
+            },
+        }))
+    };
+    let saw_create = seen(DealState::Agreed, None)?;
+    let saw_capture = seen(
+        DealState::Authorized,
+        Some(SettleFact {
+            amount: terms.amount()?,
+            invoice_id: invoice.clone(),
+            approve_url: format!("https://www.sandbox.paypal.com/checkoutnow?token={order}"),
+            attempt: 1,
+            authorize: true,
+        }),
+    )?;
     let mut closed = ClosedMandate {
         deal_id,
         open_mandate_hash: mandate_hash,
@@ -721,9 +797,8 @@ fn build(busy: bool) -> Made<ProofBundle> {
         )?);
     }
     log.other_deals(17);
-    // What the owner saw is recorded as a hash of the checklist, before the step it covers.
-    let saw =
-        |what: &str| H256::digest(format!("the-table/sample-proof/checklist/{what}").as_bytes());
+    // What the owner saw is recorded with the decision, the lines and their hash, before the step
+    // it starts.
     if busy {
         // The safety check held the deal (the price is over 1.4 times the market median); Maya released
         // that hold, for these terms and that rule only, before deciding.
@@ -748,9 +823,9 @@ fn build(busy: bool) -> Made<ProofBundle> {
         "owner",
         "owner.decision",
         &json!({
-            "attempt": 1, "checks_hash": hash_value(saw("countersign"))?,
+            "attempt": 1, "checks": saw_create, "checks_hash": hash_value(checks_hash(&saw_create)?)?,
             "decided_by": decided(&owner_create)?, "decision": "deal_countersign",
-            "terms_hash": hash_value(terms_hash)?,
+            "operation": "create", "terms_hash": hash_value(terms_hash)?,
         }),
     )?;
     if !busy {
@@ -846,9 +921,9 @@ fn build(busy: bool) -> Made<ProofBundle> {
         "owner",
         "owner.decision",
         &json!({
-            "attempt": 1, "checks_hash": hash_value(saw("capture"))?,
+            "attempt": 1, "checks": saw_capture, "checks_hash": hash_value(checks_hash(&saw_capture)?)?,
             "decided_by": decided(&owner_capture)?, "decision": "deal_capture",
-            "terms_hash": hash_value(terms_hash)?,
+            "operation": "capture", "terms_hash": hash_value(terms_hash)?,
         }),
     )?;
     log.row(
@@ -930,39 +1005,6 @@ fn build(busy: bool) -> Made<ProofBundle> {
     };
 
     let manifest = crate::authority::manifest()?;
-    let deal = Deal {
-        id: deal_id,
-        created_at: t_list,
-        updated_at: t_receipt,
-        kind: DealKind::Haggle,
-        side: Side::Seller,
-        counterparty: peer_id.clone(),
-        terms,
-        state: DealState::Receipted,
-        mandate_id,
-        mandate_version: 2,
-        transcript_head,
-        paypal: PaypalRefs {
-            order: Some(order.into()),
-            authorization: Some(authorization.into()),
-            capture: Some(capture.into()),
-            subscription: None,
-        },
-        mode: Mode::Sandbox,
-        market,
-        shield: Some(if busy {
-            ShieldVerdict::Hold
-        } else {
-            ShieldVerdict::Clear
-        }),
-        decided_by: Some(owner_capture),
-        shield_rule: busy.then_some(ShieldRule::PriceOverMarket),
-        shield_release: busy.then(|| ShieldRelease {
-            terms_hash,
-            rules: vec![ShieldRule::PriceOverMarket],
-            at: t_owner - 40,
-        }),
-    };
     let mut bundle = ProofBundle {
         format: PROOF_FORMAT.into(),
         exported_at: t_receipt + 7_200,
@@ -1205,11 +1247,37 @@ pub fn variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
             red: &["mandate", "evidence"],
         },
         Variant {
+            name: "checklist",
+            edits: vec![checklist_flip(bundle)?],
+            red: &["audit", "owner_saw", "evidence"],
+        },
+        Variant {
             name: "not-a-proof",
             edits: vec![Edit::remove("/deal")],
             red: &[],
         },
     ])
+}
+
+/// The `checklist` tamper: one line of the checklist recorded with the owner's first decision
+/// reads as passed when it did not (the first line that was not a pass; on a list of passes, the
+/// first line reads failed instead), as someone hiding what the owner was shown would write it.
+pub fn checklist_flip(bundle: &ProofBundle) -> Made<Edit> {
+    let at = row_at(bundle, "owner.decision", 0)?;
+    let row = bundle.audit.get(at).ok_or("no row")?;
+    let mut detail: Value = serde_json::from_str(&row.detail_json)?;
+    let lines = detail
+        .get_mut("checks")
+        .and_then(Value::as_array_mut)
+        .ok_or("no recorded checklist")?;
+    match lines.iter().position(|l| l["status"] != "pass") {
+        Some(i) => lines[i]["status"] = json!("pass"),
+        None => lines.first_mut().ok_or("an empty checklist")?["status"] = json!("fail"),
+    }
+    Ok(Edit::set(
+        format!("/audit/{at}/detail_json"),
+        json!(String::from_utf8(canonical_bytes(&detail)?)?),
+    ))
 }
 
 /// The other side of the monitor sale: the buyer's wallet's file for the very same deal. The signed
@@ -1298,7 +1366,41 @@ pub fn buyer_bundle() -> Made<ProofBundle> {
     };
     log.other_deals(18);
     let (buyer_actor, seller_actor) = (format!("agent:{buyer_id}"), format!("peer:{seller_id}"));
-    let saw = H256::digest(b"the-table/sample-proof/checklist/owner-accept");
+    // What the buyer's owner saw before accepting the shop's last counter (table-app `compose`).
+    let saw = compose(&CheckFacts {
+        deal: &Deal {
+            side: Side::Buyer,
+            state: DealState::Negotiating,
+            counterparty: seller_id.clone(),
+            mandate_id,
+            mandate_version: 1,
+            paypal: PaypalRefs {
+                order: None,
+                authorization: None,
+                capture: None,
+                subscription: None,
+            },
+            shield: Some(ShieldVerdict::Clear),
+            decided_by: None,
+            ..seller.deal.clone()
+        },
+        attempt: 1,
+        settle: Ok(None),
+        offer_terms: Some(Ok(terms_hash)),
+        payee: PayeeFact::Bound {
+            payee: PayeeRef::new(PAYEE)?,
+            own: false,
+            paired: true,
+            approved: Some(vec![PayeeRef::new(PAYEE)?]),
+        },
+        shield: Some(ShieldVerdict::Clear),
+        shield_rule: None,
+        shield_released: false,
+        mandate: MandateFact::Ask {
+            clause: 6,
+            threshold: Some(money(15_000)?),
+        },
+    });
     let first = transcript.first().ok_or("no messages")?;
     log.row(
         first.received_at,
@@ -1331,9 +1433,10 @@ pub fn buyer_bundle() -> Made<ProofBundle> {
                 "owner",
                 "owner.decision",
                 &json!({
-                    "attempt": 1, "checks_hash": hash_value(saw)?,
+                    "attempt": 1, "checks": saw, "checks_hash": hash_value(checks_hash(&saw)?)?,
                     "decided_by": { "at": owner_at, "type": "human" },
-                    "decision": "deal_owner_accept", "terms_hash": hash_value(terms_hash)?,
+                    "decision": "deal_owner_accept", "operation": "accept",
+                    "terms_hash": hash_value(terms_hash)?,
                 }),
             )?;
         }
@@ -1544,14 +1647,8 @@ pub const SAMPLES: [Sample; 3] = [
         file: BUYER,
         bundle: buyer_bundle,
         variants: buyer_variants,
-        dashed: &[
-            "owner_saw",
-            "one_request",
-            "group",
-            "shield",
-            "house_record",
-            "market",
-        ],
+        // The owner's accept carries its checklist, so `owner_saw` applies with no money step yet.
+        dashed: &["one_request", "group", "shield", "house_record", "market"],
     },
 ];
 

@@ -97,7 +97,7 @@ describe('the recorded samples', () => {
 describe('the tampered copies cover what a person would try', () => {
   it('on the monitor deal', () => {
     expect((wallet.monitor as Entry).variants.map((v) => v.name)).toEqual(
-      ['price', 'audit-line', 'audit-gap', 'signature', 'payee', 'paypal-amount', 'refund', 'receipt', 'rules', 'relabel', 'owner-key', 'not-a-proof'],
+      ['price', 'audit-line', 'audit-gap', 'signature', 'payee', 'paypal-amount', 'refund', 'receipt', 'rules', 'relabel', 'owner-key', 'checklist', 'not-a-proof'],
     );
   });
   it('on the busy deal, the records only it has', () => {

@@ -144,7 +144,9 @@ pub(crate) const ACTION_KEYS: &[(&str, &[&str])] = &[
         "owner.decision",
         &[
             "decision",
+            "operation",
             "decided_by",
+            "checks",
             "checks_hash",
             "terms_hash",
             "attempt",

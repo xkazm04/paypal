@@ -5,10 +5,13 @@
 //! (no owner decision, no second look at PayPal, no group, no shield hold, no house record) the
 //! line reads "not checked" and says why; it neither passes nor fails. A v1 file carries none of
 //! these records, so on a v1 file every one of them reads "not checked".
-use crate::authority::{decision_fits, money_kind};
+use crate::authority::{decision_fits, money_kind, operation_fits};
 use crate::{Miss, detail, row_detail, short};
 use serde_json::Value;
-use table_core::{DealState, DecidedBy, H256, MarketCommitment, ShieldRule, ShieldVerdict};
+use table_core::{
+    ApprovalCheck, ApprovalCheckId, ApprovalCheckStatus, DealState, DecidedBy, H256,
+    MarketCommitment, ShieldRule, ShieldVerdict, checks_hash,
+};
 use table_proto::{
     HeadVerdict, PROOF_FORMAT_V1, ProofAuditRow, ProofBundle, compare_heads, prefix_contradicts,
 };
@@ -36,11 +39,119 @@ fn rows<'a>(
         .filter(move |r| actions.contains(&r.action.as_str()))
 }
 
+/// The audit door's mark for a word it would not keep (an email-shaped payee, a credential).
+const REDACTED: &str = "[redacted]";
+
+/// What the file lets a checker say about the checklist recorded with one owner decision.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Lines {
+    /// An older row: only the hash of the checklist, not its lines.
+    HashOnly,
+    /// The lines are in the row and hash to the recorded hash.
+    Recomputed(Vec<ApprovalCheck>),
+    /// A line names a word the record does not keep, so the lines cannot be hashed again.
+    Unkept,
+}
+
+/// The lines recorded with a decision, hashed again: the row's `checks` must hash to its
+/// `checks_hash`, unless a line holds a word the audit door replaced.
+fn lines_of(row: &ProofAuditRow, d: &Value) -> Result<Lines, Miss> {
+    let Some(raw) = d.get("checks") else {
+        return Ok(Lines::HashOnly);
+    };
+    let checks: Vec<ApprovalCheck> = serde_json::from_value(raw.clone()).map_err(|_| {
+        format!(
+            "the checklist recorded with the owner's decision (record #{}) cannot be read",
+            row.seq
+        )
+    })?;
+    if checks
+        .iter()
+        .any(|c| c.text.contains(REDACTED) || c.detail.contains(REDACTED))
+    {
+        return Ok(Lines::Unkept);
+    }
+    let recorded = typed::<H256>(d, "checks_hash");
+    if recorded.is_none() || checks_hash(&checks).ok() != recorded {
+        return Err(format!(
+            "the checklist recorded with the owner's decision (record #{}) does not hash to the hash recorded with it",
+            row.seq
+        )
+        .into());
+    }
+    Ok(Lines::Recomputed(checks))
+}
+
+/// Whether a decision row may stand behind the owner's money step `op`: it names that step (when
+/// the row says which step it starts) and no line of its checklist failed (the shield line is the
+/// one a release decides, so it may fail there).
+fn stands_behind(row: &ProofAuditRow, d: &Value, lines: &Lines, op: &str) -> Result<(), String> {
+    if let Some(named) = text(d, "operation")
+        && !operation_fits(named, op)
+    {
+        return Err(format!(
+            "the owner's decision (record #{}) names the {named} step, not the {op} step that follows it",
+            row.seq
+        ));
+    }
+    if let Lines::Recomputed(checks) = lines {
+        let release = text(d, "decision") == Some("shield_release");
+        if checks.iter().any(|c| {
+            c.status == ApprovalCheckStatus::Fail && !(release && c.id == ApprovalCheckId::Shield)
+        }) {
+            return Err(format!(
+                "the owner's {op} step (record #{}) was decided on a checklist with a failed line",
+                row.seq
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// How the decisions' checklists were checked, counted, for the line's detail.
+fn tally<'a>(lines: impl Iterator<Item = &'a Lines>) -> String {
+    let (mut again, mut hash_only, mut unkept) = (0, 0, 0);
+    for l in lines {
+        match l {
+            Lines::Recomputed(_) => again += 1,
+            Lines::HashOnly => hash_only += 1,
+            Lines::Unkept => unkept += 1,
+        }
+    }
+    let mut parts = Vec::new();
+    if again > 0 {
+        parts.push(format!(
+            "{again} checklist(s) hashed again from the lines in the file"
+        ));
+    }
+    if hash_only > 0 {
+        parts.push(format!(
+            "{hash_only} hash only (the lines are not in this file)"
+        ));
+    }
+    if unkept > 0 {
+        parts.push(format!(
+            "{unkept} not checked: a line names an address the record does not keep"
+        ));
+    }
+    parts.join("; ")
+}
+
 /// T5: every money step the owner decided has an `owner.decision` row before it, at the same
-/// time, naming the decision and the hash of the checklist the owner saw.
+/// time, naming the decision and the hash of the checklist the owner saw. When a row carries the
+/// lines (`checks`), they must hash to that hash; behind a money step none may have failed (the
+/// shield line excepted on a release) and the step the row names (`operation`) must be the step
+/// that follows. Rows that carry only the hash (older files) read "hash only".
 pub(crate) fn owner_saw(bundle: &ProofBundle) -> Result<String, Miss> {
     if let Some(miss) = older(bundle) {
         return Err(miss);
+    }
+    let decisions: Vec<(&ProofAuditRow, Value)> = rows(bundle, &["owner.decision"])
+        .map(|r| (r, detail(r)))
+        .collect();
+    let mut lines = Vec::with_capacity(decisions.len());
+    for (row, d) in &decisions {
+        lines.push(lines_of(row, d)?);
     }
     let owner = |by: &DecidedBy| matches!(by, DecidedBy::Human { .. });
     let steps: Vec<(&ProofAuditRow, String, DecidedBy)> = rows(bundle, &["money.authorized"])
@@ -57,8 +168,15 @@ pub(crate) fn owner_saw(bundle: &ProofBundle) -> Result<String, Miss> {
         .filter(|o| owner(&o.decided_by) && o.operation != "void")
         .collect();
     if steps.is_empty() && decided.is_empty() {
-        return Err(Miss::absent(
-            "not checked: no money step in this deal was the owner's decision",
+        if lines.iter().all(|l| *l == Lines::HashOnly) {
+            return Err(Miss::absent(
+                "not checked: no money step in this deal was the owner's decision",
+            ));
+        }
+        return Ok(format!(
+            "{} owner decision(s), no money step yet; {}",
+            decisions.len(),
+            tally(lines.iter())
         ));
     }
     for op in decided {
@@ -73,26 +191,41 @@ pub(crate) fn owner_saw(bundle: &ProofBundle) -> Result<String, Miss> {
             .into());
         }
     }
+    let mut behind = Vec::with_capacity(steps.len());
     for (row, op, by) in &steps {
-        let saw = rows(bundle, &["owner.decision"])
-            .filter(|r| r.seq < row.seq)
-            .map(detail)
-            .any(|d| {
-                typed::<DecidedBy>(&d, "decided_by").as_ref() == Some(by)
-                    && text(&d, "decision").is_some_and(|name| decision_fits(name, op))
-                    && typed::<H256>(&d, "checks_hash").is_some()
+        let mut why = None;
+        let saw = decisions
+            .iter()
+            .zip(&lines)
+            .filter(|((r, d), _)| {
+                r.seq < row.seq
+                    && typed::<DecidedBy>(d, "decided_by").as_ref() == Some(by)
+                    && text(d, "decision").is_some_and(|name| decision_fits(name, op))
+                    && typed::<H256>(d, "checks_hash").is_some()
+            })
+            .find(|((r, d), l)| match stands_behind(r, d, l, op) {
+                Ok(()) => true,
+                Err(e) => {
+                    why = Some(e);
+                    false
+                }
             });
-        if !saw {
-            return Err(format!(
-                "the owner's {op} step (record #{}) has no earlier record of the checklist the owner saw",
-                row.seq
-            )
-            .into());
+        match (saw, why) {
+            (Some((_, l)), _) => behind.push(l),
+            (None, Some(why)) => return Err(why.into()),
+            (None, None) => {
+                return Err(format!(
+                    "the owner's {op} step (record #{}) has no earlier record of the checklist the owner saw",
+                    row.seq
+                )
+                .into());
+            }
         }
     }
     Ok(format!(
-        "{} owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
-        steps.len()
+        "{} owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; {}",
+        steps.len(),
+        tally(behind.into_iter())
     ))
 }
 

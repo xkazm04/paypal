@@ -1,7 +1,7 @@
 // Browser mock of the wallet's approval checklist (Rust: crates/table-app/src/checks.rs). Same six
 // lines, same order, same Layer-1 words, from the mock's fixtures instead of the ledger; the
-// Layer-2 detail says what the mock stood in for. The hash is a fake digest of the list, so a
-// changed list changes it exactly as the real one does.
+// Layer-2 detail says what the mock stood in for. The hash is the wallet's own checks hash (domain tag
+// and canonical lines, SHA-256), so the preview and a proof file agree on it.
 import type { ApprovalCheck } from '@bindings/ApprovalCheck';
 import type { ApprovalCheckId } from '@bindings/ApprovalCheckId';
 import type { ApprovalCheckStatus } from '@bindings/ApprovalCheckStatus';
@@ -16,7 +16,10 @@ import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import type { CounterpartyDisplay, TranscriptStep } from '../lib/pending';
 import { formatMoney, lineTotal } from '../lib/format';
 import { percentWords, shieldReleased } from '../lib/words';
-import { fakeHash } from './fixtures';
+import { utf8 } from '../lib/proof/bytes';
+import { APPROVAL_CHECKS_DOMAIN } from '../lib/proof/checklist';
+import { canonicalBytes } from '../lib/proof/jcs';
+import { sha256Sync } from './sha256';
 
 /** table-app checks.rs `shield_rule_words`, verbatim (the approval checklist's shield line). */
 export const SHIELD_RULE_WORDS: Record<ShieldRule, string> = {
@@ -240,7 +243,13 @@ function rescueLines(i: MockCheckInput, lines: ApprovalCheck[], m: MandateFact):
   return out;
 }
 
-/** Stand-in for the domain-separated checks hash: any change to any line changes it. */
+/** The wallet's own checks hash (Rust `checks_hash`): SHA-256 over the domain tag and the canonical
+ *  (JCS) lines, so the preview's hash is the one a proof file records and a checker recomputes. */
 export function mockChecksHash(checks: readonly ApprovalCheck[]): H256 {
-  return fakeHash(`table.approval-checks.v1|${JSON.stringify(checks)}`);
+  const domain = utf8(APPROVAL_CHECKS_DOMAIN);
+  const lines = canonicalBytes(checks);
+  const bytes = new Uint8Array(domain.length + lines.length);
+  bytes.set(domain);
+  bytes.set(lines, domain.length);
+  return Array.from(sha256Sync(bytes)) as H256;
 }

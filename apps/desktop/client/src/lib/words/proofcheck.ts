@@ -207,9 +207,10 @@ export const TAMPER_WORDS: Readonly<Record<TamperId, { label: string; what: stri
   'group-agreed': { label: 'Agree both deals', what: 'the other seller’s table, marked as agreed' },
   'request-id': { label: 'Send the payment twice', what: 'the request the capture was sent under' },
   'transcript-head': { label: 'Cut the messages short', what: 'where the signed messages are said to end' },
+  checklist: { label: 'Change what the owner saw', what: 'one line of the checklist the owner saw before deciding' },
 };
 /** The tampers offered on screen, in order. */
 export const TAMPERS_SHOWN: readonly TamperId[] = [
   'price', 'paypal-amount', 'payee', 'receipt', 'audit-line', 'audit-gap', 'signature', 'refund', 'rules', 'owner-key',
-  'shield-release', 'market-price', 'group-winner', 'group-agreed', 'request-id', 'transcript-head',
+  'shield-release', 'market-price', 'group-winner', 'group-agreed', 'request-id', 'transcript-head', 'checklist',
 ];
