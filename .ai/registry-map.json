@@ -1660,11 +1660,7 @@
           "confidence": "probable",
           "state": "not-applicable",
           "evidence": "apps/desktop/client/src/mock/backend.ts:990 The browser-opening mock only emits wallet UI events, and searches found no daemon, locator or WebSocket constructs in this context; repository matches elsewhere do not establish an agent browser-control surface here.",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:0d439bfcafe8cabd",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 2,
-          "stale": true
+          "evaluatedAt": "2026-10-17"
         },
         {
           "subject": "agent-runtime-assembly",
@@ -4239,13 +4235,12 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "crates/table-client/src/authority_table.rs:228 The browser-related command is a privileged approval-window wallet decision, and searches found no daemon, locator or WebSocket constructs in this context; repository matches elsewhere do not turn this IPC contract into an agent browser controller.",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:0d439bfcafe8cabd",
-          "evaluatedRevision": 3,
+          "evidence": "crates/table-client/src/authority_table.rs:228 The one browser-named command is a privileged approval-window wallet decision that hands a link to the system browser, and searching crates/table-client for puppeteer, chromium, websocket, locator, daemon and webdriver found nothing, so this IPC contract is not an agent browser-control surface.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:a5e059a866a49108",
+          "evaluatedRevision": 5,
           "source": "retained",
-          "revisionsBehind": 2,
-          "stale": true
+          "revisionsBehind": 2
         },
         {
           "subject": "error-handling",

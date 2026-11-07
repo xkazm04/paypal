@@ -3980,70 +3980,96 @@
       "subject": "agent-browser-control",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T00:52:41.291Z",
-      "worker": "d69bc19c-29ec-474d-9356-b1715314b3d2",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T22:32:03.035Z",
       "techniques": [
-        {
-          "technique": "agent-actionable-errors",
-          "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:147 These are simulated wallet IPC failures for the client UI, rather than browser-driver failures returned to an agent."
-        },
-        {
-          "technique": "effect-classed-commands",
-          "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:137 The generated table governs wallet command authority; this context does not publish browser commands whose effects determine browser retry safety."
-        },
         {
           "technique": "persistent-browser-daemon",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:165 Initialization builds a simulated wallet world inside the page, rather than starting or discovering a browser process."
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1 The mock is a page that Playwright drives, not a long-lived browser process that an agent addresses. No daemon or state file exists in the context."
         },
         {
-          "technique": "references-over-selectors",
+          "technique": "agent-actionable-errors",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:573 The read surface returns wallet domain records, rather than page elements that an agent must identify and act on."
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1170 These errors are wallet IPC gate failures shown to the UI. They are not browser-driver failures sent to an agent."
         },
         {
           "technique": "socket-scoped-surface",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:160 Mock pages exchange state through BroadcastChannel; this context exposes no browser daemon listener or remote-agent tunnel."
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1175 Results go out as in-page events. There is no loopback listener, socket or remote caller."
+        },
+        {
+          "technique": "references-over-selectors",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1174 No snapshot, element reference or locator is built for an agent to act on."
+        },
+        {
+          "technique": "effect-classed-commands",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:137 The generated table governs wallet command authority; this context does not publish browser commands whose effects determine browser retry safety.",
+          "carriedFrom": "2026-10-17"
         }
-      ]
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:990 The browser-opening mock only emits wallet UI events, and searches found no daemon, locator or WebSocket constructs in this context; repository matches elsewhere do not establish an agent browser-control surface here.",
+          "evaluatedAt": "2026-10-17T00:52:41.291Z",
+          "worker": "d69bc19c-29ec-474d-9356-b1715314b3d2",
+          "reason": "replaced by 2009bc9f-9056-4628-9ae3-eb942397a5b7"
+        }
+      ],
+      "withdrawn": {
+        "worker": "2009bc9f-9056-4628-9ae3-eb942397a5b7",
+        "state": "not-applicable",
+        "at": "2026-11-07T22:33:14.861061+00:00",
+        "reason": "reviewer (sonnet): The claim that the only browser action is the mocked hand-off is contradicted by backend.ts:649, where the mock calls window.open. Line 1 says Playwright drives this mock, and the absence search left out 'playwright'. The anchor at 1173 is one handler's emit line, so it does not show that no agent d"
+      }
     },
     "b122a56d-4e5f-4259-959c-b90ba9e1c58e/agent-browser-control": {
       "context": "ipc-contract-and-authority-table",
       "subject": "agent-browser-control",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T00:52:41.291Z",
-      "worker": "d69bc19c-29ec-474d-9356-b1715314b3d2",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T22:32:03.035Z",
+      "worker": "2009bc9f-9056-4628-9ae3-eb942397a5b7",
       "techniques": [
-        {
-          "technique": "agent-actionable-errors",
-          "verdict": "not-applicable",
-          "evidence": "crates/table-client/src/lib.rs:38 The error conversion handles wallet application failures for IPC, rather than browser action failures delivered to a controlling agent."
-        },
         {
           "technique": "effect-classed-commands",
           "verdict": "not-applicable",
-          "evidence": "crates/table-client/src/authority_table.rs:49 The tiers classify wallet authority; the standard's browser read/write/meta dispatch and retry precondition does not hold."
-        },
-        {
-          "technique": "persistent-browser-daemon",
-          "verdict": "not-applicable",
-          "evidence": "crates/table-client/src/bin/generate-bindings.rs:16 The binary exports contract bindings, rather than managing browser startup, session persistence or liveness."
-        },
-        {
-          "technique": "references-over-selectors",
-          "verdict": "not-applicable",
-          "evidence": "crates/table-client/src/lib.rs:1016 Commands address wallet deals and their transcripts, rather than live browser elements."
+          "evidence": "crates/table-client/src/authority_table.rs:1 This single-source command table classes window IPC commands by tier and label. It does not cover browser commands, so the technique's precondition does not hold, although its shape is similar."
         },
         {
           "technique": "socket-scoped-surface",
           "verdict": "not-applicable",
-          "evidence": "crates/table-client/src/authority_table.rs:217 Token access is assigned to a Tauri window label; this is not token bootstrap on a remotely exposed browser daemon socket."
+          "evidence": "crates/table-client/src/authority.rs:290 Admission here is keyed by Tauri window label, such as devtools being refused. No browser daemon listener is exposed to remote agents."
+        },
+        {
+          "technique": "persistent-browser-daemon",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-client/src/lib.rs:330 The command returns unit after handing a link to the system browser. No browser process is kept alive or addressed."
+        },
+        {
+          "technique": "agent-actionable-errors",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-client/src/lib.rs:38 The error conversion handles wallet application failures for IPC, rather than browser action failures delivered to a controlling agent.",
+          "carriedFrom": "2026-10-17"
+        },
+        {
+          "technique": "references-over-selectors",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-client/src/lib.rs:1016 Commands address wallet deals and their transcripts, rather than live browser elements.",
+          "carriedFrom": "2026-10-17"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "crates/table-client/src/authority_table.rs:228 The browser-related command is a privileged approval-window wallet decision, and searches found no daemon, locator or WebSocket constructs in this context; repository matches elsewhere do not turn this IPC contract into an agent browser controller.",
+          "evaluatedAt": "2026-10-17T00:52:41.291Z",
+          "worker": "d69bc19c-29ec-474d-9356-b1715314b3d2",
+          "reason": "replaced by 2009bc9f-9056-4628-9ae3-eb942397a5b7"
         }
       ]
     },
