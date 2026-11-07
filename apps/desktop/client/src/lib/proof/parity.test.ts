@@ -97,7 +97,7 @@ describe('the recorded samples', () => {
 describe('the tampered copies cover what a person would try', () => {
   it('on the monitor deal', () => {
     expect((wallet.monitor as Entry).variants.map((v) => v.name)).toEqual(
-      ['price', 'audit-line', 'audit-gap', 'signature', 'payee', 'paypal-amount', 'refund', 'receipt', 'rules', 'relabel', 'owner-key', 'not-a-proof'],
+      ['price', 'audit-line', 'audit-gap', 'signature', 'payee', 'paypal-amount', 'refund', 'receipt', 'rules', 'relabel', 'owner-key', 'checklist', 'forged-decision', 'decision-signature', 'decision-step', 'not-a-proof'],
     );
   });
   it('on the busy deal, the records only it has', () => {
@@ -111,5 +111,12 @@ describe('the tampered copies cover what a person would try', () => {
     expect(editsFor('group-winner', JSON.parse(golden))).toBeNull();
     expect(editsFor('shield-release', JSON.parse(golden))).toBeNull();
     expect(editsFor('payee', JSON.parse(busy))).not.toBeNull();
+  });
+  it('and the owner-key tampers reach the deal the Proof page opens on', () => {
+    const house = recorded.find(([name]) => name === 'd-0205.tableproof')?.[1] ?? '';
+    expect(editsFor('checklist', JSON.parse(house))).not.toBeNull();
+    expect(editsFor('forged-decision', JSON.parse(house))).not.toBeNull();
+    // A forgery is made only where the file's own agent key was at hand.
+    expect(editsFor('forged-decision', JSON.parse(busy))).toBeNull();
   });
 });

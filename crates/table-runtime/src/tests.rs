@@ -9,6 +9,8 @@ mod authority_tests;
 mod checks_tests;
 #[path = "client_tests.rs"]
 mod client_tests;
+#[path = "decision_record_tests.rs"]
+mod decision_record_tests;
 #[path = "forecast_tests.rs"]
 mod forecast_tests;
 #[path = "groups_tests.rs"]

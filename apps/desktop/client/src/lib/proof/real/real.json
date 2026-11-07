@@ -682,7 +682,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "1 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+          "detail": "1 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 1 hash only (the lines are not in this file)",
           "id": "owner_saw",
           "ok": true
         },
@@ -806,7 +806,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "1 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+          "detail": "1 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 1 hash only (the lines are not in this file)",
           "id": "owner_saw",
           "ok": true
         },
@@ -930,7 +930,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+          "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 hash only (the lines are not in this file)",
           "id": "owner_saw",
           "ok": true
         },

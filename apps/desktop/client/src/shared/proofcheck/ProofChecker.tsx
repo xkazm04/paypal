@@ -19,6 +19,7 @@ import { modeWord, PROOF_ALL_THAT_APPLY, PROOF_CAUGHT, PROOF_PRICE_PAYEE_CHECKS,
 import { KeyId } from '../ownerKey';
 import { Btn, Chip, Kv, Seg } from '../ui';
 import { caption, changed, dashedWords, kindOf, reportText } from './describe';
+import { OwnerChecklist } from './OwnerChecklist';
 import { SidesCard } from './SidesCard';
 import { useProofRun, type Facts, type RunState } from './useProofRun';
 import './proofcheck.css';
@@ -45,7 +46,7 @@ const parse = (text: string): unknown => {
 };
 const SIXTEEN = CHECK_IDS.length;
 
-export function ProofChecker({ source, samples = [], own, heading = true, lede = true, level = 3, autoRun = false, autoTamper = null, startEditing = false, demo = false }: {
+export function ProofChecker({ source, samples = [], own, heading = true, lede = true, level = 3, autoRun = false, autoTamper = null, startEditing = false, demo = false, ownerChecklist = false }: {
   source: ProofSource;
   /** The practice deals, to pick between (and to go back to after a file of the person's own). */
   samples?: readonly ProofSource[];
@@ -65,6 +66,8 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
   startEditing?: boolean;
   /** Play it through by itself, for a recording: check it, break it a few ways, put it back each time. */
   demo?: boolean;
+  /** Show each owner decision in the file as a receipt, once checked (the Proof page). */
+  ownerChecklist?: boolean;
 }) {
   const H = `h${level}` as 'h2' | 'h3';
   const id = useId();
@@ -330,6 +333,7 @@ export function ProofChecker({ source, samples = [], own, heading = true, lede =
               <Row key={cid} rowId={`${id}-row-${cid}`} id={cid} line={state.lines[i] ?? null} before={state.before?.[i] ?? null} current={running && made === i} stale={running && i >= made && state.before !== null} first={i === firstBad} run={state.run} skipped={cid === 'evidence' ? CHECK_IDS.filter((x, n) => PROOF_PRICE_PAYEE_CHECKS.includes(x) && state.lines[n] && kindOf(state.lines[n] as CheckLine) === 'dashed') : []} />
             ))}
           </ol>
+          {ownerChecklist && state.phase === 'done' && state.refused === null ? <OwnerChecklist document={current} level={level} /> : null}
           {state.facts && !state.facts.signatures ? <p className="pk-refused" role="alert">{W.noSignatures}</p> : null}
           {state.refused ? <p className="pk-refused" role="alert">{state.refused}</p> : null}
           {readError ? <p className="pk-refused" role="alert">{readError}</p> : null}

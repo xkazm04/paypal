@@ -1253,14 +1253,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "mandate 01M6RYH5TGATD480NTAC816RHN v1",
+          "detail": "mandate 01M6VY3XJ90BR6HKW5221A9ETV v1",
           "id": "mandate",
           "ok": true
         },
         {
           "applies": true,
           "checked": true,
-          "detail": "agent signed 5 outbound, peer signed 6 inbound; head d5e902ba2eea",
+          "detail": "agent signed 5 outbound, peer signed 6 inbound; head ea8602905b54",
           "id": "transcript",
           "ok": true
         },
@@ -1288,7 +1288,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "43 deal rows hash-consistent; chain head #45 d4b5cb86a475",
+          "detail": "43 deal rows hash-consistent; chain head #45 655fe50e42d8",
           "id": "audit",
           "ok": true
         },
@@ -1300,11 +1300,11 @@
           "ok": true
         },
         {
-          "applies": false,
-          "checked": false,
-          "detail": "not checked: no money step in this deal was the owner's decision",
+          "applies": true,
+          "checked": true,
+          "detail": "1 owner decision(s), no money step yet; 1 checklist(s) hashed again from the lines in the file; 1 signed by the owner key after unlock",
           "id": "owner_saw",
-          "ok": false
+          "ok": true
         },
         {
           "applies": false,
@@ -1351,14 +1351,14 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "evidence head afa7999bf213 signed by the deal's agent",
+          "detail": "evidence head a710e2fa8c0d signed by the deal's agent",
           "id": "evidence",
           "ok": true
         }
       ],
-      "deal_id": "01M6RYH5TJ85A194C2AD8K6R5P",
+      "deal_id": "01M6VY3XJCWZ10W8EF5AD3NRWS",
       "mode": "sandbox",
-      "owner_key_id": "19beb0dc411608a7cfa48790d73bd46adb78d746a26e76d7edfb9872bef700ae",
+      "owner_key_id": "c9786fb3f6786199c74e97e6b8f1c7205036a070feaf5eb55cdf5d42fde5f3e1",
       "same_version": true,
       "verified": true
     }

@@ -138,7 +138,11 @@ available (it is the safe direction).
    summary changed. Review it again.") or any failing line ("A check on this deal failed, so
    nothing was done.", the shield line exempt for a release); mints an owner ticket bound to deal,
    terms hash and attempt that expires after 60 seconds; appends one `owner.decision` audit row
-   (`{decision, decided_by: human, checks_hash, terms_hash, attempt}`); and only then runs the step.
+   (`{decision, operation, decided_by: human, checks, checks_hash, terms_hash, attempt}`: the six lines
+   the owner saw and the step the decision starts, create, authorize, capture, invoice-create, or accept,
+   release, hand-off when no PayPal call follows), signed by the owner key after unlock
+   (`owner_key`, `signature` over `table_proto::DecisionStatement`; written unsigned, and read "not
+   signed", only when the owner key cannot be read); and only then runs the step.
    Void is the safe direction and needs no checklist hash.
 7. **Who decides.** Every money step started here is recorded as `decided_by: human` (authority 1 in
    AGENTS.md). The pipeline still re-checks the mandate, wallet limits and shield inside the step.
@@ -235,8 +239,10 @@ IPC commands granted to the approval window (from `authority_table.rs`):
   compares the paired key's declared payee.
 - `deal_export_proof` from the approval window is not bound to that window's deal; `attention_list`
   in approval filters to its own deal rather than refusing. Both are deliberate looks left open.
-- There is no Proof drawer that shows an `owner.decision` row ("owner saw: …") yet, and no action to
-  re-send an owner-decided step under a fresh ticket after a lost answer.
+- The Proof page (proof.html) shows each `owner.decision` row as an "Owner's checklist" card (the six
+  lines, "Owner key signed · HH:MM" or "Not signed", the lines checked later); the deal page and the
+  Book's checker do not show it yet. There is no action to re-send an owner-decided step under a
+  fresh ticket after a lost answer.
 - Wallet limits hold one currency; a decision does not yet show "after this: $X of $Y today".
 - A receipt that fails to sign or store after a confirmed capture is not retried by the wallet's
   read-back (only open operations are); the deal stays captured without a receipt until a later

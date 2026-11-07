@@ -74,7 +74,7 @@ inside the app, on the owner's own ledger, as "Your safety record".
    | `paypal_order` | each 2xx order create, authorize and read matches the signed terms (custom id, invoice id, payee, amount) |
    | `audit` | audit rows are hash-consistent |
    | `receipt` | any receipt is inside the transcript |
-   | `owner_saw` | every owner-decided money step has an earlier `owner.decision` row with a checks hash |
+   | `owner_saw` | every owner-decided money step has an earlier `owner.decision` row with a checks hash; when the row carries its lines (`checks`) they hash again to it, none failed (shield exempt on a release) and its `operation` is the step that follows; older rows read "hash only", a line the audit door redacted (an email-shaped payee) reads "not checked"; a row that carries a `signature` must verify against the file's owner key (red: "not signed by the owner key") |
    | `one_request` | resolved, re-sent and parked steps reuse one reserved request id |
    | `group` | at most one agreed table in a group, the winner; withdrawals follow the win |
    | `shield` | no non-void money step while BLOCK or an unreleased HOLD covers these terms |
@@ -160,6 +160,12 @@ inside the app, on the owner's own ledger, as "Your safety record".
       marked. Links made for showing it: `?check=1`, `?break=price`, `?edit=1`.
     - **The deal page and the Book**, in the browser preview only (the shell keeps file bytes away from
       the page, so inside the app the native "Check a proof file" is unchanged).
+    - **Owner's checklist** (proof.html only, `shared/proofcheck/OwnerChecklist.tsx`, model
+      `lib/proof/receipts.ts`): once a file is checked, each owner decision is a card with the six
+      lines in the owner's words, "Owner key signed · HH:MM" (or "Not signed", "Not signed by the
+      owner key"), "Older file: …" for a hash-only row, and "N checked later, all passed before money
+      moved" when a later decision in the file shows those lines passed before the capture. The
+      `checklist` and `forged decision` tamper buttons turn `owner_saw` red and the card with it.
     - **Two sides.** A deal has two files, one from each wallet. The checker takes the other side's file
       and compares the deal, the signed messages' end, the price, the payment and the owner keys each file
       names ("Provable by both sides").
@@ -273,8 +279,16 @@ IPC commands (from `crates/table-client/src/authority_table.rs`):
 ## Known gaps and UNVERIFIED
 
 - **What a file cannot prove.**
-  - An owner decision (`DecidedBy::Human`) is the wallet's record, not an owner signature. Owner
-    ACCEPT proofs are signatures and are checked.
+  - An owner decision is signed by the owner key after unlock: since the decision-receipt change
+    the `owner.decision` row carries `owner_key` and an Ed25519 `signature` over
+    `{deal_id, decision, operation, attempt, terms_hash, checks_hash, at}` under
+    `table.owner-decision.v1\0` (`table_proto::DecisionStatement`), and `owner_saw` verifies it
+    against the file's owner key ("not signed by the owner key" is red). This proves which key
+    signed, not that a person was present: the owner key sits in the OS vault the wallet reads. A
+    row written while the owner key could not be read, and every older row, carries no signature
+    and reads "not signed" or "hash only", never red, so stripping every signature from a file is a
+    downgrade the checker shows in words but does not refuse. Owner ACCEPT proofs are signatures
+    and are checked.
   - Removal of the newest rows from the end of the wallet's audit log cannot be seen from the
     file alone (`KNOWN_LIMIT`). External anchoring is deferred.
   - The checks trust the keys inside the file, so a person must compare the owner key

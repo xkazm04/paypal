@@ -2,7 +2,7 @@
 // world can name a deal without loading its file; a test holds each id to its file.
 /** The recorded house haggle's deal (sample/d-0205.tableproof, written by table-runtime's haggle recorder):
  *  the preview's D-0205 carries this id, and it is the one deal the preview hands out a signed file for. */
-export const RECORDED_DEAL_ID = '01M6RYH5TJ85A194C2AD8K6R5P';
+export const RECORDED_DEAL_ID = '01M6VY3XJCWZ10W8EF5AD3NRWS';
 /** That deal's label in the preview (mock/haggle.ts names its recording by it). */
 export const RECORDED_DEAL_LABEL = 'D-0205';
 /** The practice deals of the checker's parity harness (practice.ts): oracles for its tests only. */

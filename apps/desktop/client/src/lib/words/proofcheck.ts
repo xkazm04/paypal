@@ -207,9 +207,48 @@ export const TAMPER_WORDS: Readonly<Record<TamperId, { label: string; what: stri
   'group-agreed': { label: 'Agree both deals', what: 'the other seller’s table, marked as agreed' },
   'request-id': { label: 'Send the payment twice', what: 'the request the capture was sent under' },
   'transcript-head': { label: 'Cut the messages short', what: 'where the signed messages are said to end' },
+  checklist: { label: 'Change what the owner saw', what: 'one line of the checklist the owner saw before deciding' },
+  'forged-decision': { label: 'Add an approval the owner never gave', what: 'an owner approval, added and sealed again with the agent’s own key' },
+  'decision-signature': { label: 'Damage the owner key’s signature', what: 'one byte of the owner key’s signature on an approval' },
+  'decision-step': { label: 'Point an approval at another step', what: 'which payment step an owner approval was for' },
 };
+/** The Proof page's "Owner's checklist": each owner decision in the file, read as a receipt. */
+export const PROOF_RECEIPT = {
+  head: 'Owner’s checklist',
+  intro: 'What the owner was shown before each decision, read from the file and checked on this page.',
+  /** What the owner key's signature proves, said once. */
+  keyNote: 'A signature shows the owner key signed after the wallet was unlocked. It does not show who was at the screen.',
+  step: {
+    create: 'Before the PayPal order',
+    authorize: 'Before the hold',
+    capture: 'Before taking the money',
+    'invoice-create': 'Before the invoice',
+    accept: 'Before accepting their offer',
+    release: 'Before going on after a pause',
+    'hand-off': 'Before opening PayPal',
+  } as Readonly<Record<string, string>>,
+  stepUnknown: 'An owner decision',
+  status: { pass: 'Passed', fail: 'Failed', wait: 'Checked later', not_applicable: 'Not needed' } as Readonly<Record<string, string>>,
+  signed: (time: string): string => `Owner key signed · ${time}`,
+  notSigned: 'Not signed',
+  notOwner: 'Not signed by the owner key',
+  unchecked: 'This browser can’t check the signature',
+  lines: {
+    again: 'These are the lines recorded with the decision.',
+    changed: 'These lines are not the ones recorded with the decision.',
+    'hash-only': 'Older file: it keeps only a fingerprint of the lines, not the lines.',
+    unkept: 'Not checked: a line names an address the record doesn’t keep.',
+    unreadable: 'The lines in the file can’t be read.',
+  },
+  later: (n: number, passed: number, beforeMoney: boolean): string =>
+    beforeMoney ? `${n} checked later, all passed before money moved`
+      : passed === n ? `${n} checked later, all passed`
+        : `${n} checked later, by the step itself`,
+  none: 'No owner decision in this file.',
+} as const;
+
 /** The tampers offered on screen, in order. */
 export const TAMPERS_SHOWN: readonly TamperId[] = [
   'price', 'paypal-amount', 'payee', 'receipt', 'audit-line', 'audit-gap', 'signature', 'refund', 'rules', 'owner-key',
-  'shield-release', 'market-price', 'group-winner', 'group-agreed', 'request-id', 'transcript-head',
+  'shield-release', 'market-price', 'group-winner', 'group-agreed', 'request-id', 'transcript-head', 'checklist', 'forged-decision',
 ];
