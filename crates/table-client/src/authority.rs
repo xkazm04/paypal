@@ -104,7 +104,18 @@ pub fn manifest_hex() -> Option<&'static str> {
 /// Tauri core permissions each window needs besides its commands (events, its own window).
 fn core_permissions(label: WindowLabel) -> &'static [&'static str] {
     match label {
-        WindowLabel::Main => &["core:event:allow-listen", "core:event:allow-unlisten"],
+        // The Main window draws its own title bar (no native frame): it drags, minimises,
+        // maximises and asks to close itself. Close only raises the close request, which the
+        // shell's quit sheet still answers.
+        WindowLabel::Main => &[
+            "core:event:allow-listen",
+            "core:event:allow-unlisten",
+            "core:window:allow-start-dragging",
+            "core:window:allow-minimize",
+            "core:window:allow-toggle-maximize",
+            "core:window:allow-is-maximized",
+            "core:window:allow-close",
+        ],
         // The Tumbler is dragged by `tumbler_drag` (Rust starts the move), not by the webview.
         WindowLabel::Tumbler => &["core:event:allow-listen", "core:event:allow-unlisten"],
         WindowLabel::Approval => &[
@@ -481,7 +492,16 @@ mod tests {
         use WindowLabel::{Approval, Main, Tumbler};
         let pinned = |label| -> BTreeSet<&str> {
             match label {
-                Main => ["core:event:allow-listen", "core:event:allow-unlisten"].into(),
+                Main => [
+                    "core:event:allow-listen",
+                    "core:event:allow-unlisten",
+                    "core:window:allow-start-dragging",
+                    "core:window:allow-minimize",
+                    "core:window:allow-toggle-maximize",
+                    "core:window:allow-is-maximized",
+                    "core:window:allow-close",
+                ]
+                .into(),
                 Tumbler => ["core:event:allow-listen", "core:event:allow-unlisten"].into(),
                 Approval => [
                     "core:window:allow-close",

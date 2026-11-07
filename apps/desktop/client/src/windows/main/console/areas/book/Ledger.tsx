@@ -19,6 +19,7 @@ import { bucketOf, dirOf, toCSV, type Bucket } from '../../../modules/book/model
 import { useLayerNav } from '../../layers';
 import { fewRows, ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
 import { Amount } from '../../rows';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { evidenceForExport, useEvidenceOf } from './evidence';
 import { stampOf } from './model';
 import { RowDetail, RowStatement, StatusChip, Totals, type BookWorld } from './parts';
@@ -87,6 +88,8 @@ export function LedgerRow({ deal, b, statement = true }: { deal: Deal; b: BookWo
   );
 }
 
+const FILL = { display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0, minWidth: 0 } as const;
+
 /** The ledger: totals and the list. `initialSort` lets "Recent payments" open it newest first. */
 export function Ledger({ b, scope }: { b: BookWorld; scope: LedgerScope }) {
   const nav = useLayerNav();
@@ -102,22 +105,22 @@ export function Ledger({ b, scope }: { b: BookWorld; scope: LedgerScope }) {
   const paidIds = useMemo(() => b.weekDeals.filter((d) => !!d.paypal.capture).map((d) => d.id), [b.weekDeals]);
   const [agreeOpen, setAgreeOpen] = useState(false);
   return (
-    <div className="bk-ledger">
-      <Totals deals={rows} checking={checking} />
+    <RevealGroup className="bk-ledger">
+      <Reveal><Totals deals={rows} checking={checking} /></Reveal>
       {/* Read only once opened: the statement reads of the week's paid deals wait for the owner. */}
-      <details className="ui-disclosure bk-went" onToggle={(e) => setAgreeOpen(e.currentTarget.open)}>
+      <Reveal><details className="ui-disclosure bk-went" onToggle={(e) => setAgreeOpen(e.currentTarget.open)}>
         <summary>{BOOK.went}</summary>
         <div className="ui-disclosure-body">{agreeOpen ? <Went b={b} ids={paidIds} /> : null}</div>
-      </details>
-      <ListEngine<Deal> className={fewRows(rows.length)} label={scope === 'week' ? BOOK.list.week : BOOK.list.all} rows={rows} getKey={(d) => d.id}
+      </details></Reveal>
+      <Reveal style={FILL}><ListEngine<Deal> className={fewRows(rows.length)} label={scope === 'week' ? BOOK.list.week : BOOK.list.all} rows={rows} getKey={(d) => d.id}
         searchText={(d) => `${b.title(d)} ${b.who(d)} ${b.label(d)} ${stateWord(d.state, { side: d.side, kind: d.kind }).text}`}
         filters={filters} filterLabel={BOOK.filter.label} sorts={SORTS} estimateSize={36} wideAt={1200}
         renderRow={(d) => <LedgerRow deal={d} b={b} />}
         rowLabel={(d) => `${b.title(d)}, ${b.who(d)}`}
         onOpen={(d) => nav.deal(d.id)}
         detail={(d) => <RowDetail deal={d} need={b.needOf.get(d.id)} who={b.who(d)} title={b.title(d)} onOpen={() => nav.deal(d.id)} />}
-        empty={scope === 'week' ? BOOK.list.emptyWeek : BOOK.list.empty} noMatch={BOOK.list.noMatch} />
-    </div>
+        empty={scope === 'week' ? BOOK.list.emptyWeek : BOOK.list.empty} noMatch={BOOK.list.noMatch} /></Reveal>
+    </RevealGroup>
   );
 }
 

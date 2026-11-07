@@ -3,6 +3,7 @@
 // there; releasing never happens in this window and a block has no release anywhere), the refuse
 // confirm (deal_withdraw: no money moves, PayPal was never asked), a paused payment as a decision,
 // and one line per checked payment. Counterparty words show only through the quarantined NoteText.
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
@@ -133,8 +134,8 @@ export function PausedDecision({ deal, s, onDeal }: { deal: Deal; s: ShieldWorld
   options.push({ label: SHIELD.openDeal, onClick: onDeal, means: SHIELD.openDealMeans });
   const t = dealTotal(deal);
   return (
-    <div className="sh-paused">
-      <DecisionCard className="sh-card"
+    <RevealGroup className="sh-paused">
+      <Reveal><DecisionCard className="sh-card"
         context={<><Icon name="pause" size={13} />{SHIELD.pausedBefore} · <span className="sh-ctx" title={s.title(deal)}>{s.title(deal)}</span><NoteChip dealId={deal.id} who={who} /></>}
         question={live ? SHIELD.letGo(who) : SHIELD.whatNow(who)}
         amount={<MinorMoney minor={t.minor} currency={t.currency} />}
@@ -149,13 +150,13 @@ export function PausedDecision({ deal, s, onDeal }: { deal: Deal; s: ShieldWorld
           <ComparePanel deal={deal} cp={cp} known={s.known} now={now} />
           <CheckLights deal={deal} cp={cp} now={now} />
         </div>
-      </DecisionCard>
-      <div className="cs-acts sh-acts">
+      </DecisionCard></Reveal>
+      <Reveal><div className="cs-acts sh-acts">
         <ReleaseHandoff deal={deal} need={need} />
         <RefuseButton deal={deal} need={need} title={s.title(deal)} />
-      </div>
+      </div></Reveal>
       <p className="ui-hint">{live ? SHIELD.releaseMeans[releaseCase(deal)] : SHIELD.reviewMeans}</p>
-    </div>
+    </RevealGroup>
   );
 }
 

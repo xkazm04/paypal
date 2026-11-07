@@ -5,6 +5,7 @@
 // the renewals that need a fix (a windowed list, the picked one's fixes beside it), the fixes in
 // progress, the money that came back and the subscriptions the wallet watches. Replaying a failed
 // renewal and changing the watch list happen in the approval window.
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { useMemo, useState, type CSSProperties } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { RescueBook } from '@bindings/RescueBook';
@@ -138,8 +139,10 @@ function Recovered({ r }: { r: RescueWorld }) {
   return (
     <div className="rs-list">
       {r.bookError ? <WalletNotice error={r.bookError} what={RESCUE.bookWhat} /> : null}
+      <Reveal className="rs-sec">
       <p className="rs-total">{RESCUE.recovered.total} <b className={`money${total ? ' okc' : ''}`}>{total ?? RESCUE.recovered.noneYet}</b></p>
       <p className="rs-total">{RESCUE.recovered.month} <b className={`money${month?.length ? ' okc' : ''}`}>{month ? moneyList(month) ?? RESCUE.recovered.noneYet : RESCUE.recovered.monthUnknown}</b></p>
+      </Reveal>
       <p className="ui-hint">{RESCUE.recovered.rule}</p>
       <ListEngine<RecoveredRow> className={fewRows(rows.length)} label={RESCUE_VIEWS_TITLE.recovered} rows={rows} getKey={(x) => x.deal.id} filters={RECOVERED_FILTERS} estimateSize={36}
         searchText={(x) => `${r.name(x.deal)} ${r.title(x.deal)}`}
@@ -183,9 +186,9 @@ function Watch({ r }: { r: RescueWorld }) {
   const book = r.book;
   const n = book?.watching.length ?? 0;
   return (
-    <div className="rs-watch">
+    <RevealGroup className="rs-watch">
       {r.bookError ? <WalletNotice error={r.bookError} what={RESCUE.bookWhat} /> : null}
-      <section className="rs-wbox">
+      <Reveal><section className="rs-wbox">
         <h2 className="rs-h2">{book ? watchingWords(n) : r.bookError ? RESCUE.watch.unread : RESCUE.watch.reading}</h2>
         <p>{book ? watchLines(book, now).line : null}</p>
         {book && n ? <p className="ui-hint" title={RESCUE_WATCH_ABOUT}>{RESCUE.watch.reads(book.watch_reads_today, book.watch_reads_max)}</p> : null}
@@ -195,8 +198,8 @@ function Watch({ r }: { r: RescueWorld }) {
           </Btn>
         </div>
         {open.error ? <WalletNotice error={open.error} what={RESCUE.approvalWhat} /> : null}
-      </section>
-      <section className="rs-wbox">
+      </section></Reveal>
+      <Reveal><section className="rs-wbox">
         <h2 className="rs-h2">{RESCUE.rules.title}</h2>
         {q.error ? <WalletNotice error={q.error} what={RESCUE.rules.what} /> : (
           <Kv items={[
@@ -208,8 +211,8 @@ function Watch({ r }: { r: RescueWorld }) {
           ]} />
         )}
         <div className="cs-acts"><Btn sm onClick={() => nav.place('rules')}>{RESCUE.rules.open}</Btn></div>
-      </section>
-    </div>
+      </section></Reveal>
+    </RevealGroup>
   );
 }
 

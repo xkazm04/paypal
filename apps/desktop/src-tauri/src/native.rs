@@ -373,7 +373,8 @@ pub fn run() -> Result<(), tauri::Error> {
             tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .on_navigation(navigation::permits)
                 .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
-                .title("The Table")
+                .title("Signet")
+                .decorations(false)
                 .inner_size(1440.0, 900.0)
                 .visible(false)
                 .build()?;

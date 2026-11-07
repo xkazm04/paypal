@@ -19,11 +19,12 @@ import type { Module } from '@bindings/Module';
 import { useEvent, useMutation } from '../../../lib/hooks';
 import { isLazyPart, lazyPart, preloadOnIntent, preloadWhenIdle, whenPartsReady } from '../../../lib/lazy';
 import {
-  A_DEAL, BACK_TITLE, BOARD_TO_BOARD, BOARD_TO_BOARD_TITLE, BRAND_NAME, WALLET_FAULT_TOAST, CHARTER_TITLE, BRAND_TITLE, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, NOTICE_WHAT, PLACE, PLACE_TITLE, PLACES_LABEL,
+  A_DEAL, BACK_TITLE, BOARD_TO_BOARD, BOARD_TO_BOARD_TITLE, WALLET_FAULT_TOAST, CHARTER_TITLE, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, NOTICE_WHAT, PLACE, PLACE_TITLE, PLACES_LABEL,
   SEAL_RING, sealLabel, silenceWords, tabTitle, tabWaiting, TABS_LABEL,
 } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
-import { Mark, Seal } from '../../../shared/brand';
+import { Seal } from '../../../shared/brand';
+import { APP_BRAND_EVENT, APP_FIND_EVENT, APP_STATUS_EVENT, useAppHeaderEvent } from '../AppHeader';
 import { Glyph, MODULE, MODULES } from '../../../shared/modules';
 import { Btn, InspectorHostProvider, layerCount, ModuleTab, Stack, TabStrip, TOAST_MS, useInspectorHost, useToast } from '../../../shared/ui';
 import { shortTitle } from '../home/model';
@@ -244,6 +245,8 @@ export function Console() {
   const [find, setFind] = useState(false);
   const [help, setHelp] = useState(false);
   const [quit, setQuit] = useState(false);
+  // The app header's brand, status and Find (AppHeader.tsx) announce themselves; this view answers.
+  useAppHeaderEvent(APP_FIND_EVENT, useCallback(() => setFind(true), []));
   const [rewindAt, setRewindAt] = useState<number | null>(null);
   const [paidFlash, setPaidFlash] = useState(false);
   useEffect(() => preloadWhenIdle(LATER_PARTS), []);
@@ -251,6 +254,8 @@ export function Console() {
 
   // ---- navigation helpers ---------------------------------------------------------------------
   const goHome = useCallback(() => { if (navRef.current.route.level !== 'home') go({ level: 'home' }); }, [go]);
+  useAppHeaderEvent(APP_BRAND_EVENT, goHome);
+  useAppHeaderEvent(APP_STATUS_EVENT, useCallback(() => (queue.length ? go({ level: 'waiting' }) : goHome()), [queue.length, go, goHome]));
   const goModule = useCallback((m: Module) => go({ level: 'module', module: m }), [go]);
   const goDeal = useCallback((id: string) => {
     const r = navRef.current.route;
@@ -388,20 +393,16 @@ export function Console() {
     <div className={`cs-app ui-ground${depth > 1 ? ' deep' : ''}`} inert={find || undefined} onPointerOver={warmOnIntent} onFocus={warmOnIntent} style={{ '--seal': `var(--${SEAL_TONE[presence.state]})` } as CSSProperties}>
       <header className="cs-bar">
         <div className="cs-barl">
-          <button type="button" className="cs-brand" onClick={goHome} title={BRAND_TITLE} aria-label={BRAND_TITLE}><Mark /><span>{BRAND_NAME}</span></button>
           {depth > 1 ? <button type="button" className="cs-back" onClick={back} title={BACK_TITLE}><span aria-hidden="true">‹</span> {DETAIL_BACK}</button> : null}
           {here ? <span className="cs-here" data-testid="cs-here" title={def.title(route)}><CrumbLabel r={here} firstRun={firstRun} /></span> : null}
         </div>
         <nav className="cs-places" aria-label={PLACES_LABEL}>
-          <button type="button" id="cs-needpill" className={`cs-needpill${queue.length ? '' : ' zero'}`} aria-label={needPillLabel(queue.length)}
-            onClick={() => (queue.length ? go({ level: 'waiting' }) : goHome())}>{needPill(queue.length)}</button>
           <button type="button" id="cs-place-rewind" className={`cs-place${route.level === 'rewind' ? ' on' : ''}`} onClick={() => goRewind()} title={PLACE_TITLE.rewind}>{PLACE.rewind}</button>
           {BAR_PLACES.map((b) => (
             <button key={b.place} type="button" id={`cs-place-${b.place}`} className={`cs-place${placeLit && b.lit.includes(placeLit) ? ' on' : ''}`}
               aria-current={placeLit && b.lit.includes(placeLit) ? 'page' : undefined} onClick={() => barPlace(b.place)} title={b.title}>{b.label}</button>
           ))}
           <button type="button" id="cs-place-board" className="cs-place" onClick={() => setHomeView('board')} title={BOARD_TO_BOARD_TITLE}>{BOARD_TO_BOARD}</button>
-          <button type="button" className="cs-place" onClick={() => setFind(true)} title={PLACE_TITLE.find}>{PLACE.find} <kbd>/</kbd></button>
           <LockButton />
         </nav>
       </header>

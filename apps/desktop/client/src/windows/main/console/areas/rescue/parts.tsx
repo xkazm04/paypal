@@ -4,6 +4,7 @@
 // decision: its fixes as a radio group with "Do nothing" picked at the start (silence never moves
 // money), what the subscriber would get, why some fixes are not offered, and what the picked fix
 // does. A plan-wide price change is the one thing never offered.
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { useEffect, useMemo, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
@@ -236,7 +237,8 @@ export function FixPanel({ deal, r, col, onPick, onDeal }: { deal: Deal; r: Resc
   const t = view?.offer.cycle ?? dealTotal(deal);
   const lever = col !== 'NONE' && pickable(cellState(deal, col, paypalRetry(view, now), now, view)) ? col : undefined;
   return (
-    <div className="rs-panel">
+    <RevealGroup className="rs-panel">
+      <Reveal className="rs-sec">
       <p className="kicker"><span className="rs-ctx" title={r.title(deal)}>{r.title(deal)}</span>{deal.mode !== 'sandbox' ? <ModeBadge mode={deal.mode} /> : null}
         {view && view.source !== 'replay' && deal.mode === 'sandbox' ? <Chip tone="line" title={RESCUE.reportedTitle}>{rescueSourceWord(view.source).toLowerCase()}</Chip> : null}</p>
       <div className="rs-q">
@@ -245,7 +247,9 @@ export function FixPanel({ deal, r, col, onPick, onDeal }: { deal: Deal; r: Resc
       </div>
       <p className="rs-why-l">{RESCUE.whyLine}{view ? <> {RESCUE.invoiceTo} <span className="mono">{view.recipient}</span>.</> : null}</p>
       {view && view.failed_payments > 0 ? <p className="ui-hint">{RESCUE.history(view.failed_payments)}</p> : null}
-      <Picks deal={deal} view={view} col={col} onPick={onPick} />
+      </Reveal>
+      <Reveal><Picks deal={deal} view={view} col={col} onPick={onPick} /></Reveal>
+      <Reveal className="rs-sec">
       <div className="cs-acts rs-acts">
         {need ? <HandOff deal={deal} lever={lever} quiet={refusalLine(view) !== null} /> : null}
         <Btn kind="plain" onClick={onDeal}>{RESCUE.openDeal}</Btn>
@@ -254,10 +258,13 @@ export function FixPanel({ deal, r, col, onPick, onDeal }: { deal: Deal; r: Resc
       {refusalLine(view) ? <p className="ui-hint rs-refusal">{refusalLine(view)}</p> : null}
       <p className="rs-sil"><Hourglass /> <span>{RESCUE.ifNothing}: <b>{ifNothingOf(deal, need?.on_silence, view)}</b></span></p>
       {deadline ? <p className="ui-hint rs-close">{RESCUE.closes(clockLabel(deadline), timeLeftWords(deadline - now))}</p> : null}
+      </Reveal>
+      <Reveal>
       <details className="ui-disclosure rs-more"><summary>{col === 'NONE' ? RESCUE.fix.aboutNone : RESCUE.fix.about(RESCUE.pick[col].name)}</summary>
         <div className="ui-disclosure-body"><FixDetail deal={deal} view={view} col={col} /></div>
       </details>
-    </div>
+      </Reveal>
+    </RevealGroup>
   );
 }
 
@@ -268,9 +275,12 @@ export function DeskDetail({ deal, r, onDeal }: { deal: Deal; r: RescueWorld; on
   const deadline = r.deadline(deal);
   const t = dealTotal(deal);
   return (
-    <div className="rs-panel">
+    <RevealGroup className="rs-panel">
+      <Reveal className="rs-sec">
       <h2 className="rs-h2" title={r.name(deal)}>{cap(r.name(deal))}</h2>
       <div className="rs-chips"><RescueState deal={deal} />{deal.mode !== 'sandbox' ? <ModeBadge mode={deal.mode} /> : null}<CountChip deal={deal} view={view} /></div>
+      </Reveal>
+      <Reveal className="rs-sec">
       <Kv items={[
         [RESCUE.k.what, r.title(deal)],
         [RESCUE.k.money, <><span className="money">{formatMinor(t.minor, t.currency)}</span> · {deskLine(deal, view).toLowerCase()}</>],
@@ -280,7 +290,8 @@ export function DeskDetail({ deal, r, onDeal }: { deal: Deal; r: RescueWorld; on
         need ? [RESCUE.ifNothing, ifNothingOf(deal, need.on_silence, view)] : null,
       ]} />
       <div className="cs-acts">{need ? <HandOff deal={deal} sm quiet={refusalLine(view) !== null} /> : null}<Btn sm onClick={onDeal}>{RESCUE.openDeal}</Btn></div>
-    </div>
+      </Reveal>
+    </RevealGroup>
   );
 }
 

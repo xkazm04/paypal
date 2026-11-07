@@ -28,6 +28,7 @@ import { useLocked, useSettings } from '../world';
 import { Handoff } from './common';
 import { PairingDesk } from '../console/areas/connections/PairingDesk';
 import { switchDemo } from '../console/DemoSwitch';
+import { Reveal, RevealGroup } from '../../../design/Reveal';
 import type { PairMode } from './pairing';
 import { SayIt } from './SayIt';
 import { useStart } from './start';
@@ -145,17 +146,17 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
   const preview = backend().kind === 'mock';
   return (
     <div className="cs-charter">
-      <div className="ch-l" data-tour="start-hub">
+      <RevealGroup className="ch-l" data-tour="start-hub">
         {all ? (
-          <>
+          <Reveal className="ch-sealed" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
             <p className="kicker">{CHARTER_SEALED.kicker}</p>
             <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{CHARTER_SEALED.title}</h1>
             <p className="ch-sub">{SETUP_ALL_DONE}</p>
             <div className="cs-acts"><Btn kind="gold" onClick={onDone}>{SETUP_FINISH}</Btn></div>
-          </>
+          </Reveal>
         ) : (
           <>
-            <div className={`ch-now${seal ? ' has-seal' : ''}`}>
+            <Reveal className={`ch-now${seal ? ' has-seal' : ''}`}>
               <div className="ch-text">
                 <p className="kicker">{CHARTER_TITLE} · {charterLine(numeral)}</p>
                 <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{copy.lead}</h1>
@@ -165,17 +166,17 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
                 </div>
               </div>
               {seal ? <div className="ch-seal">{seal}</div> : null}
-            </div>
-            {step === 'rules' && !all ? <SayIt className="ch-sayit" timeline stepGold={!isDone} onOpened={opening} /> : null}
+            </Reveal>
+            {step === 'rules' && !all ? <Reveal><SayIt className="ch-sayit" timeline stepGold={!isDone} onOpened={opening} /></Reveal> : null}
             {step !== 'practice' ? (
-              <section className={`ch-preview${isDone ? ' done' : ''}`} aria-label={isDone ? charterReads(numeral) : charterPreview(numeral)}>
+              <Reveal><section className={`ch-preview${isDone ? ' done' : ''}`} aria-label={isDone ? charterReads(numeral) : charterPreview(numeral)}>
                 <h2 className="cs-h3">{isDone ? charterReads(numeral) : charterPreview(numeral)}</h2>
                 <p><span className="num" aria-hidden="true">{numeral}</span><span className="lbl">{SETUP_STEP_LABEL[step]}</span><span className="val">{copy.done}</span></p>
-              </section>
+              </section></Reveal>
             ) : null}
           </>
         )}
-        <section className="ch-note" aria-label={CHARTER_MEANS_TITLE}>
+        <Reveal><section className="ch-note" aria-label={CHARTER_MEANS_TITLE}>
           <h2 className="cs-h3">{CHARTER_MEANS_TITLE}</h2>
           <ul>
             <li><i className="led gold" aria-hidden="true" />{charterDone(gs.done, gs.total)}</li>
@@ -184,9 +185,9 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
           </ul>
           <TakeTour win="main" gs={gs} className="ch-tour" />
           {root && preview ? <p className="ch-skip"><button type="button" className="linkbtn" title={CHARTER_SKIP_TITLE} onClick={skipToSample}>{CHARTER_SKIP}</button></p> : null}
-        </section>
-      </div>
-      <div className="ch-r">
+        </section></Reveal>
+      </RevealGroup>
+      <Reveal className="ch-r">
         <h2 className="cs-h3">{CHARTER_TITLE}</h2>
         <ol className="ch-fields" data-tour="start-steps" aria-label={CHARTER_TITLE}>
           {SETUP_STEPS.map((k, i) => {
@@ -205,7 +206,7 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
             );
           })}
         </ol>
-      </div>
+      </Reveal>
       <Tour win="main" gs={gs} firstRun={root === true && gs.show} />
     </div>
   );

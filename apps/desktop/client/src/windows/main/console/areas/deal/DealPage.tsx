@@ -39,7 +39,8 @@ import { useSheetView, type LayerNav } from '../../layers';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { DealRow, WhoChip } from '../../rows';
 import { PlaceFrame, type LensCard } from '../settings/frame';
-import { Reveal } from '../../stagger';
+import { Reveal as Wave } from '../../stagger';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { DealDecision, StateStrip, Summary } from './Decision';
 import { InstructionsValue } from './InstructionsValue';
 import { ShownStrip } from './ShownStrip';
@@ -176,15 +177,15 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
       action={<PageActions deal={deal} label={disp.label} entryAgent={entry?.agent ?? null} needs={!!need} onSheet={setSheet}
         onWatch={worthWatching(deal, disp.band) ? () => { watchTable(deal.id); nav.go({ level: 'module', module: 'tables', view: 'watch' }); } : null} />}
       lead={(
-        <div className="dv-lead">
+        <RevealGroup className="dv-lead">
           {disp.fallback ? <Hint>{DEAL_ACT.fallback}</Hint> : null}
-          <StateStrip strip={strip} />
+          <Reveal><StateStrip strip={strip} /></Reveal>
           {/* What the owner was shown (its own read of the record) takes the last turn (stagger.tsx). */}
-          {ended ? <Reveal wave={3}><ShownStrip deal={deal} /></Reveal> : null}
+          {ended ? <Wave wave={3}><ShownStrip deal={deal} /></Wave> : null}
           {atFloor ? <p className="dv-consequence">{atFloor}</p> : null}
           {consequence}
           <DealDecision deal={deal} need={need} canWithdraw={withdrawable} theirName={them} them={them} readings={readings} deadline={deadline} />
-        </div>
+        </RevealGroup>
       )}
       cards={cards} latest={strips} childrenWave={0}>
       {sheet === 'transcript' ? (

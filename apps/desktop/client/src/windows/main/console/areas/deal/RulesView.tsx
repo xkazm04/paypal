@@ -6,6 +6,7 @@ import { useState } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { WalletError } from '../../../../../lib/contract';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { DEAL_RULES, rulesName } from '../../../../../lib/words';
 import { Btn, ChecksSummary, Disclosure, Empty, Icon, Kv, Loading } from '../../../../../shared/ui';
 import type { ClauseReading, Reading } from '../../../deal/model';
@@ -25,12 +26,13 @@ export function RulesView({ deal, mandate, readings, onRules }: { deal: Deal; ma
   const p = mandate.entry?.payload;
   const status = mandate.error ? DEAL_RULES.statusUnread : mandate.entry ? DEAL_RULES.statusActive : mandate.newer ? DEAL_RULES.statusReplaced : DEAL_RULES.statusOff;
   return (
-    <div className="dv-panel dv-rules">
-      <header className="dv-ph">
+    <RevealGroup className="dv-panel dv-rules">
+      <Reveal><header className="dv-ph">
         <h3>{mandate.entry ? DEAL_RULES.yours(rulesName(mandate.entry.agent).toLowerCase()) : DEAL_RULES.plain}</h3>
         {p ? <span className="dim">{DEAL_RULES.validUntil(fmtDate(p.expires))}</span> : null}
         <Btn kind="plain" sm className="end" onClick={onRules}>{DEAL_RULES.toRules}</Btn>
-      </header>
+      </header></Reveal>
+      <Reveal style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
       {mandate.error ? (
         <Empty>{DEAL_RULES.unread}</Empty>
       ) : mandate.loading ? <Loading what={DEAL_RULES.reading} /> : !mandate.entry ? (
@@ -46,8 +48,9 @@ export function RulesView({ deal, mandate, readings, onRules }: { deal: Deal; ma
           ) : null}
         </>
       )}
-      <h3 className="cs-h3 dv-sh">{DEAL_RULES.each}</h3>
-      <div className="dv-readings">
+      </Reveal>
+      <Reveal><h3 className="cs-h3 dv-sh">{DEAL_RULES.each}</h3></Reveal>
+      <Reveal><div className="dv-readings">
         {readings.length ? readings.map((c) => {
           const [g, cls] = GLYPH[c.reading];
           return (
@@ -57,8 +60,8 @@ export function RulesView({ deal, mandate, readings, onRules }: { deal: Deal; ma
             </div>
           );
         }) : <Empty>{DEAL_RULES.noRules}</Empty>}
-      </div>
-      <Disclosure summary={DEAL_RULES.details} className="dv-gap">
+      </div></Reveal>
+      <Reveal><Disclosure summary={DEAL_RULES.details} className="dv-gap">
         <Kv items={[
           [DEAL_RULES.status, status],
           mandate.entry ? [DEAL_RULES.for, DEAL_RULES.forAgent(mandate.entry.agent)] : null,
@@ -66,8 +69,8 @@ export function RulesView({ deal, mandate, readings, onRules }: { deal: Deal; ma
           [DEAL_RULES.version, `${deal.mandate_version}`],
           mandate.entry ? [DEAL_RULES.signature, <span className="mono">{mandate.entry.owner_sig.slice(0, 4).map((b) => b.toString(16).padStart(2, '0')).join('')}…</span>] : null,
         ]} />
-      </Disclosure>
-      <p className="ui-hint">{DEAL_RULES.onlyApproval}</p>
-    </div>
+      </Disclosure></Reveal>
+      <Reveal><p className="ui-hint">{DEAL_RULES.onlyApproval}</p></Reveal>
+    </RevealGroup>
   );
 }

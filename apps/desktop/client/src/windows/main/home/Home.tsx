@@ -22,8 +22,8 @@ import type { Module } from '@bindings/Module';
 import type { Fate, PanelSpec } from '../../../lib/assistant';
 import { clockNow } from '../../../lib/clock';
 import { useMutation } from '../../../lib/hooks';
-import { BOARD_ACT, BOARD_CHANGED, BOARD_FATE, BOARD_PANEL_TITLE, BRAND_NAME, type StartStepKey } from '../../../lib/words';
-import { Mark } from '../../../shared/brand';
+import { BOARD_ACT, BOARD_CHANGED, BOARD_FATE, BOARD_PANEL_TITLE, type StartStepKey } from '../../../lib/words';
+import { APP_BRAND_EVENT, APP_FIND_EVENT, APP_STATUS_EVENT, useAppHeaderEvent } from '../AppHeader';
 import { Countdown, MockBadge } from '../../../shared/honesty';
 import { Glyph, MODULE } from '../../../shared/modules';
 import { Btn, layerCount } from '../../../shared/ui';
@@ -151,6 +151,10 @@ function Greet({ back }: { back: boolean }) {
     commit(next);
     setUndoTo(null);
   }, [commit]);
+  // The app header's brand, status and Find (AppHeader.tsx): this view answers them.
+  useAppHeaderEvent(APP_BRAND_EVENT, useCallback(() => move((n) => ({ ...n, open: null })), [move]));
+  useAppHeaderEvent(APP_STATUS_EVENT, useCallback(() => move((n) => ({ ...n, scope: 'all', fate: 'needs', query: '', lit: null })), [move]));
+  useAppHeaderEvent(APP_FIND_EVENT, useCallback(() => { document.querySelector<HTMLInputElement>('.fs-filter')?.focus(); }, []));
 
   // Once the lists have rows: the side opens on the module holding the first need (its list, its own
   // columns), or All when nothing needs her. Never again after that: her moves win.
@@ -507,7 +511,6 @@ function Greet({ back }: { back: boolean }) {
     <MotionConfig reducedMotion={calm ? 'always' : 'user'} transition={tr('med', calm)}>
     <div className="fs-app ui-ground" data-front="stage" data-ready={model.ready ? 'true' : 'false'} data-staged={staged ? 'true' : 'false'} data-guided={guided ? 'true' : undefined}>
       <header className="ui-toolbar fs-bar">
-        <span className="fs-brand"><Mark /><b>{BRAND_NAME}</b></span>
         <MockBadge />
         <span className="ui-spacer" />
         <Btn sm kind="plain" onClick={() => setHomeView('console')} title={GREET.toConsoleTitle}>{GREET.toConsole}</Btn>

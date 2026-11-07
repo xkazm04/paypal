@@ -11,6 +11,7 @@ import { Console } from './console/Console';
 import { useHomeView } from './switchboard/view';
 import { WorldProvider } from './world';
 import { Home } from './home/Home';
+import { AppHeader } from './AppHeader';
 
 export function App() {
   const view = useHomeView();
@@ -18,6 +19,7 @@ export function App() {
     <ToastProvider>
       <WorldProvider>
         <CounterpartyProvider>
+          <AppHeader />
           {view === 'board' ? <Home /> : <Console />}
         </CounterpartyProvider>
       </WorldProvider>

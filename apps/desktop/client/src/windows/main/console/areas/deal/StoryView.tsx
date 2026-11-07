@@ -16,6 +16,7 @@ import { Empty, Icon, Kv, Loading, Popover } from '../../../../../shared/ui';
 import { envelopeLink, stepWords, type EnvelopeLink } from '../../../deal/model';
 import { threadRows, type Fact } from '../../../deal/story';
 import { endedBeforePayPalShowed, isLive, isMoneyCall, isRefusal, stepSentence, stepTime, tickTone } from '../../../logic';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { TickMark } from '../rewind/TickMark';
 import { decidedLine, decisionSteps } from './decided';
 
@@ -36,10 +37,12 @@ export function StoryView({ deal, steps, error, clauses, theirName, facts, facts
   deal: Deal; steps: TranscriptStep[] | undefined; error: WalletError | null; clauses: readonly Clause[]; theirName: string; facts: Fact[]; factsTitle: string; title: string;
 }) {
   return (
-    <>
-      <WhatHappened deal={deal} steps={steps} error={error} clauses={clauses} theirName={theirName} facts={facts} factsTitle={factsTitle} />
-      <WhoDecided deal={deal} title={title} />
-    </>
+    // Two blocks arrive top to bottom; the chat's rows scroll to the newest and re-render with the
+    // record, so they are not staggered.
+    <RevealGroup>
+      <Reveal><WhatHappened deal={deal} steps={steps} error={error} clauses={clauses} theirName={theirName} facts={facts} factsTitle={factsTitle} /></Reveal>
+      <Reveal><WhoDecided deal={deal} title={title} /></Reveal>
+    </RevealGroup>
   );
 }
 

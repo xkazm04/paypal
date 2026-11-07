@@ -7,6 +7,7 @@ import type { Deal } from '@bindings/Deal';
 import type { DealEvidence } from '@bindings/DealEvidence';
 import type { DisplayBand } from '@bindings/DisplayBand';
 import { useQuery } from '../../../../../lib/hooks';
+import { Reveal } from '../../../../../design/Reveal';
 import { dealWatch } from '../../../../../lib/marketWatch';
 import { EvidenceSheet, ProofPanel, type EvidenceKind, type SignedCard } from './Evidence';
 
@@ -19,7 +20,7 @@ export function ProofView({ deal, band, fresh, onFresh, signed }: { deal: Deal; 
   const ev = { data: fresh ?? evq.data, error: evq.error };
   return (
     <>
-      <ProofPanel deal={deal} ev={ev} band={band} watch={watch} onOpen={setSheet} signed={signed} />
+      <Reveal><ProofPanel deal={deal} ev={ev} band={band} watch={watch} onOpen={setSheet} signed={signed} /></Reveal>
       {sheet ? (
         <Suspense fallback={null}>
           <EvidenceSheet kind={sheet} deal={deal} ev={ev} band={band} watch={watch} onFresh={onFresh} onClose={() => setSheet(null)} />

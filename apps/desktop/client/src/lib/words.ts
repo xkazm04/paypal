@@ -929,8 +929,11 @@ export const PLACE_TITLE = {
 /** The director place: its frame's accessible name, and the line shown where it cannot run. */
 export const DIRECTOR_PLACE = { frame: 'The scenario director: Maya’s week on sample data', loading: 'Setting the stage…', shellOnly: 'This preview runs in a web browser only.', title: 'Maya’s week' } as const;
 /** The brand button: back to the decision centre. */
-export const BRAND_NAME = 'The Table';
-export const BRAND_TITLE = 'The Table: back to what needs you';
+export const BRAND_NAME = 'Signet';
+export const BRAND_TITLE = 'Signet: back to what needs you';
+/** The app header (windows/main/AppHeader.tsx): the slogan beside the name, the window's own buttons. */
+export const BRAND_SLOGAN = 'Your seal on every move.';
+export const APP_HEADER = { label: 'Signet', find: 'Find', findTitle: 'Find a deal, a person or a place (/ or Ctrl K)', minimise: 'Minimise', maximise: 'Maximise or restore', close: 'Close' } as const;
 export const BACK_TITLE = 'Back one level (Esc)';
 export const CRUMBS_LABEL = 'Where you are';
 export const PLACES_LABEL = 'Places';

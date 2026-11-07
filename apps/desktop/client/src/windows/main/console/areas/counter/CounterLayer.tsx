@@ -29,6 +29,7 @@ import { Amount, Countdown, Row1, StateChip, WhoChip } from '../../rows';
 import { SplitView, usePick } from '../tables/parts';
 import { MiniBar, OrderPane } from './Order';
 import { DraftBar, ItemPane } from './Prices';
+import { Reveal } from '../../../../../design/Reveal';
 
 const selModuleOf = (w: World) => w.moduleOfDeal;
 const selDisplay = (w: World) => w.display;
@@ -270,7 +271,7 @@ export function CounterLayer({ nav }: LayerProps) {
 function ShopRules({ mandate, count, floors }: { mandate: MandateListEntry | null; count: number; floors: number }) {
   if (!mandate) return <p className="le-empty">{COUNTER.rulesNone}</p>;
   return (
-    <div className="ctr-rules">
+    <Reveal className="ctr-rules">
       <Kv items={[
         [COUNTER.promise, COUNTER.promiseV],
         [COUNTER.pricesSet, COUNTER.pricesSetV(floors)],
@@ -280,6 +281,6 @@ function ShopRules({ mandate, count, floors }: { mandate: MandateListEntry | nul
         [COUNTER.changedIn, COUNTER.changedInV],
         [COUNTER.version, <span className="tx-dim">{COUNTER.versionV(mandate.payload.version)}</span>],
       ]} />
-    </div>
+    </Reveal>
   );
 }
