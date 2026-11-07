@@ -38,7 +38,7 @@ import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { Category } from '@bindings/Category';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { mockCheck, mockValidate, type MockIntent } from './simulate';
-import { mockEnvelopeRefusal, mockExposureView, type MockEnvelope } from './exposure';
+import { mockEnvelopeRefusal, mockExposureView, mockWalletDayUsed, type MockEnvelope } from './exposure';
 import { AGREED_OR_LATER, BEFORE_SETTLEMENT, COUNTERSIGNABLE, OPEN_TABLE, TERMINAL, WITHDRAWABLE } from '@bindings/dealStates';
 import type { EnvelopeSignArgs } from '@bindings/EnvelopeSignArgs';
 import type { RescueView } from '@bindings/RescueView';
@@ -277,6 +277,16 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     const day = AGREED_OR_LATER.has(d.deal.state) ? agreedDay(d) : Math.floor(nowUnix() / 86400);
     const used = state.deals.filter((o) => o.deal.id !== d.deal.id && o.deal.mandate_id === d.deal.mandate_id && AGREED_OR_LATER.has(o.deal.state) && agreedDay(o) === day);
     return { dealsToday: used.length, totalToday: used.reduce((t, o) => t + o.deal.terms.unit_price.minor * o.deal.terms.qty, 0) };
+  }
+  /** Rust table-app `left_today`: the budget seen from now, not from the deal's place in its day.
+   *  The other deals under the mandate agreed today (usage_today_without) and the wallet limit's
+   *  money out today without this deal; null when the deal agreed on an earlier UTC day. */
+  function usageToday(d: ReturnType<typeof find>): { ruleUsedMinor: number; wallet: { usedMinor: number; cap: Money } | null } | null {
+    const today = Math.floor(nowUnix() / 86400);
+    if (AGREED_OR_LATER.has(d.deal.state) && agreedDay(d) !== today) return null;
+    const used = state.deals.filter((o) => o.deal.id !== d.deal.id && o.deal.mandate_id === d.deal.mandate_id && AGREED_OR_LATER.has(o.deal.state) && agreedDay(o) === today);
+    const wallet = mockWalletDayUsed(state.deals.map((o) => o.deal), d.deal, envelope(), nowUnix());
+    return { ruleUsedMinor: used.reduce((t, o) => t + o.deal.terms.unit_price.minor * o.deal.terms.qty, 0), wallet };
   }
   /** As Wallet::mandate_check: the deal's active version, its recorded category, the counterparty's
    *  pin, the ledger's usage and the rounds already signed, judged by the one mock of
@@ -547,6 +557,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       mandate: activeMandate(d.deal.mandate_id), verdict, spentTodayMinor: usageFor(d).totalToday, now: nowUnix(),
       limitRefusal: mockEnvelopeRefusal(state.deals.map((o) => o.deal), d.deal, envelope(), nowUnix()),
       rescue: state.rescue?.[d.deal.id],
+      today: usageToday(d),
     });
     return { checks, checks_hash: mockChecksHash(checks) };
   }

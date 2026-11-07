@@ -20,6 +20,14 @@ paused by a scam check.
   check, your rules. Each line is pass, fail, wait ("checked later") or not needed (folded into
   one quiet line). Words are the wallet's own; "Why?" and "Proof" open the Layer 2 fact. The lines
   appear one by one while CHECKING; that reveal is presentation only, the list is complete first.
+- **What today's budget leaves**: when the rules have a daily limit or wallet limits are signed,
+  the rules line ends with "After this, $171.00 of today’s $500.00 is left." When the wallet limit
+  leaves less, it names it: "After this, $71.00 of your wallet’s $400.00 daily limit is left
+  today." The figure counts every other deal agreed today (UTC) and this deal once, with the
+  gates' own counting, so creating, authorizing and capturing one purchase read the same number,
+  and another deal agreeing changes it (the old hash then returns "The summary changed"). Its
+  "Why?" gives both raw figures, which is tighter, and that the day resets at 00:00 UTC. A deal
+  agreed on an earlier UTC day, or one with no daily cap, gets no sentence.
 - **One gold action**, always a hold-to-confirm button: "Approve $329.00" (accept a counter-offer,
   or approve the order), "Pay Dan $64.00" / "Collect $212.00" (an authorized hold), "Approve the
   discount · $9.60" (a rescue fix), "Unpause" (release a scam-check pause, after typing the other
@@ -201,7 +209,10 @@ IPC commands granted to the approval window (from `authority_table.rs`):
   `crates/table-app/src/auth.rs`: `owner_tickets_bind_terms_deal_attempt_expiry_and_session_generation`.
 - `crates/table-runtime/src/authority_tests.rs`: `every_command_answers_label_lock_and_token_exactly_as_the_authority_table_says`.
 - `apps/desktop/src-tauri/tests/capabilities.rs`: `w3_release_set_is_approval_only_and_all_commands_are_declared`.
-- `crates/table-runtime/src/limits_tests.rs`: `tighter_limits_stop_an_owner_decision_before_any_paypal_call`.
+- `crates/table-runtime/src/limits_tests.rs`: `tighter_limits_stop_an_owner_decision_before_any_paypal_call`,
+  `the_rules_line_says_what_is_left_today_and_a_later_purchase_makes_the_old_hash_stale`,
+  `the_rules_line_names_the_wallet_limit_when_it_is_the_tighter_one`; `crates/table-app/tests/pipeline.rs`:
+  `create_authorize_and_capture_of_one_purchase_read_the_same_left_today`.
 - `crates/table-runtime/src/client_tests.rs`: `approval_open_targets_and_drafts_are_checked_prefill_only_and_never_signed`.
 - Client: `windows/approval/gating.test.ts` ("locked: no money button is ever enabled", shield,
   MISMATCH, buyer haggle, owner accept), `windows/approval/review/checks.test.tsx`,

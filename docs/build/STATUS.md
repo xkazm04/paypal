@@ -3027,3 +3027,19 @@ runtime and the mock refuse anything else) and the main-only event `approval:she
 fingerprint moved (`PINNED_MANIFEST`) and the recorded samples were re-recorded. CSP, capabilities, labels and
 tokens are unchanged (`frame-src 'none'` still pinned). Design: `docs/design/desktop-secure-sheet.md`. Not yet
 clicked through in the real window.
+
+## What today's budget leaves, on the rules line (tiger gated-spend C2, 2026-11-07)
+
+The approval checklist's rules line ends with "After this, $171.00 of today’s $500.00 is left.", or names
+the wallet limit when it leaves less ("…of your wallet’s $400.00 daily limit is left today."). Closes
+the T14 "Left" item "after this: $X of $Y today" and approval L2. Rust: `Wallet::left_today`
+(`table-app/src/agent.rs`) reads the ledger's usage window (`usage_today_without`, one counting rule
+with `usage_for`) and the exposure fold (`exposure_today_without`, one rule with `exposure_for_deal`)
+seen from now, adds the deal's amount once, and compares with `table_core::day_left`, which the
+velocity clause and `WalletEnvelope::check` now share. The line is in the hashed checklist, so another
+deal agreeing changes it and an old hash returns "The summary changed". The mock mirrors it
+(`mock/checks.ts`, `mockWalletDayUsed`).
+- **Deviation:** the figure is the day seen from now (every other deal agreed today), not the deal's
+  place in its agreement order the gate judges an agreed deal by: the gate's own figure would not change
+  when a later deal agrees, and "today’s" would then overstate what is left. For a deal not agreed yet
+  the two are the same. A deal agreed on an earlier UTC day gets no sentence.
