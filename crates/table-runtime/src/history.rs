@@ -6,7 +6,7 @@
 use crate::{Runtime, app, invalid};
 use std::collections::BTreeMap;
 use table_client::*;
-use table_core::{DealId, DealState, RungMark, Timestamp};
+use table_core::{ApprovalCheck, ApprovalCheckStatus, DealId, DealState, RungMark, Timestamp};
 use table_ledger::AuditRecord;
 
 mod classify;
@@ -80,6 +80,10 @@ pub(crate) fn project(
     let mut read: BTreeMap<DealId, (Timestamp, PaypalMethod, PaypalOutcome)> = BTreeMap::new();
     let mut last: BTreeMap<DealId, usize> = BTreeMap::new();
     let mut rungs: BTreeMap<(DealId, Timestamp), Vec<RungMark>> = BTreeMap::new();
+    // The owner's decisions in record order (the step's index, its row and the lines recorded),
+    // and per deal the first money step that takes money (a capture, an invoice sent).
+    let mut decisions: Vec<Decided> = Vec::new();
+    let mut taken: BTreeMap<DealId, u64> = BTreeMap::new();
     for record in rows {
         let Some(deal_id) = record.deal_id else {
             continue;
@@ -105,9 +109,32 @@ pub(crate) fn project(
             authority,
             paypal,
             rungs: None,
+            decision: None,
         };
         match classify(record) {
             Row::Skip => {}
+            Row::Decided {
+                decision,
+                operation,
+                lines,
+            } => {
+                // Its own step, never folded with a row of the same second: the money rows the
+                // decision starts keep folding as they did (`last` is left where it was).
+                decisions.push(Decided {
+                    step: steps.len(),
+                    deal_id,
+                    seq: record.seq,
+                    decision,
+                    operation,
+                    lines,
+                });
+                steps.push(step(
+                    HistoryKind::OwnerDecided,
+                    HistoryAuthority::Owner,
+                    None,
+                    HistoryPaypal::None,
+                ));
+            }
             Row::Rung(deadline, mark) => rungs.entry((deal_id, deadline)).or_default().push(mark),
             Row::Step(kind, authority) => {
                 if let Some(p) = previous.and_then(|i| steps.get_mut(i)) {
@@ -163,6 +190,9 @@ pub(crate) fn project(
                 push(&mut steps, made);
             }
             Row::MoneyOpen(method, authority) => {
+                if matches!(method, PaypalMethod::Capture | PaypalMethod::SendInvoice) {
+                    taken.entry(deal_id).or_insert(record.seq);
+                }
                 open.insert(
                     deal_id,
                     Open {
@@ -242,10 +272,65 @@ pub(crate) fn project(
                 outcome: PaypalOutcome::Unknown,
             },
             rungs: op.rungs,
+            decision: None,
         });
+    }
+    for (i, d) in decisions.iter().enumerate() {
+        let made = decided(d, &decisions[i + 1..], taken.get(&d.deal_id).copied());
+        if let Some(step) = steps.get_mut(d.step) {
+            step.decision = Some(made);
+        }
     }
     steps.sort_by_key(|s| s.seq);
     steps
+}
+
+/// One owner decision met in the rows, before its counts are known.
+struct Decided {
+    step: usize,
+    deal_id: DealId,
+    seq: u64,
+    decision: String,
+    operation: DecisionStep,
+    lines: Option<Vec<ApprovalCheck>>,
+}
+/// The decision's counts: its lines, the ones checked later, how many of those a later decision
+/// on the same deal recorded passed, and whether all of them did before money was taken (`taken`,
+/// the seq of the deal's first capture or invoice send). The same reading as the Proof page's.
+fn decided(d: &Decided, after: &[Decided], taken: Option<u64>) -> HistoryDecision {
+    let count = |n: usize| u8::try_from(n).unwrap_or(u8::MAX);
+    let lines = d.lines.as_deref().unwrap_or_default();
+    let waiting: Vec<_> = lines
+        .iter()
+        .filter(|l| l.status == ApprovalCheckStatus::Wait)
+        .map(|l| l.id)
+        .collect();
+    let passed_at: Vec<Option<u64>> = waiting
+        .iter()
+        .map(|id| {
+            after
+                .iter()
+                .find(|o| {
+                    o.deal_id == d.deal_id
+                        && o.lines.as_deref().is_some_and(|ls| {
+                            ls.iter()
+                                .any(|l| l.id == *id && l.status == ApprovalCheckStatus::Pass)
+                        })
+                })
+                .map(|o| o.seq)
+        })
+        .collect();
+    let passed = passed_at.iter().flatten().count();
+    HistoryDecision {
+        decision: d.decision.clone(),
+        operation: d.operation,
+        checks: d.lines.as_ref().map(|l| count(l.len())),
+        later: count(waiting.len()),
+        later_passed: count(passed),
+        before_payment: !waiting.is_empty()
+            && passed == waiting.len()
+            && taken.is_some_and(|m| passed_at.iter().all(|s| s.is_some_and(|s| s < m))),
+    }
 }
 
 #[cfg(test)]
@@ -332,7 +417,19 @@ mod tests {
                 step(K::Created, A::None),
             ),
             ("deadline.set", json!({"due_at":200}), None),
+            // An owner decision is its own step when it names its decision and step; a row
+            // that does not is left out, never guessed.
             ("owner.decision", json!({"decided_by":owner}), None),
+            (
+                "owner.decision",
+                json!({"decided_by":owner,"decision":"deal_capture","operation":"capture"}),
+                step(K::OwnerDecided, A::Owner),
+            ),
+            (
+                "owner.decision",
+                json!({"decided_by":owner,"decision":"deal_void","operation":"void"}),
+                None,
+            ),
             ("money.resent", json!({"operation":"capture"}), None),
             (
                 "money.resolved",

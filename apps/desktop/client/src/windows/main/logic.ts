@@ -26,7 +26,7 @@ import type { PaypalMethod } from '@bindings/PaypalMethod';
 import type { ReceiptEvent } from '@bindings/ReceiptEvent';
 import { formatMinor } from '../../lib/format';
 import { previewPagesAvailable } from '../../lib/preview';
-import { ENDING_UNREAD_NOW, ENDING_UNREAD_PILL, endingUnreadSentence, moneyCheckNow, moneyCheckPillText, receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord, unconfirmedSentence } from '../../lib/words';
+import { APPROVAL_DECIDED, DEAL_DECISION, ENDING_UNREAD_NOW, ENDING_UNREAD_PILL, endingUnreadSentence, moneyCheckNow, moneyCheckPillText, receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord, unconfirmedSentence } from '../../lib/words';
 
 export const MODULE_KEYS: readonly Module[] = ['tables', 'spend', 'counter', 'book', 'shield', 'rescue'];
 
@@ -741,6 +741,7 @@ export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side; 
     case 'invoice_sent': return `${by('The wallet')} had PayPal send the invoice for ${x} to the subscriber.${tail}`;
     case 'invoice_paid': return `The subscriber paid the invoice for ${x} on PayPal.`;
     case 'group_withdrawn': return `Another seller agreed first, so your wallet told this seller no on ${x}. No money moved.`;
+    case 'owner_decided': return s.decision ? DEAL_DECISION.sentence(APPROVAL_DECIDED.did[s.decision.operation], x) : `You decided on ${x}.`;
   }
 }
 

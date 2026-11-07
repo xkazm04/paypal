@@ -8,12 +8,13 @@ import type { Clause } from '@bindings/Clause';
 import type { Deal } from '@bindings/Deal';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { WalletError } from '../../../../../lib/contract';
-import { clockLabel, formatMoney, shortHash } from '../../../../../lib/format';
+import { clockLabel, formatMoney, nowUnix, shortHash } from '../../../../../lib/format';
 import { useQuery } from '../../../../../lib/hooks';
 import { DEAL_DECIDED, DEAL_DETAILS, DEAL_STORY, ruleNameOf } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Empty, Icon, Kv, Loading, Popover } from '../../../../../shared/ui';
 import { envelopeLink, stepWords, type EnvelopeLink } from '../../../deal/model';
+import { shownDecisionParts } from '../../../deal/shown';
 import { threadRows, type Fact } from '../../../deal/story';
 import { endedBeforePayPalShowed, isLive, isMoneyCall, isRefusal, stepSentence, stepTime, tickTone } from '../../../logic';
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
@@ -154,7 +155,10 @@ function WhoDecided({ deal, title }: { deal: Deal; title: string }) {
                   <li key={s.seq} className={money ? `t-${tone}` : ''}>
                     {money ? <TickMark tone={tone} /> : <i className="dv-wd-dot" aria-hidden="true" />}
                     <time>{stepTime(s.at)}</time>
-                    <span className="say">{stepSentence(s, { title, side: deal.side, unshown: endedBeforePayPalShowed(all, s) })}</span>
+                    {/* An owner decision reads as its strip: when, the lines recorded with it, and the later checks. */}
+                    {s.kind === 'owner_decided' && s.decision
+                      ? <span className="say dv-decided">{shownDecisionParts(s, nowUnix()).join(' · ')}</span>
+                      : <span className="say">{stepSentence(s, { title, side: deal.side, unshown: endedBeforePayPalShowed(all, s) })}</span>}
                     <span className="by">{decidedLine(s)}</span>
                   </li>
                 );

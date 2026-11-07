@@ -151,6 +151,18 @@ export const DEAL_DECIDED = {
   noCall: 'no PayPal call',
 } as const;
 
+/** An owner decision on the deal story (the owner_decided step): the checklist recorded with it, and
+ *  whether the lines that were to be checked later passed, in later decisions, before payment. */
+export const DEAL_DECISION = {
+  checks: (n: number): string => `${n} ${n === 1 ? 'check' : 'checks'}`,
+  later: (n: number, passed: number, beforePayment: boolean): string =>
+    beforePayment ? `${n} checked later, all passed before payment`
+      : passed === n ? `${n} checked later, all passed`
+        : `${n} checked later, by the step itself`,
+  /** The Rewind's sentence: "You approved the order for Packing foam." */
+  sentence: (did: string, x: string): string => `${did} for ${x}.`,
+} as const;
+
 /** The rules that applied. */
 export const DEAL_RULES = {
   yours: (name: string): string => `Your ${name}`,

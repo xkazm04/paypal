@@ -2,6 +2,7 @@
 import type { DealId } from "./DealId";
 import type { DealState } from "./DealState";
 import type { HistoryAuthority } from "./HistoryAuthority";
+import type { HistoryDecision } from "./HistoryDecision";
 import type { HistoryKind } from "./HistoryKind";
 import type { HistoryPaypal } from "./HistoryPaypal";
 import type { RungMark } from "./RungMark";
@@ -20,4 +21,9 @@ seq: number, kind: HistoryKind, state_after: DealState | null, authority: Histor
  * the owner was offered for that deadline before it, oldest first; empty when the card was
  * never shown. Absent on every other step, and on a default recorded before rungs were.
  */
-rungs?: Array<RungMark> | null, };
+rungs?: Array<RungMark> | null, 
+/**
+ * On an `owner_decided` step: what the owner decided and the checklist recorded with it.
+ * Absent on every other step.
+ */
+decision?: HistoryDecision | null, };

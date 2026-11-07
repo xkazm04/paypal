@@ -480,11 +480,19 @@ impl Runtime {
                         })
             });
         let (checks, checks_hash) = self.approval_checks(id)?;
+        let evidence = app(self.pipeline.wallet.ledger.deal_evidence(id))?;
+        let attempt = app(self.pipeline.wallet.ledger.settled_attempt(id))?.max(1);
+        // A money step whose PayPal answer is not settled (sent, lost, or parked) holds every
+        // other money step on the deal: the pipeline refuses them (STEP_NOT_CONFIRMED), so the
+        // window never offers one. The owner's read of a lost authorize does not need this flag.
+        let money_open = evidence.money_check.is_some();
         Ok(ApprovalSummary {
+            decided: self.last_decision(id, attempt, checks_hash)?,
+            handed_off: app(self.pipeline.wallet.ledger.handed_off(id))?,
             checks,
             checks_hash,
-            evidence: app(self.pipeline.wallet.ledger.deal_evidence(id))?,
-            attempt: app(self.pipeline.wallet.ledger.settled_attempt(id))?.max(1),
+            evidence,
+            attempt,
             terms_hash: deal.terms.hash().map_err(table_app::Error::from)?,
             counter_hash,
             can_owner_accept,
@@ -509,6 +517,7 @@ impl Runtime {
                     .is_ok(),
             can_release: configured
                 && !locked
+                && !money_open
                 && supported
                 && !deal.state.terminal()
                 && deal.state != DealState::Mismatch
@@ -536,6 +545,67 @@ impl Runtime {
             deal,
             locked,
         })
+    }
+
+    /// The owner's newest decision on `id` for `attempt`, as its `owner.decision` row recorded
+    /// it; `same_now` compares the recorded checklist hash with `now` (the list as it reads now),
+    /// and `signed` holds only for the pinned owner key's valid signature over that one step. A
+    /// row that does not read as a decision is passed over, never guessed.
+    fn last_decision(
+        &self,
+        id: DealId,
+        attempt: u8,
+        now: H256,
+    ) -> Result<Option<ApprovalDecided>, CommandError> {
+        let rows = app(self.pipeline.wallet.ledger.owner_decisions(id, 64))?;
+        let pinned = self.pipeline.wallet.owner_public_key().to_bytes();
+        Ok(rows.into_iter().find_map(|row| {
+            fn field<T: serde::de::DeserializeOwned>(
+                d: &serde_json::Value,
+                key: &str,
+            ) -> Option<T> {
+                serde_json::from_value(d.get(key)?.clone()).ok()
+            }
+            let d = &row.detail;
+            if field::<u8>(d, "attempt") != Some(attempt) {
+                return None;
+            }
+            let decision: String = field(d, "decision")?;
+            let operation_name: String = field(d, "operation")?;
+            let operation = DecisionStep::parse(&operation_name)?;
+            let DecidedBy::Human { at } = field(d, "decided_by")? else {
+                return None;
+            };
+            let checks_hash: H256 = field(d, "checks_hash")?;
+            let signed = match (
+                field::<[u8; 32]>(d, "owner_key"),
+                field::<Vec<u8>>(d, "signature"),
+                field::<H256>(d, "terms_hash"),
+            ) {
+                (Some(key), Some(signature), Some(terms_hash)) if key == pinned => {
+                    table_proto::DecisionStatement {
+                        deal_id: id,
+                        decision: decision.clone(),
+                        operation: operation_name,
+                        attempt,
+                        terms_hash,
+                        checks_hash,
+                        at,
+                    }
+                    .verify(&key, &signature)
+                }
+                _ => false,
+            };
+            Some(ApprovalDecided {
+                decision,
+                operation,
+                at,
+                checks_hash,
+                same_now: checks_hash == now,
+                signed,
+                checks: field(d, "checks"),
+            })
+        }))
     }
 
     /// The approval checklist for `id` now, and its hash. The deal's agent signer is selected

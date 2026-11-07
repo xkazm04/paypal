@@ -3043,3 +3043,22 @@ deal agreeing changes it and an old hash returns "The summary changed". The mock
   place in its agreement order the gate judges an agreed deal by: the gate's own figure would not change
   when a later deal agrees, and "today’s" would then overstate what is left. For a deal not agreed yet
   the two are the same. A deal agreed on an earlier UTC day gets no sentence.
+
+## The approval window reads the wallet's record (tiger gated-spend C3, 2026-11-07)
+
+`ApprovalSummary` gains `handed_off` (the ledger's hand-off flag) and `decided` (the newest
+`owner.decision` row for the deal and attempt: decision, step, time, the recorded lines and their hash,
+`same_now` against the list now, `signed` by the pinned owner key); `can_release` is false while
+`evidence.money_check` is set. No new command, no authority row, no fingerprint change. The window's
+bound line, a read-only "When you approved · 14:02" fold and the PayPal hand-off phase come from these,
+so they survive a reopen; while a money step is open the money buttons give way to one line from it.
+After a failed decision the window reads the summary again before it speaks (`review/decided.ts`
+`afterFailure`): a newer row with a step opened since, a newer row with nothing sent, no newer row
+("Nothing was done"), or a failed read (unconfirmed). History emits an `owner_decided` step per
+decision row (`HistoryStep.decision`: step, lines, lines checked later and whether they passed before
+payment), shown on the deal page's "Who decided" as "Approved 14:02 · 6 checks · 3 checked later, all
+passed before payment". The mock mirrors all three (`MockOptions.failDecision` injects the lost reply).
+- **Deviation:** the summary reads the decision rows without verifying the whole audit chain on each
+  poll (display only; nothing gates on it). The history step carries the step decided, not a separate
+  decision word (the step names it). A newer row is told from the one the click was made on (time,
+  step, decision, checklist hash, attempt), not from the client clock.

@@ -74,7 +74,9 @@ export function derivePhase(summary: ApprovalSummary | undefined, o: { locked: b
   if (d.state === 'RECEIPTED' || d.state === 'RECONCILED' || d.state === 'CAPTURED') return 'done';
   if (isTerminal(d.state)) return 'stopped';
   if (d.shield === 'HOLD') return 'hold';
-  if (o.inBrowser && d.state === 'AWAITING_APPROVAL') return 'in_browser';
+  // In the browser: this window opened PayPal, or the wallet's record says the link was handed off
+  // (ApprovalSummary.handed_off), so a reopened window keeps the hand-off phase.
+  if ((o.inBrowser || summary.handed_off === true) && d.state === 'AWAITING_APPROVAL') return 'in_browser';
   if (o.locked) return 'locked';
   if (d.state === 'SETTLING' || (d.side === 'buyer' && d.kind !== 'purchase' && (d.state === 'APPROVED' || d.state === 'AGREED'))) return 'waiting';
   if (d.side === 'seller' && (d.state === 'AWAITING_APPROVAL' || d.state === 'APPROVED')) return 'waiting';

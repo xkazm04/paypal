@@ -41,7 +41,21 @@ paused by a scam check.
   all. "The summary changed. Review it again." reloads the review when Rust refuses a stale list.
   Every other refusal (locked, not allowed, Windows Hello unsupported, a stale or unknown request,
   an unreachable wallet) is shown as one plain sentence that says nothing was done, with the code
-  chip kept (`refusalText` in `model.ts`; never the wallet's raw text).
+  chip kept (`refusalText` in `model.ts`; never the wallet's raw text) - but only after the window
+  reads the summary again and finds no decision row newer than the one it showed. A newer row with
+  a money step opened since reads "Sent to PayPal, the answer is being checked"; a newer row with
+  nothing open and the deal where it was reads "Your decision was recorded; nothing was sent"; a
+  failed read reads "Not confirmed yet" (`afterFailure` in `review/decided.ts`).
+- **The window reads the wallet's record, not its memory.** `ApprovalSummary.decided` is the newest
+  `owner.decision` row for the deal and attempt (step, time, the lines recorded, `same_now` against
+  the list now, `signed` by the pinned owner key) and `handed_off` is the ledger's hand-off flag. The
+  bound line ("You approved the order at 14:02 on the checks shown (...), recorded with your
+  decision. Unchanged since.") and a read-only "When you approved · 14:02" fold (the recorded lines,
+  each marked same / changed / now passes / now fails, no button) come from it, so they survive a
+  reopen and the PayPal browser hand-off; a reopened hand-off keeps its phase, "Open PayPal again"
+  and the fast poll. While `evidence.money_check` is set, `can_release` is false and the release and
+  money buttons give way to one plain line ("The hold went to PayPal at 14:02, and its answer is
+  being checked. ..."); the read of a lost hold stays. gating.ts still reads only the live summary.
 - "What happens next" and a "Why?" note explain the step in plain words; Details lists every check
   plus a "Checklist" hash reference (Layer 2).
 
@@ -240,24 +254,26 @@ IPC commands granted to the approval window (from `authority_table.rs`):
 - `deal_export_proof` from the approval window is not bound to that window's deal; `attention_list`
   in approval filters to its own deal rather than refusing. Both are deliberate looks left open.
 - The Proof page (proof.html) shows each `owner.decision` row as an "Owner's checklist" card (the six
-  lines, "Owner key signed · HH:MM" or "Not signed", the lines checked later); the deal page and the
-  Book's checker do not show it yet. There is no action to re-send an owner-decided step under a
-  fresh ticket after a lost answer.
+  lines, "Owner key signed · HH:MM" or "Not signed", the lines checked later); the deal page's "Who
+  decided" shows each as a strip ("Approved 14:02 · 6 checks · 3 checked later, all passed before
+  payment", the `owner_decided` history step) and the approval window as its bound line and fold;
+  the Book's checker does not show it yet. There is no action to re-send an owner-decided step under
+  a fresh ticket after a lost answer.
 - Wallet limits hold one currency; a decision does not yet show "after this: $X of $Y today".
 - A receipt that fails to sign or store after a confirmed capture is not retried by the wallet's
   read-back (only open operations are); the deal stays captured without a receipt until a later
   change. (A void whose answer is lost no longer shows "nothing was done": it has `VOID_REACHED_PAYPAL`.)
-- An IPC transport failure during a decision reaches the window as UNAVAILABLE with the transport's
-  text, not `REACHED_PAYPAL`, and still reads "couldn't be reached, so nothing was done".
+- An IPC transport failure during a decision still reaches the window as UNAVAILABLE with the
+  transport's text; the window now reads the summary again first, so it says "nothing was done" only
+  when no decision row was written since (closed by the record read-back above).
 - After the request-id window, approving a closed rescue send is refused with a ledger conflict
   rather than plain words.
 - "The wallet asks PayPal what happened" is untrue in two cases. After a lost owner create the step
   is parked with no PayPal call (`pipeline/resolve.rs`, around :331-336). For a parked capture,
   authorize or void, nothing reads the step again until the deadline, and the refused step cannot
   follow it: a capture is never sent at the deadline.
-- After the window is closed and opened again it shows no open step: the strip reads "On hold" and
-  Collect stays live, because `can_release` ignores open operations. A hold there is refused with
-  `STEP_NOT_CONFIRMED` and moves no money.
+- (Closed) A reopened window used to show "On hold" with Collect live while a step was open:
+  `can_release` now requires no open money step, and the window shows the step's line instead.
 - A parked owner capture leaves the owner no action in the window until the deadline releases the
   hold; every later hold is refused until then.
 - The pairing "can't be made any more: it lapsed or no longer matches" sentence is also what an

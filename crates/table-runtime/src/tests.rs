@@ -3,6 +3,8 @@
 mod acts_tests;
 #[path = "agent_surface_tests.rs"]
 mod agent_surface_tests;
+#[path = "approval_record_tests.rs"]
+mod approval_record_tests;
 #[path = "authority_tests.rs"]
 mod authority_tests;
 #[path = "checks_tests.rs"]

@@ -3,6 +3,7 @@
 // sentence case, Maya's words, no internals, PayPal the only vendor name. Prefix: `APPROVAL_` /
 // `HOLD_`. This file imports nothing from lib/words.ts (a cycle would read consts before they exist).
 // The two close notes are byte-identical to the ones DealReview showed before (its close path).
+import type { DecisionStep } from '@bindings/DecisionStep';
 
 /** The approval window's own frame: its crumbs, the Approvals strip and the way back to The Table. */
 export const APPROVAL_FRAME = {
@@ -127,3 +128,60 @@ export const HELLO_NEXT_STEP = 'To turn it on: Windows Settings, Accounts, Sign-
 export const ruleRowLabel = (name: string, version: number, updated: string, state: string, which = ''): string => `Open ${name}${which ? ` ${which}` : ''}, version ${version}, updated ${updated} (${state}), to see or change them`;
 /** "set 2 of 3": which of one agent's signed rule sets a row is, so rows alike in version, date and state still differ. */
 export const ruleSetOrdinal = (i: number, n: number): string => (n > 1 ? `set ${i} of ${n}` : '');
+
+/** The owner's decision as the wallet recorded it (ApprovalSummary.decided; the Rewind's owner_decided
+ *  step), by the step it started. Read back from the wallet's own record on every open, so a reopened
+ *  window, a restart or a lost reply says the same thing. Words only from the recorded fields. */
+export const APPROVAL_DECIDED = {
+  /** The strip's head: "Approved 14:02". */
+  short: { create: 'Approved', authorize: 'Approved', capture: 'Approved', invoice_create: 'Approved', accept: 'Accepted', release: 'Unpaused', hand_off: 'Opened PayPal' } as Readonly<Record<DecisionStep, string>>,
+  /** What the owner did, as a sentence's start. */
+  did: {
+    create: 'You approved the order', authorize: 'You approved the hold', capture: 'You approved the payment', invoice_create: 'You approved the fix',
+    accept: 'You accepted their offer', release: 'You unpaused the payment', hand_off: 'You opened PayPal',
+  } as Readonly<Record<DecisionStep, string>>,
+  /** The fold's verb: "When you approved · 14:02". */
+  when: { create: 'approved', authorize: 'approved', capture: 'approved', invoice_create: 'approved', accept: 'accepted', release: 'unpaused', hand_off: 'opened PayPal' } as Readonly<Record<DecisionStep, string>>,
+  /** The bound line: the decision, its time, the tally of the lines recorded with it, and whether the list reads the same now. */
+  line: (did: string, time: string, tally: string, same: boolean): string =>
+    `${did} at ${time} on the checks shown (${tally}), recorded with your decision.${same ? ' Unchanged since.' : ' The list has changed since.'}`,
+  /** A decision whose row kept only the list's fingerprint (an older record). */
+  hashOnly: (did: string, time: string, same: boolean): string =>
+    `${did} at ${time}, on the checks shown then.${same ? ' Unchanged since.' : ' The list has changed since.'}`,
+  fold: (verb: string, time: string): string => `When you ${verb} · ${time}`,
+  foldSub: 'The lines recorded with your decision, each against the list now. Nothing to do here.',
+  compare: { same: 'same', changed: 'changed', passes: 'now passes', fails: 'now fails', gone: 'not on the list now' } as const,
+  signed: 'Signed by the owner key after unlock',
+  notSigned: 'Not signed by the owner key',
+} as const;
+
+/** While a money step is open with PayPal: one plain line in place of the money buttons, from the
+ *  step, its state and its times (DealEvidence.money_check). Nothing more is sent until it settles. */
+export const APPROVAL_MONEY_OPEN = {
+  checking: (step: string, since: string, next: string | null): string =>
+    `${step} went to PayPal at ${since}, and its answer is being checked${next ? ` (next check ${next})` : ''}. Nothing more is sent until the wallet knows.`,
+  parked: (step: string, since: string): string =>
+    `${step} went to PayPal at ${since}, and its answer couldn’t be confirmed. Nothing more is sent; at the deadline the wallet asks PayPal what happened.`,
+} as const;
+
+/** After a decision call failed: what the wallet's record shows, read again before anything is said.
+ *  A newer decision row with a money step open, a newer row with nothing open, or none at all
+ *  (today's "Nothing was done"); a record that could not be read leaves the outcome unconfirmed. */
+export const APPROVAL_AFTER_FAILURE = {
+  checking: {
+    what: 'Sent to PayPal, the answer is being checked',
+    message: 'The wallet recorded your decision and the step went to PayPal. The wallet asks PayPal what happened before anything else is sent.',
+  },
+  recorded: {
+    what: 'Your decision was recorded; nothing was sent',
+    message: 'The wallet recorded your decision, but the step didn’t go to PayPal and no money moved. Look at the deal again before you decide.',
+  },
+  moved: {
+    what: 'Your decision was recorded',
+    message: 'The wallet recorded your decision and the deal has moved on. What this window shows now is what happened.',
+  },
+  unconfirmed: {
+    what: 'Not confirmed yet',
+    message: 'The wallet didn’t answer after your decision, so whether it went ahead isn’t known yet. This window reads the deal again by itself.',
+  },
+} as const;

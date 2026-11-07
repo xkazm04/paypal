@@ -146,4 +146,60 @@ pub struct ApprovalSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional = nullable)]
     pub rescue: Option<RescueView>,
+    /// The wallet handed this deal's PayPal approval link to the browser (the ledger's hand-off
+    /// flag): the link was prepared, not proof that the browser opened or the buyer approved.
+    /// Older shells omit it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub handed_off: bool,
+    /// The owner's newest decision on this deal's current attempt, read back from the wallet's
+    /// own record; null when there is none. Older shells omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional = nullable)]
+    pub decided: Option<ApprovalDecided>,
+}
+/// The step an owner decision starts, as its `owner.decision` audit row names it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum DecisionStep {
+    Create,
+    Authorize,
+    Capture,
+    InvoiceCreate,
+    Accept,
+    Release,
+    HandOff,
+}
+impl DecisionStep {
+    /// The row's `operation` ("invoice-create", "hand-off", ...); `None` for anything else.
+    pub fn parse(operation: &str) -> Option<Self> {
+        match operation {
+            "create" => Some(Self::Create),
+            "authorize" => Some(Self::Authorize),
+            "capture" => Some(Self::Capture),
+            "invoice-create" => Some(Self::InvoiceCreate),
+            "accept" => Some(Self::Accept),
+            "release" => Some(Self::Release),
+            "hand-off" => Some(Self::HandOff),
+            _ => None,
+        }
+    }
+}
+/// The owner's decision as the wallet recorded it (the newest `owner.decision` row for the deal
+/// and attempt), so a reopened window says what was decided and on which checklist.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ApprovalDecided {
+    /// The command that carried it (`deal_countersign`, `deal_capture`, ...).
+    pub decision: String,
+    pub operation: DecisionStep,
+    /// When the owner decided (Unix seconds).
+    pub at: i64,
+    /// The hash of the checklist recorded with the decision.
+    pub checks_hash: H256,
+    /// The recorded hash equals the hash of the checklist as it reads now.
+    pub same_now: bool,
+    /// The row carries the pinned owner key's valid signature over the decision.
+    pub signed: bool,
+    /// The lines recorded with the decision; null on a row that kept only their hash.
+    pub checks: Option<Vec<table_core::ApprovalCheck>>,
 }
