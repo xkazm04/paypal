@@ -565,6 +565,7 @@ fn build(busy: bool) -> Made<ProofBundle> {
             mandate: MandateFact::Ask {
                 clause: 6,
                 threshold: Some(money(15_000)?),
+                left_today: None,
             },
         }))
     };
@@ -1547,6 +1548,7 @@ pub fn buyer_bundle() -> Made<ProofBundle> {
         mandate: MandateFact::Ask {
             clause: 6,
             threshold: Some(money(15_000)?),
+            left_today: None,
         },
     });
     let first = transcript.first().ok_or("no messages")?;
