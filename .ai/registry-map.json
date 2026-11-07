@@ -3929,7 +3929,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:1174 The house seller's whole axum route table (hosted.rs:1173-1181) serves health, table, head/prefix/ledger and scoreboard assets; no tool protocol is exposed or consumed. A case-insensitive grep of services/house-seller for mcp, jsonrpc, tools/list and inputSchema found no hits (the only 'tools' is a code comment at hosted.rs:1117).",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:cb2b1c9f6fef5eb9",
+          "evaluatedRevision": 35
         },
         {
           "subject": "repository-landing-document",
