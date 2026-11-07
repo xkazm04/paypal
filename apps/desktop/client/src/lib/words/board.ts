@@ -470,3 +470,12 @@ export const BOARD_FIGURE = {
   today: (n: number, cap: number | null): string => (cap === null ? `Deals your agents agreed to today: ${n}` : `Deals your agents agreed to today: ${n}, of ${cap} allowed a day`),
   rules: BOARD_RULES.count,
 } as const;
+
+/** The console's one navigation row (console/Console.tsx, console/PlacesMenu.tsx): the Chat | Everything switch and the Places menu. */
+export const VIEW_SWITCH = { label: 'View', everything: 'Everything', everythingTitle: 'You are in the console: every deal, rule and place' } as const;
+export const PLACES_MENU = {
+  button: 'Places',
+  title: 'Rewind, proof, rules, connections, settings and the rest',
+  menu: 'Places',
+  groups: { watch: 'Watch', configure: 'Configure', lab: 'Lab' },
+} as const;
