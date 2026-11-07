@@ -2033,8 +2033,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/lib/clock.ts:1 The context's files are bridge, runtime detection, contract types, a UI clock for countdowns, formatting, hooks and lazy/mount helpers. None of them builds text for a model; the clock feeds UI deadlines, not a prompt, so pinned-prompt-clock does not apply. A search of the context's files for prompt|llm|system_prompt found only capability-token hits. Across apps/desktop/client there are 0 hits for compaction, max_tokens, context_window or cache_control. 'prompt' does appear in apps/desktop/client/src/lib/assistant/*, a separate assistant context that is not in this file list.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-runtime-assembly",
@@ -7388,8 +7392,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "crates/table-runtime/src/limits.rs:1 The context's 25 files (limits, policy, rescue, safety, proof, witness, history, forecast, simulate, groups and their tests) are deterministic money-control logic that builds no model prompt. A search of those files for prompt|llm|system_prompt|compaction found only capability-token and deal-transcript (hash chain) hits. Across crates/table-runtime/src there are 0 hits for compaction, max_tokens, context_window or cache_control. 'prompt' does appear in that directory, but only in engines.rs, agent_surface_tests.rs and credentials.rs (OS credential prompt), and none of those files belongs to this context.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "quality-gates",
@@ -8014,8 +8022,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/shared/ui/why.tsx:3 The shared UI primitives (sheets, popovers, toasts, hold-to-confirm, why/story explainers, error boundaries) make no model calls. The why explainer says outright that its text is deterministic with no model. A search of apps/desktop/client/src/shared for prompt, compaction, max_tokens and context_window returned 0 hits.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-memory",

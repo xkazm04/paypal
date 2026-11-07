@@ -9192,6 +9192,36 @@
       "evaluatedTs": "2026-11-07T00:29:38.369Z",
       "worker": "0440ffb1-13dc-4a5d-99b9-455fb202acdf",
       "techniques": []
+    },
+    "2388265b-2923-4e49-b59f-7f4453fa4f88/prompt-assembly": {
+      "context": "runtime-money-controls",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:45:14.779Z",
+      "worker": "64cdb9ab-101b-4173-b659-8637116fb894",
+      "techniques": []
+    },
+    "9a4f1dcb-2f71-4b8d-835c-a38862a5c22a/prompt-assembly": {
+      "context": "client-runtime-foundation",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:45:14.779Z",
+      "worker": "64cdb9ab-101b-4173-b659-8637116fb894",
+      "techniques": []
+    },
+    "9a477925-2fcc-4133-982d-849ca52dbe7f/prompt-assembly": {
+      "context": "shared-ui-primitives",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:45:14.779Z",
+      "worker": "64cdb9ab-101b-4173-b659-8637116fb894",
+      "techniques": []
     }
   }
 }
