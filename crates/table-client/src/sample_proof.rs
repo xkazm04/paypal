@@ -38,9 +38,10 @@ use table_core::{
     checks_hash, invoice_id,
 };
 use table_proto::{
-    AgentSigner, Body, Envelope, Intent, MsgType, OwnerAccept, PROOF_FORMAT, ProofAuditHead,
-    ProofAuditRow, ProofBundle, ProofCall, ProofClosed, ProofCounterparty, ProofEnvelope,
-    ProofGroup, ProofGroupTable, ProofOperation, ProofReceipt, ReceiptStatus, ShortText,
+    AgentSigner, Body, DecisionStatement, Envelope, Intent, MsgType, OwnerAccept, PROOF_FORMAT,
+    ProofAuditHead, ProofAuditRow, ProofBundle, ProofCall, ProofClosed, ProofCounterparty,
+    ProofEnvelope, ProofGroup, ProofGroupTable, ProofOperation, ProofReceipt, ReceiptStatus,
+    ShortText,
 };
 
 type Made<T> = Result<T, Box<dyn std::error::Error>>;
@@ -60,6 +61,12 @@ pub const PARITY: &str = "parity.json";
 /// The verifier's word on every recorded sample (each `.tableproof` in [`CLIENT_DIR`] that is not a
 /// practice deal).
 pub const RECORDED: &str = "recorded.json";
+/// The `forged decision` tamper's edits for the practice deals, by the file's evidence head (hex): the
+/// browser cannot seal a file again, so it reads the edits this recorder made with the file's own
+/// agent key.
+pub const FORGED: &str = "forged.json";
+/// The same for the house haggle's recorded deal, written by the haggle recorder with its run's key.
+pub const HOUSE_FORGED: &str = "d-0205.forged.json";
 
 const ITEM: &str = "monitor-24-ips";
 const PAYEE: &str = "maya-monitors";
@@ -140,6 +147,35 @@ impl Log {
         self.rows.push(row);
         Ok(())
     }
+}
+
+/// The owner's decision row as the wallet writes it (runtime `record_decision`): the lines the owner
+/// saw and their hash, the decision and the step it starts, and the owner key's signature over that
+/// decision for that step.
+fn decision_row(
+    owner: &SigningKey,
+    deal_id: DealId,
+    (decision, operation): (&str, &str),
+    terms_hash: H256,
+    checks: &[ApprovalCheck],
+    at: i64,
+) -> Made<Value> {
+    let hash = checks_hash(checks)?;
+    let statement = DecisionStatement {
+        deal_id,
+        decision: decision.into(),
+        operation: operation.into(),
+        attempt: 1,
+        terms_hash,
+        checks_hash: hash,
+        at,
+    };
+    Ok(json!({
+        "attempt": 1, "checks": checks, "checks_hash": hash_value(hash)?,
+        "decided_by": serde_json::to_value(DecidedBy::Human { at })?, "decision": decision,
+        "operation": operation, "owner_key": owner.verifying_key().to_bytes(),
+        "signature": statement.sign(owner)?, "terms_hash": hash_value(terms_hash)?,
+    }))
 }
 
 /// The money steps' PayPal answers, as the wallet redacts and stores them.
@@ -822,11 +858,14 @@ fn build(busy: bool) -> Made<ProofBundle> {
         t_owner - 25,
         "owner",
         "owner.decision",
-        &json!({
-            "attempt": 1, "checks": saw_create, "checks_hash": hash_value(checks_hash(&saw_create)?)?,
-            "decided_by": decided(&owner_create)?, "decision": "deal_countersign",
-            "operation": "create", "terms_hash": hash_value(terms_hash)?,
-        }),
+        &decision_row(
+            &key("owner"),
+            deal_id,
+            ("deal_countersign", "create"),
+            terms_hash,
+            &saw_create,
+            t_owner,
+        )?,
     )?;
     if !busy {
         log.row(
@@ -920,11 +959,14 @@ fn build(busy: bool) -> Made<ProofBundle> {
         t_capture - 2,
         "owner",
         "owner.decision",
-        &json!({
-            "attempt": 1, "checks": saw_capture, "checks_hash": hash_value(checks_hash(&saw_capture)?)?,
-            "decided_by": decided(&owner_capture)?, "decision": "deal_capture",
-            "operation": "capture", "terms_hash": hash_value(terms_hash)?,
-        }),
+        &decision_row(
+            &key("owner"),
+            deal_id,
+            ("deal_capture", "capture"),
+            terms_hash,
+            &saw_capture,
+            t_capture,
+        )?,
     )?;
     log.row(
         t_capture,
@@ -1244,11 +1286,34 @@ pub fn variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
                 "/owner_key",
                 serde_json::to_value(bundle.counterparty.owner_key)?,
             )],
-            red: &["mandate", "evidence"],
+            // The owner's decisions are signed by the owner key too.
+            red: &["mandate", "owner_saw", "evidence"],
         },
         Variant {
             name: "checklist",
             edits: vec![checklist_flip(bundle)?],
+            red: &["audit", "owner_saw", "evidence"],
+        },
+        Variant {
+            name: "forged-decision",
+            edits: forged_decision(bundle, &key("agent"))?,
+            red: &["owner_saw"],
+        },
+        Variant {
+            name: "decision-signature",
+            edits: vec![decision_edit(bundle, 1, |d| {
+                let first = d["signature"][0].as_u64().ok_or("no signature")?;
+                d["signature"][0] = json!(first ^ 1);
+                Ok(())
+            })?],
+            red: &["audit", "owner_saw", "evidence"],
+        },
+        Variant {
+            name: "decision-step",
+            edits: vec![decision_edit(bundle, 0, |d| {
+                d["operation"] = json!("capture");
+                Ok(())
+            })?],
             red: &["audit", "owner_saw", "evidence"],
         },
         Variant {
@@ -1257,6 +1322,89 @@ pub fn variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
             red: &[],
         },
     ])
+}
+
+/// One owner decision row's detail, changed by `edit` and written back canonically (the row's hash is
+/// not made again: the record and the seal show the edit too).
+fn decision_edit(
+    bundle: &ProofBundle,
+    nth: usize,
+    edit: impl FnOnce(&mut Value) -> Made<()>,
+) -> Made<Edit> {
+    let at = row_at(bundle, "owner.decision", nth)?;
+    let mut detail: Value =
+        serde_json::from_str(&bundle.audit.get(at).ok_or("no row")?.detail_json)?;
+    edit(&mut detail)?;
+    Ok(Edit::set(
+        format!("/audit/{at}/detail_json"),
+        json!(String::from_utf8(canonical_bytes(&detail)?)?),
+    ))
+}
+
+/// The `forged decision` tamper: someone holding the database and the agent's key adds an owner
+/// decision the owner never made (a copy of the last one, an hour later, signed with the agent key in
+/// place of the owner key), chains it into the record and seals the file again with the agent key. The
+/// record and the seal hold; only the owner key's signature cannot be made.
+pub fn forged_decision(bundle: &ProofBundle, agent: &SigningKey) -> Made<Vec<Edit>> {
+    let last = bundle.audit.last().ok_or("no rows")?;
+    let source = bundle
+        .audit
+        .iter()
+        .rposition(|r| r.action == "owner.decision")
+        .ok_or("no owner decision")?;
+    let mut detail: Value =
+        serde_json::from_str(&bundle.audit.get(source).ok_or("no row")?.detail_json)?;
+    let at = last.at + 3_600;
+    detail["decided_by"] = serde_json::to_value(DecidedBy::Human { at })?;
+    let statement = DecisionStatement {
+        deal_id: bundle.deal.id,
+        decision: detail["decision"].as_str().ok_or("no decision")?.into(),
+        operation: detail["operation"].as_str().ok_or("no step")?.into(),
+        attempt: serde_json::from_value(detail["attempt"].clone())?,
+        terms_hash: serde_json::from_value(detail["terms_hash"].clone())?,
+        checks_hash: serde_json::from_value(detail["checks_hash"].clone())?,
+        at,
+    };
+    detail["owner_key"] = json!(agent.verifying_key().to_bytes());
+    detail["signature"] = json!(statement.sign(agent)?);
+    let seq = last.seq + 1;
+    let preimage = json!({
+        "seq": seq, "at": at, "actor": "owner", "action": "owner.decision",
+        "deal_id": bundle.deal.id, "detail_json": detail,
+    });
+    let row = ProofAuditRow {
+        seq,
+        at,
+        actor: "owner".into(),
+        action: "owner.decision".into(),
+        detail_json: String::from_utf8(canonical_bytes(&detail)?)?,
+        prev_hash: last.hash,
+        hash: H256::chain(last.hash, &canonical_bytes(&preimage)?),
+    };
+    let mut forged = bundle.clone();
+    let mut edits = vec![Edit::set(
+        format!("/audit/{}", bundle.audit.len()),
+        serde_json::to_value(&row)?,
+    )];
+    forged.audit.push(row.clone());
+    if forged.audit_head.seq <= seq {
+        forged.audit_head = ProofAuditHead {
+            seq,
+            hash: row.hash,
+        };
+        edits.push(Edit::set(
+            "/audit_head",
+            serde_json::to_value(&forged.audit_head)?,
+        ));
+    }
+    forged.evidence_head = forged.evidence_commitment()?;
+    let seal = AgentSigner::from_key(agent.clone()).sign_commitment(forged.evidence_head);
+    edits.push(Edit::set(
+        "/evidence_head",
+        serde_json::to_value(forged.evidence_head)?,
+    ));
+    edits.push(Edit::set("/evidence_sig", serde_json::to_value(seal)?));
+    Ok(edits)
 }
 
 /// The `checklist` tamper: one line of the checklist recorded with the owner's first decision
@@ -1432,12 +1580,14 @@ pub fn buyer_bundle() -> Made<ProofBundle> {
                 owner_at,
                 "owner",
                 "owner.decision",
-                &json!({
-                    "attempt": 1, "checks": saw, "checks_hash": hash_value(checks_hash(&saw)?)?,
-                    "decided_by": { "at": owner_at, "type": "human" },
-                    "decision": "deal_owner_accept", "operation": "accept",
-                    "terms_hash": hash_value(terms_hash)?,
-                }),
+                &decision_row(
+                    &key("buyer-owner"),
+                    deal_id,
+                    ("deal_owner_accept", "accept"),
+                    terms_hash,
+                    &saw,
+                    owner_at,
+                )?,
             )?;
         }
         log.row(
@@ -1657,12 +1807,16 @@ pub const SAMPLES: [Sample; 3] = [
 pub fn files() -> Made<Vec<(String, Vec<u8>)>> {
     let mut out = Vec::new();
     let mut reports = serde_json::Map::new();
+    let mut forged = serde_json::Map::new();
     for sample in &SAMPLES {
         let bundle = (sample.bundle)()?;
         let golden = serde_json::to_vec_pretty(&bundle)?;
         let document: Value = serde_json::from_slice(&golden)?;
         let mut tampered = Vec::new();
         for variant in (sample.variants)(&bundle)? {
+            if variant.name == "forged-decision" {
+                forged.insert(bundle.evidence_head.hex(), json!(variant.edits));
+            }
             let mut copy = document.clone();
             apply(&mut copy, &variant.edits)?;
             tampered.push(json!({
@@ -1681,6 +1835,9 @@ pub fn files() -> Made<Vec<(String, Vec<u8>)>> {
     let mut parity = serde_json::to_vec_pretty(&json!({ "samples": reports }))?;
     parity.push(b'\n');
     out.push((PARITY.to_owned(), parity));
+    let mut forged = serde_json::to_vec_pretty(&forged)?;
+    forged.push(b'\n');
+    out.push((FORGED.to_owned(), forged));
     Ok(out)
 }
 
@@ -1892,6 +2049,66 @@ mod tests {
             let kept = std::fs::read(dir().join(&name))?;
             assert!(kept == fresh, "{name} is stale: {RERUN}");
         }
+        Ok(())
+    }
+
+    /// Each `forged decision` tamper the browser offers (the practice deal's, the house haggle's) is
+    /// for a file in the directory, keeps the record and the seal whole, and fails on the owner key
+    /// alone: the owner's decision added with the agent key in its place is "not signed by the owner
+    /// key". The house haggle's file has one, so the Proof page offers it.
+    #[test]
+    fn the_forged_decisions_fail_on_the_owner_key_alone() -> Made<()> {
+        let mut heads = std::collections::BTreeMap::new();
+        for entry in std::fs::read_dir(dir())? {
+            let path = entry?.path();
+            if path.extension().is_some_and(|e| e == "tableproof") {
+                let bundle: ProofBundle = serde_json::from_slice(&std::fs::read(&path)?)?;
+                heads.insert(bundle.evidence_head.hex(), path);
+            }
+        }
+        let mut house = false;
+        for name in [FORGED, HOUSE_FORGED] {
+            let map: serde_json::Map<String, Value> =
+                serde_json::from_slice(&std::fs::read(dir().join(name))?)?;
+            for (head, edits) in map {
+                let path = heads
+                    .get(&head)
+                    .ok_or(format!("{name}: no file has head {head}"))?;
+                house |= path.ends_with("d-0205.tableproof");
+                let edits: Vec<Value> = serde_json::from_value(edits)?;
+                let mut document: Value = serde_json::from_slice(&std::fs::read(path)?)?;
+                let edits: Vec<Edit> = edits
+                    .into_iter()
+                    .map(|e| Edit {
+                        op: if e["op"] == "set" { "set" } else { "remove" },
+                        path: e["path"].as_str().unwrap_or_default().to_owned(),
+                        value: e.get("value").cloned(),
+                    })
+                    .collect();
+                apply(&mut document, &edits)?;
+                let report = report(&serde_json::to_vec(&document)?)?;
+                assert_eq!(
+                    red(&report),
+                    ["owner_saw"],
+                    "{}: {:#?}",
+                    path.display(),
+                    report.checks
+                );
+                let line = report
+                    .checks
+                    .iter()
+                    .find(|c| c.id == "owner_saw")
+                    .ok_or("no line")?;
+                assert!(
+                    line.detail.ends_with("is not signed by the owner key"),
+                    "{line:?}"
+                );
+            }
+        }
+        assert!(
+            house,
+            "{HOUSE_FORGED} has no tamper for the house haggle's file"
+        );
         Ok(())
     }
 

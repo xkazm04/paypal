@@ -208,9 +208,12 @@ export const TAMPER_WORDS: Readonly<Record<TamperId, { label: string; what: stri
   'request-id': { label: 'Send the payment twice', what: 'the request the capture was sent under' },
   'transcript-head': { label: 'Cut the messages short', what: 'where the signed messages are said to end' },
   checklist: { label: 'Change what the owner saw', what: 'one line of the checklist the owner saw before deciding' },
+  'forged-decision': { label: 'Add an approval the owner never gave', what: 'an owner approval, added and sealed again with the agent’s own key' },
+  'decision-signature': { label: 'Damage the owner key’s signature', what: 'one byte of the owner key’s signature on an approval' },
+  'decision-step': { label: 'Point an approval at another step', what: 'which payment step an owner approval was for' },
 };
 /** The tampers offered on screen, in order. */
 export const TAMPERS_SHOWN: readonly TamperId[] = [
   'price', 'paypal-amount', 'payee', 'receipt', 'audit-line', 'audit-gap', 'signature', 'refund', 'rules', 'owner-key',
-  'shield-release', 'market-price', 'group-winner', 'group-agreed', 'request-id', 'transcript-head', 'checklist',
+  'shield-release', 'market-price', 'group-winner', 'group-agreed', 'request-id', 'transcript-head', 'checklist', 'forged-decision',
 ];

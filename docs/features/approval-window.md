@@ -132,7 +132,9 @@ available (it is the safe direction).
    terms hash and attempt that expires after 60 seconds; appends one `owner.decision` audit row
    (`{decision, operation, decided_by: human, checks, checks_hash, terms_hash, attempt}`: the six lines
    the owner saw and the step the decision starts, create, authorize, capture, invoice-create, or accept,
-   release, hand-off when no PayPal call follows); and only then runs the step.
+   release, hand-off when no PayPal call follows), signed by the owner key after unlock
+   (`owner_key`, `signature` over `table_proto::DecisionStatement`; written unsigned, and read "not
+   signed", only when the owner key cannot be read); and only then runs the step.
    Void is the safe direction and needs no checklist hash.
 7. **Who decides.** Every money step started here is recorded as `decided_by: human` (authority 1 in
    AGENTS.md). The pipeline still re-checks the mandate, wallet limits and shield inside the step.

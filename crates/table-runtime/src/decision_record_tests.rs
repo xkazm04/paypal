@@ -7,11 +7,19 @@ use table_proto::ProofBundle;
 /// An owner-countersigned seller order the owner then captures: two owner decisions, each before
 /// its money step.
 async fn captured() -> (Runtime, Deal) {
+    decided(false).await
+}
+/// The same, with the owner key unreadable from the vault after unlock when `unreadable_owner`.
+async fn decided(unreadable_owner: bool) -> (Runtime, Deal) {
     let (mut r, vault, _http, _clock, _) = runtime(true);
     credentials(vault.as_ref());
     let (deal, peer) = setup_delivery(&mut r, Side::Seller, Delivery::ShipThenCapture { days: 1 });
     agree(&mut r, &deal, &peer);
     let token = unlock_runtime(&mut r);
+    let owner = vault.read("owner").unwrap().unwrap();
+    if unreadable_owner {
+        vault.write("owner", b"not a key").unwrap();
+    }
     r.selected = Some(deal.id);
     let args = decision(&mut r, deal.id);
     r.execute(
@@ -32,6 +40,8 @@ async fn captured() -> (Runtime, Deal) {
         r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
         DealState::Receipted
     );
+    // Exporting a proof needs the owner key again.
+    vault.write("owner", &owner).unwrap();
     (r, deal)
 }
 
@@ -85,6 +95,14 @@ pub(crate) fn rewrite_row(
     }
 }
 
+/// A row as the wallet wrote it before the owner key signed decisions: the forgeries below test the
+/// checklist rules on their own, so the signature (which would catch them first) is left out.
+fn unsigned(d: &mut serde_json::Value) {
+    let o = d.as_object_mut().unwrap();
+    o.remove("owner_key");
+    o.remove("signature");
+}
+
 /// Every line of the report but `id` is what it was: the forgery is caught by `id` alone.
 fn only_this_fails(r: &Runtime, bundle: &ProofBundle, id: &str) -> table_verify::Check {
     let mut forged = bundle.clone();
@@ -131,7 +149,7 @@ async fn the_owner_decision_row_carries_the_lines_and_the_step_and_they_hash_aga
     assert!(saw.ok, "{saw:?}");
     assert_eq!(
         saw.detail,
-        "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file"
+        "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 checklist(s) hashed again from the lines in the file; 2 signed by the owner key after unlock"
     );
 }
 
@@ -148,6 +166,7 @@ async fn a_random_checks_hash_fails_once_the_lines_are_in_the_row() {
     let mut before = bundle.clone();
     for i in decisions(&before) {
         rewrite_row(&mut before, i, |d| {
+            unsigned(d);
             let o = d.as_object_mut().unwrap();
             o.remove("checks");
             o.remove("operation");
@@ -172,6 +191,7 @@ async fn a_random_checks_hash_fails_once_the_lines_are_in_the_row() {
     // Now: the lines are in the row and do not hash to a random hash.
     let mut after = bundle.clone();
     rewrite_row(&mut after, capture, |d| {
+        unsigned(d);
         d["checks_hash"] = serde_json::to_value(random).unwrap();
     });
     let line = only_this_fails(&r, &after, "owner_saw");
@@ -210,6 +230,7 @@ async fn a_flipped_line_a_failed_line_and_another_step_each_fail() {
     // A failed line, its hash made again to match: the owner never approves on a failed line.
     let mut failed = bundle.clone();
     rewrite_row(&mut failed, capture, |d| {
+        unsigned(d);
         d["checks"][0]["status"] = "fail".into();
         let checks: Vec<ApprovalCheck> = serde_json::from_value(d["checks"].clone()).unwrap();
         d["checks_hash"] = serde_json::to_value(checks_hash(&checks).unwrap()).unwrap();
@@ -223,7 +244,10 @@ async fn a_flipped_line_a_failed_line_and_another_step_each_fail() {
 
     // The capture's decision said it started another step.
     let mut moved = bundle.clone();
-    rewrite_row(&mut moved, capture, |d| d["operation"] = "authorize".into());
+    rewrite_row(&mut moved, capture, |d| {
+        unsigned(d);
+        d["operation"] = "authorize".into();
+    });
     let line = only_this_fails(&r, &moved, "owner_saw");
     assert!(
         line.detail
@@ -250,7 +274,7 @@ async fn a_line_the_record_does_not_keep_reads_not_checked_never_red() {
     assert!(line.ok, "{line:?}");
     assert!(
         line.detail.ends_with(
-            "1 checklist(s) hashed again from the lines in the file; 1 not checked: a line names an address the record does not keep"
+            "1 checklist(s) hashed again from the lines in the file; 1 not checked: a line names an address the record does not keep; 2 signed by the owner key after unlock"
         ),
         "{line:?}"
     );
@@ -275,4 +299,113 @@ async fn a_line_the_record_does_not_keep_reads_not_checked_never_red() {
         .find(|a| a.action == "owner.decision" && a.at == 500)
         .unwrap();
     assert_eq!(kept.detail["checks"][0]["detail"], "[redacted]");
+}
+
+/// The owner key signs each decision for the one step it starts; the signature verifies against the
+/// owner key the file names, and the line says which key signed, never that a person was there.
+#[tokio::test]
+async fn the_owner_key_signs_each_decision_for_its_one_step() {
+    let (r, deal) = captured().await;
+    let bundle = assert_proof_verifies(&r, deal.id);
+    for i in decisions(&bundle) {
+        let d = detail_of(&bundle, i);
+        let owner_key: [u8; 32] = serde_json::from_value(d["owner_key"].clone()).unwrap();
+        assert_eq!(owner_key, bundle.owner_key);
+        let statement = table_proto::DecisionStatement {
+            deal_id: deal.id,
+            decision: d["decision"].as_str().unwrap().into(),
+            operation: d["operation"].as_str().unwrap().into(),
+            attempt: serde_json::from_value(d["attempt"].clone()).unwrap(),
+            terms_hash: serde_json::from_value(d["terms_hash"].clone()).unwrap(),
+            checks_hash: serde_json::from_value(d["checks_hash"].clone()).unwrap(),
+            at: bundle.audit[i].at,
+        };
+        let signature: Vec<u8> = serde_json::from_value(d["signature"].clone()).unwrap();
+        assert!(statement.verify(&bundle.owner_key, &signature));
+    }
+    let saw = proof_line(&bundle, "owner_saw");
+    assert!(
+        saw.ok
+            && saw
+                .detail
+                .ends_with("; 2 signed by the owner key after unlock"),
+        "{saw:?}"
+    );
+}
+
+/// The scope's three forgeries, each made by someone holding the database and the agent's key
+/// (the record chained again, the file sealed again): only `owner_saw` catches each, and says the
+/// decision is not signed by the owner key.
+#[tokio::test]
+async fn a_forged_a_damaged_and_a_repointed_decision_are_not_signed_by_the_owner_key() {
+    let (r, deal) = captured().await;
+    let bundle = assert_proof_verifies(&r, deal.id);
+    let [create, capture] = decisions(&bundle)[..] else {
+        panic!("two decisions")
+    };
+    let not_signed = |line: &table_verify::Check| {
+        assert!(
+            line.detail.ends_with("is not signed by the owner key"),
+            "{line:?}"
+        );
+    };
+
+    // An owner decision the owner never made, added with the agent key's signature (the
+    // practice deals' `forged decision` tamper, sample_proof.rs).
+    let agent = r.slot_holding(bundle.mandate.payload.agent_key).unwrap();
+    let mut document = serde_json::to_value(&bundle).unwrap();
+    for edit in table_client::sample_proof::forged_decision(&bundle, &agent).unwrap() {
+        let target = document
+            .pointer_mut(edit.path.rsplit_once('/').unwrap().0)
+            .unwrap();
+        let key = edit.path.rsplit_once('/').unwrap().1;
+        match target {
+            serde_json::Value::Array(items) => items.push(edit.value.unwrap()),
+            serde_json::Value::Object(map) => {
+                map.insert(key.into(), edit.value.unwrap());
+            }
+            _ => panic!("cannot edit {}", edit.path),
+        }
+    }
+    let forged: ProofBundle = serde_json::from_value(document).unwrap();
+    let line = only_this_fails(&r, &forged, "owner_saw");
+    not_signed(&line);
+
+    // One byte of the capture decision's signature flipped.
+    let mut flipped = bundle.clone();
+    rewrite_row(&mut flipped, capture, |d| {
+        let first = d["signature"][0].as_u64().unwrap();
+        d["signature"][0] = (first ^ 1).into();
+    });
+    not_signed(&only_this_fails(&r, &flipped, "owner_saw"));
+
+    // The create decision's signed statement re-pointed at the capture: its step now names the
+    // capture, under the signature the owner key made for the create.
+    let mut moved = bundle.clone();
+    rewrite_row(&mut moved, create, |d| d["operation"] = "capture".into());
+    not_signed(&only_this_fails(&r, &moved, "owner_saw"));
+}
+
+/// When the owner key cannot be read after unlock, the decision goes ahead exactly as before (the
+/// gates did not change) and its row is written without a signature: the checker reads it "not
+/// signed", never "signed".
+#[tokio::test]
+async fn an_unreadable_owner_key_leaves_the_row_unsigned_and_the_line_says_so() {
+    let (r, deal) = decided(true).await;
+    let bundle = assert_proof_verifies(&r, deal.id);
+    for i in decisions(&bundle) {
+        let d = detail_of(&bundle, i);
+        assert!(
+            d.get("signature").is_none() && d.get("owner_key").is_none(),
+            "{d}"
+        );
+    }
+    let saw = proof_line(&bundle, "owner_saw");
+    assert!(
+        saw.ok
+            && saw
+                .detail
+                .ends_with("2 checklist(s) hashed again from the lines in the file; 2 not signed"),
+        "{saw:?}"
+    );
 }

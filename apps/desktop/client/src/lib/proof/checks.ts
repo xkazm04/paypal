@@ -7,7 +7,7 @@
 // the deal has nothing of that kind, or the file lacks the record the check compares. It never reads
 // as passed.
 import type { ApprovalCheck } from '@bindings/ApprovalCheck';
-import { type Bytes, byteArray, same, sha256, toHex, ZERO32 } from './bytes';
+import { type Bytes, byteArray, same, sha256, toHex, utf8, ZERO32 } from './bytes';
 import { type AuditRow, type Bundle, type DecidedBy, readDecidedBy, sameMoney, showMoney, decimal } from './bundle';
 import { canonical, canonicalBytes } from './jcs';
 import { isPublicKey, verifyStrict } from './ed25519';
@@ -360,22 +360,61 @@ function standsBehind(row: AuditRow, d: unknown, lines: Lines, op: string): stri
   return null;
 }
 
-/** How the decisions' checklists were checked, counted (v2.rs `tally`). */
-function tally(all: readonly Lines[]): string {
-  const n = (k: Lines['k']) => all.filter((l) => l.k === k).length;
+/** Rust's `OWNER_DECISION_DOMAIN`: the owner key's statement over one decision. */
+const OWNER_DECISION_DOMAIN = 'table.owner-decision.v1\0';
+const u8 = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 255;
+
+/** Whether the owner key the file names signed this decision for the step it names (v2.rs
+ *  `signed_by_owner`): unsigned when the row has no signature; a signature that does not verify, or a
+ *  signed row missing a field the statement needs, fails. */
+async function signedByOwner(run: Run, row: AuditRow, d: unknown): Promise<boolean> {
+  const { b } = run;
+  const signature = field(d, 'signature');
+  if (signature === undefined) return false;
+  needSignatures(run);
+  const by = decidedIn(d, 'decided_by');
+  const [decision, operation, attempt] = [textField(d, 'decision'), textField(d, 'operation'), field(d, 'attempt')];
+  const [terms, checks] = [byteArray(field(d, 'terms_hash'), 32), byteArray(field(d, 'checks_hash'), 32)];
+  const sig = byteArray(signature);
+  const statement = by?.type === 'human' && decision !== null && operation !== null && u8(attempt) && terms !== null && checks !== null
+    ? { deal_id: b.deal.id, decision, operation, attempt, terms_hash: Array.from(terms), checks_hash: Array.from(checks), at: by.at }
+    : null;
+  if (statement === null || sig === null || !(await verifyStrict(b.owner_key, concat(utf8(OWNER_DECISION_DOMAIN), canonicalBytes(statement)), sig))) {
+    throw new Why(`the owner's decision (record #${row.seq}) is not signed by the owner key`);
+  }
+  return true;
+}
+const concat = (a: Bytes, c: Bytes): Bytes => {
+  const out = new Uint8Array(a.length + c.length);
+  out.set(a);
+  out.set(c, a.length);
+  return out;
+};
+
+/** One decision as the file lets a checker read it: its checklist and whether the owner key signed it. */
+type Seen = { lines: Lines; signed: boolean };
+
+/** How the decisions' checklists were checked and signed, counted (v2.rs `tally`). */
+function tally(all: readonly Seen[]): string {
+  const n = (k: Lines['k']) => all.filter((s) => s.lines.k === k).length;
+  const signed = all.filter((s) => s.signed).length;
+  const unsigned = all.filter((s) => !s.signed && s.lines.k !== 'hash-only').length;
   const parts: string[] = [];
   if (n('again') > 0) parts.push(`${n('again')} checklist(s) hashed again from the lines in the file`);
   if (n('hash-only') > 0) parts.push(`${n('hash-only')} hash only (the lines are not in this file)`);
   if (n('unkept') > 0) parts.push(`${n('unkept')} not checked: a line names an address the record does not keep`);
+  if (signed > 0) parts.push(`${signed} signed by the owner key after unlock`);
+  if (unsigned > 0) parts.push(`${unsigned} not signed`);
   return parts.join('; ');
 }
 
-async function ownerSaw({ b }: Run): Promise<string> {
+async function ownerSaw(run: Run): Promise<string> {
+  const { b } = run;
   const o = older(b);
   if (o) throw o;
   const decisions = rowsOf(b, 'owner.decision').map((row) => ({ row, d: detailOf(row) }));
-  const lines: Lines[] = [];
-  for (const { row, d } of decisions) lines.push(await linesOf(row, d));
+  const seen: Seen[] = [];
+  for (const { row, d } of decisions) seen.push({ lines: await linesOf(row, d), signed: await signedByOwner(run, row, d) });
   const owner = (by: DecidedBy): boolean => by.type === 'human';
   const steps: Array<{ row: AuditRow; op: string; by: DecidedBy }> = [];
   for (const row of rowsOf(b, 'money.authorized')) {
@@ -386,26 +425,26 @@ async function ownerSaw({ b }: Run): Promise<string> {
   }
   const decided = b.operations.filter((op) => owner(op.decided_by) && op.operation !== 'void');
   if (steps.length === 0 && decided.length === 0) {
-    if (lines.every((l) => l.k === 'hash-only')) throw absent('not checked: no money step in this deal was the owner\'s decision');
-    return `${decisions.length} owner decision(s), no money step yet; ${tally(lines)}`;
+    if (seen.every((x) => x.lines.k === 'hash-only' && !x.signed)) throw absent('not checked: no money step in this deal was the owner\'s decision');
+    return `${decisions.length} owner decision(s), no money step yet; ${tally(seen)}`;
   }
   for (const op of decided) {
     if (!steps.some((s) => s.op === op.operation && sameDecided(s.by, op.decided_by))) {
       throw new Why(`the owner's ${op.operation} step (attempt ${op.attempt}) has no record in the deal's rows`);
     }
   }
-  const behind: Lines[] = [];
+  const behind: Seen[] = [];
   for (const { row, op, by } of steps) {
     let why: string | null = null;
-    let found: Lines | null = null;
+    let found: Seen | null = null;
     for (const [i, { row: r, d }] of decisions.entries()) {
       const decidedBy = decidedIn(d, 'decided_by');
       const candidate = r.seq < row.seq && decidedBy !== null && sameDecided(decidedBy, by) && decisionFits(textField(d, 'decision'), op) && isHash(field(d, 'checks_hash'));
       if (!candidate) continue;
-      const l = lines[i] as Lines;
-      const miss = standsBehind(r, d, l, op);
+      const x = seen[i] as Seen;
+      const miss = standsBehind(r, d, x.lines, op);
       if (miss === null) {
-        found = l;
+        found = x;
         break;
       }
       why = miss;

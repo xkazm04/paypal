@@ -89,6 +89,12 @@ export function caption(tid: TamperId, doc: unknown, edits: ReturnType<typeof ed
       const word = (status: string | undefined): string => LINE_STATUS[status ?? ''] ?? '—';
       return at < 0 ? '' : `line ${at + 1} of the owner’s checklist: ${word(was[at]?.status)} → ${word(now[at]?.status)}`;
     }
+    case 'forged-decision':
+      return 'one approval added, then the file sealed again with the agent’s key';
+    case 'decision-signature':
+      return 'the owner key’s signature on an approval, one byte';
+    case 'decision-step':
+      return 'the first approval: for the order → for the capture';
     case 'request-id':
       return `${String(before).slice(0, 14)}… → a-second-request-id`;
     default:

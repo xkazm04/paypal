@@ -569,7 +569,10 @@ impl Runtime {
     /// hand-off for a decision that starts no PayPal call), `decided_by`, the checklist the owner
     /// saw (the lines just recomputed, so a checker can hash them again offline) and its hash.
     /// Written just before the step it starts; the money rows that follow carry the same
-    /// `decided_by` (human at the same second).
+    /// `decided_by` (human at the same second). The owner key (read after the unlock gate the
+    /// guard checked) signs the decision for that one step (`DecisionStatement`); the row keeps
+    /// `owner_key` and `signature`. When the owner key cannot be read the row is written without
+    /// them and a checker reads it "not signed": the decision itself is gated exactly as before.
     #[allow(clippy::too_many_arguments)]
     fn record_decision(
         &mut self,
@@ -581,6 +584,35 @@ impl Runtime {
         checks_hash: H256,
         now: Timestamp,
     ) -> Result<(), CommandError> {
+        let mut detail = serde_json::json!({
+            "decision": decision.name(),
+            "operation": operation,
+            "decided_by": DecidedBy::Human { at: now },
+            "checks": checks,
+            "checks_hash": checks_hash,
+            "terms_hash": args.terms_hash,
+            "attempt": args.attempt,
+        });
+        let statement = table_proto::DecisionStatement {
+            deal_id: id,
+            decision: decision.name().into(),
+            operation: operation.into(),
+            attempt: args.attempt,
+            terms_hash: args.terms_hash,
+            checks_hash,
+            at: now,
+        };
+        // Only the owner key this wallet pins signs: a proof file names that key.
+        let pinned = self.pipeline.wallet.owner_public_key();
+        if let Some((owner_key, signature)) = self
+            .owner()
+            .ok()
+            .filter(|key| key.verifying_key() == pinned)
+            .and_then(|key| Some((key.verifying_key().to_bytes(), statement.sign(&key).ok()?)))
+        {
+            detail["owner_key"] = serde_json::json!(owner_key);
+            detail["signature"] = serde_json::json!(signature);
+        }
         app(self
             .pipeline
             .wallet
@@ -590,15 +622,7 @@ impl Runtime {
                 actor: "owner".into(),
                 action: "owner.decision".into(),
                 deal_id: Some(id),
-                detail: serde_json::json!({
-                    "decision": decision.name(),
-                    "operation": operation,
-                    "decided_by": DecidedBy::Human { at: now },
-                    "checks": checks,
-                    "checks_hash": checks_hash,
-                    "terms_hash": args.terms_hash,
-                    "attempt": args.attempt,
-                }),
+                detail,
             }))?;
         Ok(())
     }

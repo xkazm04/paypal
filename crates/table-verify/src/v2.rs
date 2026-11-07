@@ -13,7 +13,8 @@ use table_core::{
     MarketCommitment, ShieldRule, ShieldVerdict, checks_hash,
 };
 use table_proto::{
-    HeadVerdict, PROOF_FORMAT_V1, ProofAuditRow, ProofBundle, compare_heads, prefix_contradicts,
+    DecisionStatement, HeadVerdict, PROOF_FORMAT_V1, ProofAuditRow, ProofBundle, compare_heads,
+    prefix_contradicts,
 };
 
 fn older(bundle: &ProofBundle) -> Option<Miss> {
@@ -108,10 +109,60 @@ fn stands_behind(row: &ProofAuditRow, d: &Value, lines: &Lines, op: &str) -> Res
     Ok(())
 }
 
-/// How the decisions' checklists were checked, counted, for the line's detail.
-fn tally<'a>(lines: impl Iterator<Item = &'a Lines>) -> String {
-    let (mut again, mut hash_only, mut unkept) = (0, 0, 0);
-    for l in lines {
+/// Whether the owner key the file names signed this decision for the step it names
+/// (`DecisionStatement`, under `table.owner-decision.v1`). A row with no signature (an older row,
+/// or one written while the owner key could not be read) is unsigned; a signature that does not
+/// verify, or a signed row missing a field the statement needs, fails.
+fn signed_by_owner(bundle: &ProofBundle, row: &ProofAuditRow, d: &Value) -> Result<bool, Miss> {
+    let Some(signature) = d.get("signature") else {
+        return Ok(false);
+    };
+    let statement = (|| {
+        let Some(DecidedBy::Human { at }) = typed::<DecidedBy>(d, "decided_by") else {
+            return None;
+        };
+        Some(DecisionStatement {
+            deal_id: bundle.deal.id,
+            decision: text(d, "decision")?.to_owned(),
+            operation: text(d, "operation")?.to_owned(),
+            attempt: typed(d, "attempt")?,
+            terms_hash: typed(d, "terms_hash")?,
+            checks_hash: typed(d, "checks_hash")?,
+            at,
+        })
+    })();
+    let bytes: Option<Vec<u8>> = serde_json::from_value(signature.clone()).ok();
+    match (statement, bytes) {
+        (Some(statement), Some(bytes)) if statement.verify(&bundle.owner_key, &bytes) => Ok(true),
+        _ => Err(format!(
+            "the owner's decision (record #{}) is not signed by the owner key",
+            row.seq
+        )
+        .into()),
+    }
+}
+
+/// One decision as the file lets a checker read it: its checklist and whether the owner key
+/// signed it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Seen {
+    lines: Lines,
+    signed: bool,
+}
+
+/// How the decisions' checklists were checked and signed, counted, for the line's detail.
+fn tally<'a>(seen: impl Iterator<Item = &'a Seen>) -> String {
+    let (mut again, mut hash_only, mut unkept, mut signed, mut unsigned) = (0, 0, 0, 0, 0);
+    for Seen {
+        lines: l,
+        signed: s,
+    } in seen
+    {
+        if *s {
+            signed += 1;
+        } else if *l != Lines::HashOnly {
+            unsigned += 1;
+        }
         match l {
             Lines::Recomputed(_) => again += 1,
             Lines::HashOnly => hash_only += 1,
@@ -134,6 +185,12 @@ fn tally<'a>(lines: impl Iterator<Item = &'a Lines>) -> String {
             "{unkept} not checked: a line names an address the record does not keep"
         ));
     }
+    if signed > 0 {
+        parts.push(format!("{signed} signed by the owner key after unlock"));
+    }
+    if unsigned > 0 {
+        parts.push(format!("{unsigned} not signed"));
+    }
     parts.join("; ")
 }
 
@@ -141,7 +198,9 @@ fn tally<'a>(lines: impl Iterator<Item = &'a Lines>) -> String {
 /// time, naming the decision and the hash of the checklist the owner saw. When a row carries the
 /// lines (`checks`), they must hash to that hash; behind a money step none may have failed (the
 /// shield line excepted on a release) and the step the row names (`operation`) must be the step
-/// that follows. Rows that carry only the hash (older files) read "hash only".
+/// that follows. Rows that carry only the hash (older files) read "hash only". A row the owner key
+/// signed must verify against the owner key the file names: "signed by the owner key after
+/// unlock" says which key signed, never that a person was present.
 pub(crate) fn owner_saw(bundle: &ProofBundle) -> Result<String, Miss> {
     if let Some(miss) = older(bundle) {
         return Err(miss);
@@ -149,9 +208,12 @@ pub(crate) fn owner_saw(bundle: &ProofBundle) -> Result<String, Miss> {
     let decisions: Vec<(&ProofAuditRow, Value)> = rows(bundle, &["owner.decision"])
         .map(|r| (r, detail(r)))
         .collect();
-    let mut lines = Vec::with_capacity(decisions.len());
+    let mut seen = Vec::with_capacity(decisions.len());
     for (row, d) in &decisions {
-        lines.push(lines_of(row, d)?);
+        seen.push(Seen {
+            lines: lines_of(row, d)?,
+            signed: signed_by_owner(bundle, row, d)?,
+        });
     }
     let owner = |by: &DecidedBy| matches!(by, DecidedBy::Human { .. });
     let steps: Vec<(&ProofAuditRow, String, DecidedBy)> = rows(bundle, &["money.authorized"])
@@ -168,7 +230,7 @@ pub(crate) fn owner_saw(bundle: &ProofBundle) -> Result<String, Miss> {
         .filter(|o| owner(&o.decided_by) && o.operation != "void")
         .collect();
     if steps.is_empty() && decided.is_empty() {
-        if lines.iter().all(|l| *l == Lines::HashOnly) {
+        if seen.iter().all(|s| s.lines == Lines::HashOnly && !s.signed) {
             return Err(Miss::absent(
                 "not checked: no money step in this deal was the owner's decision",
             ));
@@ -176,7 +238,7 @@ pub(crate) fn owner_saw(bundle: &ProofBundle) -> Result<String, Miss> {
         return Ok(format!(
             "{} owner decision(s), no money step yet; {}",
             decisions.len(),
-            tally(lines.iter())
+            tally(seen.iter())
         ));
     }
     for op in decided {
@@ -196,14 +258,14 @@ pub(crate) fn owner_saw(bundle: &ProofBundle) -> Result<String, Miss> {
         let mut why = None;
         let saw = decisions
             .iter()
-            .zip(&lines)
+            .zip(&seen)
             .filter(|((r, d), _)| {
                 r.seq < row.seq
                     && typed::<DecidedBy>(d, "decided_by").as_ref() == Some(by)
                     && text(d, "decision").is_some_and(|name| decision_fits(name, op))
                     && typed::<H256>(d, "checks_hash").is_some()
             })
-            .find(|((r, d), l)| match stands_behind(r, d, l, op) {
+            .find(|((r, d), s)| match stands_behind(r, d, &s.lines, op) {
                 Ok(()) => true,
                 Err(e) => {
                     why = Some(e);

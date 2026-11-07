@@ -150,6 +150,8 @@ pub(crate) const ACTION_KEYS: &[(&str, &[&str])] = &[
             "checks_hash",
             "terms_hash",
             "attempt",
+            "owner_key",
+            "signature",
         ],
     ),
     ("paypal.response", &["status", "path", "debug_id"]),
