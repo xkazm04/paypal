@@ -4621,12 +4621,11 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "crates/table-ledger/src/audit.rs:330 The ledger writes directly through SQLite transactions, and searches of this context and repository sources found no consensus, applied_index, modified_since or replicated_log machinery requiring the subject's transaction protocol.",
-          "evaluatedAt": "2026-10-21",
-          "evaluatedAgainst": "sha256-b2:230a37319e1dd059",
-          "evaluatedRevision": 2,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-ledger/src/audit.rs:310 The ledger writes straight into a local rusqlite IMMEDIATE transaction with no log to propose to. Case-insensitive searches of crates/ and this crate for consensus, applied_index, replicated_log, quorum and modified_since found nothing, and crates/table-ledger/Cargo.toml lists no consensus or log library. That means the subject's precondition, a store whose only writer is a consensus log, does not hold.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:10473b2ddfd2ef20",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 1
         },
         {
           "subject": "table",
@@ -9859,12 +9858,11 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:146 The console filters and virtualizes supplied UI rows, and searches of its directory and repository sources found no consensus, applied_index, modified_since or replicated_log machinery implementing replicated transactions.",
-          "evaluatedAt": "2026-10-21",
-          "evaluatedAgainst": "sha256-b2:230a37319e1dd059",
-          "evaluatedRevision": 2,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:149 The console only filters, searches and sorts rows it is handed, in memory, and never commits a transaction to any store. A case-insensitive search of the console directory for consensus, applied_index, replicated_log, quorum and modified_since found nothing, so there is no replicated log here for the subject to govern.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:10473b2ddfd2ef20",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 1
         },
         {
           "subject": "voice-io",
