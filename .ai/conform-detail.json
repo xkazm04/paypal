@@ -9320,6 +9320,16 @@
       "evaluatedTs": "2026-11-07T00:45:14.779Z",
       "worker": "64cdb9ab-101b-4173-b659-8637116fb894",
       "techniques": []
+    },
+    "eec42666-8620-4b0d-8d2e-bc418a280b71/mcp-tools": {
+      "context": "house-seller-service",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T23:00:36.382Z",
+      "worker": "9023e771-5147-47b9-b57b-fc0afbe7715a",
+      "techniques": []
     }
   }
 }
