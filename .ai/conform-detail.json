@@ -9330,6 +9330,36 @@
       "evaluatedTs": "2026-11-07T23:00:36.382Z",
       "worker": "9023e771-5147-47b9-b57b-fc0afbe7715a",
       "techniques": []
+    },
+    "d477836b-8d3f-42dd-93ce-bf0a9f5bbf53/prompt-assembly": {
+      "context": "counter-and-tables-modules",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T23:20:07.125Z",
+      "worker": "3a7ca045-54ac-41a5-b2ce-fe3609a233ee",
+      "techniques": []
+    },
+    "68496392-9930-4018-bc06-41c2f3e3c286/prompt-assembly": {
+      "context": "safety-and-setup",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T23:20:07.125Z",
+      "worker": "3a7ca045-54ac-41a5-b2ce-fe3609a233ee",
+      "techniques": []
+    },
+    "dfab992a-8315-4db9-b496-6aa38639cf8c/prompt-assembly": {
+      "context": "ledger-repositories-audit-evidence",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T23:20:07.125Z",
+      "worker": "3a7ca045-54ac-41a5-b2ce-fe3609a233ee",
+      "techniques": []
     }
   }
 }

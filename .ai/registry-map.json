@@ -2246,8 +2246,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:1 These are pure display and negotiation models plus React views over IPC bindings, and nothing here builds a prompt for a language model: searching the context's files for system_prompt, systemPrompt, compaction, max_tokens and contextWindow found nothing, and the only vendor-name hits are forbidden-word regexes in counter.test.tsx and tables.test.tsx.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "hitl-approval",
@@ -4562,8 +4566,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "crates/table-ledger/src/lib.rs:1 table-ledger is a SQLite persistence and hash-chained audit crate with no model calls: searching crates/table-ledger for prompt-related terms (system_prompt, compaction, max_tokens, context_window) found nothing.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "migrations",
@@ -7640,8 +7648,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/windows/main/setup/limits.ts:3 The safety, setup, pairing and limits models turn ledger and mandate records into plain sentences and do no prompt assembly for any model: searching the context's directories for system_prompt, systemPrompt, compaction, max_tokens and contextWindow found nothing, and 'llm' matches only identifiers like allMatch.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "docs-sync",
