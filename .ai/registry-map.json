@@ -3966,12 +3966,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "services/house-seller/src/hosted.rs:1147 The only HTML this axum service serves is one standalone read-only page at /house; the other routes are JSON APIs and static assets. A search of the context found no `<nav`, sidebar, navigate, aria-current or pushState, so there is no persistent frame, section vocabulary or navigation for an app shell to govern.",
-          "evaluatedAt": "2026-10-25",
-          "evaluatedAgainst": "sha256-b2:924d251b08eaf74b",
-          "evaluatedRevision": 7,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "services/house-seller/src/hosted.rs:1178 The only HTML this axum service serves is one standalone read-only scoreboard page at /house. Every other route is a JSON API, a static asset or a health check. A case-insensitive search of services/house-seller found no <nav, sidebar, aria-current, pushState, navigate or hashchange, so there is no persistent frame, section vocabulary or navigation for app-shell to govern.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:b55c5172e3d9fac0",
+          "evaluatedRevision": 8,
+          "revisionsBehind": 1
         },
         {
           "subject": "decentralized-artifact-distribution",

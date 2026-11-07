@@ -8099,24 +8099,36 @@
       "subject": "app-shell",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-25",
-      "evaluatedTs": "2026-10-25T22:53:07.224Z",
-      "worker": "88b95d56-6094-4707-b310-aa5599ec79c3",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T01:03:22.384Z",
+      "worker": "57992fac-bd6e-4b89-a2c1-7fe74f19e578",
       "techniques": [
         {
           "technique": "navigation-model",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/hosted.rs:1147 There is one page and no section vocabulary, so there is no location to model and no navigation history."
+          "evidence": "services/house-seller/src/hosted.rs:1147 There is one page and no section vocabulary, so there is no location to model and no navigation history.",
+          "carriedFrom": "2026-10-25"
         },
         {
           "technique": "nav-hierarchy",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/scoreboard/index.html:16 The header holds the brand, a freshness label and a theme toggle, with no nav entries, levels or collapse posture."
+          "evidence": "services/house-seller/src/scoreboard/index.html:16 The header holds the brand, a freshness label and a theme toggle, with no nav entries, levels or collapse posture.",
+          "carriedFrom": "2026-10-25"
         },
         {
           "technique": "entitlement-gating",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/scoreboard/index.html:37 The page is public and read-only, with no tiers, roles or gated sections."
+          "evidence": "services/house-seller/src/scoreboard/index.html:37 The page is public and read-only, with no tiers, roles or gated sections.",
+          "carriedFrom": "2026-10-25"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:1147 The only HTML this axum service serves is one standalone read-only page at /house; the other routes are JSON APIs and static assets. A search of the context found no `<nav`, sidebar, navigate, aria-current or pushState, so there is no persistent frame, section vocabulary or navigation for an app shell to govern.",
+          "evaluatedAt": "2026-10-25T22:53:07.224Z",
+          "worker": "88b95d56-6094-4707-b310-aa5599ec79c3",
+          "reason": "replaced by 57992fac-bd6e-4b89-a2c1-7fe74f19e578"
         }
       ]
     },
