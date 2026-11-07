@@ -4494,54 +4494,72 @@
       "subject": "retry-backoff",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T21:12:04.811Z",
-      "worker": "cdc2d6c8-5245-4919-8938-a22109c645c3",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:15:20.915Z",
+      "worker": "c910dbc1-e4cd-4de6-a335-3588db80dbbf",
       "techniques": [
         {
           "technique": "backoff-design",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/design/tokens.css:132 These durations control visual motion, not retry delays."
+          "evidence": "apps/desktop/client/src/design/tokens.css:132 These durations control visual motion, not retry delays.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "circuit-breakers",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/design/ui.css:112 Disabled controls receive styling; this context makes no dependency-health admission decisions."
+          "evidence": "apps/desktop/client/src/design/ui.css:112 Disabled controls receive styling; this context makes no dependency-health admission decisions.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "client-retry-and-redirect-conventions",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/design/ui.css:139 The context styles field state and contains no transport or redirect handling."
+          "evidence": "apps/desktop/client/src/design/ui.css:139 The context styles field state and contains no transport or redirect handling.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "durable-retries",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/design/ui.css:80 Rows here are CSS layout rules, not persisted retry work."
+          "evidence": "apps/desktop/client/src/design/ui.css:80 Rows here are CSS layout rules, not persisted retry work.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "error-classification-for-retry",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/design/base.css:64 This renders an existing error state without deciding retryability."
+          "evidence": "apps/desktop/client/src/design/base.css:64 This renders an existing error state without deciding retryability.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "jittered-revocation-with-irrevocable-terminal",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/design/base.css:58 These presentation rules neither issue credentials nor perform remote revocation."
+          "evidence": "apps/desktop/client/src/design/base.css:58 These presentation rules neither issue credentials nor perform remote revocation.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "retry-observability",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/design/ui.css:245 Loading appearance is defined here; retry records and outcomes are not."
+          "evidence": "apps/desktop/client/src/design/ui.css:245 Loading appearance is defined here; retry records and outcomes are not.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "storm-control",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/design/ui.css:247 Repeated animation issues no dependency calls and creates no retry amplification."
+          "evidence": "apps/desktop/client/src/design/ui.css:247 Repeated animation issues no dependency calls and creates no retry amplification.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "suspension-is-not-failure",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/design/base.css:71 Reduced-motion behavior changes animation, not suspended work or attempt budgets."
+          "evidence": "apps/desktop/client/src/design/base.css:71 Reduced-motion behavior changes animation, not suspended work or attempt budgets.",
+          "carriedFrom": "2026-10-17"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/design/ui.css:246 Searches for retry, backoff, jitter and circuit found no matches in the design directory; these styles define presentation and animation rather than failed-call recovery.",
+          "evaluatedAt": "2026-10-17T21:12:04.811Z",
+          "worker": "cdc2d6c8-5245-4919-8938-a22109c645c3",
+          "reason": "replaced by c910dbc1-e4cd-4de6-a335-3588db80dbbf"
         }
       ]
     },
@@ -4550,49 +4568,64 @@
       "subject": "retry-backoff",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-17",
-      "evaluatedTs": "2026-10-17T21:12:04.811Z",
-      "worker": "cdc2d6c8-5245-4919-8938-a22109c645c3",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:15:20.915Z",
+      "worker": "c910dbc1-e4cd-4de6-a335-3588db80dbbf",
       "techniques": [
+        {
+          "technique": "error-classification-for-retry",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/contract.ts:65 Classification happens at the boundary against the structured code (good), but the default branch puts unknown failures into the retryable UNAVAILABLE class instead of a separately counted unknown lane. Writes are correctly never retried (hooks.ts useMutation)."
+        },
         {
           "technique": "backoff-design",
           "verdict": "deviation",
-          "evidence": "apps/desktop/client/src/lib/data/client.ts:9 The retry delay is deterministic; the standard requires jitter on scheduled recovery attempts."
+          "evidence": "apps/desktop/client/src/lib/data/client.ts:39 Outside the context but used by its hooks.ts useQuery/useCommand: the single read retry waits a fixed 750 ms (RETRY_DELAY_MS, line 9) with no jitter, so reads that fail together retry together."
         },
         {
           "technique": "client-retry-and-redirect-conventions",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/lib/tauri.ts:21 This boundary invokes the local Tauri shell rather than a replicated HTTP server with redirects and consistency indexes."
+          "evidence": "apps/desktop/client/src/lib/tauri.ts:21 This boundary invokes the local Tauri shell rather than a replicated HTTP server with redirects and consistency indexes.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "durable-retries",
           "verdict": "conformant",
-          "evidence": "apps/desktop/client/src/lib/data/provider.tsx:17 Foreground read retries live in the window's in-memory QueryClient, an appropriate durability class for session-scoped interactive reads."
-        },
-        {
-          "technique": "error-classification-for-retry",
-          "verdict": "deviation",
-          "evidence": "apps/desktop/client/src/lib/contract.ts:60 Unrecognized errors become UNAVAILABLE and enter its retry policy; there is no distinct unknown class or separately counted unknown lane."
+          "evidence": "apps/desktop/client/src/lib/data/provider.tsx:17 Foreground read retries live in the window's in-memory QueryClient, an appropriate durability class for session-scoped interactive reads.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "jittered-revocation-with-irrevocable-terminal",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:1352 Mock revocation marks local pin state; it does not revoke issued credentials held by an unavailable remote."
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1352 Mock revocation marks local pin state; it does not revoke issued credentials held by an unavailable remote.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "retry-observability",
           "verdict": "deviation",
-          "evidence": "apps/desktop/client/src/lib/data/query.ts:77 The public read result omits attempt counts and retry terminal reasons, making recovery after retry indistinguishable from first-attempt success."
+          "evidence": "apps/desktop/client/src/lib/data/query.ts:77 The public read result omits attempt counts and retry terminal reasons, making recovery after retry indistinguishable from first-attempt success.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "storm-control",
           "verdict": "deviation",
-          "evidence": "apps/desktop/client/src/lib/data/client.ts:12 The limit applies independently to each query; coalescing identical reads does not supply an aggregate retry budget across failing keys."
+          "evidence": "apps/desktop/client/src/lib/data/client.ts:12 The limit applies independently to each query; coalescing identical reads does not supply an aggregate retry budget across failing keys.",
+          "carriedFrom": "2026-10-17"
         },
         {
           "technique": "suspension-is-not-failure",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/lib/data/client.ts:40 The layer explicitly uses local IPC, so browser network availability is not a precondition for issuing its reads."
+          "evidence": "apps/desktop/client/src/lib/data/client.ts:40 The layer explicitly uses local IPC, so browser network availability is not a precondition for issuing its reads.",
+          "carriedFrom": "2026-10-17"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/lib/data/client.ts:39 Shared read hooks retry unavailable reads after a fixed 750 ms without jitter, preserving synchronization among reads that fail together.",
+          "evaluatedAt": "2026-10-17T21:12:04.811Z",
+          "worker": "cdc2d6c8-5245-4919-8938-a22109c645c3",
+          "reason": "replaced by c910dbc1-e4cd-4de6-a335-3588db80dbbf"
         }
       ]
     },
@@ -8249,53 +8282,50 @@
       "context": "safety-and-setup",
       "subject": "retry-backoff",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-26",
-      "evaluatedTs": "2026-10-26T22:04:15.303Z",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-07",
+      "evaluatedTs": "2026-11-07T00:15:20.915Z",
+      "worker": "c910dbc1-e4cd-4de6-a335-3588db80dbbf",
       "techniques": [
         {
           "technique": "error-classification-for-retry",
           "verdict": "deviation",
-          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/joinRetry.ts:12 The technique's named failure ('regex in the retry loop'): the call site matches message text to decide retryability, so the boundary adapter never assigns a class. Credit: anything else fails at once, never silently treated as transient (test at PairingDesk.test.tsx:161-162)."
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/joinRetry.ts:12 Retry is limited to one narrow case and house mode never retries (good), but the class comes from re-parsing the message, which the standard forbids downstream of the boundary."
         },
         {
           "technique": "backoff-design",
           "verdict": "deviation",
-          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/joinRetry.ts:8 The delay is a fixed 3 s with no jitter, matched to the initiator's poll cadence. The exhaustion knob is separate and bounded (JOIN_ATTEMPTS = 5, line 7), and the herd risk is small for one pairing per owner. Still, the rule 'jitter on every scheduled delay' is not met."
-        },
-        {
-          "technique": "durable-retries",
-          "verdict": "conformant",
-          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:154 An interactive join retry, kept in memory on purpose (useRef) and stated to die with reset, mode change or unmount. That is the honest default for user-interactive work."
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/joinRetry.ts:8 A fixed 3 s delay with no jitter. It matches the peer's 3 s poll (close to a stated schedule) and the total is capped at 5 attempts, but the standard asks for jitter on top of a stated schedule. Herd risk is low because there is one joiner per pairing."
         },
         {
           "technique": "retry-observability",
           "verdict": "deviation",
-          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:386 After 5 attempts the last raw error is shown, looking the same as a first-attempt failure. The attempt count is kept in joinCalls but never surfaced, so 'exhausted' is not spelled as its own outcome."
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:391 When the 5 attempts run out, the screen shows the same notice as a single failure. The exhausted state and the attempt count are never spelled out, so the owner cannot tell 'gave up after 5 tries' from 'failed once'."
         },
         {
           "technique": "circuit-breakers",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/setup/circuit.ts:72 Here 'circuit' and 'breaker' are a UI picture of the money path (w1 is the owner's pause switch). They are not a failure-counting breaker in front of a dependency, and this context has no such breaker."
+          "evidence": "apps/desktop/client/src/windows/main/setup/circuit.ts:74 Here 'circuit' and 'breaker' are a picture of the money path and its pause switch, derived as a pure function of settings. No breaker tracks dependency health."
+        },
+        {
+          "technique": "durable-retries",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:154 An interactive join retry, kept in memory on purpose (useRef) and stated to die with reset, mode change or unmount. That is the honest default for user-interactive work.",
+          "carriedFrom": "2026-10-26"
         },
         {
           "technique": "client-retry-and-redirect-conventions",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:150 The view calls a local IPC command (pairing_join). This context does not contain a client library for a replicated or redirecting server."
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:150 The view calls a local IPC command (pairing_join). This context does not contain a client library for a replicated or redirecting server.",
+          "carriedFrom": "2026-10-26"
         },
         {
           "technique": "jittered-revocation-with-irrevocable-terminal",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:72 The only 'ending' here is one abort call to the local runtime. No issued credential is revoked against a remote."
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:72 The only 'ending' here is one abort call to the local runtime. No issued credential is revoked against a remote.",
+          "carriedFrom": "2026-10-26"
         }
-      ],
-      "registryProposal": "backoff-design treats every scheduled delay as part of an outage ladder that needs jitter. A rendezvous retry (waiting for a known peer whose poll cadence is fixed, here 3 s) is a different case: one caller, no correlated herd, and the delay is set by the peer's stated cadence. The standard could say whether jitter is required there, or whether matching the peer's cadence counts as a stated schedule.",
-      "withdrawn": {
-        "worker": "3731996e-88d9-412f-9606-ed41f1756616",
-        "state": "deviation",
-        "at": "2026-10-26T22:04:52.812184+00:00",
-        "reason": "reviewer (sonnet): The claims hold in the code, but every anchor (joinRetry.ts, PairingDesk.tsx, PairingDesk.test.tsx) is in console/areas/connections. None of the listed safety-and-setup files hold the retry logic. joinRetry.ts only imports the PairMode type from setup/pairing, so the verdict is about the connections"
-      }
+      ]
     },
     "c02a6103-08a3-462b-84a7-23d7c9ec8c58/windowed-inference-over-oversized-inputs": {
       "context": "console-framework",

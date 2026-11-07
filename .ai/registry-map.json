@@ -1911,12 +1911,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "apps/desktop/client/src/lib/data/client.ts:39 Shared read hooks retry unavailable reads after a fixed 750 ms without jitter, preserving synchronization among reads that fail together.",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:4ca1a8af506f44d9",
-          "evaluatedRevision": 13,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/lib/contract.ts:65 toWalletError files every unregistered or untyped failure (a transport failure, an unknown command, a bare string) under UNAVAILABLE, which is the class the read layer retries, so there is no separate unknown lane and new failures are quietly treated as transient.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:0ff53fb3a87ad13c",
+          "evaluatedRevision": 14,
+          "revisionsBehind": 1
         },
         {
           "subject": "terminal-multiplexing",
@@ -3090,13 +3089,12 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "apps/desktop/client/src/design/ui.css:246 Searches for retry, backoff, jitter and circuit found no matches in the design directory; these styles define presentation and animation rather than failed-call recovery.",
-          "evaluatedAt": "2026-10-17",
-          "evaluatedAgainst": "sha256-b2:4ca1a8af506f44d9",
-          "evaluatedRevision": 13,
+          "evidence": "apps/desktop/client/src/design/motion.ts:3 A case-insensitive search of apps/desktop/client/src/design and apps/desktop/client/src/shared/brand for retry, backoff, jitter, circuit and attempt found nothing; the only timing constants here are named animation durations, so these files contain no failed-call recovery for the subject to govern.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:0ff53fb3a87ad13c",
+          "evaluatedRevision": 14,
           "source": "retained",
-          "revisionsBehind": 1,
-          "stale": true
+          "revisionsBehind": 1
         }
       ],
       "governance": "governed"
@@ -7684,7 +7682,11 @@
           "revision": 14,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/joinRetry.ts:12 The join retry decides retryability with a regex over the error's message text instead of a structured class, so a change to that wording silently turns the retry off (or on) without any typecheck noticing.",
+          "evaluatedAt": "2026-11-07",
+          "evaluatedAgainst": "sha256-b2:0ff53fb3a87ad13c",
+          "evaluatedRevision": 14
         },
         {
           "subject": "quality-gates",
