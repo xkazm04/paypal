@@ -358,6 +358,7 @@ async fn a_snooze_is_recorded_hides_no_evidence_and_the_notification_rung_pierce
             pairing: None,
             target: None,
             draft: None,
+            presentation: None,
         }),
     )
     .await
@@ -472,6 +473,7 @@ async fn no_rung_row_is_ever_written_for_a_deal_not_in_a_snapshot() {
                 pairing: None,
                 target: None,
                 draft: None,
+                presentation: None,
             }),
         };
         let _ = r.execute(caller("tumbler", None), action).await;

@@ -72,6 +72,11 @@ describe('a tamper', () => {
     expect(container.querySelector('.pk-facts')?.textContent).toContain('$296.80');
     // the seal's line says it is only the seal
     expect(within(r.evidence as HTMLElement).getByText(/any change at all breaks that seal/)).toBeTruthy();
+    // the price/payee checks that read dashed here are named, and the note owns that only the seal caught it
+    const sealNote = (r.evidence as HTMLElement).querySelector('.pk-note.bad')?.textContent ?? '';
+    expect(sealNote).toMatch(/only the whole-file seal caught the change/);
+    expect(sealNote).toMatch(/market price was not checked/);
+    expect(sealNote).not.toMatch(/the lines above say what/);
     expect(screen.getByRole('button', { name: 'Check the file again' })).toBeTruthy();
   });
 

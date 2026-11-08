@@ -410,3 +410,179 @@ fn expired_or_forged_limits_refuse_money_out_and_never_money_in() {
     let last = purchase(&mut r, &peer, 1200);
     propose(&mut r, &last).unwrap();
 }
+
+/// Rules for $329 purchases: up to $400 each, $500 a day (clause 5), no ask-me limit reached.
+fn daily_500(r: &mut Runtime) -> MandateId {
+    let clauses = clauses(Side::Buyer, DealKind::Purchase)
+        .into_iter()
+        .map(|c| match c {
+            Clause::PerDeal {
+                kind, categories, ..
+            } => Clause::PerDeal {
+                kind,
+                max_amount: usd(40_000),
+                categories,
+            },
+            Clause::Band {
+                item_refs,
+                floor,
+                max_rounds,
+                deadline,
+                ..
+            } => Clause::Band {
+                item_refs,
+                floor,
+                ceiling: Some(usd(40_000)),
+                max_rounds,
+                deadline,
+            },
+            Clause::Velocity { max_deals_day, .. } => Clause::Velocity {
+                max_deals_day,
+                max_total_day: usd(50_000),
+            },
+            Clause::HumanPresentOver { .. } => Clause::HumanPresentOver {
+                amount: usd(40_000),
+            },
+            other => other,
+        })
+        .collect();
+    r.sign_mandate(MandateSignArgs {
+        id: None,
+        agent: AgentSlot::Negotiator,
+        clauses,
+        not_before: 0,
+        expires: 1_000_000,
+    })
+    .unwrap()
+    .payload
+    .id
+}
+/// A purchase at `price` under the mandate `mandate`, proposed by its agent: AGREED.
+fn agreed_under(r: &mut Runtime, peer: &AgentSigner, mandate: MandateId, price: i64) -> Deal {
+    let deal = r
+        .create_deal(DealCreateArgs {
+            kind: DealKind::Purchase,
+            side: Side::Buyer,
+            counterparty: peer.key_id().unwrap(),
+            mandate_id: mandate,
+            mandate_version: 1,
+            category: Category::Parts,
+            terms: Terms {
+                item_ref: ItemRef::new("monitor").unwrap(),
+                qty: 1,
+                unit_price: usd(price),
+                currency: Currency::USD,
+                delivery: Delivery::DigitalNow,
+            },
+        })
+        .unwrap();
+    propose(r, &deal).unwrap();
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Agreed
+    );
+    deal
+}
+fn rules_line(r: &mut Runtime, id: DealId) -> ApprovalCheck {
+    let (checks, _) = r.approval_checks(id).unwrap();
+    checks
+        .into_iter()
+        .find(|c| c.id == ApprovalCheckId::Mandate)
+        .unwrap()
+}
+
+/// C2: the rules line says what today's budget leaves after this purchase, from the gates' own
+/// counting; another purchase agreeing changes the number, so the hash the owner saw goes stale.
+#[tokio::test]
+async fn the_rules_line_says_what_is_left_today_and_a_later_purchase_makes_the_old_hash_stale() {
+    let (mut r, vault, http, clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let peer = paired_peer(&mut r);
+    let mandate = daily_500(&mut r);
+    let first = agreed_under(&mut r, &peer, mandate, 32_900);
+    let token = unlock_runtime(&mut r);
+    r.selected = Some(first.id);
+
+    // $500 a day, no earlier deal, $329: $171 left.
+    let line = rules_line(&mut r, first.id);
+    assert_eq!(line.status, ApprovalCheckStatus::Pass);
+    assert_eq!(
+        line.text,
+        "Inside your rules: up to $400.00 per deal. After this, $171.00 of today’s $500.00 is left."
+    );
+    assert!(
+        line.detail.contains(
+            "clause 5 max_total_day 500.00 USD − (used today 0.00 USD + this 329.00 USD) = 171.00 USD left"
+        ),
+        "{}",
+        line.detail
+    );
+    assert!(line.detail.contains("00:00 UTC"), "{}", line.detail);
+    let seen = decision(&mut r, first.id);
+
+    // A second $100 purchase agrees under the same rules: the first now reads $71.
+    agreed_under(&mut r, &peer, mandate, 10_000);
+    let line = rules_line(&mut r, first.id);
+    assert_eq!(
+        line.text,
+        "Inside your rules: up to $400.00 per deal. After this, $71.00 of today’s $500.00 is left."
+    );
+    // The decision sent with the hash of the list that said $171 is refused, before anything.
+    let audit_before = r.pipeline.wallet.ledger.audit_count().unwrap();
+    let error = r
+        .execute(
+            caller("approval", Some(&token)),
+            Action::Decision(seen, Decision::Countersign),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(error.message, crate::SUMMARY_CHANGED);
+    assert!(matches!(error.code, ErrorCode::Invalid));
+    assert_eq!(
+        r.pipeline.wallet.ledger.audit_count().unwrap(),
+        audit_before
+    );
+    assert_eq!(
+        r.pipeline
+            .wallet
+            .ledger
+            .paypal_call_count(first.id)
+            .unwrap(),
+        0
+    );
+    assert!(http.0.lock().unwrap().paths.is_empty());
+    // The summary the owner reads now carries the hash that goes through the check.
+    let fresh = decision(&mut r, first.id);
+    assert_eq!(
+        fresh.checks_hash,
+        Some(r.summary(first.id).unwrap().checks_hash)
+    );
+
+    // Past UTC midnight the purchase's money counts in the day it agreed: no sentence.
+    clock.0.store(86_400 + 100, Ordering::SeqCst);
+    let line = rules_line(&mut r, first.id);
+    assert_eq!(line.text, "Inside your rules: up to $400.00 per deal.");
+}
+
+/// C2: a $400 wallet limit leaves less than the $500 rule, so the line names the wallet limit.
+#[test]
+fn the_rules_line_names_the_wallet_limit_when_it_is_the_tighter_one() {
+    let (mut r, ..) = runtime(true);
+    let peer = paired_peer(&mut r);
+    r.sign_envelope(limits(40_000, 100_000, 10)).unwrap();
+    let mandate = daily_500(&mut r);
+    let deal = agreed_under(&mut r, &peer, mandate, 32_900);
+    let line = rules_line(&mut r, deal.id);
+    assert_eq!(line.status, ApprovalCheckStatus::Pass);
+    assert_eq!(
+        line.text,
+        "Inside your rules: up to $400.00 per deal. After this, $71.00 of your wallet’s $400.00 daily limit is left today."
+    );
+    for part in [
+        "clause 5 max_total_day 500.00 USD − (used today 0.00 USD + this 329.00 USD) = 171.00 USD left",
+        "wallet limit max_out_day 400.00 USD − (used today 0.00 USD + this 329.00 USD) = 71.00 USD left",
+        "tighter: the wallet limit",
+    ] {
+        assert!(line.detail.contains(part), "{part} in {}", line.detail);
+    }
+}

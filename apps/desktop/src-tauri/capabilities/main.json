@@ -7,6 +7,11 @@
   "permissions": [
     "core:event:allow-listen",
     "core:event:allow-unlisten",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-close",
     "allow-deal-display",
     "allow-deal-transcript",
     "allow-counterparty-list",
@@ -46,6 +51,13 @@
     "allow-rescue-book",
     "allow-deal-group-open",
     "allow-deal-groups",
-    "allow-safety-record"
+    "allow-safety-record",
+    "allow-assistant-ask",
+    "allow-assistant-status",
+    "allow-deal-lapse-undo",
+    "allow-agent-pause",
+    "allow-agent-resume",
+    "allow-assistant-act",
+    "allow-engine-brief"
   ]
 }

@@ -2,6 +2,11 @@
 // real shell enforces (approval label + token + unlocked + selected deal) so the UI is built
 // against the same failure modes. It never pretends to be real: every payload says sandbox
 // or replay, and the UI shows a "browser preview · mock backend" badge (see shared/MockBadge).
+import type { ApprovalSummary } from '@bindings/ApprovalSummary';
+import type { HistoryStep } from '@bindings/HistoryStep';
+import type { ApprovalDecided } from '@bindings/ApprovalDecided';
+import type { DecisionStep } from '@bindings/DecisionStep';
+import type { MoneyCheckStep } from '@bindings/MoneyCheckStep';
 import type { AgentSlot } from '@bindings/AgentSlot';
 import type { BookQuery } from '@bindings/BookQuery';
 import type { BookView } from '@bindings/BookView';
@@ -25,7 +30,7 @@ import { clockOffset, setClockOffset, simulateClock } from '../lib/clock';
 import { fairPriceOf } from '../lib/fairPrice';
 import { CLAUSE_NUMBER } from '../lib/mandateRules';
 import { formatMoney, nowUnix } from '../lib/format';
-import { buildMockState, fakeHash, fakeUlid, MOCK_OWNER_KEY_ID, type MockDeal, type MockGroup, type MockState } from './fixtures';
+import { buildMockState, fakeHash, fakeUlid, MOCK_OWNER_KEY_ID, type MockDeal, type MockDecisionRow, type MockGroup, type MockState } from './fixtures';
 import { safetyRecordOf } from './safety';
 import type { DealGroupView } from '@bindings/DealGroupView';
 import { ON_QUIT, mockForecast, mockQuitLines, quitPending, type ForecastDeal } from './forecast';
@@ -38,7 +43,7 @@ import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { Category } from '@bindings/Category';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { mockCheck, mockValidate, type MockIntent } from './simulate';
-import { mockEnvelopeRefusal, mockExposureView, type MockEnvelope } from './exposure';
+import { mockEnvelopeRefusal, mockExposureView, mockWalletDayUsed, type MockEnvelope } from './exposure';
 import { AGREED_OR_LATER, BEFORE_SETTLEMENT, COUNTERSIGNABLE, OPEN_TABLE, TERMINAL, WITHDRAWABLE } from '@bindings/dealStates';
 import type { EnvelopeSignArgs } from '@bindings/EnvelopeSignArgs';
 import type { RescueView } from '@bindings/RescueView';
@@ -88,6 +93,12 @@ const ON_DEADLINE: Partial<Record<DealState, DealState>> = {
   SETTLING: 'EXPIRED', AWAITING_APPROVAL: 'EXPIRED', APPROVED: 'EXPIRED',
   AUTHORIZED: 'AUTO_VOIDED',
 };
+/** As Rust's AgentSlot::ALL: the slot order paused_agents is listed in. */
+const AGENT_SLOTS: readonly AgentSlot[] = ['negotiator', 'shopper', 'assistant'];
+/** The commands that carry an owner decision (Rust decide()). */
+const DECISION_CMDS: ReadonlySet<string> = new Set(['deal_owner_accept', 'deal_countersign', 'deal_capture', 'shield_release', 'rescue_approve', 'open_paypal_in_browser']);
+/** The money step a decision starts at PayPal, when it starts one. */
+const MONEY_STEP: Partial<Record<DecisionStep, MoneyCheckStep>> = { create: 'create', authorize: 'authorize', capture: 'capture', invoice_create: 'invoice_create' };
 /** The sentence the shell's event loop sends with a deadline's terminal state. */
 const DEADLINE_SILENCE = 'Deadline or safe decision completed; no capture was made';
 
@@ -162,6 +173,10 @@ function fail(code: WalletError['code'], message: string): never {
  *  approval opens in the main window's demo sheet instead of a window). Default: window.open. */
 export type MockOptions = {
   open?: (page: string, name: string, features?: string) => void;
+  /** Tests only: the next owner decision fails as a lost reply would, at one point of Rust's decide():
+   *  before anything is written, after the decision row (nothing sent), or after its money step went
+   *  to PayPal (the step is left open, being checked). The call answers UNAVAILABLE either way. */
+  failDecision?: 'before_row' | 'after_row' | 'after_send';
   /** How a saved file reaches the person (default: the browser downloads it). */
   save?: (name: string, text: string) => void;
   /** How the person picks a file to check (default: the browser's file picker); null = cancelled. */
@@ -275,6 +290,16 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     const day = AGREED_OR_LATER.has(d.deal.state) ? agreedDay(d) : Math.floor(nowUnix() / 86400);
     const used = state.deals.filter((o) => o.deal.id !== d.deal.id && o.deal.mandate_id === d.deal.mandate_id && AGREED_OR_LATER.has(o.deal.state) && agreedDay(o) === day);
     return { dealsToday: used.length, totalToday: used.reduce((t, o) => t + o.deal.terms.unit_price.minor * o.deal.terms.qty, 0) };
+  }
+  /** Rust table-app `left_today`: the budget seen from now, not from the deal's place in its day.
+   *  The other deals under the mandate agreed today (usage_today_without) and the wallet limit's
+   *  money out today without this deal; null when the deal agreed on an earlier UTC day. */
+  function usageToday(d: ReturnType<typeof find>): { ruleUsedMinor: number; wallet: { usedMinor: number; cap: Money } | null } | null {
+    const today = Math.floor(nowUnix() / 86400);
+    if (AGREED_OR_LATER.has(d.deal.state) && agreedDay(d) !== today) return null;
+    const used = state.deals.filter((o) => o.deal.id !== d.deal.id && o.deal.mandate_id === d.deal.mandate_id && AGREED_OR_LATER.has(o.deal.state) && agreedDay(o) === today);
+    const wallet = mockWalletDayUsed(state.deals.map((o) => o.deal), d.deal, envelope(), nowUnix());
+    return { ruleUsedMinor: used.reduce((t, o) => t + o.deal.terms.unit_price.minor * o.deal.terms.qty, 0), wallet };
   }
   /** As Wallet::mandate_check: the deal's active version, its recorded category, the counterparty's
    *  pin, the ledger's usage and the rounds already signed, judged by the one mock of
@@ -545,8 +570,60 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       mandate: activeMandate(d.deal.mandate_id), verdict, spentTodayMinor: usageFor(d).totalToday, now: nowUnix(),
       limitRefusal: mockEnvelopeRefusal(state.deals.map((o) => o.deal), d.deal, envelope(), nowUnix()),
       rescue: state.rescue?.[d.deal.id],
+      today: usageToday(d),
     });
     return { checks, checks_hash: mockChecksHash(checks) };
+  }
+  // ---- the owner's decision rows (Rust record_decision) and what the summary reads back ----------
+  let failNext = opts.failDecision ?? null;
+  /** The newest decision row of a deal, as the summary's `decided` (Rust Runtime::last_decision). */
+  function lastDecision(id: string, nowHash: ApprovalSummary['checks_hash']): ApprovalDecided | null {
+    const row = state.decisions?.[id]?.at(-1);
+    if (!row) return null;
+    // The mock's owner key always signs (Rust: the pinned owner key's signature verifies).
+    return { decision: row.decision, operation: row.operation, at: row.at, checks_hash: row.checks_hash, same_now: JSON.stringify(row.checks_hash) === JSON.stringify(nowHash), signed: true, checks: row.checks };
+  }
+  /** Rust's record_decision: the row, then (as Rust's history projects it) its owner_decided step.
+   *  Then the injected failure, if any: after the row, or after the step went to PayPal. */
+  function recordDecision(id: string, decision: string, operation: DecisionStep): void {
+    const d = find(id);
+    const now = checksFor(d);
+    const at = nowUnix();
+    const history = state.history ?? buildMockState(nowUnix()).history ?? [];
+    const seq = history.reduce((m, h) => Math.max(m, h.seq), 0) + 1;
+    const row: MockDecisionRow = { seq, decision, operation, at, checks: now.checks, checks_hash: now.checks_hash };
+    state.decisions = { ...(state.decisions ?? {}), [id]: [...(state.decisions?.[id] ?? []), row] };
+    state.history = [...history, {
+      at, deal_id: id, seq, kind: 'owner_decided', state_after: null, authority: { type: 'owner' }, paypal: { type: 'none' },
+      decision: { decision, operation, checks: now.checks.length, later: now.checks.filter((c) => c.status === 'wait').length, later_passed: 0, before_payment: false },
+    }];
+    save();
+    const f = failNext;
+    if (f === 'after_row' || f === 'after_send') {
+      failNext = null;
+      const step = MONEY_STEP[operation];
+      if (f === 'after_send' && step) {
+        d.evidence = { ...d.evidence, money_check: { step, state: 'checking', since: at, next_check: null } };
+        save();
+      }
+      fail('UNAVAILABLE', 'the reply was lost');
+    }
+  }
+  /** Rust's history projection: a decision's lines checked later pass when a later decision on the
+   *  deal records them passed, before payment when that is no later than the deal's first capture
+   *  decision (the capture's money row follows its decision row). */
+  function decisionCounts(steps: HistoryStep[]): HistoryStep[] {
+    return steps.map((s) => {
+      if (s.kind !== 'owner_decided' || !s.decision) return s;
+      const rows = state.decisions?.[s.deal_id] ?? [];
+      const i = rows.findIndex((r) => r.seq === s.seq);
+      if (i < 0) return s;
+      const waiting = rows[i]!.checks.filter((c) => c.status === 'wait');
+      const passedAt = waiting.map((w) => rows.slice(i + 1).find((r) => r.checks.some((c) => c.id === w.id && c.status === 'pass'))?.seq ?? null);
+      const passed = passedAt.filter((x) => x !== null).length;
+      const taken = rows.find((r) => r.operation === 'capture')?.seq ?? null;
+      return { ...s, decision: { ...s.decision, later: waiting.length, later_passed: passed, before_payment: waiting.length > 0 && passed === waiting.length && taken !== null && passedAt.every((x) => x !== null && x <= taken) } };
+    });
   }
   /** Rust's decide(), before any checklist: every owner decision (void included) is refused on
    *  other terms or another attempt, on a MISMATCH and under a BLOCK. */
@@ -689,6 +766,8 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       return d.evidence;
     },
     engine_status: () => state.engines,
+    // The same facts as engine_status minus version and reason (what every window may read).
+    engine_brief: () => state.engines.map((e) => ({ id: e.id, available: e.available })),
     engine_select: ({ engine }) => {
       const e = state.engines.find((x) => x.id === engine);
       if (!e?.available) fail('UNAVAILABLE', `${engine} is installed but waits for its isolation spike`);
@@ -756,13 +835,20 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       else openWindow(`index.html${deal_id ? `#d=${deal_id}` : ''}`, 'the-table-main');
       return null;
     },
-    approval_open: ({ deal_id, pairing, target, draft }) => {
+    approval_open: ({ deal_id, pairing, target, draft, presentation }) => {
       if (deal_id && pairing) fail('INVALID', 'choose one approval selection');
       // As Runtime::open_approval: the target must fit the selection, and a draft (pre-fill only,
       // from Main only) must bind to that target. Nothing is signed or rebound here.
       const t = target ?? (pairing ? 'pairing' : deal_id ? 'deal' : null);
       const shape = t === 'deal' ? !!deal_id && !pairing : t === 'pairing' ? !!pairing && !deal_id : !deal_id && !pairing;
       if (!shape) fail('INVALID', 'the approval target does not match the selection');
+      // As Runtime::open_approval: a sheet is a setup step from Main only (keys, rules, the words).
+      const sheetKinds: Partial<Record<string, string>> = { credentials: 'keys', mandate: 'rules', pairing: 'pairing' };
+      const bare = presentation === 'sheet' ? sheetKinds[t ?? ''] ?? null : null;
+      if (presentation === 'sheet') {
+        if (label !== 'main') fail('PERMISSION', 'only The Table opens a secure sheet');
+        if (!bare) fail('INVALID', 'a sheet is a setup step: keys, rules or pairing');
+      }
       if (draft) {
         if (label !== 'main') fail('PERMISSION', 'only The Table carries a draft');
         checkDraft(t, deal_id ?? null, draft);
@@ -775,6 +861,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
         cardRung(deal_id, 'review_opened');
       }
       const q = new URLSearchParams();
+      if (bare) q.set('bare', bare);
       if (pairing) q.set('pairing', JSON.stringify(pairing));
       else if (deal_id) q.set('deal', deal_id);
       if (t) q.set('target', t);
@@ -862,7 +949,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     deal_history: ({ deal_id, from, to }) => {
       if (from != null && to != null && from >= to) fail('INVALID', 'from must be before to');
       if (deal_id) find(deal_id);
-      const all = (state.history ?? buildMockState(nowUnix()).history ?? [])
+      const all = decisionCounts(state.history ?? buildMockState(nowUnix()).history ?? [])
         .filter((s) => (!deal_id || s.deal_id === deal_id) && (from == null || s.at >= from) && (to == null || s.at < to))
         .sort((a, b) => a.seq - b.seq);
       return { steps: all.slice(-500), truncated: all.length > 500 };
@@ -931,8 +1018,12 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
         : (d.deal.side === 'seller' || d.deal.kind === 'purchase') && d.deal.kind !== 'invoice' && d.deal.mode !== 'replay';
       const configured = state.settings.payment_executor_configured;
       const m = activeMandate(d.deal.mandate_id);
+      const now = checksFor(d);
       return {
-        ...checksFor(d),
+        ...now,
+        // As Rust: the ledger's hand-off flag, and the newest decision row read back.
+        handed_off: (state.handedOff ?? []).includes(deal_id),
+        decided: lastDecision(deal_id, now.checks_hash),
         deal: d.deal,
         evidence: d.evidence,
         attempt: 1,
@@ -943,7 +1034,8 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
           && d.transcript.some((s) => s.by === 'them' && s.typ === 'COUNTER')
           && !d.transcript.some((s) => s.by === 'you' && s.typ === 'ACCEPT') && ownerMandateAllows(d) && !groupBlocked(deal_id),
         locked,
-        can_release: configured && !locked && supported && !TERMINAL.has(d.deal.state) && d.deal.state !== 'MISMATCH' && d.deal.shield !== 'BLOCK',
+        // A money step open with PayPal holds every other money step (Rust summary(): no money_check).
+        can_release: configured && !locked && !d.evidence.money_check && supported && !TERMINAL.has(d.deal.state) && d.deal.state !== 'MISMATCH' && d.deal.shield !== 'BLOCK',
         // As Rust: a sandbox order awaiting approval before its deadline, under its rules still in
         // force, whose approval link the pipeline would hand out (not a replay, not held).
         can_open_paypal: !locked && d.deal.mode === 'sandbox' && d.deal.state === 'AWAITING_APPROVAL' && (d.display.deadline ?? 0) > nowUnix()
@@ -992,9 +1084,60 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       // As Rust: the same gate the card offered; a hold or a card without Let lapse has none.
       const a = d.attention;
       if (!a || a.kind !== 'gate' || !a.actions.includes('let_lapse') || !shown(a)) fail('INVALID', 'Invalid or stale wallet command');
+      state.lapsed = { ...state.lapsed, [deal_id]: a };
       d.attention = null;
       save();
       emit('attention:changed', attention());
+      return null;
+    },
+    // Safe acts (Rust acts.rs). As Runtime::lapse_undo: the mark is set and the deal has not ended.
+    deal_lapse_undo: ({ deal_id }) => {
+      const d = find(deal_id);
+      const kept = state.lapsed?.[deal_id];
+      if (!kept || TERMINAL.has(d.deal.state)) fail('INVALID', 'Invalid or stale wallet command');
+      const { [deal_id]: _gone, ...rest } = state.lapsed ?? {};
+      state.lapsed = rest;
+      d.attention = kept;
+      save();
+      emit('attention:changed', attention());
+      return null;
+    },
+    // As Runtime::pause_agent / resume_agent: sticky per slot, in slot order; the mock's runs are
+    // all haggles, so pausing the negotiator cancels them.
+    agent_pause: ({ agent }) => {
+      const now = new Set([...(state.settings.paused_agents ?? []), agent]);
+      state.settings = { ...state.settings, paused_agents: AGENT_SLOTS.filter((s) => now.has(s)) };
+      if (agent === 'negotiator') {
+        state.runs = state.runs.map((r) => (r.state === 'running' || r.state === 'starting' ? { ...r, state: 'cancelled' as const } : r));
+        for (const r of state.runs) emit('agent:changed', r);
+      }
+      save();
+      publishSettings();
+      return null;
+    },
+    agent_resume: ({ agent }) => {
+      state.settings = { ...state.settings, paused_agents: (state.settings.paused_agents ?? []).filter((s) => s !== agent) };
+      save();
+      publishSettings();
+      return null;
+    },
+    // As Runtime::assistant_act: plain bounded consent words (refused, never trimmed), the act,
+    // then one `assistant.act` row. A refused act records nothing.
+    assistant_act: ({ act, consent }) => {
+      const plain = (s: string, max: number) => s.trim().length > 0 && s.length <= max && !/[\u0000-\u001f\u007f-\u009f]/.test(s);
+      if (!plain(consent.words, 800) || !plain(consent.fingerprint, 160)) fail('INVALID', 'Invalid or stale wallet command');
+      let deal_id: string | null = null;
+      switch (act.act) {
+        case 'pause_all': handlers.pause_all_agents(null); break;
+        case 'resume_all': handlers.resume_all_agents(null); break;
+        case 'let_lapse': handlers.deal_let_lapse({ deal_id: act.deal_id }); deal_id = act.deal_id; break;
+        case 'lapse_undo': handlers.deal_lapse_undo({ deal_id: act.deal_id }); deal_id = act.deal_id; break;
+        case 'pause_agent': handlers.agent_pause({ agent: act.agent }); break;
+        case 'resume_agent': handlers.agent_resume({ agent: act.agent }); break;
+      }
+      const audit = state.audit ?? [];
+      state.audit = [...audit, { seq: audit.length + 1, at: nowUnix(), actor: 'owner', action: 'assistant.act', deal_id, decided_by: null, from: null, to: null }];
+      save();
       return null;
     },
     deal_snooze: ({ deal_id }) => {
@@ -1016,6 +1159,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       // As the ledger's group guard (T8): refused before anything is signed (REFUSED, not a gate).
       if (groupBlocked(args.deal_id)) fail('REFUSED', 'another table in this group already agreed');
       if (!s.can_owner_accept || !ownerMandateAllows(d)) fail('PERMISSION', 'owner accept is unavailable');
+      recordDecision(args.deal_id, 'deal_owner_accept', 'accept');
       d.transcript.push({ seq: d.transcript.length + 1, by: 'you', typ: 'ACCEPT', price: null, at: nowUnix(), verified: true });
       const agreed = d.transcript.some((s) => s.by === 'them' && s.typ === 'ACCEPT');
       const deal = transition(args.deal_id, agreed ? 'AGREED' : 'NEGOTIATING', { decided_by: { type: 'human', at: nowUnix() } });
@@ -1039,6 +1183,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       boundToChecks(args);
       const d = find(deal_id);
       if (!COUNTERSIGNABLE.has(d.deal.state)) fail('INVALID', `cannot countersign in ${d.deal.state}`);
+      recordDecision(deal_id, 'deal_countersign', d.deal.state === 'APPROVED' ? 'authorize' : 'create');
       return transition(deal_id, 'AWAITING_APPROVAL', { paypal: { ...d.deal.paypal, order: '7XK' + deal_id.slice(-5) }, decided_by: { type: 'human', at: nowUnix() } }, true);
     },
     deal_capture: (args, opts) => {
@@ -1048,6 +1193,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       boundToChecks(args);
       const d = find(deal_id);
       if (d.deal.state !== 'AUTHORIZED') fail('INVALID', `cannot capture in ${d.deal.state}`);
+      recordDecision(deal_id, 'deal_capture', 'capture');
       const deal = transition(deal_id, 'CAPTURED', { paypal: { ...d.deal.paypal, capture: 'CAP' + deal_id.slice(-5) }, decided_by: { type: 'human', at: nowUnix() } });
       d.evidence = { ...d.evidence, receipt: 'PAYPAL_VERIFIED', reconciliation: 'pending_reporting' };
       save();
@@ -1072,6 +1218,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       const terms = handlers.approval_summary({ deal_id }).terms_hash;
       if (JSON.stringify(args.terms_hash) !== JSON.stringify(terms)) fail('INVALID', 'stale decision');
       if (d.deal.shield !== 'HOLD' || !d.deal.shield_rule) fail('PERMISSION', 'only a pause can be released');
+      recordDecision(deal_id, 'shield_release', 'release');
       const at = nowUnix();
       return transition(deal_id, d.deal.state, {
         shield: 'ASK',
@@ -1093,6 +1240,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       if (d.deal.kind !== 'rescue') fail('INVALID', 'Invalid or stale wallet command');
       if (!state.settings.payment_executor_configured) fail('UNAVAILABLE', 'Enter PayPal sandbox credentials');
       if (!rescueReleasable(d)) fail('INVALID', 'Invalid or stale wallet command');
+      recordDecision(deal_id, 'rescue_approve', 'invoice_create');
       const invoice = `INV2-${deal_id.slice(-4)}-${deal_id.slice(-8, -4)}`;
       const view = state.rescue?.[deal_id];
       if (view) state.rescue = { ...state.rescue, [deal_id]: { ...view, invoice } };
@@ -1107,6 +1255,9 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       if (args.attempt !== s.attempt || JSON.stringify(args.terms_hash) !== JSON.stringify(s.terms_hash)) fail('INVALID', 'stale browser decision');
       const d = find(deal_id);
       if (d.deal.state !== 'AWAITING_APPROVAL' || d.deal.mode !== 'sandbox' || ['HOLD', 'BLOCK'].includes(d.deal.shield ?? '') || (d.display.deadline ?? 0) <= nowUnix()) fail('INVALID', 'browser approval is unavailable');
+      // As Rust: the decision row, then the hand-off flag, before the link leaves the wallet.
+      state.handedOff = [...new Set([...(state.handedOff ?? []), deal_id])];
+      recordDecision(deal_id, 'open_paypal_in_browser', 'hand_off');
       // The real shell opens the core-verified link in the system browser. The mock does not
       // open anything that looks like PayPal; it only moves the Tumbler to its hand-off form.
       emit('tumbler:handoff', { deal_id, approve_until: d.display.deadline as number });
@@ -1478,6 +1629,11 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     safety_record: () => safetyRecordOf(state, state.history ?? buildMockState(nowUnix()).history ?? [], nowUnix(), {
       broken: params.get('records') === 'broken', violation: params.get('safety') === 'violation',
     }),
+    // The board assistant runs in the desktop shell only (one tool-less engine turn); the preview has
+    // no engine to start, so it says so and the board answers from its scripted preview. The browser
+    // dev server's bridge (scripts/assistantBridge.ts) is a separate path that never comes here.
+    assistant_ask: () => fail('UNAVAILABLE', "The assistant app isn't available on this computer right now."),
+    assistant_status: () => ({ available: false, reason: "The assistant app isn't available on this computer right now." }),
   };
 
   // ---- the preview world (director and preview stage only; no money operation) ----------------
@@ -1602,6 +1758,10 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     async invoke<K extends CommandName>(cmd: K, args: ArgsOf<K>, opts?: InvokeOptions): Promise<ResultOf<K>> {
       await new Promise((r) => setTimeout(r, 40)); // IPC is async; keep the UI honest about it
       gate(cmd, args, opts);
+      if (failNext === 'before_row' && DECISION_CMDS.has(cmd)) {
+        failNext = null;
+        fail('UNAVAILABLE', 'the reply was lost');
+      }
       const h = handlers[cmd] as (a: ArgsOf<K>, o?: InvokeOptions) => ResultOf<K> | Promise<ResultOf<K>>;
       return h(args, opts);
     },

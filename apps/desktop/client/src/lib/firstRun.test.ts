@@ -95,7 +95,9 @@ describe('first-run steps from settings, signed rules, connections and the agent
     expect(tumbler.steps.map((s) => s.state)).toEqual(['done', 'next', 'unknown', 'todo']);
     expect(tumbler.show).toBe(true);
     expect(gettingStarted({ firstRun: true, paypal: true, rulesInForce: null, houseConnected: null, otherConnections: null, engine: 'codex-cli' }).steps[3]!.state).toBe('done');
-    // The approval window reads settings, rules and connections, but not engine_status.
+    // The Tumbler and the approval window read engine_brief like Main: unavailable is to do, unread never blocks.
+    expect(gettingStarted({ firstRun: true, paypal: true, rulesInForce: null, houseConnected: null, otherConnections: null, engine: 'codex-cli', engineAvailable: false }).steps[3]!.state).toBe('todo');
+    expect(gettingStarted({ firstRun: true, paypal: true, rulesInForce: null, houseConnected: null, otherConnections: null, engine: 'codex-cli', engineAvailable: null }).steps[3]!.state).toBe('done');
     const approval = gettingStarted({ ...fresh, paypal: true, rulesInForce: 1, firstRun: false, houseConnected: true, engine: 'claude-code' });
     expect(approval).toMatchObject({ done: 4, next: null });
     // Settings not read yet: nothing is shown as done and the path waits.

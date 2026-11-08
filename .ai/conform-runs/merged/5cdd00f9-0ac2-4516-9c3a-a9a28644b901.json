@@ -1,0 +1,185 @@
+{
+ "schema": "conform-run/1",
+ "worker": "5cdd00f9-0ac2-4516-9c3a-a9a28644b901",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-03T11:16:59.445308+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "tumbler-window",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:41 The window's core loop asks Rust for a form and draws whatever Rust emits back, but every Tumbler test mounts it on the browser mock (whose tumbler_set_form echoes the event itself), so the real request/report round trip across the shell boundary is never exercised by any lane.",
+   "techniques": [
+    {
+     "technique": "live-app-harness",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/tumbler/breathing.test.tsx:28 The highest-fidelity Tumbler test mounts the real component on the mock backend; no lane drives the shipped window, so the round trip from tumbler_set_form to the tumbler:form event is only proven by the mock answering itself."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/logic.test.ts:39 The earlier stale verdict no longer holds: the 'mirror the Rust table' test now parses Form::size out of placement.rs instead of comparing against a literal, so a size change in Rust turns it red."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/logic.test.ts:36 The source pin strips comments before matching, and its needle is a match-arm shape (Self::X => (w, h)) that only code can produce, with a count floor of 7 at line 44."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/ladder.test.ts:14 The ladder schedule is read from the generated LADDER binding (one authority) instead of a hand-kept copy."
+    }
+   ]
+  },
+  {
+   "context": "browser-mock-backend",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/mock/forecast.test.ts:18 The suite is named as a mirror of forecast.rs, but it only asserts hand-written expectations against the hand-written mockForecast and never runs or reads Rust's forecast rules, so a rule change in Rust stays green while the name tells a searcher that parity is checked.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/mock/checks.test.ts:18 This name, like forecast.test.ts:18, claims parity with the Rust wallet, but the assertions only check the mock against literals written by the same author; the Rust decision the name refers to is never reached."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/rustConstants.test.ts:46 The constants the mock copies (forecast.ts:12-14, rescue, safety) are now pinned against the Rust source, which fixes the constant half of the earlier stale verdict; the rules half is still hand-kept."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/rustConstants.test.ts:19 Comments are stripped and the needle is a `const NAME: T =` declaration shape. authority.test.ts:209-212 reads backend.ts raw, but its needles are also code shapes."
+    }
+   ]
+  },
+  {
+   "context": "approval-window-shell",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:19 The notice-wiring pin matches raw source text, including comments, across a population that also takes in the window's own *.test.tsx files, so commented-out or fixture JSX can satisfy the unlock check, which only has a floor (>= 3).",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:14 The walk admits every .tsx file, including actions/frame/render tests, and never strips prose; population and haystack both default toward green."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/frame.test.tsx:53 The close path is pinned with an awaited-call needle that prose cannot spell, alongside a behavioural test of closeThisWindow itself."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/frame.test.tsx:59 The hold-to-confirm timing is driven by fake timers, not wall-clock elapsed time."
+    }
+   ]
+  },
+  {
+   "context": "house-seller-service",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "services/house-seller/src/scoreboard/witness.test.mjs:3 The scoreboard witness suite runs only by a hand-typed node --test command; CI's client job runs vitest over apps/desktop/client/src only, so this shipped page's tests sit outside every gated graph and the green board never includes them.",
+   "techniques": [
+    {
+     "technique": "out-of-graph-artifacts",
+     "verdict": "deviation",
+     "evidence": "services/house-seller/src/scoreboard/witness.test.mjs:3 No CI job invokes node --test, and vite.config.ts includes only src/**/*.test.ts(x) under apps/desktop/client."
+    },
+    {
+     "technique": "live-app-harness",
+     "verdict": "deviation",
+     "evidence": "services/house-seller/src/main.rs:38 The shipped wiring (compiled release pin, credential load at :47, drain) is never started under test; no test spawns the binary and all house tests are in-process."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "deviation",
+     "evidence": "services/house-seller/src/hosted.rs:1385 full_channel_is_full relies on a 20 ms wall-clock sleep for the spawned request to occupy the queue. The next test (:1397 try_send) and PollSchedule (:1224, virtual ticks) show the deterministic shape."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-03T11:16:59.445308+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "fixture-economics",
+    "live-app-harness",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "tumbler-window",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T11:16:59.445308+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "fixture-economics",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "browser-mock-backend",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T11:16:59.445308+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "approval-window-shell",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T11:16:59.445308+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "live-app-harness",
+    "out-of-graph-artifacts"
+   ],
+   "deviations": 1,
+   "context": "house-seller-service",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

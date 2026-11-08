@@ -1364,6 +1364,72 @@ async fn a_purchase_never_runs_on_policy_and_the_owner_path_captures_it() {
     p.wallet.ledger.verify_audit().unwrap();
 }
 
+/// C2: the rules line reads the same "left today" figure before create, authorize and capture of
+/// one purchase: its amount is counted once, never again as it agrees, is held or is paid.
+#[tokio::test]
+async fn create_authorize_and_capture_of_one_purchase_read_the_same_left_today() {
+    let (mut wallet, deal, _, _) = support::setup(Side::Buyer, DealKind::Purchase);
+    // The category the deal was created under (the runtime's create_deal records it).
+    wallet
+        .ledger
+        .set_deal_category(deal.id, Category::Parts)
+        .unwrap();
+    propose_one(&mut wallet, &deal).unwrap();
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(wallet, mock.clone(), 100).unwrap();
+    let token = p.approval.token("approval").unwrap().to_owned();
+    p.approval
+        .unlock("approval", &token, &TestReauth, 100)
+        .unwrap();
+    let hash = p
+        .wallet
+        .ledger
+        .get_deal(deal.id)
+        .unwrap()
+        .terms
+        .hash()
+        .unwrap();
+    let ticket = |p: &mut Pipeline| {
+        p.approval
+            .ticket("approval", &token, deal.id, hash, 1, 100)
+            .unwrap()
+    };
+    // $1,000 a day under clause 5, this $12 purchase the only one today.
+    const LEFT: &str = "After this, $988.00 of today\u{2019}s $1,000.00 is left.";
+    let rules = |p: &Pipeline| {
+        let line = p
+            .approval_checks(deal.id, 100)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.id == ApprovalCheckId::Mandate)
+            .unwrap();
+        (p.wallet.ledger.get_deal(deal.id).unwrap().state, line)
+    };
+    let (state, line) = rules(&p);
+    assert_eq!(state, DealState::Agreed);
+    assert!(line.text.ends_with(LEFT), "before create: {}", line.text);
+    let t = ticket(&mut p);
+    p.create(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+        .await
+        .unwrap();
+    mock.approved.store(true, Ordering::SeqCst);
+    assert!(p.poll_approval(deal.id, 1, 100).await.unwrap());
+    let (state, line) = rules(&p);
+    assert_eq!(state, DealState::Approved);
+    assert!(line.text.ends_with(LEFT), "before authorize: {}", line.text);
+    let t = ticket(&mut p);
+    p.authorize(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+        .await
+        .unwrap();
+    let (state, line) = rules(&p);
+    assert_eq!(state, DealState::Authorized);
+    assert!(line.text.ends_with(LEFT), "before capture: {}", line.text);
+    let t = ticket(&mut p);
+    p.capture(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+        .await
+        .unwrap();
+}
+
 /// The authority a shield-matrix cell names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Who {

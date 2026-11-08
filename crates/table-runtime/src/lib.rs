@@ -1,5 +1,6 @@
 //! Serialized native wallet actor. No webview, model or MCP tool owns a payment client.
 mod actor;
+mod acts;
 mod configuration;
 pub mod credentials;
 mod dispatcher;

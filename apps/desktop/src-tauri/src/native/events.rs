@@ -38,7 +38,7 @@ pub(super) fn request_quit(app: &AppHandle) {
             handle
                 .dialog()
                 .message(message)
-                .title("Quit The Table?")
+                .title("Quit Signet?")
                 .buttons(MessageDialogButtons::OkCancel)
                 .show(move |confirmed| {
                     if confirmed {

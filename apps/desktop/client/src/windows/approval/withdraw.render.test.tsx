@@ -13,7 +13,7 @@ vi.mock('../../lib/runtime', () => ({ backend: () => h.current }));
 const { App } = await import('./App');
 
 const SHEET_TITLE = (label: string) => `Withdraw ${label}?`;
-const HELLO_LINE = 'Withdrawing can only stop money, so it doesn’t need Windows Hello.';
+const HELLO_LINE = 'Withdrawing can only stop money, so it doesn’t need your fingerprint, face or PIN.';
 const NO_HELLO = new Set(['unlock', 'approval_unlock']);
 
 beforeAll(() => {
@@ -44,7 +44,7 @@ const waitForWithdraw = () => waitFor(() => { const b = withdrawButton(); if (!b
 const sheet = (label: string) => screen.queryByRole('dialog', { name: SHEET_TITLE(label) }) ?? screen.queryByText(SHEET_TITLE(label));
 
 describe('W7: the withdraw confirmation in the approval window', () => {
-  it('Withdraw opens the "Withdraw <label>?" sheet, which says it needs no Windows Hello', async () => {
+  it('Withdraw opens the "Withdraw <label>?" sheet, which says it needs no fingerprint, face or PIN', async () => {
     const { deal } = await open('D-0193');
     const label = 'D-0193';
     fireEvent.click(await waitForWithdraw());

@@ -19,7 +19,7 @@ import { WalletNotice } from '../../../../../shared/honesty';
 import { AnswerBar, Btn, Chip, Field, Icon, Kv, Seg, Silence, useToast } from '../../../../../shared/ui';
 import { Handoff, Info } from '../../../setup/common';
 import {
-  allTicked, canSubmit, houseWords, joinCode, mirrorStage, mirrorText, modeLocked, newTicks, pairAnswer, pairPhase, payeeProblem, tickLabel, tickProgress, toggleTick, wizardSteps,
+  allTicked, canSubmit, submitBlocker, houseWords, joinCode, mirrorStage, mirrorText, modeLocked, newTicks, pairAnswer, pairPhase, payeeProblem, tickLabel, tickProgress, toggleTick, wizardSteps,
   type MirrorStage, type PairMode, type Ticks, type WizardKey, type WizardState,
 } from '../../../setup/pairing';
 import { useLocked, useSettings } from '../../../world';
@@ -128,6 +128,8 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
     void approvalRun.current({ deal_id: null, pairing: words.pairing_id });
   }, [words, wordsKey]);
 
+  const blockedWhy = (m: PairMode): string | undefined => { const k = submitBlocker(m, { payee, code }, house); return k ? PAIR.blocked[k] : undefined; };
+
   const joinRun = useRef(join.run);
   joinRun.current = join.run;
 
@@ -229,8 +231,9 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
         {house === 'unavailable' ? null : <Fields side="buyer" setSide={() => {}} fixed payee={payee} setPayee={setPayee} />}
         <div className="wz-acts">
           {house === 'unavailable' ? <span className="ui-hint"><Chip tone="dashed">{PAIR.unavailable}</Chip> {PAIR.notInVersion}</span>
-            : <Btn kind="primary" className="big" type="submit" disabled={busy || !canSubmit('house', { payee, code }, house)}>{houseWaking ? PAIR.wakingDots : houseWords(houseConnected).act}</Btn>}
+            : <Btn kind="primary" className="big" type="submit" disabled={busy || !canSubmit('house', { payee, code }, house)} title={blockedWhy('house')} aria-describedby={blockedWhy('house') ? 'pp-blocked' : undefined}>{houseWaking ? PAIR.wakingDots : houseWords(houseConnected).act}</Btn>}
           {house === 'idle' ? <Btn disabled={wake.pending || busy} title={PAIR.wakeTitle} onClick={() => void wake.run(null)}>{wake.pending ? PAIR.wakingNow : PAIR.wakeNow}</Btn> : null}
+          {blockedWhy('house') ? <span id="pp-blocked" className="ui-hint">{blockedWhy('house')}</span> : null}
           <Silence className="wz-sil" text={PAIR.nothingHappens}>{PAIR.noMoney}</Silence>
         </div>
       </>
@@ -243,7 +246,8 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
         </label>
         <Fields side={side} setSide={setSide} payee={payee} setPayee={setPayee} />
         <div className="wz-acts">
-          <Btn kind="primary" className="big" type="submit" disabled={busy || !canSubmit('join', { payee, code }, house)}>{join.pending || retrying ? PAIR.joining : PAIR.join}</Btn>
+          <Btn kind="primary" className="big" type="submit" disabled={busy || !canSubmit('join', { payee, code }, house)} title={blockedWhy('join')} aria-describedby={blockedWhy('join') ? 'pp-blocked' : undefined}>{join.pending || retrying ? PAIR.joining : PAIR.join}</Btn>
+          {blockedWhy('join') ? <span id="pp-blocked" className="ui-hint">{blockedWhy('join')}</span> : null}
           <Silence className="wz-sil" text={PAIR.nothingHappens}>{PAIR.noMoney}</Silence>
         </div>
       </>
@@ -253,7 +257,8 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
       <>
         <Fields side={side} setSide={setSide} payee={payee} setPayee={setPayee} />
         <div className="wz-acts">
-          <Btn kind="primary" className="big" type="submit" disabled={busy || !canSubmit('create', { payee, code }, house)}>{create.pending ? PAIR.making : PAIR.makeCode}</Btn>
+          <Btn kind="primary" className="big" type="submit" disabled={busy || !canSubmit('create', { payee, code }, house)} title={blockedWhy('create')} aria-describedby={blockedWhy('create') ? 'pp-blocked' : undefined}>{create.pending ? PAIR.making : PAIR.makeCode}</Btn>
+          {blockedWhy('create') ? <span id="pp-blocked" className="ui-hint">{blockedWhy('create')}</span> : null}
           <Silence className="wz-sil" text={PAIR.nothingHappens}>{PAIR.noMoneyConnecting}</Silence>
         </div>
       </>
@@ -461,7 +466,7 @@ function Fields({ side, setSide, fixed, payee, setPayee }: { side: Side; setSide
         <span><label htmlFor="pp-payee">{PAIR.paidTo}</label></span>
         <Field id="pp-payee" value={payee} onChange={(e) => setPayee(e.target.value)} placeholder={PAIR.paidToPlaceholder} autoComplete="off" spellCheck={false}
           aria-invalid={problem ? true : undefined} aria-describedby={problem ? 'pp-payee-why' : undefined} />
-        {problem ? <span id="pp-payee-why" className="ui-hint" role="alert">{PAIR.payeeProblem[problem]}</span> : null}
+        {problem ? <span id="pp-payee-why" className="ui-hint" role="alert">{PAIR.payeeProblem[problem]}</span> : <span className="ui-hint">{PAIR.paidToWhy}</span>}
       </div>
     </div>
   );

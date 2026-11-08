@@ -8,7 +8,7 @@ import type { HistoryKind } from '@bindings/HistoryKind';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { LadderRung } from '@bindings/LadderRung';
 import type { RungMark } from '@bindings/RungMark';
-import { MONEY_CHECK_ENDED_SHORT, NEVER_SHOWN, NOT_NOTIFIED_BECAUSE } from '../../../lib/words';
+import { APPROVAL_DECIDED, DEAL_DECISION, MONEY_CHECK_ENDED_SHORT, NEVER_SHOWN, NOT_NOTIFIED_BECAUSE } from '../../../lib/words';
 
 /** How a deadline's safe default ended the deal, and what it did to the money. */
 const ENDING: Partial<Record<HistoryKind, readonly [string, string]>> = {
@@ -65,4 +65,18 @@ export function shownParts(step: HistoryStep, now: number, unshown = false): str
   if (opened) lines.push({ at: opened.at, text: `opened ${at(opened.at)}` });
   lines.sort((a, b) => a.at - b.at);
   return [head, ...lines.map((l) => l.text), money];
+}
+
+/**
+ * An owner decision on the deal story, from its owner_decided step (the wallet's own record): what
+ * was decided and when, how many lines were recorded with it, and whether the lines that were to be
+ * checked later passed before payment. "Approved 14:02 · 6 checks · 3 checked later, all passed
+ * before payment". A record that kept only the list's fingerprint gives the head alone.
+ */
+export function shownDecisionParts(step: HistoryStep, now: number): string[] {
+  const d = step.decision;
+  if (!d) return [];
+  const head = `${APPROVAL_DECIDED.short[d.operation]} ${shownTime(step.at, now)}`;
+  if (d.checks == null) return [head];
+  return [head, DEAL_DECISION.checks(d.checks), d.later ? DEAL_DECISION.later(d.later, d.later_passed, d.before_payment) : null].filter((p): p is string => p !== null);
 }

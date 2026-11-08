@@ -418,6 +418,7 @@ impl Runtime {
                 .list_mandates(&self.pipeline.wallet.owner_public_key()))?
             .is_empty(),
             agents_paused: self.paused,
+            paused_agents: Some(self.paused_agents()?),
             selected_engine: self.engine,
             engine_chosen: app(self
                 .pipeline
@@ -479,11 +480,19 @@ impl Runtime {
                         })
             });
         let (checks, checks_hash) = self.approval_checks(id)?;
+        let evidence = app(self.pipeline.wallet.ledger.deal_evidence(id))?;
+        let attempt = app(self.pipeline.wallet.ledger.settled_attempt(id))?.max(1);
+        // A money step whose PayPal answer is not settled (sent, lost, or parked) holds every
+        // other money step on the deal: the pipeline refuses them (STEP_NOT_CONFIRMED), so the
+        // window never offers one. The owner's read of a lost authorize does not need this flag.
+        let money_open = evidence.money_check.is_some();
         Ok(ApprovalSummary {
+            decided: self.last_decision(id, attempt, checks_hash)?,
+            handed_off: app(self.pipeline.wallet.ledger.handed_off(id))?,
             checks,
             checks_hash,
-            evidence: app(self.pipeline.wallet.ledger.deal_evidence(id))?,
-            attempt: app(self.pipeline.wallet.ledger.settled_attempt(id))?.max(1),
+            evidence,
+            attempt,
             terms_hash: deal.terms.hash().map_err(table_app::Error::from)?,
             counter_hash,
             can_owner_accept,
@@ -508,6 +517,7 @@ impl Runtime {
                     .is_ok(),
             can_release: configured
                 && !locked
+                && !money_open
                 && supported
                 && !deal.state.terminal()
                 && deal.state != DealState::Mismatch
@@ -537,6 +547,67 @@ impl Runtime {
         })
     }
 
+    /// The owner's newest decision on `id` for `attempt`, as its `owner.decision` row recorded
+    /// it; `same_now` compares the recorded checklist hash with `now` (the list as it reads now),
+    /// and `signed` holds only for the pinned owner key's valid signature over that one step. A
+    /// row that does not read as a decision is passed over, never guessed.
+    fn last_decision(
+        &self,
+        id: DealId,
+        attempt: u8,
+        now: H256,
+    ) -> Result<Option<ApprovalDecided>, CommandError> {
+        let rows = app(self.pipeline.wallet.ledger.owner_decisions(id, 64))?;
+        let pinned = self.pipeline.wallet.owner_public_key().to_bytes();
+        Ok(rows.into_iter().find_map(|row| {
+            fn field<T: serde::de::DeserializeOwned>(
+                d: &serde_json::Value,
+                key: &str,
+            ) -> Option<T> {
+                serde_json::from_value(d.get(key)?.clone()).ok()
+            }
+            let d = &row.detail;
+            if field::<u8>(d, "attempt") != Some(attempt) {
+                return None;
+            }
+            let decision: String = field(d, "decision")?;
+            let operation_name: String = field(d, "operation")?;
+            let operation = DecisionStep::parse(&operation_name)?;
+            let DecidedBy::Human { at } = field(d, "decided_by")? else {
+                return None;
+            };
+            let checks_hash: H256 = field(d, "checks_hash")?;
+            let signed = match (
+                field::<[u8; 32]>(d, "owner_key"),
+                field::<Vec<u8>>(d, "signature"),
+                field::<H256>(d, "terms_hash"),
+            ) {
+                (Some(key), Some(signature), Some(terms_hash)) if key == pinned => {
+                    table_proto::DecisionStatement {
+                        deal_id: id,
+                        decision: decision.clone(),
+                        operation: operation_name,
+                        attempt,
+                        terms_hash,
+                        checks_hash,
+                        at,
+                    }
+                    .verify(&key, &signature)
+                }
+                _ => false,
+            };
+            Some(ApprovalDecided {
+                decision,
+                operation,
+                at,
+                checks_hash,
+                same_now: checks_hash == now,
+                signed,
+                checks: field(d, "checks"),
+            })
+        }))
+    }
+
     /// The approval checklist for `id` now, and its hash. The deal's agent signer is selected
     /// first, as every money step does; a retired mandate fails that and reads as a failed line.
     pub(crate) fn approval_checks(
@@ -554,25 +625,64 @@ impl Runtime {
         &mut self,
         id: DealId,
         decision: Decision,
+        operation: &str,
         args: &DecisionArgs,
-        checks: Option<H256>,
+        checks: Option<&(Vec<ApprovalCheck>, H256)>,
         now: Timestamp,
     ) -> Result<(), CommandError> {
-        checks.map_or(Ok(()), |hash| {
-            self.record_decision(id, decision, args, hash, now)
+        checks.map_or(Ok(()), |(lines, hash)| {
+            self.record_decision(id, decision, operation, args, lines, *hash, now)
         })
     }
-    /// Appends the owner's decision row: what was decided, `decided_by` and the hash of the
-    /// checklist the owner saw. Written just before the step it starts; the money rows that
-    /// follow carry the same `decided_by` (human at the same second).
+    /// Appends the owner's decision row: what was decided, the step it starts (`operation`, named
+    /// as the pipeline names it: create, authorize, capture, invoice-create; or accept, release,
+    /// hand-off for a decision that starts no PayPal call), `decided_by`, the checklist the owner
+    /// saw (the lines just recomputed, so a checker can hash them again offline) and its hash.
+    /// Written just before the step it starts; the money rows that follow carry the same
+    /// `decided_by` (human at the same second). The owner key (read after the unlock gate the
+    /// guard checked) signs the decision for that one step (`DecisionStatement`); the row keeps
+    /// `owner_key` and `signature`. When the owner key cannot be read the row is written without
+    /// them and a checker reads it "not signed": the decision itself is gated exactly as before.
+    #[allow(clippy::too_many_arguments)]
     fn record_decision(
         &mut self,
         id: DealId,
         decision: Decision,
+        operation: &str,
         args: &DecisionArgs,
-        checks: H256,
+        checks: &[ApprovalCheck],
+        checks_hash: H256,
         now: Timestamp,
     ) -> Result<(), CommandError> {
+        let mut detail = serde_json::json!({
+            "decision": decision.name(),
+            "operation": operation,
+            "decided_by": DecidedBy::Human { at: now },
+            "checks": checks,
+            "checks_hash": checks_hash,
+            "terms_hash": args.terms_hash,
+            "attempt": args.attempt,
+        });
+        let statement = table_proto::DecisionStatement {
+            deal_id: id,
+            decision: decision.name().into(),
+            operation: operation.into(),
+            attempt: args.attempt,
+            terms_hash: args.terms_hash,
+            checks_hash,
+            at: now,
+        };
+        // Only the owner key this wallet pins signs: a proof file names that key.
+        let pinned = self.pipeline.wallet.owner_public_key();
+        if let Some((owner_key, signature)) = self
+            .owner()
+            .ok()
+            .filter(|key| key.verifying_key() == pinned)
+            .and_then(|key| Some((key.verifying_key().to_bytes(), statement.sign(&key).ok()?)))
+        {
+            detail["owner_key"] = serde_json::json!(owner_key);
+            detail["signature"] = serde_json::json!(signature);
+        }
         app(self
             .pipeline
             .wallet
@@ -582,13 +692,7 @@ impl Runtime {
                 actor: "owner".into(),
                 action: "owner.decision".into(),
                 deal_id: Some(id),
-                detail: serde_json::json!({
-                    "decision": decision.name(),
-                    "decided_by": DecidedBy::Human { at: now },
-                    "checks_hash": checks,
-                    "terms_hash": args.terms_hash,
-                    "attempt": args.attempt,
-                }),
+                detail,
             }))?;
         Ok(())
     }
@@ -637,7 +741,7 @@ impl Runtime {
             {
                 return Err(check_failed());
             }
-            Some(hash)
+            Some((checks, hash))
         };
         let now = self.clock.now();
         let ticket = self.pipeline.approval.ticket(
@@ -652,7 +756,7 @@ impl Runtime {
             Decision::OwnerAccept => {
                 self.select_signer(deal.id)?;
                 let category = app(self.pipeline.wallet.ledger.deal_category(deal.id))?;
-                self.record(deal.id, decision, &args, checks, now)?;
+                self.record(deal.id, decision, "accept", &args, checks.as_ref(), now)?;
                 self.pipeline.owner_accept(
                     deal.id,
                     args.counter_hash.ok_or_else(invalid)?,
@@ -676,7 +780,7 @@ impl Runtime {
                 })?
             }
             Decision::ReleaseHold => {
-                self.record(deal.id, decision, &args, checks, now)?;
+                self.record(deal.id, decision, "release", &args, checks.as_ref(), now)?;
                 self.pipeline
                     .owner_release_hold(deal.id, args.attempt, ticket, now)?
             }
@@ -698,7 +802,14 @@ impl Runtime {
                     return Err(unavailable("Enter PayPal sandbox credentials"));
                 }
                 self.select_signer(deal.id)?;
-                self.record(deal.id, decision, &args, checks, now)?;
+                self.record(
+                    deal.id,
+                    decision,
+                    "invoice-create",
+                    &args,
+                    checks.as_ref(),
+                    now,
+                )?;
                 let before = self.operations_reserved(deal.id)?;
                 let sent = self.pipeline.rescue_approve(deal.id, ticket, now).await;
                 sent.map_err(|e| self.after_paypal(deal.id, before, e.into()))?;
@@ -708,7 +819,7 @@ impl Runtime {
                 let category = app(self.pipeline.wallet.ledger.deal_category(deal.id))?;
                 self.pipeline.wallet.check_mandate(deal.id, category, now)?;
                 let url = self.pipeline.approval_link(deal.id, args.attempt)?;
-                self.record(deal.id, decision, &args, checks, now)?;
+                self.record(deal.id, decision, "hand-off", &args, checks.as_ref(), now)?;
                 // The link leaves Rust here: the handoff is recorded with the owner's decision,
                 // before the browser opens (Action::Handoff records it again, harmlessly). A
                 // seller's receipt on a buyer deal with no handoff is refused (receipt.rs).
@@ -729,7 +840,7 @@ impl Runtime {
                 let before = self.operations_reserved(deal.id)?;
                 match (decision, deal.state) {
                     (Decision::Countersign, DealState::Agreed) => {
-                        self.record(deal.id, decision, &args, checks, now)?;
+                        self.record(deal.id, decision, "create", &args, checks.as_ref(), now)?;
                         let sent = self
                             .pipeline
                             .create(
@@ -743,7 +854,7 @@ impl Runtime {
                         sent.map_err(|e| self.after_paypal(deal.id, before, e.into()))?;
                     }
                     (Decision::Countersign, DealState::Approved) => {
-                        self.record(deal.id, decision, &args, checks, now)?;
+                        self.record(deal.id, decision, "authorize", &args, checks.as_ref(), now)?;
                         let sent = self
                             .pipeline
                             .authorize(
@@ -757,7 +868,7 @@ impl Runtime {
                         sent.map_err(|e| self.after_paypal(deal.id, before, e.into()))?
                     }
                     (Decision::Capture, DealState::Authorized) => {
-                        self.record(deal.id, decision, &args, checks, now)?;
+                        self.record(deal.id, decision, "capture", &args, checks.as_ref(), now)?;
                         let sent = self
                             .pipeline
                             .capture(

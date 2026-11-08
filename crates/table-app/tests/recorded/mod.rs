@@ -28,8 +28,9 @@ pub fn recording(name: &str, legacy: Option<&str>) -> bool {
 }
 
 /// A bundle with what differs run to run masked: hex strings (hashes, key ids), signed envelopes and
-/// signatures, 32-byte arrays (keys, heads), ULIDs (each run's ids) and the audit rows' JSON detail,
-/// which is read and masked the same way. Prices, states, sequence numbers, times, actions, codes and
+/// signatures, 32-byte arrays (keys, heads), ULIDs (each run's ids), a checklist line's technical
+/// detail (it names keys and hashes) and the audit rows' JSON detail, which is read and masked the
+/// same way. Prices, states, sequence numbers, times, actions, codes and
 /// the shape of every record stay as they are.
 pub fn masked(v: &Value) -> Value {
     match v {
@@ -54,6 +55,22 @@ pub fn masked(v: &Value) -> Value {
             Value::String("(bytes)".into())
         }
         Value::Array(items) => Value::Array(items.iter().map(masked).collect()),
+        // A checklist line's detail names the run's keys and hashes inside its words; the line's
+        // id, status and owner's words stay compared.
+        Value::Object(map) if map.contains_key("status") && map.contains_key("text") => {
+            Value::Object(
+                map.iter()
+                    .map(|(k, v)| {
+                        let v = if k == "detail" {
+                            Value::String("(masked)".into())
+                        } else {
+                            masked(v)
+                        };
+                        (k.clone(), v)
+                    })
+                    .collect(),
+            )
+        }
         Value::Object(map) => {
             Value::Object(map.iter().map(|(k, v)| (k.clone(), masked(v))).collect())
         }
@@ -111,6 +128,10 @@ pub fn keep_bundle(
         Some(Err(e)) => format!("it is not a proof bundle ({e})"),
         Some(Ok(bundle)) if !table_verify::verify_bundle(&bundle).verified() => {
             "it no longer verifies".to_owned()
+        }
+        // The fingerprint is hex, so the mask hides it: a changed authority table is drift too.
+        Some(Ok(bundle)) if bundle.authority_manifest != fresh.authority_manifest => {
+            "it names another permissions fingerprint".to_owned()
         }
         Some(Ok(_)) => {
             let was: Value =

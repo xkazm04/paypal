@@ -1,7 +1,7 @@
 // Browser mock of the wallet's approval checklist (Rust: crates/table-app/src/checks.rs). Same six
 // lines, same order, same Layer-1 words, from the mock's fixtures instead of the ledger; the
-// Layer-2 detail says what the mock stood in for. The hash is a fake digest of the list, so a
-// changed list changes it exactly as the real one does.
+// Layer-2 detail says what the mock stood in for. The hash is the wallet's own checks hash (domain tag
+// and canonical lines, SHA-256), so the preview and a proof file agree on it.
 import type { ApprovalCheck } from '@bindings/ApprovalCheck';
 import type { ApprovalCheckId } from '@bindings/ApprovalCheckId';
 import type { ApprovalCheckStatus } from '@bindings/ApprovalCheckStatus';
@@ -16,7 +16,10 @@ import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import type { CounterpartyDisplay, TranscriptStep } from '../lib/pending';
 import { formatMoney, lineTotal } from '../lib/format';
 import { percentWords, shieldReleased } from '../lib/words';
-import { fakeHash } from './fixtures';
+import { utf8 } from '../lib/proof/bytes';
+import { APPROVAL_CHECKS_DOMAIN } from '../lib/proof/checklist';
+import { canonicalBytes } from '../lib/proof/jcs';
+import { sha256Sync } from './sha256';
 
 /** table-app checks.rs `shield_rule_words`, verbatim (the approval checklist's shield line). */
 export const SHIELD_RULE_WORDS: Record<ShieldRule, string> = {
@@ -45,6 +48,10 @@ export type MockCheckInput = {
   limitRefusal?: string | null;
   /** On a rescue deal: its stored failure and fix (rescue_book's row), if the wallet has one. */
   rescue?: RescueView;
+  /** Today's budget as Rust `left_today` counts it from now: the other deals under the mandate
+   *  agreed today (minor units) and the wallet limit's money out today without this deal.
+   *  null/absent: no figure (the deal agreed on an earlier UTC day). */
+  today?: { ruleUsedMinor: number; wallet: { usedMinor: number; cap: Money } | null } | null;
 };
 
 const line = (id: ApprovalCheckId, status: ApprovalCheckStatus, text: string, detail: string): ApprovalCheck => ({ id, status, text, detail });
@@ -83,6 +90,34 @@ function mandateFact(i: MockCheckInput, payee: string | null): MandateFact {
   if (v.type === 'not_simulated' && clauses.some((c) => c.type === 'payees') && !payee) return { k: 'refused', clause: 7, reason: 'payee not allowed' };
   const per = clauses.find((c) => c.type === 'per_deal' && c.kind === d.kind);
   return { k: 'allow', perDeal: per?.type === 'per_deal' ? per.max_amount : null };
+}
+
+type DayFigure = { used: Money; cap: Money; left: Money };
+/** Rust checks.rs `left_words` / `left_detail` over table-app `left_today`: what today's budget
+ *  leaves after this deal under the rules' daily limit and the wallet limit, the tighter one in
+ *  words (a tie names the rules), both figures in the detail. */
+function leftToday(i: MockCheckInput): { words: string; detail: string } {
+  const t = i.today;
+  const amount = lineTotal(i.deal.terms.unit_price, i.deal.terms.qty);
+  if (!t) return { words: '', detail: '' };
+  const fig = (usedMinor: number, cap: Money): DayFigure | null => {
+    if (cap.currency !== amount.currency) return null;
+    const c = cap.currency;
+    return { used: { minor: usedMinor, currency: c }, cap, left: { minor: Math.max(0, cap.minor - usedMinor - amount.minor), currency: c } };
+  };
+  const velocity = i.mandate?.payload.clauses.find((c) => c.type === 'velocity');
+  const rule = velocity?.type === 'velocity' ? fig(t.ruleUsedMinor, velocity.max_total_day) : null;
+  const wallet = t.wallet ? fig(t.wallet.usedMinor, t.wallet.cap) : null;
+  if (!rule && !wallet) return { words: '', detail: '' };
+  const walletTighter = !!wallet && (!rule || wallet.left.minor < rule.left.minor);
+  const tight = walletTighter ? wallet! : rule!;
+  const words = walletTighter
+    ? ` After this, ${formatMoney(tight.left)} of your wallet’s ${formatMoney(tight.cap)} daily limit is left today.`
+    : ` After this, ${formatMoney(tight.left)} of today’s ${formatMoney(tight.cap)} is left.`;
+  const part = (name: string, f: DayFigure) => `${name} ${code(f.cap)} − (used today ${code(f.used)} + this ${code(amount)}) = ${code(f.left)} left`;
+  const parts = [rule ? part('clause 5 max_total_day', rule) : null, wallet ? part('wallet limit max_out_day', wallet) : null].filter(Boolean);
+  const detail = `; after this: ${parts.join('; ')}; tighter: ${walletTighter ? 'the wallet limit' : 'clause 5'}; counted now over every other deal agreed this UTC day, this deal once; the day resets at 00:00 UTC`;
+  return { words, detail };
 }
 
 /** A rescue deal's rules, clause by clause (its fix is checked in rescue::check_offer). */
@@ -207,9 +242,10 @@ export function mockChecks(i: MockCheckInput): ApprovalCheck[] {
   // mandate
   const which = `mandate ${d.mandate_id} v${d.mandate_version}`;
   const m = mandateFact(i, payee);
+  const left = m.k === 'allow' || m.k === 'ask' ? leftToday(i) : { words: '', detail: '' };
   switch (m.k) {
-    case 'allow': out.push(line('mandate', 'pass', m.perDeal ? `Inside your rules: up to ${formatMoney(m.perDeal)} per deal.` : 'Inside your rules.', `${which}: allowed${m.perDeal ? `; clause 3 limit per deal ${code(m.perDeal)}` : ''}`)); break;
-    case 'ask': out.push(line('mandate', 'pass', `Above your ask-me limit of ${formatMoney(m.threshold)}, so it’s your call.`, `${which}: clause 6 asks the owner above ${code(m.threshold)}; the owner decision satisfies it`)); break;
+    case 'allow': out.push(line('mandate', 'pass', `${m.perDeal ? `Inside your rules: up to ${formatMoney(m.perDeal)} per deal.` : 'Inside your rules.'}${left.words}`, `${which}: allowed${m.perDeal ? `; clause 3 limit per deal ${code(m.perDeal)}` : ''}${left.detail}`)); break;
+    case 'ask': out.push(line('mandate', 'pass', `Above your ask-me limit of ${formatMoney(m.threshold)}, so it’s your call.${left.words}`, `${which}: clause 6 asks the owner above ${code(m.threshold)}; the owner decision satisfies it${left.detail}`)); break;
     case 'refused': out.push(line('mandate', 'fail', `Outside your rules: ${RULE[m.clause] ?? 'a rule'}.`, `${which}: clause ${m.clause} refuses: ${m.reason}`)); break;
     case 'retired': out.push(line('mandate', 'fail', 'These rules are no longer in force.', `${which} is not active (revoked, replaced, expired or not yet in force)`)); break;
   }
@@ -240,7 +276,13 @@ function rescueLines(i: MockCheckInput, lines: ApprovalCheck[], m: MandateFact):
   return out;
 }
 
-/** Stand-in for the domain-separated checks hash: any change to any line changes it. */
+/** The wallet's own checks hash (Rust `checks_hash`): SHA-256 over the domain tag and the canonical
+ *  (JCS) lines, so the preview's hash is the one a proof file records and a checker recomputes. */
 export function mockChecksHash(checks: readonly ApprovalCheck[]): H256 {
-  return fakeHash(`table.approval-checks.v1|${JSON.stringify(checks)}`);
+  const domain = utf8(APPROVAL_CHECKS_DOMAIN);
+  const lines = canonicalBytes(checks);
+  const bytes = new Uint8Array(domain.length + lines.length);
+  bytes.set(domain);
+  bytes.set(lines, domain.length);
+  return Array.from(sha256Sync(bytes)) as H256;
 }

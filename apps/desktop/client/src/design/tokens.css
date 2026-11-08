@@ -118,7 +118,7 @@
   --bar: 40px;        /* title bar, toolbar */
   --sidebar: 212px; --inspector: 352px;
   --sheet-top: var(--bar);   /* sheets drop from the bottom edge of the title bar */
-  --grat-pitch: 1.5rem;      /* graticule cell; cross marks every 48 px */
+  --grat-pitch: 1.5rem;      /* graticule cell: 21 px at the 14 px root (base.css); .ui-ground rules a major line every 4 cells (84 px) */
   /* radii: machined, not rounded (.15-.35rem). Round things (the seal, the hold face) stay round. */
   --r-tight: .15rem; --r-card: .25rem; --r-pill: .3rem; --r-sheet: .35rem;
   --r-sm: .2rem; --r: var(--r-card); --r-lg: var(--r-sheet);

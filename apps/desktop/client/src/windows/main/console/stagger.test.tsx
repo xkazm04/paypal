@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import type { Module } from '@bindings/Module';
 import { isTerminal } from '../logic';
-import { OPENING_MS, Reveal, Skeleton, Stagger, StaggerProvider, setStaggerClock, staggerIsOff, staggerOff, staggerOn, useRevealed } from './stagger';
+import { OPENING_MS, Reveal, Skeleton, Stagger, StaggerProvider, forgetSeen, setStaggerClock, staggerIsOff, staggerOff, staggerOn, useRevealed } from './stagger';
 import { manualClock, type ManualClock } from './testing/manualClock';
 import { renderLayerAtScale, settle } from './testing/scaleSmoke';
 
@@ -17,7 +17,7 @@ vi.mock('../../../lib/runtime', async () => (await import('./testing/runtime')).
 
 let c: ManualClock;
 let log: string[];
-beforeEach(() => { staggerOn(); c = manualClock(); log = []; });
+beforeEach(() => { forgetSeen(); staggerOn(); c = manualClock(); log = []; });
 afterEach(() => { cleanup(); staggerOff(); setStaggerClock(null); document.documentElement.classList.remove('calm'); vi.restoreAllMocks(); history.replaceState(null, '', '/'); });
 
 function Part({ name }: { name: string }) {
@@ -228,4 +228,20 @@ describe('a later wave’s reads wait for their turn', () => {
     expect(r.budget.byCommand.get('deal_history')?.total ?? 0, 'read once its wave came').toBe(1);
     expect(r.budget.total).toBeGreaterThan(before);
   }, 60_000);
+});
+
+describe('a warm return', () => {
+  it('opens every wave on the first frame once the layer has fully revealed before, and never replays the entrance', async () => {
+    const mk = () => (
+      <StaggerProvider><Stagger clock={c.clock} warmKey="m:warm"><Reveal wave={2} skeleton={<Skeleton h="1rem" />}><p>late part</p></Reveal></Stagger></StaggerProvider>
+    );
+    const first = render(mk());
+    expect(first.container.querySelector('.stg')?.getAttribute('data-stg')).toBe('wait');
+    await c.flush();
+    expect(first.container.querySelector('.stg')?.getAttribute('data-stg')).toBe('in');
+    first.unmount();
+    const again = render(mk());
+    expect(again.container.querySelector('.stg')?.getAttribute('data-stg')).toBe('now');
+    expect(again.container.textContent).toContain('late part');
+  });
 });

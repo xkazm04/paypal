@@ -51,7 +51,10 @@ export function PuckArt({ look, items, newIds, inMotion, mode, locked, handoff }
     if (off === undefined) return [];
     const [x, y] = pol(34.4, (MODULE_INDEX.get(it.module) ?? 0) * 60 + off);
     const cls = `bead ${it.kind === 'hold' ? 'hold' : 'gate'}${newIds.has(it.deal_id) ? ' new' : ''}`;
-    return [<circle key={it.deal_id} className={cls} cx={f(x)} cy={f(y)} r="3.4" strokeOpacity={0.5} strokeWidth={0.6} />];
+    // a hold is a diamond, a decision a round bead: the kind never rests on colour alone
+    return [it.kind === 'hold'
+      ? <rect key={it.deal_id} className={cls} x={f(x - 3)} y={f(y - 3)} width="6" height="6" transform={`rotate(45 ${f(x)} ${f(y)})`} strokeOpacity={0.5} strokeWidth={0.6} />
+      : <circle key={it.deal_id} className={cls} cx={f(x)} cy={f(y)} r="3.4" strokeOpacity={0.5} strokeWidth={0.6} />];
   });
   return (
     <svg viewBox="0 0 88 88" aria-hidden="true" className="puck-art">

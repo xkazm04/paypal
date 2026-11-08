@@ -1,0 +1,123 @@
+{
+ "schema": "conform-run/1",
+ "worker": "743d52ba-7324-4445-9e0d-eb7706c2f7d2",
+ "subject": "agent-memory",
+ "evaluatedAt": "2026-11-08T03:30:29.640743+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "prototype-dial-shell-and-design-system",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "prototype/build-index.mjs:1 This context is a static HTML/CSS/JS prototype gallery and design system with no agent and no memory pipeline; a search of prototype/ found zero hits for episod, consolidat, distill or embedding (the only 'recall'/'remember' hits are a brand-palette comment and a localStorage theme toggle), so agent-memory has nothing to govern here.",
+   "techniques": [],
+   "absenceTerms": [
+    "episod",
+    "consolidat",
+    "distill",
+    "embedding"
+   ]
+  },
+  {
+   "context": "rescue-spend-shield-modules",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/modules/rescue/model.ts:1 The Rescue, Spend and Shield modules are pure UI-side payment-logic models and panels with no agent store; a search of modules/, lib/words and console/areas found zero hits for episod, consolidat, distill, embedding (and none for memory/recall/remember either), so the agent-memory pipeline does not exist in this context.",
+   "techniques": [],
+   "absenceTerms": [
+    "episod",
+    "consolidat",
+    "distill",
+    "embedding"
+   ]
+  },
+  {
+   "context": "money-guidance-and-onboarding",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/lib/tour.ts:1 These are pure client helpers (fair price, limits, market watch, first run, tour); the only 'memory' is the tour's per-window progress Map mirrored to localStorage, which is UI state rather than an agent's carried-forward beliefs, and a search of lib/ found zero hits for episod, consolidat, distill or embedding.",
+   "techniques": [],
+   "absenceTerms": [
+    "episod",
+    "consolidat",
+    "distill",
+    "embedding"
+   ]
+  },
+  {
+   "context": "owner-mandate-config",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/approval/mandateDraft.ts:1 The owner config surface shapes owner-typed mandate drafts, diffs, replay and watch for Rust to validate and sign; it holds no agent memory store (approval-window 'memory' hits refer to an in-memory capability token and to reading the wallet record, not window memory), and a search of windows/approval found zero hits for episod, consolidat, distill or embedding.",
+   "techniques": [],
+   "absenceTerms": [
+    "episod",
+    "consolidat",
+    "distill",
+    "embedding"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-memory",
+   "context": "console-navigation-and-lists",
+   "reason": "evidence leans on console/memory.ts, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-08T03:30:29.640743+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "prototype-dial-shell-and-design-system",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T03:30:29.640743+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "rescue-spend-shield-modules",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T03:30:29.640743+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "money-guidance-and-onboarding",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T03:30:29.640743+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "owner-mandate-config",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

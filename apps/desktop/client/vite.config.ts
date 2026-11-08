@@ -2,21 +2,30 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { sourceLocPlugin } from './scripts/babel/source-loc-vite-plugin.mjs';
+import { assistantBridge } from './scripts/assistantBridge';
 
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 // Three Tauri windows, three pages: the desktop bundle (Tauri ships dist/). The CSP is `script-src 'self';
 // style-src 'self'`, so everything must ship as bundled files: no inline scripts, no inline <style>.
-// The static pages of the browser preview (the director, Break The Table, the proof checker) are built
+// The static pages of the browser preview (the director, Break The Table, the proof checker) are also
+// tabs of the main window now (places #p=director|try|proof, console/layers/try.ts); the old pages stay as
+// standalone entries. They are built
 // only under THE_TABLE_DIRECTOR_BUILD=1 (`pnpm build:director`), never into the desktop bundle.
 const DIRECTOR_BUILD = process.env.THE_TABLE_DIRECTOR_BUILD === '1';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   // sourceLocPlugin is inert unless THE_TABLE_INSPECTOR=1 (npm run tauri:dev:test).
-  plugins: [sourceLocPlugin(), react()],
+  // assistantBridge: dev server only (apply: 'serve'), the board's claude-code engine in the browser.
+  plugins: [sourceLocPlugin(), react(), assistantBridge()],
   base: './',
   // One switch: THE_TABLE_INSPECTOR=1 drives both the Babel stamps and the overlay (mount.tsx).
-  define: { 'import.meta.env.VITE_INSPECTOR': JSON.stringify(process.env.THE_TABLE_INSPECTOR === '1' ? '1' : '') },
+  // VITE_PREVIEW_PAGES: the main window shows the browser-preview places (the scenario director) only where
+  // director.html is served: vite dev (and tests) or the director build, never the desktop bundle.
+  define: {
+    'import.meta.env.VITE_INSPECTOR': JSON.stringify(process.env.THE_TABLE_INSPECTOR === '1' ? '1' : ''),
+    'import.meta.env.VITE_PREVIEW_PAGES': JSON.stringify(command === 'serve' || DIRECTOR_BUILD ? '1' : ''),
+  },
   resolve: {
     alias: {
       '@bindings': here('../../../bindings'),
@@ -44,4 +53,4 @@ export default defineConfig({
     },
   },
   test: { environment: 'jsdom', include: ['src/**/*.test.ts', 'src/**/*.test.tsx'] },
-});
+}));

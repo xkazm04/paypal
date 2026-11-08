@@ -119,7 +119,7 @@
       "deal_id": "01M669J20QZH79VRBCY1M1XRT9",
       "mode": "sandbox",
       "owner_key_id": "0098d9575e4c897706dc4ac31303bad95cc1c16e6d0e6ed6cc2ef513fece0737",
-      "same_version": true,
+      "same_version": false,
       "verified": true
     }
   },
@@ -243,7 +243,7 @@
       "deal_id": "01M669J3PJC0WD70H7TJ6TSCM0",
       "mode": "sandbox",
       "owner_key_id": "5b205239aa1e822c96bebdd5f635e374db5a1dfa5d093e998dbbcd49fe5b90c5",
-      "same_version": true,
+      "same_version": false,
       "verified": false
     }
   },
@@ -367,7 +367,7 @@
       "deal_id": "01M669J3PJC0WD70H7TJ6TSCM0",
       "mode": "sandbox",
       "owner_key_id": "5b205239aa1e822c96bebdd5f635e374db5a1dfa5d093e998dbbcd49fe5b90c5",
-      "same_version": true,
+      "same_version": false,
       "verified": true
     }
   },
@@ -491,7 +491,7 @@
       "deal_id": "01M669J2KQ2T78KTNPYG3Z48EY",
       "mode": "sandbox",
       "owner_key_id": "cee6a86a2cd08b73efdc0f74e55df1be542272c24ef6f56cb618353d276ad927",
-      "same_version": true,
+      "same_version": false,
       "verified": true
     }
   },
@@ -615,7 +615,7 @@
       "deal_id": "01M669J346E1258FH4C0RYZMDF",
       "mode": "sandbox",
       "owner_key_id": "2a404f71ba09b8259beaadd6fe8d8102cda4066d0b98de4e88be4d751cb1d2d2",
-      "same_version": true,
+      "same_version": false,
       "verified": true
     }
   },
@@ -682,7 +682,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "1 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+          "detail": "1 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 1 hash only (the lines are not in this file)",
           "id": "owner_saw",
           "ok": true
         },
@@ -739,7 +739,7 @@
       "deal_id": "01M669J348FX6A1C1Z83X03DJR",
       "mode": "sandbox",
       "owner_key_id": "120af9e266b413ecfdd44c304d2fcfdfe06b7b4feb3669d06225b7f2bb3725a5",
-      "same_version": true,
+      "same_version": false,
       "verified": true
     }
   },
@@ -806,7 +806,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "1 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+          "detail": "1 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 1 hash only (the lines are not in this file)",
           "id": "owner_saw",
           "ok": true
         },
@@ -863,7 +863,7 @@
       "deal_id": "01M669J26522NET2SBCNY1K2D6",
       "mode": "sandbox",
       "owner_key_id": "84c48eba72b07be23a296e0655f388c48d7748e1c46d0300a0e635ad979fb2dc",
-      "same_version": true,
+      "same_version": false,
       "verified": true
     }
   },
@@ -930,7 +930,7 @@
         {
           "applies": true,
           "checked": true,
-          "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step",
+          "detail": "2 owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; 2 hash only (the lines are not in this file)",
           "id": "owner_saw",
           "ok": true
         },
@@ -987,7 +987,7 @@
       "deal_id": "01M669J348FX6A1C1Z83X03DJR",
       "mode": "sandbox",
       "owner_key_id": "120af9e266b413ecfdd44c304d2fcfdfe06b7b4feb3669d06225b7f2bb3725a5",
-      "same_version": true,
+      "same_version": false,
       "verified": true
     }
   }

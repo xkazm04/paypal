@@ -66,3 +66,14 @@ export function mockEnvelopeRefusal(deals: readonly Deal[], deal: Deal, envelope
   if (stake + amount > e.max_held.minor) return 'max_held: over the most on hold at once';
   return null;
 }
+
+/** The wallet limit's daily figure for the approval checklist's rules line (Rust table-app
+ *  `left_today`): the other buyer deals' money out today and `max_out_day`, or null when no
+ *  limits apply to this deal (none signed, forged, expired, money in, another currency). */
+export function mockWalletDayUsed(deals: readonly Deal[], deal: Deal, envelope: MockEnvelope | null, now: number): { usedMinor: number; cap: WalletEnvelope['max_out_day'] } | null {
+  if (!envelope || envelope.forged || deal.side !== 'buyer' || now >= envelope.payload.expires) return null;
+  const e = envelope.payload;
+  if (deal.terms.currency !== e.currency || e.max_out_day.currency !== e.currency) return null;
+  const row = mockFold(deals, now, deal.id).find((r) => r.currency === e.currency);
+  return { usedMinor: row?.out_today.minor ?? 0, cap: e.max_out_day };
+}

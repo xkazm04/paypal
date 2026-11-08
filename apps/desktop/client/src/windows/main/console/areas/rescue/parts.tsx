@@ -4,6 +4,7 @@
 // decision: its fixes as a radio group with "Do nothing" picked at the start (silence never moves
 // money), what the subscriber would get, why some fixes are not offered, and what the picked fix
 // does. A plan-wide price change is the one thing never offered.
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { useEffect, useMemo, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
@@ -13,11 +14,11 @@ import type { RescueOffer } from '@bindings/RescueOffer';
 import type { RescueView } from '@bindings/RescueView';
 import { clockLabel, formatMinor, formatMoney } from '../../../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../../../lib/hooks';
-import { APPROVAL_LOCKED_TITLE, notOfferedLine, percentWords, RESCUE, RESCUE_APPROVE_DOES, rescueSourceWord, silenceWords, stateWord, subscriberName, timeLeftWords } from '../../../../../lib/words';
+import { APPROVAL_LOCKED_TITLE, notOfferedLine, percentWords, RESCUE, RESCUE_APPROVE_DOES, rescueSourceWord, stateWord, subscriberName, timeLeftWords } from '../../../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Hourglass, Icon, Kv, Why, type ChipTone } from '../../../../../shared/ui';
 import { chipClass, dealTotal, moneyNow, type ChipClass } from '../../../logic';
-import { cellState, COLS, isReplay, leverOf, moveCell, paypalRetry, pickable, rulesFor, splitFixes, splitRows, viewFor, type Col, type LeverKey, type Rows } from '../../../modules/rescue/model';
+import { cellState, COLS, ifNothingOf, isReplay, leverOf, moveCell, paypalRetry, pickable, refusalLine, rulesFor, splitFixes, splitRows, viewFor, type Col, type LeverKey, type Rows } from '../../../modules/rescue/model';
 import { FixGet, FixGetOff, FixWhy } from '../../../modules/rescue/Panels';
 import { fixQuestion, fixWhy, previewFor } from '../../../modules/rescue/preview';
 import { useCpLookup } from '../../../ui';
@@ -113,7 +114,7 @@ export function HandOff({ deal, lever, quiet, sm }: { deal: Deal; lever?: LeverK
   );
 }
 
-const coarse = (deadline: number, now: number) => timeLeftWords(deadline - now).replace(/ \d+ h$/, '');
+const coarse = (deadline: number, now: number) => timeLeftWords(deadline - now);
 
 /** The fixes this renewal can't have, as one quiet line; Why? lists each one with its reason. */
 function NotOffered({ off, amount, retryAt, replay, offer }: { off: ReturnType<typeof splitFixes>['off']; amount: Money; retryAt: number | null; replay: boolean; offer: RescueOffer | undefined }) {
@@ -168,7 +169,7 @@ function Picks({ deal, view, col, onPick }: { deal: Deal; view: RescueView | und
           const isOff = !pickable(st);
           const on = c === col && !isOff;
           const does = c === 'NONE' ? (replay ? RESCUE.replayNoRetry : retry ? RESCUE.retriesIn(coarse(retry, now)) : RESCUE.retriesOwn)
-            : st.kind === 'offer' ? RESCUE.offerLine(percentWords(st.offer.discount_bp), formatMoney(st.offer.invoice), formatMoney(st.offer.cycle))
+            : st.kind === 'offer' ? RESCUE.offerLine(percentWords(st.offer.discount_bp), formatMoney(st.offer.invoice), formatMoney(st.offer.cycle), formatMoney(st.offer.discount))
               : st.kind === 'off' ? RESCUE.whyOff[st.code as keyof typeof RESCUE.whyOff] ?? st.why : st.kind === 'unknown' ? st.why : '';
           return (
             <div key={c} className={`rs-fix ${on ? 'on' : ''} ${c === 'NONE' ? 'def' : ''} ${isOff ? 'off' : ''}`}>
@@ -209,7 +210,7 @@ function FixDetail({ deal, view, col }: { deal: Deal; view: RescueView | undefin
   const offer = st.kind === 'offer' ? st.offer : null;
   return (
     <div className="rs-fixdetail">
-      <p>{offer ? RESCUE.fix.does(formatMoney(offer.invoice), formatMoney(offer.cycle), percentWords(offer.discount_bp)) : st.kind === 'off' || st.kind === 'unknown' ? `${lever.effect}. ${st.why}.` : `${lever.effect}.`}</p>
+      <p>{offer ? RESCUE.fix.does(formatMoney(offer.invoice), formatMoney(offer.cycle), percentWords(offer.discount_bp), formatMoney(offer.discount)) : st.kind === 'off' || st.kind === 'unknown' ? `${lever.effect}. ${st.why}.` : `${lever.effect}.`}</p>
       <p className="rs-h">{RESCUE.fix.checks}</p>
       <ul className="rs-rules">{rulesFor(deal, col, retry, now, view).map(([k, t]) => <li key={t} className={k}>{t}</li>)}</ul>
       <p className="rs-h">{RESCUE.fix.sees}</p>
@@ -236,7 +237,8 @@ export function FixPanel({ deal, r, col, onPick, onDeal }: { deal: Deal; r: Resc
   const t = view?.offer.cycle ?? dealTotal(deal);
   const lever = col !== 'NONE' && pickable(cellState(deal, col, paypalRetry(view, now), now, view)) ? col : undefined;
   return (
-    <div className="rs-panel">
+    <RevealGroup className="rs-panel">
+      <Reveal className="rs-sec">
       <p className="kicker"><span className="rs-ctx" title={r.title(deal)}>{r.title(deal)}</span>{deal.mode !== 'sandbox' ? <ModeBadge mode={deal.mode} /> : null}
         {view && view.source !== 'replay' && deal.mode === 'sandbox' ? <Chip tone="line" title={RESCUE.reportedTitle}>{rescueSourceWord(view.source).toLowerCase()}</Chip> : null}</p>
       <div className="rs-q">
@@ -244,18 +246,25 @@ export function FixPanel({ deal, r, col, onPick, onDeal }: { deal: Deal; r: Resc
         <span className="rs-amt num">{formatMinor(t.minor, t.currency)}</span>
       </div>
       <p className="rs-why-l">{RESCUE.whyLine}{view ? <> {RESCUE.invoiceTo} <span className="mono">{view.recipient}</span>.</> : null}</p>
-      <Picks deal={deal} view={view} col={col} onPick={onPick} />
+      {view && view.failed_payments > 0 ? <p className="ui-hint">{RESCUE.history(view.failed_payments)}</p> : null}
+      </Reveal>
+      <Reveal><Picks deal={deal} view={view} col={col} onPick={onPick} /></Reveal>
+      <Reveal className="rs-sec">
       <div className="cs-acts rs-acts">
-        {need ? <HandOff deal={deal} lever={lever} /> : null}
+        {need ? <HandOff deal={deal} lever={lever} quiet={refusalLine(view) !== null} /> : null}
         <Btn kind="plain" onClick={onDeal}>{RESCUE.openDeal}</Btn>
       </div>
       {need ? <p className="ui-hint">{RESCUE_APPROVE_DOES}</p> : null}
-      <p className="rs-sil"><Hourglass /> <span>{RESCUE.ifNothing}: <b>{isReplay(deal, view) ? RESCUE.replaySilence : need ? silenceWords(need.on_silence) : RESCUE.defaultSilence}</b></span></p>
+      {refusalLine(view) ? <p className="ui-hint rs-refusal">{refusalLine(view)}</p> : null}
+      <p className="rs-sil"><Hourglass /> <span>{RESCUE.ifNothing}: <b>{ifNothingOf(deal, need?.on_silence, view)}</b></span></p>
       {deadline ? <p className="ui-hint rs-close">{RESCUE.closes(clockLabel(deadline), timeLeftWords(deadline - now))}</p> : null}
+      </Reveal>
+      <Reveal>
       <details className="ui-disclosure rs-more"><summary>{col === 'NONE' ? RESCUE.fix.aboutNone : RESCUE.fix.about(RESCUE.pick[col].name)}</summary>
         <div className="ui-disclosure-body"><FixDetail deal={deal} view={view} col={col} /></div>
       </details>
-    </div>
+      </Reveal>
+    </RevealGroup>
   );
 }
 
@@ -266,19 +275,23 @@ export function DeskDetail({ deal, r, onDeal }: { deal: Deal; r: RescueWorld; on
   const deadline = r.deadline(deal);
   const t = dealTotal(deal);
   return (
-    <div className="rs-panel">
+    <RevealGroup className="rs-panel">
+      <Reveal className="rs-sec">
       <h2 className="rs-h2" title={r.name(deal)}>{cap(r.name(deal))}</h2>
       <div className="rs-chips"><RescueState deal={deal} />{deal.mode !== 'sandbox' ? <ModeBadge mode={deal.mode} /> : null}<CountChip deal={deal} view={view} /></div>
+      </Reveal>
+      <Reveal className="rs-sec">
       <Kv items={[
         [RESCUE.k.what, r.title(deal)],
         [RESCUE.k.money, <><span className="money">{formatMinor(t.minor, t.currency)}</span> · {deskLine(deal, view).toLowerCase()}</>],
         view ? [RESCUE.k.fix, RESCUE.k.fixLine(percentWords(view.offer.discount_bp), formatMoney(view.offer.cycle))] : null,
         view ? [RESCUE.k.source, rescueSourceWord(view.source)] : null,
         deadline ? [RESCUE.k.deadline, clockLabel(deadline)] : null,
-        need ? [RESCUE.ifNothing, need.on_silence] : null,
+        need ? [RESCUE.ifNothing, ifNothingOf(deal, need.on_silence, view)] : null,
       ]} />
-      <div className="cs-acts">{need ? <HandOff deal={deal} sm /> : null}<Btn sm onClick={onDeal}>{RESCUE.openDeal}</Btn></div>
-    </div>
+      <div className="cs-acts">{need ? <HandOff deal={deal} sm quiet={refusalLine(view) !== null} /> : null}<Btn sm onClick={onDeal}>{RESCUE.openDeal}</Btn></div>
+      </Reveal>
+    </RevealGroup>
   );
 }
 
@@ -295,7 +308,8 @@ export function CompareCells({ deal, r }: { deal: Deal; r: RescueWorld }) {
         const [v, s] = st.kind === 'default' ? [RESCUE.cmp.nothingSent, isReplay(deal, view) ? RESCUE.cmp.replay : retry ? RESCUE.cmp.retry(coarse(retry, now)) : RESCUE.cmp.noRetry]
           : st.kind === 'offer' ? [formatMoney(st.offer.invoice), RESCUE.cmp.off(percentWords(st.offer.discount_bp))]
             : st.kind === 'off' && st.code !== 'NOT_BUILT' ? [RESCUE.cmp.notNow, st.code === 'REPLAY' ? RESCUE.cmp.replay : RESCUE.cmp.retrySoon] : [RESCUE.cmp.notYet, RESCUE.cmp.gist[c as LeverKey]];
-        return <span key={c} className={`rs-cell k-${st.kind}`} title={st.kind === 'off' || st.kind === 'unknown' ? st.why : undefined}><small className="h">{RESCUE.cmp.head[c]}</small><b>{v}</b><small>{s}</small></span>;
+        const why = st.kind === 'off' || st.kind === 'unknown' ? ` (${st.why})` : '';
+        return <span key={c} className={`rs-cell k-${st.kind}`} title={`${RESCUE.cmp.head[c]}: ${v} - ${s}${why}`}><small className="h">{RESCUE.cmp.head[c]}</small><b>{v}</b></span>;
       })}
     </>
   );

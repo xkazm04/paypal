@@ -47,6 +47,7 @@
     "allow-rescue-watch-add",
     "allow-rescue-watch-stop",
     "allow-counterparty-revoke",
-    "allow-envelope-simulate"
+    "allow-envelope-simulate",
+    "allow-engine-brief"
   ]
 }

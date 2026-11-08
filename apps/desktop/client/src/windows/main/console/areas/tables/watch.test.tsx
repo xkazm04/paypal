@@ -14,7 +14,7 @@ vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/r
 afterEach(() => { cleanup(); history.replaceState(null, '', '/'); });
 
 const usd = (minor: number) => shortMoney(minor, 'USD');
-const moved = (r: LayerRun) => r.calls.filter((c) => !/^(list_|get_|deal_display|deal_transcript|deal_evidence|deal_groups|attention_list|agent_runs|counterparty_|mandate_list|engine_status|safety_record|deal_history|settings|owner_facts)/.test(c.cmd));
+const moved = (r: LayerRun) => r.calls.filter((c) => !/^(list_|get_|deal_display|deal_transcript|deal_evidence|deal_groups|attention_list|agent_runs|counterparty_|mandate_list|engine_status|engine_brief|safety_record|deal_history|settings|owner_facts)/.test(c.cmd));
 
 describe('Watch the haggle', () => {
   it('opens on the recorded house table and lists exactly the engine’s run', async () => {

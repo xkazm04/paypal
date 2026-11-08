@@ -175,8 +175,10 @@ export function ClauseList({ m, lane }: { m: MandateListEntry; lane: Lane | null
 }
 
 /** Everything about one purchase, under the decision when there is one. */
-export function PurchasePane({ lane, disp, need, who, decision, onRule }: {
+export function PurchasePane({ lane, disp, need, who, decision, onRule, note }: {
   lane: Lane; disp: Display; need: AttentionItem | undefined; who: string; decision?: ReactNode; onRule?: (n: number) => void;
+  /** The list row's note, said in full (the row hides it on a narrow window). */
+  note?: string;
 }) {
   const m = lane.rules;
   const cols = lane.cols;
@@ -196,6 +198,7 @@ export function PurchasePane({ lane, disp, need, who, decision, onRule }: {
         <span className="ui-spacer" />
         <Btn sm kind="plain" onClick={() => nav.deal(d.id)} title={TABLES_TRADE.openDealTitle}>{TABLES_TRADE.openDeal}</Btn>
       </header>
+      {note ? <p className="tr-note">{note}</p> : null}
       {decision}
       <div className="sp-bigamt"><Amount money={t} tone={amountTone(d)} /><span className="tx-dim">{amountNote(d)}</span></div>
       <Kv items={[

@@ -1,0 +1,66 @@
+/* spark abstract-first-home round 4, sim TOUR: the AI-led setup. One turn = one step = one component.
+   Tokens only (design/tokens.css), prefix st-. Motion values come from design/motion.ts via fx.ts. */
+
+/* ---- a step's turn: a quiet card under the assistant's line ---------------------------------------- */
+.st-turn { display: flex; flex-direction: column; gap: var(--sp-3); max-width: 560px; min-width: 0;
+  padding: var(--sp-3) var(--sp-4) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); }
+.st-turn.is-done { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.st-turn-h { display: flex; align-items: baseline; gap: var(--sp-2); min-width: 0; }
+.st-turn-t { flex: 1; min-width: 0; font-weight: var(--fw-semibold); color: var(--text); }
+.st-of { flex: none; color: var(--dim); font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
+.st-why { margin: 0; color: var(--muted); line-height: 1.5; }
+.st-turn-f { display: flex; justify-content: flex-end; margin-top: calc(-1 * var(--sp-1)); }
+.st-skip { color: var(--dim); font-size: var(--fs-small); }
+.st-skip:hover { color: var(--muted); }
+.st-quiet { margin: 0; color: var(--dim); font-size: var(--fs-small); line-height: 1.45; }
+.st-hint { margin: 0; color: var(--gold-l); font-size: var(--fs-small); line-height: 1.45; }
+.st-acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.st-kick { margin: 0; color: var(--dim); font-size: var(--fs-small); text-transform: uppercase; letter-spacing: var(--track-label); }
+
+/* a folded turn: done, one line with a tick */
+.st-doneline { display: flex; align-items: center; gap: var(--sp-2); margin: 0; color: var(--muted); }
+.st-tick { display: inline-grid; place-items: center; flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--ok); color: var(--ink-0); }
+
+/* the secure step closed without finishing */
+.st-closed { display: flex; align-items: center; gap: var(--sp-3); }
+
+/* ---- rules: the proposal in plain words ------------------------------------------------------------ */
+.st-rules { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); border-radius: var(--r-tight); background: var(--bg); border: 1px solid var(--line); }
+.st-rules-l { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-1); }
+.st-rules-l li { position: relative; padding-left: var(--sp-3); color: var(--text); line-height: 1.45; font-variant-numeric: tabular-nums; }
+.st-rules-l li::before { content: ""; position: absolute; left: 0; top: .6em; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
+
+/* ---- practice: the shop's join on one row ---------------------------------------------------------- */
+.st-join { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
+.st-field { color: var(--muted); font-size: var(--fs-small); }
+.st-joinrow { display: flex; gap: var(--sp-2); align-items: center; min-width: 0; }
+.st-joinrow > :first-child { flex: 1; min-width: 0; }
+
+/* ---- agent app: one row of choices ----------------------------------------------------------------- */
+.st-engines { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.st-engine { display: inline-flex; align-items: baseline; gap: var(--sp-2); font: inherit; color: var(--text); background: transparent;
+  border: 1px solid var(--line2); border-radius: 999px; padding: 6px var(--sp-3); cursor: pointer; }
+.st-engine:hover:not(:disabled) { border-color: var(--gold); }
+.st-engine.is-on { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.st-engine:disabled { cursor: default; opacity: .6; }
+.st-engine.is-on:disabled { opacity: 1; }
+.st-engine b { font-weight: var(--fw-semibold); }
+.st-engine span { color: var(--dim); font-size: var(--fs-small); }
+.st-engine:focus-visible, .st-pointer:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---- the end: three tiny pointers ------------------------------------------------------------------ */
+.st-set { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); }
+.st-pointers { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.st-pointer { font: inherit; font-size: var(--fs-small); color: var(--text); background: transparent; border: 1px dashed var(--line2); border-radius: 999px; padding: 4px var(--sp-3); cursor: pointer; }
+.st-pointer:hover { border-color: var(--focus); border-style: solid; }
+
+/* ---- the one spotlight mark: a lit ring and one sentence, no dim; never takes a click -------------- */
+.st-spotwrap { position: fixed; inset: 0; z-index: var(--z-popover); pointer-events: none; }
+.st-ring { position: fixed; border-radius: var(--r); box-shadow: 0 0 0 2px var(--focus), 0 0 0 7px color-mix(in srgb, var(--focus) 18%, transparent); }
+.st-mark { position: fixed; display: flex; align-items: baseline; gap: var(--sp-2); max-width: 280px; padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r); background: var(--panel2); color: var(--text); border: 1px solid var(--line2); box-shadow: var(--shadow-2); line-height: 1.45; }
+.st-mark-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--focus); transform: translateY(-1px); }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not(.calm) .st-ring { animation: st-pulse calc(var(--dur-slow) * 4) var(--ease) 2; }
+}
+@keyframes st-pulse { 50% { box-shadow: 0 0 0 2px var(--focus), 0 0 0 11px color-mix(in srgb, var(--focus) 8%, transparent); } }

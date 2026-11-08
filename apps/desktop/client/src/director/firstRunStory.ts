@@ -51,7 +51,7 @@ export const FIRST_RUN_BEATS: readonly Beat<FirstRunChapterId>[] = [
   },
   {
     id: 'table-engine', chapter: 'table', at: 27, focus: 'main',
-    caption: 'Line four, the agent app, is still to do. Until she picks claude-code or codex-cli, a practice agent plays for her.',
+    caption: 'Line four, the agent app, is still to do. Until she picks an agent app, a practice agent plays for her.',
     do: [tour('main', 'main.engine')],
   },
   {

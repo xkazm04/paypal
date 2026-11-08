@@ -18,6 +18,7 @@ import { toWalletError, type WalletError } from '../../lib/contract';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { nowUnix } from '../../lib/format';
+import { agentAppAvailable, useAgentApp } from '../../lib/engine';
 import { gettingStarted, leaveSetupIntent, SETUP_STEP_OF, settingsFacts } from '../../lib/firstRun';
 import { START_STEP, type StartStepKey } from '../../lib/words';
 import { Tour } from '../../shared/tour';
@@ -26,7 +27,7 @@ import { CardForm, HandoffForm, StackForm, TabForm, TickerForm, WelcomeForm } fr
 import {
   plainItems,
   NO_HANDOFF, SECONDS, ackTicker, allClearTicker, arrivals, arrivalsTicker, canReview, dndPreferences, handoffEnded, nextFocus, puckLook, puckName, puckTarget, receiptTicker,
-  restForm, rung, rungNotice, silenceClause, snoozeEligible, snoozeTicker, sortItems, stopTicker, tickerMayShow, type CardAction, type Handoff, type Rung, type Ticker,
+  restForm, rung, rungNotice, silenceClause, snoozeEligible, snoozeTicker, sortItems, stopTicker, tickerMayShow, tickerSpeech, type CardAction, type Handoff, type Rung, type Ticker,
 } from './logic';
 
 type Failure = { dealId: string | null; what: string; error: WalletError };
@@ -59,6 +60,9 @@ export function Tumbler() {
   const [reviewed, setReviewed] = useState<string | null>(null);
   const [handoff, setHandoff] = useState<Handoff>(NO_HANDOFF);
   const [ticker, setTicker] = useState<Ticker | null>(null);
+  const tickerRef = useRef<Ticker | null>(null);
+  tickerRef.current = ticker;
+  const puckEl = useRef<HTMLButtonElement | null>(null);
   const [newIds, setNewIds] = useState<ReadonlySet<string>>(new Set());
   const [docked, setDocked] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -99,14 +103,22 @@ export function Tumbler() {
   const top = items[0];
   const topRung: Rung = top ? rung(top.deadline, now) : 'none';
   const rungSeen = useRef(new Map<string, Rung>());
-  const [rungSays, setRungSays] = useState('');
+  // ONE persistent polite live region, mounted with the window, whose text changes (a freshly mounted node is not voiced
+  // reliably). Rung climbs, arrivals and acknowledgements all write here; the text stays, so it can be re-read.
+  const [says, setSays] = useState('');
+  const sayFlip = useRef(false);
+  const say = useCallback((text: string) => {
+    sayFlip.current = !sayFlip.current;
+    // the same sentence twice must still be a mutation: alternate a trailing no-break space
+    setSays(sayFlip.current ? text : `${text} `);
+  }, []);
   useEffect(() => {
     if (!top) return;
     const prev = rungSeen.current.get(top.deal_id) ?? null;
     rungSeen.current.set(top.deal_id, topRung);
     const said = rungNotice(prev, topRung, top.headline, silenceClause(top.on_silence) || null);
-    if (said) setRungSays(said);
-  }, [top, topRung]);
+    if (said) say(said);
+  }, [top, topRung, say]);
   // the hand-off deal's label and own-catalog title (degrades to the item / a short id)
   const handoffDisplay = useQuery('deal_display', { deal_id: handoff.dealId ?? '' }, { enabled: !!handoff.dealId });
 
@@ -132,7 +144,7 @@ export function Tumbler() {
     if (tickerTimer.current) clearTimeout(tickerTimer.current);
     setTicker(t);
     setFormNative('ticker');
-    tickerTimer.current = setTimeout(endTicker, t.ms);
+    tickerTimer.current = tickerHeld.current ? null : setTimeout(endTicker, t.ms);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   function endTicker() {
@@ -142,14 +154,28 @@ export function Tumbler() {
     // the ticker's content stays until Rust reports the next form (no flash of an empty pill)
     if (formRef.current === 'ticker') setFormNative(handoffRef.current.active ? 'handoff' : restForm(dockedRef.current));
   }
+  // Hover or keyboard focus holds a ticker on screen, as a toast is held; leaving gives it its full time again.
+  const tickerHeld = useRef(false);
+  const holdTicker = useCallback((held: boolean) => {
+    tickerHeld.current = held;
+    if (held) {
+      if (tickerTimer.current) clearTimeout(tickerTimer.current);
+      tickerTimer.current = null;
+    } else if (formRef.current === 'ticker' && !tickerTimer.current && tickerRef.current) {
+      tickerTimer.current = setTimeout(endTicker, tickerRef.current.ms);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const pushTicker = useCallback((t: Ticker, force = false) => {
     if (dockedRef.current) return; // a docked Tumbler stays quiet; the stack still counts it
+    say(tickerSpeech(t));
     if (force || tickerMayShow(formRef.current)) showTicker(t);
     else queue.current = [...queue.current.slice(-3), t];
-  }, [showTicker]);
+  }, [showTicker, say]);
   const openFromTicker = useCallback(() => {
     if (tickerTimer.current) clearTimeout(tickerTimer.current);
     tickerTimer.current = null;
+    tickerHeld.current = false;
     const t = ticker;
     const target = t?.dealId ? known.current.get(t.dealId) : undefined;
     if (target && prevItems.current?.some((i) => i.deal_id === target.deal_id)) {
@@ -236,6 +262,7 @@ export function Tumbler() {
     setForm(f);
     if (f !== 'ticker') {
       setTicker(null);
+      tickerHeld.current = false;
       if (tickerTimer.current) clearTimeout(tickerTimer.current);
       tickerTimer.current = null;
     }
@@ -399,6 +426,8 @@ export function Tumbler() {
       await backend().invoke('deal_snooze', { deal_id: it.deal_id });
       pushTicker(snoozeTicker(it, nowUnix() + SECONDS.snooze), true);
       void refetchAttention();
+      // the card (and the Details popover it came from) is gone: land on the puck, never on the page body
+      puckEl.current?.focus({ preventScroll: true });
     } catch (e) {
       if (ack.current?.dealId === it.deal_id) {
         clearTimeout(ack.current.timer);
@@ -412,8 +441,9 @@ export function Tumbler() {
   }, [pushTicker, refetchAttention]);
 
   // First run: the welcome shows the steps; each opens The Table on its Set up page. Settings are all the Tumbler reads.
+  const agentApp = useAgentApp(settings?.selected_engine).state;
   const start = settings?.first_run ? gettingStarted({
-    ...settingsFacts(settings), firstRun: true, rulesInForce: null, houseConnected: settings.house_connected ?? null, otherConnections: null,
+    ...settingsFacts(settings), engineAvailable: agentAppAvailable(agentApp), firstRun: true, rulesInForce: null, houseConnected: settings.house_connected ?? null, otherConnections: null,
   }) : null;
   const startStep = useCallback(async (k: StartStepKey) => {
     try {
@@ -512,6 +542,9 @@ export function Tumbler() {
       e.preventDefault();
       if (confirmId === it.deal_id) void withdraw(it);
       else setConfirmId(it.deal_id);
+    } else if ((e.key === 's' || e.key === 'S') && e.target === e.currentTarget && snoozeEligible(it, nowUnix())) {
+      e.preventDefault();
+      void snooze(it); // the same 45-minute rule the button applies; Rust still refuses anything later
     } else if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
@@ -535,10 +568,10 @@ export function Tumbler() {
   const handoffItem = handoff.dealId ? items.find((i) => i.deal_id === handoff.dealId) ?? known.current.get(handoff.dealId) ?? null : null;
   const display = handoffDisplay.data && handoffDisplay.data.deal_id === handoff.dealId ? handoffDisplay.data : null;
   const count = look.needs;
-  const puckLabel = puckName({ needs: count, headline: items[0]?.headline ?? null, inMotion: snapshot?.in_motion ?? 0, mode, locked, unread: !snapshot });
+  const puckLabel = puckName({ needs: count, headline: items[0]?.headline ?? null, inMotion: snapshot?.in_motion ?? 0, mode, locked, unread: !snapshot, holds: items.filter((i) => i.kind === 'hold').length });
 
   let body: ReactNode = null;
-  if (form === 'ticker') body = <TickerForm ticker={ticker} onOpen={openFromTicker} />;
+  if (form === 'ticker') body = <TickerForm ticker={ticker} onOpen={openFromTicker} onHold={holdTicker} />;
   else if (form === 'card' && cardItem)
     body = (
       <CardForm ref={formEl} item={cardItem} items={items} now={now} locked={locked} busy={busy}
@@ -577,7 +610,7 @@ export function Tumbler() {
   return (
     <div className={classes} onKeyDown={onRootKey} style={form === 'rest' || form === 'tab' ? { opacity: look.opacity / 100 } : undefined}
       aria-label="The Tumbler" role="complementary">
-      <span className="sr-only" role="status" aria-live="polite">{rungSays}</span>
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{says}</span>
       {form === 'tab' ? (
         <button className="tabbtn" onClick={onPuckClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
           aria-label={`${puckLabel} · docked`} title={`${puckLabel} · docked · click to open, drag to undock`}>
@@ -594,7 +627,7 @@ export function Tumbler() {
               <div className="t-fail avail" role="status"><span className="msg">These cards may be out of date until the wallet reads them again.</span></div>
             ) : null}
           </div>
-          <button className="puck" onClick={onPuckClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
+          <button ref={puckEl} className="puck" onClick={onPuckClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
             aria-label={puckLabel} title={`${puckLabel}${form === 'rest' ? ' · click to open, drag to move' : ' · click for rest'}`}>
             <PuckArt look={look} items={items} newIds={newIds} inMotion={snapshot?.in_motion ?? 0} mode={mode} locked={locked} handoff={handoff.active} />
           </button>

@@ -11,12 +11,14 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "takes": "node scripts/takes.mjs"
+    "takes": "node scripts/takes.mjs",
+    "eval:board": "node scripts/eval-board.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.2",
     "@tanstack/react-virtual": "^3.14.18",
     "@tauri-apps/api": "^2.12.1",
+    "framer-motion": "11.18.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

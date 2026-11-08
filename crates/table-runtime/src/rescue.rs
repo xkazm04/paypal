@@ -99,7 +99,27 @@ impl Runtime {
             recipient: case.recipient.masked(),
             invoice: deal.paypal.order.clone(),
             counted: app(self.pipeline.wallet.ledger.rescue_counted(deal.id))?,
+            refusal: self.rescue_refusal(deal, &case.offer)?,
         })
+    }
+
+    /// Why the wallet would not send this fix, read from the same check the send runs
+    /// (`check_offer`) against the rules the deal was opened under; None when it would send.
+    fn rescue_refusal(
+        &self,
+        deal: &Deal,
+        offer: &RescueOffer,
+    ) -> Result<Option<RescueRefusal>, CommandError> {
+        let owner = self.owner()?.verifying_key();
+        match self.pipeline.wallet.ledger.active_mandate(
+            deal.mandate_id,
+            deal.mandate_version,
+            &owner,
+        ) {
+            Ok(m) => Ok(offer_fault(&m.payload, offer, &deal.terms)),
+            Err(table_ledger::LedgerError::NotFound) => Ok(Some(RescueRefusal::RulesNotInForce)),
+            Err(e) => app(Err(e)),
+        }
     }
 
     /// Every rescue deal's view. The deals are read once; each case adds its case and count.

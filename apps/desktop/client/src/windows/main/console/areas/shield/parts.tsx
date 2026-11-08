@@ -3,7 +3,8 @@
 // there; releasing never happens in this window and a block has no release anywhere), the refuse
 // confirm (deal_withdraw: no money moves, PayPal was never asked), a paused payment as a decision,
 // and one line per checked payment. Counterparty words show only through the quarantined NoteText.
-import { useMemo, useState, type ReactNode } from 'react';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
@@ -133,8 +134,8 @@ export function PausedDecision({ deal, s, onDeal }: { deal: Deal; s: ShieldWorld
   options.push({ label: SHIELD.openDeal, onClick: onDeal, means: SHIELD.openDealMeans });
   const t = dealTotal(deal);
   return (
-    <div className="sh-paused">
-      <DecisionCard className="sh-card"
+    <RevealGroup className="sh-paused">
+      <Reveal><DecisionCard className="sh-card"
         context={<><Icon name="pause" size={13} />{SHIELD.pausedBefore} · <span className="sh-ctx" title={s.title(deal)}>{s.title(deal)}</span><NoteChip dealId={deal.id} who={who} /></>}
         question={live ? SHIELD.letGo(who) : SHIELD.whatNow(who)}
         amount={<MinorMoney minor={t.minor} currency={t.currency} />}
@@ -149,15 +150,19 @@ export function PausedDecision({ deal, s, onDeal }: { deal: Deal; s: ShieldWorld
           <ComparePanel deal={deal} cp={cp} known={s.known} now={now} />
           <CheckLights deal={deal} cp={cp} now={now} />
         </div>
-      </DecisionCard>
-      <div className="cs-acts sh-acts">
+      </DecisionCard></Reveal>
+      <Reveal><div className="cs-acts sh-acts">
         <ReleaseHandoff deal={deal} need={need} />
         <RefuseButton deal={deal} need={need} title={s.title(deal)} />
-      </div>
+      </div></Reveal>
       <p className="ui-hint">{live ? SHIELD.releaseMeans[releaseCase(deal)] : SHIELD.reviewMeans}</p>
-    </div>
+    </RevealGroup>
   );
 }
+
+/** A shield row's columns: icon, who, verdict, time left, amount, then the title and the reason as the
+ *  note (hidden on a narrow window). */
+const ROW_COLS = { '--cols': 'auto minmax(9rem, 1.2fr) minmax(7rem, max-content) minmax(4rem, max-content) 8rem minmax(0, 1.8fr)' } as CSSProperties;
 
 /** One payment the shield checked, as a list row's content (the row is the button: no control here). */
 export function ShieldRow({ deal, s }: { deal: Deal; s: ShieldWorld }) {
@@ -174,15 +179,13 @@ export function ShieldRow({ deal, s }: { deal: Deal; s: ShieldWorld }) {
   else if (shieldReleased(deal)) sub = SHIELD.row.released(s.moduleName(deal));
   else sub = SHIELD.row.other(why, s.moduleName(deal));
   return (
-    <span className={`sh-row k-${kind}`}>
+    <span className={`row1 sh-row k-${kind}`} style={ROW_COLS} title={`${s.who(deal)} · ${s.title(deal)}`}>
       <span className="sh-lead" aria-hidden="true"><Icon name={kind === 'block' ? 'block' : kind === 'paused' || kind === 'closed' ? 'pause' : kind === 'clear' ? 'check' : 'eye'} size={13} /></span>
-      <span className="sh-what">
-        <b title={s.who(deal)}>{s.who(deal)}</b>
-        <span className="sh-sub" title={s.title(deal)}>{s.title(deal)} · {sub}</span>
-      </span>
-      {kind === 'closed' ? <Chip tone="line" title={SHIELD.closedTitle}>{SHIELD.closedChip}</Chip> : <VerdictChip v={deal.shield} />}
-      {need ? <Countdown deadline={need.deadline} /> : null}
-      <Amount money={t} tone={kind === 'block' ? 'struck' : undefined} />
+      <b className="sh-what" title={s.who(deal)}>{s.who(deal)}</b>
+      <span className="sh-v">{kind === 'closed' ? <Chip tone="line" title={SHIELD.closedTitle}>{SHIELD.closedChip}</Chip> : <VerdictChip v={deal.shield} />}</span>
+      <span className="sh-cd">{need ? <Countdown deadline={need.deadline} /> : null}</span>
+      <Amount money={t} tone={kind === 'block' ? 'struck' : undefined} className="sh-amt" />
+      <span className="sh-sub c-note">{s.title(deal)} · {sub}</span>
     </span>
   );
 }

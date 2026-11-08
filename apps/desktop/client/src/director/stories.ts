@@ -12,6 +12,8 @@ import { TRY_BEATS, TRY_CHAPTERS, TRY_EXPECT, TRY_LENGTH } from './tryStory';
 import { WATCH_BEATS, WATCH_CHAPTERS, WATCH_LENGTH } from './watchStory';
 
 export const STORY_PARAM = 'story';
+/** The main window's view parameter (windows/main/switchboard/view.ts reads it first). */
+const VIEW_PARAM = 'view';
 export type StoryId = 'maya' | 'first-run' | 'watch' | 'say' | 'try';
 
 export type Story = {
@@ -78,9 +80,11 @@ export function withFilmEnding(story: Story, ending: FilmEnding | null): Story {
 export function frameUrls(story: Pick<Story, 'firstRun' | 'filmEnding'>, scale: ScaleName | null = scalePreview()) {
   const w = (page: string) => withFirstRun(page, story.firstRun, story.firstRun ? scale : null);
   // The film's ending reaches the main window only (its Rewind draws by it); the app itself has none.
-  const film = story.filmEnding ? `?${FILM_ENDING_PARAM}=${story.filmEnding}` : '';
+  // The films were recorded against the console, so the main frame pins `view=console`: the board is
+  // the app's default home (spark the-proof-table), and a frame without a route would open on it.
+  const film = story.filmEnding ? `&${FILM_ENDING_PARAM}=${story.filmEnding}` : '';
   return {
-    main: (route: string | null) => w(`index.html${film}${route ?? ''}`),
+    main: (route: string | null) => w(`index.html?${VIEW_PARAM}=console${film}${route ?? ''}`),
     tumbler: w('tumbler.html?frame=director'),
     approval: (dealId: string | null) => (dealId ? w(`approval.html?deal=${encodeURIComponent(dealId)}&target=deal`) : 'about:blank'),
     /** The approval window on the owner's setup (no deal). */

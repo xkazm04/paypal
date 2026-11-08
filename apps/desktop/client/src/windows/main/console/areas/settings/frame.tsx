@@ -10,6 +10,7 @@
 // Back, the crumbs and the browser's Back close it, and a reload opens it again.
 import { Suspense, useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { isCalm } from '../../../../../design/motion';
+import { Reveal as Rise } from '../../../../../design/Reveal';
 import { IF_NOTHING, LAYER_LOADING, PLACE_FRAME, YOUR_CALL } from '../../../../../lib/words';
 import { Chip, Disclosure, UNKNOWN, type ChipTone } from '../../../../../shared/ui';
 import { useSheetView } from '../../layers';
@@ -132,7 +133,8 @@ export function PlaceFrame(p: PlaceFrameProps) {
 
   return (
     <div className={`pf ${p.root}${p.className ? ` ${p.className}` : ''}`} style={style} data-place={p.place}>
-      <header className={`pf-head${p.aside ? ' has-aside' : ''}`}>
+      {/* The answer is wave 0 (the stagger leaves it alone): it rises once; the parts below fade by their waves. */}
+      <Rise><header className={`pf-head${p.aside ? ' has-aside' : ''}`}>
         <div className="pf-say">
           <p className="kicker">{p.kicker}</p>
           <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{p.answer}</h1>
@@ -147,7 +149,7 @@ export function PlaceFrame(p: PlaceFrameProps) {
           ) : null}
         </div>
         {p.aside ? <div className="pf-aside">{p.aside}</div> : null}
-      </header>
+      </header></Rise>
       {p.lead}
       {cards.length ? (<Reveal wave={1} sizeKey={`${p.place ?? p.root}:cards`} skeleton={<Skeleton className="pf-cards" blocks={cards.length} block="ui-sumcard pf-card" style={{ '--n': cards.length } as CSSProperties} />}>
         <section className="pf-cards" aria-label={PLACE_FRAME.cards} style={{ '--n': cards.length } as CSSProperties}>

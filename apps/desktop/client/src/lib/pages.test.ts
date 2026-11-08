@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = join(__dirname, '..', '..');
-const PAGES = ['index.html', 'tumbler.html', 'approval.html', 'director.html'];
+const PAGES = ['index.html', 'tumbler.html', 'approval.html', 'director.html', 'arena.html', 'proof.html'];
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
 
 /** The --bg of the first block whose selector starts with `selector`. */

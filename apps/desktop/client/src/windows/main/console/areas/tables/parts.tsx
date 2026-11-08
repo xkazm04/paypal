@@ -10,6 +10,7 @@
 //   useTranscript / useEvidence   per-deal reads through the shared query cache, only for the row
 //                that is picked (never per row of a list).
 import { useState, type ReactNode } from 'react';
+import { RowNoteContext } from '../../rows';
 import type { ApprovalOpenArgs } from '@bindings/ApprovalOpenArgs';
 import { clockLabel } from '../../../../../lib/format';
 import { useMutation, useQuery } from '../../../../../lib/hooks';
@@ -71,7 +72,7 @@ export function SplitView({ list, pane, label, count }: { list: ReactNode; pane:
   if (count === 0) return <div className="tr-split empty">{list}</div>;
   return (
     <div className={`tr-split${count <= FIT_ROWS ? ' fit' : ''}`}>
-      <div className="tr-list">{list}</div>
+      <div className="tr-list"><RowNoteContext.Provider value={false}>{list}</RowNoteContext.Provider></div>
       {/* The picked row's pane takes its turn one beat after the list (stagger.tsx). */}
       <Reveal wave={2} skeleton={<Skeleton className="tr-pane" />}>
         <section className="tr-pane" aria-label={label} aria-live="polite">{pane ?? <p className="le-empty">{TABLES_TRADE.pick}</p>}</section>

@@ -197,6 +197,9 @@ impl Runtime {
         if self.paused {
             return Err(unavailable(AGENTS_PAUSED));
         }
+        if self.agent_paused_for(id)? {
+            return Err(unavailable(crate::acts::AGENT_PAUSED));
+        }
         if self.runs.values().any(|r| r.scope.deal_id == id) {
             return Err(unavailable(ALREADY_RUNNING));
         }
@@ -419,7 +422,8 @@ impl Runtime {
     /// Whether `run` may still act for `scope` now: agents not paused, the run live and the same
     /// deal, role and category, the deal's signer selectable and its mandate still allowing it.
     fn agent_gate(&mut self, run: RunId, scope: &AgentScope) -> Result<(), table_app::Error> {
-        if self.paused {
+        // A one-agent pause (acts.rs); a read that fails refuses (fail closed).
+        if self.paused || self.agent_paused_for(scope.deal_id).unwrap_or(true) {
             return Err(table_app::Error::Agent(RefusalCode::Paused));
         }
         if !self.runs.get(&run).is_some_and(|r| {

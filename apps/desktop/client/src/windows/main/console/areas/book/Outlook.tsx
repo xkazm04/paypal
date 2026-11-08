@@ -4,6 +4,7 @@
 // never stands next to one item's amount as if it were the total), and its soonest item apart; a
 // hold is said as held, never as paid. Under them, those deals in one windowed list.
 import { useMemo } from 'react';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import type { Deal } from '@bindings/Deal';
 import type { Money } from '@bindings/Money';
 import { useQuery } from '../../../../../lib/hooks';
@@ -56,18 +57,20 @@ function OutlookLine({ it, b }: { it: OutlookItem; b: BookWorld }) {
   );
 }
 
+const FILL = { display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0, minWidth: 0 } as const;
+
 export function Outlook({ b, items }: { b: BookWorld; items: OutlookItem[] }) {
   const nav = useLayerNav();
   const rows = useMemo(() => items.flatMap((it) => it.deals), [items]);
   const filters = useMemo<readonly ListFilter<Deal>[]>(() => OUTLOOK_KEYS.map((k) => ({ value: k, label: BOOK.outlook[k].short, test: (d: Deal) => outlookKeyOf(d, b.checking) === k })), [b.checking]);
   return (
-    <div className="bk-outlook">
-      <ul className="bk-ols" aria-label={BOOK.outlookLabel}>{items.map((it) => <OutlookLine key={it.key} it={it} b={b} />)}</ul>
-      <p className="ui-hint">{BOOK.notForecast(outlookCount(items))}</p>
-      <ListEngine<Deal> className={fewRows(rows.length)} label={BOOK.outlookList} rows={rows} getKey={(d) => d.id} filters={filters} estimateSize={64} measure
+    <RevealGroup className="bk-outlook">
+      <Reveal><ul className="bk-ols" aria-label={BOOK.outlookLabel}>{items.map((it) => <OutlookLine key={it.key} it={it} b={b} />)}</ul></Reveal>
+      <Reveal><p className="ui-hint">{BOOK.notForecast(outlookCount(items))}</p></Reveal>
+      <Reveal style={FILL}><ListEngine<Deal> className={fewRows(rows.length)} label={BOOK.outlookList} rows={rows} getKey={(d) => d.id} filters={filters} estimateSize={36} measure
         searchText={(d) => `${b.title(d)} ${b.who(d)}`}
         renderRow={(d) => <DealRow deal={d} need={b.needOf.get(d.id)} who={b.who(d)} />}
-        rowLabel={(d) => b.title(d)} onOpen={(d) => nav.deal(d.id)} empty={BOOK.outlookEmpty} />
-    </div>
+        rowLabel={(d) => b.title(d)} onOpen={(d) => nav.deal(d.id)} empty={BOOK.outlookEmpty} /></Reveal>
+    </RevealGroup>
   );
 }

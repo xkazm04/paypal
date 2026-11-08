@@ -1,5 +1,6 @@
 //! Engine contract, fenced launch plans, strict stream validation and offline scripted engine.
 mod argv;
+mod assistant;
 mod native;
 mod parser;
 mod policy;
@@ -7,6 +8,7 @@ mod resolve;
 #[cfg(windows)]
 mod windows_job;
 pub use argv::*;
+pub use assistant::*;
 use async_trait::async_trait;
 pub use native::*;
 pub use parser::*;
@@ -40,10 +42,28 @@ pub struct EngineInfo {
     pub version: Option<String>,
     pub reason: Option<String>,
 }
+/// The least an unprivileged window may learn about an engine: whether it can run. Never the
+/// version or the probe's reason (those are `EngineInfo`, main window only).
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EngineBrief {
+    pub id: EngineId,
+    pub available: bool,
+}
+impl From<&EngineInfo> for EngineBrief {
+    fn from(i: &EngineInfo) -> Self {
+        Self {
+            id: i.id,
+            available: i.available,
+        }
+    }
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Profile {
     Agent,
     Toolless,
+    /// The board's assistant (`assistant.rs`): one tool-less turn with structured output, no
+    /// wallet grant. Its argv is `assistant_argv`, never `argv`; `execute` refuses it.
+    Assistant,
 }
 #[derive(Debug, Clone)]
 pub struct AgentJob {

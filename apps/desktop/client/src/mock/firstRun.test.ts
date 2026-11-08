@@ -64,6 +64,11 @@ describe('?first_run=1: the mock as a brand-new wallet', () => {
     // Windows it opens stay in the first-run world.
     await main.invoke('approval_open', { deal_id: null, target: 'mandate' });
     expect(window.open).toHaveBeenCalledWith('approval.html?target=mandate&first_run=1', 'the-table-approval', 'width=744,height=660');
+    // As the shell: a sheet is a setup step from Main only, opened on its one form.
+    await main.invoke('approval_open', { deal_id: null, target: 'credentials', presentation: 'sheet' });
+    expect(window.open).toHaveBeenLastCalledWith('approval.html?bare=keys&target=credentials&first_run=1', 'the-table-approval', 'width=744,height=660');
+    await expect(main.invoke('approval_open', { deal_id: null, target: 'unlock', presentation: 'sheet' })).rejects.toMatchObject({ code: 'INVALID' });
+    await expect(mockBackend('tumbler').invoke('approval_open', { deal_id: null, target: 'credentials', presentation: 'sheet' })).rejects.toMatchObject({ code: 'PERMISSION' });
 
     // The default preview is untouched: Maya's week, in its own storage.
     at('/index.html');

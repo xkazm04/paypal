@@ -8,8 +8,8 @@ import { BLANK_WORDS, TEMPLATES, type TemplateBlank, type TemplateKey } from '..
 export type BlankField = { blank: TemplateBlank; value: string; onChange: (v: string) => void };
 
 const FIELD: Record<TemplateBlank, { label: string; placeholder: string; hint: string }> = {
-  payees: { label: 'Who may they pay?', placeholder: 'e.g. packrite-supply, cablehaus', hint: 'The payee names of the shops you use, separated by commas. Anyone else is refused.' },
-  item: { label: 'Which item?', placeholder: 'e.g. monitor-24-ips', hint: 'The item’s code, as the seller lists it. Every other item is refused.' },
+  payees: { label: 'Which shops may they pay?', placeholder: 'e.g. packrite-supply, cablehaus', hint: 'Agents may pay only the shops named here on their own, so a wrong payee cannot get paid. Use each shop’s short name (no spaces) — it appears here by itself once you connect that shop’s wallet. Not connected anyone yet? You can sign now with the practice house shop, or connect your shops first. Anyone not listed comes to you.' },
+  item: { label: 'Which item?', placeholder: 'e.g. monitor-24-ips', hint: 'The short name the seller gives this item (no spaces). Every other item is refused.' },
 };
 
 export function TemplatePicker({ picked, blanks, fields, onPick }: {

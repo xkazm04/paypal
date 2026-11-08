@@ -14,6 +14,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
 import type { WaitingTable } from '@bindings/WaitingTable';
 import { toWalletError, type WalletError } from '../../../../../lib/contract';
+import { agentAppState } from '../../../../../lib/engine';
 import { ruleSigned } from '../../../../../lib/firstRun';
 import { countdownWords } from '../../../../../lib/format';
 import { useCalm } from '../../../../../design/motion';
@@ -45,7 +46,7 @@ export function SettingsLayer({ nav }: LayerProps) {
   const locked = useLocked();
   const runs = useRuns().data;
   const now = useNow();
-  const engines = useQuery('engine_status', null, { refreshOn: ['settings:changed'] });
+  const engines = useQuery('engine_brief', null, { refreshOn: ['settings:changed'] });
   const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
   const facts = useQuery('owner_facts', null, { refreshOn: ['settings:changed', 'agent:changed'] });
   const pause = useMutation('pause_all_agents');
@@ -128,13 +129,13 @@ export function SettingsLayer({ nav }: LayerProps) {
   ];
 
   // Settings at a glance: what the other places hold, read-only (each is changed where it lives).
-  const engine = engines.data?.find((e) => e.id === s?.selected_engine);
+  const agentApp = agentAppState(engines.data, s?.selected_engine);
   const latest: LatestProps | undefined = s ? {
     title: LATEST_OF.settings,
     facts: [
       [SETTINGS_FACTS.mode, modeWord(s.mode)],
       [SETTINGS_FACTS.paypal, s.payment_executor_configured ? CONNECTIONS_PAYPAL.saved : CONNECTIONS_PAYPAL.notSaved],
-      [SETTINGS_FACTS.engine, !engines.data ? UNKNOWN : engine?.available ? CONNECTIONS_ENGINE.valueReady(s.selected_engine === 'scripted' ? CONNECTIONS_ENGINE.practiceShort : s.selected_engine) : CONNECTIONS_ENGINE.valueOff],
+      [SETTINGS_FACTS.engine, agentApp.kind === 'unknown' ? UNKNOWN : agentApp.kind === 'connected' ? CONNECTIONS_ENGINE.valueReady(s.selected_engine === 'scripted' ? CONNECTIONS_ENGINE.practiceShort : s.selected_engine) : CONNECTIONS_ENGINE.valueOff],
       [SETTINGS_FACTS.house, CONNECTIONS_HOUSE.value[s.house]],
       [SETTINGS_FACTS.rules, mandates.data ? String(mandates.data.length) : UNKNOWN],
       [SETTINGS_FACTS.working, nWorking === null ? UNKNOWN : String(nWorking)],

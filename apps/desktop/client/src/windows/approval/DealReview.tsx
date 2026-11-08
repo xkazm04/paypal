@@ -17,7 +17,8 @@ import type { RescueLever } from '@bindings/RescueLever';
 import { WalletError, toWalletError } from '../../lib/contract';
 import { useCounterparties, useDealDisplay } from '../../lib/display';
 import { formatMoney, nowUnix, shortId } from '../../lib/format';
-import { APPROVAL_SEAL, houseWords, PAYMENT_CANNOT_BE_UNDONE, RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, silenceWords, sellerSaysOnly } from '../../lib/words';
+import { APPROVAL_AFTER_FAILURE, APPROVAL_DECIDED, APPROVAL_SEAL, HELLO_NEXT_STEP, houseWords, PAYMENT_CANNOT_BE_UNDONE, RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, sellerSaysOnly } from '../../lib/words';
+import { ifNothingOf } from '../main/modules/rescue/model';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { MODULES } from '../../shared/modules';
@@ -30,7 +31,8 @@ import { PriceCheck } from './PriceCheck';
 import { decisionArgs, deriveGates, isLocked, isTerminal, namesMatch, ownerAcceptArgs, readsLostAuthorize, type Gate, type Gates } from './gating';
 import { buildStrip, dealTotal, derivePhase, OFFER_NOT_HERE, failureShown, footerNoticeText, outcomeText, reachedPaypal, refusalText, stateWord, UNLOCK_HEADING, unconfirmedHeading, type DecisionCmd, type Phase } from './model';
 import { buildDiff, buildEvidence, lastAmount, type DiffRow } from './review/diff';
-import { WalletChecks, boundLine, checksNowLabel } from './review/Checks';
+import { WalletChecks, checksNowLabel } from './review/Checks';
+import { afterFailure, compareLines, decidedFoldLabel, decidedText, moneyOpenText } from './review/decided';
 import { DetailsSheet, RowDetail } from './review/Details';
 import { DiffTable, Due, MarketLine, MarketTrack, ReviewBar, ROW_SELECTOR, StateChip, StateList, TwinHeader, type RowSet } from './review/Parts';
 import { nextSteps } from './review/next';
@@ -71,10 +73,12 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const [lastRead, setLastRead] = useState<number | null>(null);
   const [inBrowser, setInBrowser] = useState(false);
   const [typed, setTyped] = useState('');
-  const [failure, setFailure] = useState<{ what: string; error: WalletError; from: string | null } | null>(null);
+  // `message` replaces the refusal's plain words when the record read again says what happened;
+  // `whileOpen` shows the notice only while the money step it speaks of is still open.
+  const [failure, setFailure] = useState<{ what: string; error: WalletError; from: string | null; message?: string; whileOpen?: boolean } | null>(null);
   const [outcome, setOutcome] = useState<string | null>(null);
-  // After a decision the wallet carried out: the checklist the owner saw, which the wallet bound it to.
-  const [bound, setBound] = useState<string | null>(null);
+  // The recorded lines of the owner's decision, folded under the bound line (read only).
+  const [thenOpen, setThenOpen] = useState(false);
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
   const [details, setDetails] = useState(false);
   const [pop, setPop] = useState<Pop | null>(null);
@@ -89,14 +93,17 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   useFocusRescue(headRef);
 
   // ---- data: subscribe, then fetch; events are projections, so refetch rather than patch ----
-  const refetch = useCallback(async () => {
+  // Returns what it read, or null when the read failed (the caller never takes that as "nothing happened").
+  const refetch = useCallback(async (): Promise<ApprovalSummary | null> => {
     try {
       const r = await backend().invoke('approval_summary', { deal_id: dealId });
       setSummary(r);
       setLoadError(null);
       setLastRead(nowUnix());
+      return r;
     } catch (e) {
       setLoadError(toWalletError(e));
+      return null;
     }
   }, [dealId]);
   useEvent('approval:summary', (p) => {
@@ -112,11 +119,14 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
 
   const deal = summary?.deal;
   const terminal = deal ? isTerminal(deal.state) : false;
+  // PayPal is open in the browser: this window opened it, or the wallet's record says the link was
+  // handed off (so a reopened window keeps the hand-off phase, its label and the fast poll).
+  const handedOff = inBrowser || (!!summary?.handed_off && deal?.state === 'AWAITING_APPROVAL');
   useEffect(() => {
     if (!deal || terminal) return;
-    const t = setInterval(() => void refetch(), inBrowser ? POLL_IN_BROWSER_MS : POLL_IDLE_MS);
+    const t = setInterval(() => void refetch(), handedOff ? POLL_IN_BROWSER_MS : POLL_IDLE_MS);
     return () => clearInterval(t);
-  }, [deal, terminal, inBrowser, refetch]);
+  }, [deal, terminal, handedOff, refetch]);
 
   const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
   const attention = useQuery('attention_list', null, { refreshOn: ['settings:changed'] });
@@ -169,13 +179,13 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
             band: display?.band ?? null,
             transcript,
             ownerAccept: ownerAcceptVisible,
-            handedOff: inBrowser,
+            handedOff,
             now: minute * 60,
           })
         : null,
-    [summary, mandate, clauseNumber, cpName, cp?.known, cp?.house, cp?.entry?.first_seen, display?.band, transcript, ownerAcceptVisible, inBrowser, minute],
+    [summary, mandate, clauseNumber, cpName, cp?.known, cp?.house, cp?.entry?.first_seen, display?.band, transcript, ownerAcceptVisible, handedOff, minute],
   );
-  const evidence = summary ? buildEvidence({ summary, inBrowser, counterparty: cpName, transcript }) : null;
+  const evidence = summary ? buildEvidence({ summary, inBrowser: handedOff, counterparty: cpName, transcript }) : null;
   const rowCount = diff?.rows.length ?? 0;
 
   // ---- CHECKING: reveal the rows as the wallet reports them (instant with reduced motion) ----
@@ -198,6 +208,9 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
 
   const gates: Gates | null = gateCtx ? deriveGates(gateCtx) : null;
   const phase: Phase = derivePhase(summary, { locked, inBrowser, revealed: allRevealed });
+  // A money step open with PayPal holds every other money step (Rust's can_release says so too):
+  // its buttons give way to one plain line from the step, its state and its times.
+  const moneyOpen = summary && !terminal ? summary.evidence.money_check ?? null : null;
   const busy = s.pending !== null;
 
   // Leaving AWAITING_APPROVAL ends the in-browser wait (the poll saw it, not a redirect).
@@ -228,11 +241,22 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const openPop = (key: string, anchor: HTMLElement) => setPop((p) => (p && p.key === key ? null : { key, anchor }));
 
   // ---- actions ----
+  // A failed call is never described before the record is read again: a decision row written
+  // since the click means the wallet acted on it (afterFailure), whatever the call's own error said.
+  const failedThen = async (before: ApprovalSummary, error: WalletError, what: () => string) => {
+    const fresh = await refetch();
+    const seen = afterFailure(before, fresh);
+    if (seen === null) {
+      setFailure({ what: what(), error, from: null });
+      return;
+    }
+    const words = APPROVAL_AFTER_FAILURE[seen];
+    setFailure({ what: words.what, error, from: null, message: words.message, whileOpen: seen === 'checking' });
+  };
   const decide = async (cmd: DecisionCmd, what: string) => {
     if (!summary) return;
     setFailure(null);
     setOutcome(null);
-    setBound(null);
     // Owner ACCEPT binds the exact counter Rust reported; every other decision the terms only.
     const args = cmd === 'deal_owner_accept' ? ownerAcceptArgs(summary) : decisionArgs(summary);
     if (!args) {
@@ -240,12 +264,13 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
       return;
     }
     const r = await s.call<DecisionCmd>(cmd, args, true);
-    if (r.ok) {
-      setOutcome(outcomeText(cmd, r.value, cpName));
-      setBound(boundLine(cmd, summary.checks, cmd === 'deal_countersign' && readsLostAuthorize(summary)));
-    } else if (cmd === 'deal_countersign' && reachedPaypal(r.error) && readsLostAuthorize(summary)) setFailure({ what: READ_FAILED, error: r.error, from: summary.deal.state });
+    if (r.ok) setOutcome(outcomeText(cmd, r.value, cpName));
+    else if (cmd === 'deal_countersign' && reachedPaypal(r.error) && readsLostAuthorize(summary)) setFailure({ what: READ_FAILED, error: r.error, from: summary.deal.state });
     else if (reachedPaypal(r.error)) setFailure({ what: unconfirmedHeading(cmd, summary.deal, r.error), error: r.error, from: summary.deal.state });
-    else setFailure({ what: stale(r.error) ? 'Nothing was done' : what, error: r.error, from: null });
+    else {
+      await failedThen(summary, r.error, () => (stale(r.error) ? 'Nothing was done' : what));
+      return;
+    }
     if (cmd === 'shield_release' && r.ok) setTyped('');
     await refetch();
   };
@@ -253,12 +278,14 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
     if (!summary) return;
     setFailure(null);
     setOutcome(null);
-    setBound(null);
     const r = await s.call('open_paypal_in_browser', decisionArgs(summary), true);
     if (r.ok) {
       setInBrowser(true);
       toast('PayPal opened in your browser', 'gold');
-    } else setFailure({ what: stale(r.error) ? 'Nothing was done' : 'PayPal was not opened', error: r.error, from: null });
+    } else {
+      await failedThen(summary, r.error, () => (stale(r.error) ? 'Nothing was done' : 'PayPal was not opened'));
+      return;
+    }
     await refetch();
   };
   // The wallet refused because the checklist changed since it was shown: show the new one (the
@@ -277,7 +304,6 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const withdraw = async () => {
     setFailure(null);
     setOutcome(null);
-    setBound(null);
     setConfirmWithdraw(false);
     // Withdraw needs no unlock and no capability: it only moves toward the default.
     const r = await s.call('deal_withdraw', { deal_id: dealId });
@@ -329,7 +355,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const moduleName = moduleMeta?.name ?? null;
   const deadline = display?.deadline ?? attn?.deadline ?? null;
   const rawSilence = attn?.on_silence ?? display?.on_silence ?? null;
-  const silence = rawSilence ? silenceWords(rawSilence) : null;
+  const silence = ifNothingOf(d, rawSilence, null);
   const steps = buildStrip(summary, phase, locked);
   const checking = phase === 'checking';
   const showLock = locked && (phase === 'locked' || phase === 'hold' || phase === 'ready' || phase === 'in_browser') && moneyRelevant(g);
@@ -342,7 +368,10 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const heading = phase === 'mismatch' ? `Payment to ${who} stopped` : d.shield === 'HOLD' && !terminal ? `Unpause a payment to ${who}` : `${verb(d, diff.kind === 'accept')} ${who}`;
   // What the window asks of the owner, from which controls exist (visibility only; gating decides if they work).
   const act: Intent = g.ownerAccept.visible ? 'accept' : g.openPaypal.visible ? 'open' : g.capture.visible ? 'capture' : g.countersign.visible ? 'countersign' : g.rescue.visible ? 'rescue' : g.releaseHold.visible ? 'release' : null;
-  const says = summarySentence({ kind: diff.kind, phase, deal: d, summary, who, total, settle, twin: diff.twin, act, inBrowser });
+  const says = summarySentence({ kind: diff.kind, phase, deal: d, summary, who, total, settle, twin: diff.twin, act, inBrowser: handedOff });
+  // The owner's decision as the wallet recorded it: read back on every open, never window memory.
+  const recorded = summary.decided ?? null;
+  const thenCompare = recorded?.checks ? compareLines(recorded.checks, checks) : null;
   // "Why?" and "What happens next": built from the same facts as the sentence above.
   const facts: WhyFacts = { phase, who, total, askAbove: askAboveOf(mandate), highPrice: highPriceWord(d), shieldRule: d.shield_rule ? shieldRuleWord(d.shield_rule).means : null };
   const answerWhyText = answerWhy({ ...facts, kind: diff.kind, act, deal: d, rows: diff.rows, twin: diff.twin, settle, unavailable: summary.unavailable_reason ? reasonWords(summary.unavailable_reason) : null });
@@ -443,11 +472,25 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
             <span className="t" title={outcome}>{outcome}</span>
           </div>
         ) : null}
-        {bound ? (
+        {recorded ? (
           <p className="dr-bound" data-testid="bound">
             <MarkIcon mark="✓" />
-            <span className="t">{bound}</span>
+            <span className="t">{decidedText(recorded, now)}</span>
           </p>
+        ) : null}
+        {/* Read only: the lines recorded with the decision against the list now. No button acts on them. */}
+        {recorded?.checks && thenCompare ? (
+          <section className="dr-then" aria-label={decidedFoldLabel(recorded, now)} data-testid="then">
+            <Btn kind="plain" sm className="dr-fold" aria-expanded={thenOpen} onClick={() => setThenOpen((o) => !o)}>
+              {decidedFoldLabel(recorded, now)} {thenOpen ? '‹' : '›'}
+            </Btn>
+            {thenOpen ? (
+              <>
+                <p className="dr-then-sub dim">{APPROVAL_DECIDED.foldSub} {recorded.signed ? APPROVAL_DECIDED.signed : APPROVAL_DECIDED.notSigned}.</p>
+                <WalletChecks checks={recorded.checks} compare={thenWords(thenCompare)} />
+              </>
+            ) : null}
+          </section>
         ) : null}
 
         {evidence ? <DiffTable heads={evidence.heads} rows={evidence.rows} set="ev" onOpen={openRow} open={openKey} /> : null}
@@ -482,9 +525,9 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
 
         {d.kind === 'rescue' && summary.rescue ? <InvoiceCard view={summary.rescue} total={total} sent={!!d.paypal.order} /> : null}
 
-        {!terminal && !locked && d.kind !== 'rescue' ? <PriceCheck deal={d} payload={mandate?.payload} onDone={refetch} /> : null}
+        {!terminal && !locked && d.kind !== 'rescue' ? <PriceCheck deal={d} payload={mandate?.payload} onDone={async () => { await refetch(); }} /> : null}
 
-        {g.bandSet.visible && !locked ? <BandAdjust deal={d} band={display?.band ?? null} gate={g.bandSet} onDone={refetch} draft={handoff?.draft?.type === 'band' && handoff.deal_id === d.id ? handoff.draft : null} /> : null}
+        {g.bandSet.visible && !locked ? <BandAdjust deal={d} band={display?.band ?? null} gate={g.bandSet} onDone={async () => { await refetch(); }} draft={handoff?.draft?.type === 'band' && handoff.deal_id === d.id ? handoff.draft : null} /> : null}
       </main>
 
       <footer className="dr-foot">
@@ -515,13 +558,14 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
         ) : null}
 
         {loadError ? <WalletNotice error={loadError} what="The wallet stopped answering, so this is the last read" message={footerNoticeText('read', loadError)} /> : null}
-        {failure && failureShown(failure, d.state) ? <WalletNotice error={failure.error} what={failure.what} message={refusalText(failure.error)} /> : null}
+        {failure && failureShown(failure, d.state) && (!failure.whileOpen || moneyOpen) ? <WalletNotice error={failure.error} what={failure.what} message={failure.message ?? refusalText(failure.error)} /> : null}
         {!s.tokenReady && s.tokenError ? <WalletNotice error={s.tokenError} what="This window can’t approve right now" message={footerNoticeText('token', s.tokenError)} /> : null}
         {s.unlockError ? <WalletNotice error={s.unlockError} what={UNLOCK_HEADING} message={footerNoticeText('unlock', s.unlockError)} /> : null}
 
         <Actions
           phase={phase}
           gates={g}
+          moneyOpen={!!moneyOpen}
           locked={showLock}
           busy={busy}
           pending={s.pending}
@@ -544,6 +588,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
           locked={showLock}
           helloUnsupported={!!s.settings && !s.settings.native_reauth_available}
           blocked={checking ? null : blockedReason(g, showLock)}
+          moneyLine={checking || !moneyOpen ? null : moneyOpenText(moneyOpen, now)}
           note={note}
           terminalText={!hasButtons(g, phase, showLock) ? terminalNote(d.state, phase) : null}
           onLock={(el) => openPop('lock', el)}
@@ -591,7 +636,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
           }
         >
           <p className="pop-p">{d.state === 'APPROVED' ? `You walk away from this deal. The approved order is never paid, and no money moves.` : `You walk away from this deal with ${who}. No money moves.`}</p>
-          <p className="ui-hint">Withdrawing can only stop money, so it doesn’t need Windows Hello.</p>
+          <p className="ui-hint">Withdrawing can only stop money, so it doesn’t need your fingerprint, face or PIN.</p>
         </Sheet>
       ) : null}
     </div>
@@ -599,6 +644,11 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
 }
 
 // ---- footer: buttons and the hint line -------------------------------------------------------
+
+/** Each recorded line's change, in words, for the read-only fold. */
+function thenWords(c: Partial<Record<string, keyof typeof APPROVAL_DECIDED.compare>>): Record<string, string> {
+  return Object.fromEntries(Object.entries(c).flatMap(([id, k]) => (k ? [[id, APPROVAL_DECIDED.compare[k]]] : [])));
+}
 
 function moneyRelevant(g: Gates): boolean {
   return g.ownerAccept.visible || g.countersign.visible || g.openPaypal.visible || g.capture.visible || g.void.visible || g.releaseHold.visible || g.rescue.visible || g.bandSet.visible;
@@ -627,6 +677,8 @@ type Act = { key: string; gate: Gate; label: string; kind: 'gold' | 'default' | 
 export function Actions(p: {
   phase: Phase;
   gates: Gates;
+  /** A money step is open with PayPal: no release or money button (the owner's read of a lost hold stays). */
+  moneyOpen?: boolean;
   locked: boolean;
   busy: boolean;
   pending: string | null;
@@ -662,16 +714,16 @@ export function Actions(p: {
   if (g.withdraw.visible) safe.push({ key: 'wd', gate: g.withdraw, label: 'Withdraw', kind: 'danger', money: false, run: p.onWithdraw });
   if (!p.locked) {
     // Void moves toward the safe default, but Rust still treats it as a privileged decision.
-    if (g.void.visible) safe.push({ key: 'void', gate: g.void, label: wait('deal_void', 'Cancel and release hold'), kind: 'danger', money: false, run: () => p.onDecide('deal_void', 'Hold not released') });
-    if (g.ownerAccept.visible) money.push({ key: 'oa', gate: g.ownerAccept, label: wait('deal_owner_accept', word(`Approve ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('deal_owner_accept', 'Not approved') });
+    if (g.void.visible && !p.moneyOpen) safe.push({ key: 'void', gate: g.void, label: wait('deal_void', 'Cancel and release hold'), kind: 'danger', money: false, run: () => p.onDecide('deal_void', 'Hold not released') });
+    if (g.ownerAccept.visible && !p.moneyOpen) money.push({ key: 'oa', gate: g.ownerAccept, label: wait('deal_owner_accept', word(`Approve ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('deal_owner_accept', 'Not approved') });
     // A lost authorize is read, not approved: a plain click (not held, not gold), no money moves.
     if (g.countersign.visible && g.countersignIsRead) quiet.push({ key: 'csr', gate: g.countersign, label: wait('deal_countersign', 'Check with PayPal again'), kind: 'default', money: false, run: () => p.onDecide('deal_countersign', READ_FAILED) });
-    else if (g.countersign.visible) money.push({ key: 'cs', gate: g.countersign, label: wait('deal_countersign', word(`Approve ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('deal_countersign', 'Not approved') });
-    if (g.openPaypal.visible)
+    else if (g.countersign.visible && !p.moneyOpen) money.push({ key: 'cs', gate: g.countersign, label: wait('deal_countersign', word(`Approve ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('deal_countersign', 'Not approved') });
+    if (g.openPaypal.visible && !p.moneyOpen)
       money.push({ key: 'pp', gate: g.openPaypal, label: wait('open_paypal_in_browser', phase === 'in_browser' ? 'Open PayPal again ↗' : 'Open PayPal in your browser ↗'), kind: phase === 'in_browser' ? 'default' : 'gold', money: true, run: p.onOpen });
-    if (g.capture.visible) money.push({ key: 'cap', gate: g.capture, label: wait('deal_capture', p.seller ? word(`Collect ${p.total}`) : word(`Pay ${p.who} ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('deal_capture', 'Not paid') });
-    if (g.rescue.visible) money.push({ key: 'res', gate: g.rescue, label: wait('rescue_approve', word(`Approve the discount · ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('rescue_approve', 'Fix not approved') });
-    if (g.releaseHold.visible) money.push({ key: 'rel', gate: g.releaseHold, label: wait('shield_release', word('Unpause')), kind: 'gold', money: true, run: () => p.onDecide('shield_release', 'Still paused') });
+    if (g.capture.visible && !p.moneyOpen) money.push({ key: 'cap', gate: g.capture, label: wait('deal_capture', p.seller ? word(`Collect ${p.total}`) : word(`Pay ${p.who} ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('deal_capture', 'Not paid') });
+    if (g.rescue.visible && !p.moneyOpen) money.push({ key: 'res', gate: g.rescue, label: wait('rescue_approve', word(`Approve the discount · ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('rescue_approve', 'Fix not approved') });
+    if (g.releaseHold.visible && !p.moneyOpen) money.push({ key: 'rel', gate: g.releaseHold, label: wait('shield_release', word('Unpause')), kind: 'gold', money: true, run: () => p.onDecide('shield_release', 'Still paused') });
   }
   if (phase === 'in_browser' || phase === 'done' || phase === 'stopped' || phase === 'mismatch' || phase === 'block')
     quiet.push({ key: 'close', gate: always, label: 'Close this window', kind: 'plain', money: false, run: p.onClose });
@@ -713,10 +765,10 @@ export function Actions(p: {
       {quiet.map(btn)}
       {p.locked ? (
         p.unlocking ? (
-          <Btn kind="gold" locked disabled>Windows Hello…</Btn>
+          <Btn kind="gold" locked disabled>Fingerprint, face or PIN…</Btn>
         ) : (
           <Btn kind="gold" locked onClick={p.onUnlock} disabled={!p.canUnlock} onKeyDown={p.guardEnter}>
-            Unlock with Windows Hello
+            Unlock with fingerprint, face or PIN
           </Btn>
         )
       ) : (
@@ -731,6 +783,8 @@ function Hint(p: {
   locked: boolean;
   helloUnsupported: boolean;
   blocked: string | null;
+  /** A money step open with PayPal, in one plain line: it stands in for the money buttons. */
+  moneyLine?: string | null;
   note: { short: string; full: ReactNode } | null;
   terminalText: string | null;
   onLock: (el: HTMLElement) => void;
@@ -740,7 +794,15 @@ function Hint(p: {
     return (
       <p className="dr-hint" role="status">
         <HelloGlyph />
-        <span className="t"><b>Windows Hello</b> is checking it’s you…</span>
+        <span className="t"><b>Your computer</b> is checking it’s you…</span>
+      </p>
+    );
+  }
+  if (p.moneyLine) {
+    return (
+      <p className="dr-hint" role="status" data-testid="money-open">
+        <MarkIcon mark="…" />
+        <span className="t">{p.moneyLine}</span>
       </p>
     );
   }
@@ -749,7 +811,7 @@ function Hint(p: {
       <p className="dr-hint">
         <span className="ui-chip gold"><LockGlyph /> Locked</span>
         <span className="t">
-          {p.helloUnsupported ? 'Windows Hello isn’t set up on this computer, so this window can’t unlock. Nothing was unlocked.' : 'Money stays where it is. You can still read everything.'}
+          {p.helloUnsupported ? `Sign-in by fingerprint, face or PIN isn’t set up on this computer, so this window can’t unlock. Nothing was unlocked. ${HELLO_NEXT_STEP}` : 'Money stays where it is. You can still read everything.'}
         </span>
         <Btn kind="plain" sm aria-label="Why it is locked" onClick={(e) => p.onLock(e.currentTarget)}>ⓘ</Btn>
       </p>
@@ -810,7 +872,7 @@ function verb(d: Deal, ownerAccept: boolean): string {
 
 function clockLabelFor(d: Deal, phase: Phase): string {
   if (phase === 'hold') return 'Request ends in';
-  if (d.kind === 'rescue') return d.state === 'AGREED' ? 'PayPal retries in' : 'Invoice open for';
+  if (d.kind === 'rescue') return d.state === 'AGREED' ? 'This fix closes in' : 'Invoice open for';
   switch (d.state) {
     case 'AWAITING_APPROVAL': return 'Time to approve on PayPal';
     case 'AUTHORIZED': return 'Hold releases in';

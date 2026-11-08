@@ -87,7 +87,7 @@ export function useMutation<K extends CommandName>(cmd: K): Mutation<K> {
  *  client clock (lib/clock.ts): wall time in the shell; in a browser preview a jump of the
  *  simulated clock re-renders every countdown at once instead of on the next second. */
 const clock = (() => {
-  let now = nowUnix();
+  let now = nowUnix(); // the last ticked second, kept for subscribers only
   const subs = new Set<() => void>();
   let timer: ReturnType<typeof setInterval> | null = null;
   let offJump: (() => void) | null = null;
@@ -109,13 +109,14 @@ const clock = (() => {
         if (!subs.size) held = false;
       };
     },
-    // With nothing subscribed no tick runs, so the first countdown drawn after a quiet spell
-    // reads the clock itself instead of the second the last countdown left. That read is held for
-    // the rest of the task: useSyncExternalStore calls getSnapshot more than once per render and
-    // requires the same value each time ("The result of getSnapshot should be cached"), which a
-    // fresh read failed whenever a second ended between two calls (seen in the director's takes).
+    // Always the clock itself (whole seconds): a value cached from the last tick made a first paint
+    // up to a second behind the surfaces that read the clock directly, so "4 days" showed where they
+    // said "3 days 23 h". The read is held for the rest of the task: useSyncExternalStore calls
+    // getSnapshot more than once per render and requires the same value each time ("The result of
+    // getSnapshot should be cached"), which a fresh read failed whenever a second ended between two
+    // calls (seen in the director's takes).
     get: () => {
-      if (subs.size || held) return now;
+      if (held) return now;
       now = nowUnix();
       held = true;
       queueMicrotask(() => { held = false; });

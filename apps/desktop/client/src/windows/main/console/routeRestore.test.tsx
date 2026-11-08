@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock('../../../lib/runtime', () => ({ backend: () => h.current }));
 
 import { App } from '../App';
+import { openOnConsole } from './testing/home';
 
 beforeAll(() => {
   if (!window.matchMedia) {
@@ -21,7 +22,7 @@ afterEach(() => { cleanup(); history.replaceState(null, '', '/'); });
 
 const layer = () => document.querySelector<HTMLElement>('.cs-layer');
 const level = () => layer()?.dataset.level;
-const crumbs = () => screen.getByRole('navigation', { name: 'Where you are' }).textContent;
+const crumbs = () => document.querySelector('.cs-bar .cs-here')?.textContent;
 const settled = () => waitFor(() => {
   const el = layer()?.querySelector<HTMLElement>('[data-layer-title]');
   if (!el || el.closest('.cs-centre.loading')) throw new Error('no heading yet');
@@ -30,6 +31,7 @@ const settled = () => waitFor(() => {
 /** Mounts the console; the same mock world and the same URL as before when `fresh` is false. */
 function mount(fresh: boolean) {
   if (fresh) { history.replaceState(null, '', '/index.html'); resetMockState(); }
+  openOnConsole();
   h.current = mockBackend('main');
   return render(<App />);
 }

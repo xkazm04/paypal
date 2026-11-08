@@ -11,6 +11,11 @@ pub struct LaunchOptions {
     pub model: Option<String>,
 }
 pub fn argv(engine: EngineId, o: &LaunchOptions) -> Result<Vec<String>, Error> {
+    // The assistant has its own fixed argv (`assistant_argv`); the branches below would treat
+    // it as an agent.
+    if o.profile == Profile::Assistant {
+        return Err(Error::Invalid);
+    }
     let mut args = match engine {
         EngineId::ClaudeCode => vec![
             "-p",
@@ -129,6 +134,70 @@ pub fn argv(engine: EngineId, o: &LaunchOptions) -> Result<Vec<String>, Error> {
         }
         args.extend(["--model".into(), model.clone()]);
     }
+    Ok(args)
+}
+/// The per-call spend cap of one assistant turn, in US dollars (the CLI's own budget flag).
+pub const ASSISTANT_BUDGET_USD: &str = "0.25";
+/// The largest reply schema handed to the CLI inline (it travels in argv).
+pub const ASSISTANT_SCHEMA_MAX: usize = 16 * 1024;
+/// One board-assistant turn (`Profile::Assistant`): headless, the NDJSON prompt on stdin, no
+/// tools, an empty MCP config with every MCP tool refused, no settings sources (no project or
+/// user instructions, hooks or memory files), no session persistence, no slash commands, low
+/// effort, a per-call budget and one turn. The reply arrives as the result's `structured_output`
+/// against `schema` (inline JSON). Mirrors the dev bridge (apps/desktop/client/scripts/
+/// assistantBridge.ts), with stream output so the strict parser sees the inventory.
+/// Only `claude-code` has a checked flag set; any other engine is refused.
+pub fn assistant_argv(
+    engine: EngineId,
+    system_prompt_file: &str,
+    schema: &str,
+) -> Result<Vec<String>, Error> {
+    if engine != EngineId::ClaudeCode {
+        return Err(Error::Unsupported);
+    }
+    let compact = serde_json::from_str::<serde_json::Value>(schema)
+        .ok()
+        .filter(serde_json::Value::is_object)
+        .map(|v| v.to_string())
+        .ok_or(Error::Invalid)?;
+    if compact.len() > ASSISTANT_SCHEMA_MAX || system_prompt_file.is_empty() {
+        return Err(Error::Invalid);
+    }
+    let mut args: Vec<String> = [
+        "-p",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--input-format",
+        "stream-json",
+        "--tools",
+        "",
+        "--strict-mcp-config",
+        "--mcp-config",
+        "{\"mcpServers\":{}}",
+        "--disallowedTools",
+        "mcp__*",
+        "--permission-mode",
+        "dontAsk",
+        "--setting-sources",
+        "",
+        "--no-session-persistence",
+        "--disable-slash-commands",
+        "--effort",
+        "low",
+        "--max-budget-usd",
+        ASSISTANT_BUDGET_USD,
+        "--max-turns",
+        "1",
+        "--system-prompt-file",
+    ]
+    .map(str::to_owned)
+    .into();
+    args.extend([
+        system_prompt_file.to_owned(),
+        "--json-schema".into(),
+        compact,
+    ]);
     Ok(args)
 }
 pub const STRIP_ENV: &[&str] = &[

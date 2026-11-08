@@ -5,7 +5,7 @@
 // Pure logic: modules/spend/gate.ts.
 import { useMemo, useState, type CSSProperties } from 'react';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
-import { formatMinor } from '../../../../../lib/format';
+import { clockLabel, formatMinor } from '../../../../../lib/format';
 import { RULE_NAME, ruleSentence, SPEND } from '../../../../../lib/words';
 import { Btn, Chip, Disclosure, Hint, Kv, Meter, Section } from '../../../../../shared/ui';
 import { amountTone, dealTotal } from '../../../logic';
@@ -15,10 +15,13 @@ import { useModuleRoute } from '../../../viewNav';
 import { useAttention, useSettings, type World } from '../../../world';
 import { useLayerNav } from '../../layers';
 import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
-import { Amount } from '../../rows';
+import { Amount, Row1 } from '../../rows';
 import { SplitView } from '../tables/parts';
 import { PurchasePane, type Lane } from './Purchase';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 
+/** A lane's cells: name and who, the rule marks, the outcome, the amount, the time. */
+const LANE_COLS = 'minmax(9rem, 1fr) 6.5rem 8.5rem 6.5rem 8rem';
 const MARK: Record<Cell['kind'], string> = { pass: '✓', fail: '✕', you: '◆', skip: '–', na: '–', unknown: '?' };
 const cap = (s: string) => `${s.charAt(0).toUpperCase()}${s.slice(1)}`;
 
@@ -31,6 +34,8 @@ const SORTS: readonly ListSort<Lane>[] = [
   { value: 'newest', label: SPEND.sNewest, compare: (a, b) => (b.deal.created_at ?? 0) - (a.deal.created_at ?? 0) },
   { value: 'agent', label: SPEND.sAgent, compare: (a, b) => (a.slot ?? '~').localeCompare(b.slot ?? '~') || (b.deal.created_at ?? 0) - (a.deal.created_at ?? 0) },
 ];
+
+const FILL = { display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0, minWidth: 0 } as const;
 
 type Pick = { kind: 'lane'; id: string } | { kind: 'rule'; n: number; from: string | null };
 
@@ -55,8 +60,8 @@ export function GateView({ lanes, cols, m, sets, display, who, needOf }: {
   const pickedId = pick?.kind === 'lane' ? pick.id : pick?.kind === 'rule' ? pick.from : lanes[0]?.deal.id ?? null;
 
   return (
-    <div className="sp-gate" style={grid}>
-      <div className="sp-cols" role="group" aria-label={SPEND.gateCols}>
+    <RevealGroup className="sp-gate" style={grid}>
+      <Reveal><div className="sp-cols" role="group" aria-label={SPEND.gateCols}>
         {cols.map((c) => {
           const k = counts.get(c.n) ?? { fail: 0, you: 0 };
           const on = pick?.kind === 'rule' && pick.n === c.n;
@@ -74,28 +79,31 @@ export function GateView({ lanes, cols, m, sets, display, who, needOf }: {
             </button>
           );
         })}
-      </div>
-      <div className="sp-gatefoot">
+      </div></Reveal>
+      <Reveal className="sp-gatefoot">
         <Disclosure summary={SPEND.legendTitle}>
           <ul className="sp-legend">{SPEND.legend.map(([g, t]) => <li key={t}><span className="g" aria-hidden="true">{g}</span>{t}</li>)}</ul>
         </Disclosure>
         {sets > 1 ? <Hint>{SPEND.moreSets(sets)}</Hint> : null}
-      </div>
-      <SplitView label={SPEND.gateList} count={lanes.length}
+      </Reveal>
+      <Reveal style={FILL}><SplitView label={SPEND.gateList} count={lanes.length}
         list={(
-          <ListEngine<Lane> label={SPEND.gateList} rows={lanes} getKey={(l) => l.deal.id} filters={FILTERS} sorts={SORTS} estimateSize={60} measure
+          <ListEngine<Lane> label={SPEND.gateList} rows={lanes} getKey={(l) => l.deal.id} filters={FILTERS} sorts={SORTS} estimateSize={36}
             searchText={(l) => `${display(l.deal).title} ${who(l)} ${l.slot ?? ''}`}
             renderRow={(l) => {
               const out = outcomeOf(l.deal);
               return (
-                <span className={`tr-row sp-lane${pickedId === l.deal.id ? ' picked' : ''}`}>
-                  <span className="t"><b>{display(l.deal).title}</b><span className="sub">{who(l)}{l.slot ? ` · ${SPEND.agent(l.slot)}` : ''}</span></span>
+                <Row1 className={`sp-lane${pickedId === l.deal.id ? ' picked' : ''}`} cols={LANE_COLS}
+                  note={l.slot ? SPEND.agent(l.slot) : undefined} title={l.slot ? SPEND.agent(l.slot) : undefined}>
+                  <span className="c-who"><b title={display(l.deal).title}>{display(l.deal).title}</b><span className="cs-who-chip" title={who(l)}>{who(l)}</span></span>
                   <span className="sp-marks" aria-hidden="true">
                     {/* A lane under another rule set is not read against these columns: unknown, drawn dim. */}
                     {l.cells.map((c) => { const k = l.own ? c.kind : 'unknown'; return <i key={c.n} className={k}>{MARK[k]}</i>; })}
                   </span>
-                  <span className="sp-out"><Chip tone={out.tone}>{needOf(l.deal.id)?.money_check ? SPEND.checking : out.label}</Chip><Amount money={dealTotal(l.deal)} tone={amountTone(l.deal)} /></span>
-                </span>
+                  <span className="sp-out c-state"><Chip tone={out.tone}>{needOf(l.deal.id)?.money_check ? SPEND.checking : out.label}</Chip></span>
+                  <Amount money={dealTotal(l.deal)} tone={amountTone(l.deal)} />
+                  <span className="c-time">{l.deal.created_at ? clockLabel(l.deal.created_at) : ''}</span>
+                </Row1>
               );
             }}
             rowLabel={(l) => `${display(l.deal).title}, ${outcomeOf(l.deal).label}`} onPick={(l) => setPick({ kind: 'lane', id: l.deal.id })} onOpen={(l) => gateNav.deal(l.deal.id)}
@@ -103,8 +111,8 @@ export function GateView({ lanes, cols, m, sets, display, who, needOf }: {
         )}
         pane={pick?.kind === 'rule'
           ? <RuleStory n={pick.n} lanes={lanes} cols={cols} m={m} display={display} cellOf={pick.from ? lanes.find((l) => l.deal.id === pick.from) ?? null : null} spent={att?.wallet_spend_today_minor ?? null} spentCurrency={att?.wallet_spend_today_currency ?? null} meters={!!settings?.meters_available} />
-          : lane ? <PurchasePane lane={lane} disp={display(lane.deal)} need={needOf(lane.deal.id)} who={who(lane)} onRule={(n) => setPick({ kind: 'rule', n, from: lane.deal.id })} /> : null} />
-    </div>
+          : lane ? <PurchasePane lane={lane} disp={display(lane.deal)} need={needOf(lane.deal.id)} who={who(lane)} onRule={(n) => setPick({ kind: 'rule', n, from: lane.deal.id })} /> : null} /></Reveal>
+    </RevealGroup>
   );
 }
 

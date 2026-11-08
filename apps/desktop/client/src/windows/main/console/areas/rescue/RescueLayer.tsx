@@ -5,7 +5,8 @@
 // the renewals that need a fix (a windowed list, the picked one's fixes beside it), the fixes in
 // progress, the money that came back and the subscriptions the wallet watches. Replaying a failed
 // renewal and changing the watch list happen in the approval window.
-import { useMemo, useState } from 'react';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
+import { useMemo, useState, type CSSProperties } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { RescueBook } from '@bindings/RescueBook';
 import { clockLabel, formatMinor } from '../../../../../lib/format';
@@ -15,7 +16,7 @@ import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Kv } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { dealTotal, sumByCurrency } from '../../../logic';
-import { atRiskOf, isReplay, recovered, watchStatus, type Col, type NotCountedWhy } from '../../../modules/rescue/model';
+import { atRiskOf, ifNothingOf, isReplay, recovered, refusalLine, recoveredThisMonth, watchStatus, type Col, type NotCountedWhy } from '../../../modules/rescue/model';
 import { moneyList, rescueStrip } from '../../../modules/rescue/preview';
 import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
@@ -47,15 +48,28 @@ export function answerOf(r: RescueWorld): { answer: string; sub: string } {
   return { answer: RESCUE.answer.none, sub: [waiting ? RESCUE.answer.waiting(waiting) : RESCUE.answer.nothing, got ? RESCUE.answer.got(got) : ''].filter(Boolean).join(' ') };
 }
 
+/** A rescue row's columns: who, amount, state, time left or count chip, then the note (hidden on a
+ *  narrow window: the detail pane has it). */
+const ROW_COLS = { '--cols': 'minmax(9rem, 1.2fr) 7rem minmax(8rem, max-content) minmax(5rem, max-content) minmax(0, 1.8fr)' } as CSSProperties;
+
+/** The side-by-side row: who, then the five fixes (the narrower templates, by the row's width, are in
+ *  rescue.css). */
+const CMP_COLS = { '--cols': 'minmax(9rem, 1.2fr) repeat(5, minmax(0, 1fr))' } as CSSProperties;
+
+/** The head of the one "if you do nothing" answer (the same one the deal page and approval window print). */
+const quietHead = (d: Deal, r: RescueWorld): string => silenceParts(ifNothingOf(d, r.need(d)?.on_silence, r.view(d)) ?? '').head;
+
 function FailedRow({ deal, r }: { deal: Deal; r: RescueWorld }) {
   const need = r.need(deal);
   const t = atRiskOf(deal, r.book);
+  const refused = refusalLine(r.view(deal));
   return (
-    <span className={`rs-row${need ? ' needs' : ''}`}>
-      <span className="rs-who"><b title={r.name(deal)}>{cap(r.name(deal))}</b><span className="rs-sub" title={r.title(deal)}>{r.title(deal)}{need ? <> · {RESCUE.ifNothing}: {silenceParts(need.on_silence).head}</> : null}</span></span>
+    <span className={`row1 rs-row${need ? ' needs' : ''}`} style={ROW_COLS} title={`${cap(r.name(deal))} · ${r.title(deal)}`}>
+      <b className="rs-who" title={r.name(deal)}>{cap(r.name(deal))}</b>
       <span className="rs-amt num">{formatMinor(t.minor, t.currency)}</span>
-      {need ? <Chip tone="gold">{RESCUE.yourCall}</Chip> : <RescueState deal={deal} />}
-      <Countdown deadline={r.deadline(deal)} />
+      <span className="rs-st">{need ? <Chip tone="gold">{RESCUE.yourCall}</Chip> : <RescueState deal={deal} />}</span>
+      <span className="rs-st"><Countdown deadline={r.deadline(deal)} /></span>
+      <span className="rs-sub c-note">{r.title(deal)}{need ? <> · {RESCUE.ifNothing}: {quietHead(deal, r)}</> : null}{refused ? <> · <span className="rs-refusal">{refused}</span></> : null}</span>
     </span>
   );
 }
@@ -65,11 +79,12 @@ function ProgressRow({ deal, r }: { deal: Deal; r: RescueWorld }) {
   const view = r.view(deal);
   const t = dealTotal(deal);
   return (
-    <span className={`rs-row${need ? ' needs' : ''}`}>
-      <span className="rs-who"><b title={r.name(deal)}>{cap(r.name(deal))}</b><span className="rs-sub">{need ? `${RESCUE.ifNothing}: ${silenceParts(need.on_silence).head}` : deskLine(deal, view)}</span></span>
+    <span className={`row1 rs-row${need ? ' needs' : ''}`} style={ROW_COLS} title={cap(r.name(deal))}>
+      <b className="rs-who" title={r.name(deal)}>{cap(r.name(deal))}</b>
       <span className="rs-amt num">{formatMinor(t.minor, t.currency)}</span>
-      <RescueState deal={deal} />
-      <CountChip deal={deal} view={view} />
+      <span className="rs-st"><RescueState deal={deal} /></span>
+      <span className="rs-st"><CountChip deal={deal} view={view} /></span>
+      <span className="rs-sub c-note">{need ? `${RESCUE.ifNothing}: ${quietHead(deal, r)}` : deskLine(deal, view)}</span>
     </span>
   );
 }
@@ -81,9 +96,9 @@ function Failed({ r, picked, onPick, compare }: { r: RescueWorld; picked: Record
     <div className={`rs-list${compare ? ' rs-compare' : ''}`}>
       {r.bookError ? <WalletNotice error={r.bookError} what={RESCUE.bookWhat} /> : null}
       {compare ? <p className="ui-hint rs-never">{RESCUE.never}</p> : null}
-      <ListEngine<Deal> className={fewRows(r.rows.failing.length)} label={compare ? RESCUE_VIEWS_TITLE.compare : RESCUE_VIEWS_TITLE.failed} rows={r.rows.failing} getKey={(d) => d.id} estimateSize={compare ? 72 : 56} wideAt={1200}
+      <ListEngine<Deal> className={fewRows(r.rows.failing.length)} label={compare ? RESCUE_VIEWS_TITLE.compare : RESCUE_VIEWS_TITLE.failed} rows={r.rows.failing} getKey={(d) => d.id} estimateSize={36} wideAt={1200}
         searchText={(d) => `${r.name(d)} ${r.title(d)}`}
-        renderRow={(d) => (compare ? <span className="rs-crow"><span className="rs-who"><b title={r.name(d)}>{cap(r.name(d))}</b><span className="rs-sub">{r.title(d)}</span></span><CompareCells deal={d} r={r} /></span> : <FailedRow deal={d} r={r} />)}
+        renderRow={(d) => (compare ? <span className="row1 rs-crow" style={CMP_COLS} title={`${cap(r.name(d))} · ${r.title(d)}`}><b className="rs-who" title={r.title(d)}>{cap(r.name(d))}</b><CompareCells deal={d} r={r} /></span> : <FailedRow deal={d} r={r} />)}
         rowLabel={(d) => `${cap(r.name(d))}, ${r.title(d)}`}
         onOpen={(d) => nav.deal(d.id)}
         detail={(d) => <FixPanel key={d.id} deal={d} r={r} col={picked[d.id] ?? 'NONE'} onPick={(c) => onPick(d.id, c)} onDeal={() => nav.deal(d.id)} />}
@@ -97,7 +112,7 @@ function Progress({ r }: { r: RescueWorld }) {
   return (
     <div className="rs-list">
       {r.bookError ? <WalletNotice error={r.bookError} what={RESCUE.bookWhat} /> : null}
-      <ListEngine<Deal> className={fewRows(r.rows.inflight.length)} label={RESCUE_VIEWS_TITLE.progress} rows={r.rows.inflight} getKey={(d) => d.id} estimateSize={56} wideAt={1200}
+      <ListEngine<Deal> className={fewRows(r.rows.inflight.length)} label={RESCUE_VIEWS_TITLE.progress} rows={r.rows.inflight} getKey={(d) => d.id} estimateSize={36} wideAt={1200}
         searchText={(d) => `${r.name(d)} ${r.title(d)}`}
         renderRow={(d) => <ProgressRow deal={d} r={r} />} rowLabel={(d) => cap(r.name(d))}
         onOpen={(d) => nav.deal(d.id)} detail={(d) => <DeskDetail deal={d} r={r} onDeal={() => nav.deal(d.id)} />}
@@ -118,22 +133,28 @@ function Recovered({ r }: { r: RescueWorld }) {
   const nav = useLayerNav();
   const rec = useMemo(() => recovered(r.all, r.book), [r.all, r.book]);
   const rows = useMemo<RecoveredRow[]>(() => [...rec.counted.map((deal) => ({ deal, why: null })), ...rec.notCounted.map((x) => ({ deal: x.deal, why: x.why as NotCountedWhy }))], [rec]);
+  const now = useNow();
+  const month = useMemo(() => recoveredThisMonth(r.all, r.book, now), [r.all, r.book, now]);
   const total = rec.totals.length ? rec.totals.map((t) => formatMinor(t.minor, t.currency)).join(' · ') : null;
   return (
     <div className="rs-list">
       {r.bookError ? <WalletNotice error={r.bookError} what={RESCUE.bookWhat} /> : null}
+      <Reveal className="rs-sec">
       <p className="rs-total">{RESCUE.recovered.total} <b className={`money${total ? ' okc' : ''}`}>{total ?? RESCUE.recovered.noneYet}</b></p>
+      <p className="rs-total">{RESCUE.recovered.month} <b className={`money${month?.length ? ' okc' : ''}`}>{month ? moneyList(month) ?? RESCUE.recovered.noneYet : RESCUE.recovered.monthUnknown}</b></p>
+      </Reveal>
       <p className="ui-hint">{RESCUE.recovered.rule}</p>
-      <ListEngine<RecoveredRow> className={fewRows(rows.length)} label={RESCUE_VIEWS_TITLE.recovered} rows={rows} getKey={(x) => x.deal.id} filters={RECOVERED_FILTERS} estimateSize={52}
+      <ListEngine<RecoveredRow> className={fewRows(rows.length)} label={RESCUE_VIEWS_TITLE.recovered} rows={rows} getKey={(x) => x.deal.id} filters={RECOVERED_FILTERS} estimateSize={36}
         searchText={(x) => `${r.name(x.deal)} ${r.title(x.deal)}`}
         renderRow={(x) => {
           const t = dealTotal(x.deal);
           return (
-            <span className={`rs-row${x.why === null ? ' ok' : ''}`}>
-              <span className="rs-who"><b title={r.name(x.deal)}>{cap(r.name(x.deal))}</b><span className="rs-sub">{x.why === null ? RESCUE.recovered.countsLine : RESCUE.notCounted[x.why]}</span></span>
+            <span className={`row1 rs-row${x.why === null ? ' ok' : ''}`} style={ROW_COLS} title={cap(r.name(x.deal))}>
+              <b className="rs-who" title={r.name(x.deal)}>{cap(r.name(x.deal))}</b>
               <span className={`rs-amt num${x.why === null ? ' okc' : ''}`}>{formatMinor(t.minor, t.currency)}</span>
-              <RescueState deal={x.deal} />
-              <CountChip deal={x.deal} view={r.view(x.deal)} />
+              <span className="rs-st"><RescueState deal={x.deal} /></span>
+              <span className="rs-st"><CountChip deal={x.deal} view={r.view(x.deal)} /></span>
+              <span className="rs-sub c-note">{x.why === null ? RESCUE.recovered.countsLine : RESCUE.notCounted[x.why]}</span>
             </span>
           );
         }}
@@ -165,9 +186,9 @@ function Watch({ r }: { r: RescueWorld }) {
   const book = r.book;
   const n = book?.watching.length ?? 0;
   return (
-    <div className="rs-watch">
+    <RevealGroup className="rs-watch">
       {r.bookError ? <WalletNotice error={r.bookError} what={RESCUE.bookWhat} /> : null}
-      <section className="rs-wbox">
+      <Reveal><section className="rs-wbox">
         <h2 className="rs-h2">{book ? watchingWords(n) : r.bookError ? RESCUE.watch.unread : RESCUE.watch.reading}</h2>
         <p>{book ? watchLines(book, now).line : null}</p>
         {book && n ? <p className="ui-hint" title={RESCUE_WATCH_ABOUT}>{RESCUE.watch.reads(book.watch_reads_today, book.watch_reads_max)}</p> : null}
@@ -177,8 +198,8 @@ function Watch({ r }: { r: RescueWorld }) {
           </Btn>
         </div>
         {open.error ? <WalletNotice error={open.error} what={RESCUE.approvalWhat} /> : null}
-      </section>
-      <section className="rs-wbox">
+      </section></Reveal>
+      <Reveal><section className="rs-wbox">
         <h2 className="rs-h2">{RESCUE.rules.title}</h2>
         {q.error ? <WalletNotice error={q.error} what={RESCUE.rules.what} /> : (
           <Kv items={[
@@ -190,8 +211,8 @@ function Watch({ r }: { r: RescueWorld }) {
           ]} />
         )}
         <div className="cs-acts"><Btn sm onClick={() => nav.place('rules')}>{RESCUE.rules.open}</Btn></div>
-      </section>
-    </div>
+      </section></Reveal>
+    </RevealGroup>
   );
 }
 
@@ -244,18 +265,19 @@ export function RescueLayer({ nav }: LayerProps) {
   const first = asking[0];
   const firstNeed = first ? r.need(first) : undefined;
   const watching = r.book?.watching.length ?? 0;
+  const month = recoveredThisMonth(r.all, r.book, now);
   return (
     <div className="ar-rescue">
       <ModuleLayer module="rescue" answer={answer} sub={sub} latest={latestOf(r, (v) => route.open(v), nav.deal)}
-        yourCall={first && firstNeed ? { count: asking.length, ifNothing: silenceParts(firstNeed.on_silence).head, onOpen: () => route.open('failed', 'your-call') } : null}
-        action={first && firstNeed ? <HandOff deal={first} /> : undefined}
+        yourCall={first && firstNeed ? { count: asking.length, ifNothing: quietHead(first, r), onOpen: () => route.open('failed', 'your-call') } : null}
+        action={first && firstNeed ? <HandOff deal={first} quiet={refusalLine(r.view(first)) !== null} /> : undefined}
         cards={[
           { id: 'failed', view: 'failed', label: RESCUE_VIEWS_TITLE.failed, value: r.rows.failing.length ? RESCUE.cards.renewals(r.rows.failing.length) : RESCUE.none,
             note: r.rows.failing.length ? RESCUE.cards.atRisk(moneyList(strip.atRisk) ?? RESCUE.cards.nothing) : RESCUE.cards.nothingToFix,
-            chip: asking.length ? RESCUE.yourCall : undefined, chipTone: 'gold', ifNothing: firstNeed ? silenceParts(firstNeed.on_silence).head : null },
+            chip: asking.length ? RESCUE.yourCall : undefined, chipTone: 'gold', ifNothing: first && firstNeed ? quietHead(first, r) : null },
           { id: 'progress', view: 'progress', label: RESCUE_VIEWS_TITLE.progress, value: r.rows.inflight.length ? RESCUE.cards.fixes(r.rows.inflight.length) : RESCUE.none,
             note: r.rows.inflight.length ? RESCUE.cards.waitingFor(moneyList(strip.inProgress) ?? '') : RESCUE.cards.nothingWaiting },
-          { id: 'recovered', view: 'recovered', label: RESCUE_VIEWS_TITLE.recovered, value: moneyList(strip.recovered) ?? RESCUE.cards.noneYet, note: RESCUE.cards.countedOnce },
+          { id: 'recovered', view: 'recovered', label: RESCUE_VIEWS_TITLE.recovered, value: moneyList(strip.recovered) ?? RESCUE.cards.noneYet, note: `${RESCUE.cards.thisMonth(month ? moneyList(month) : null)} · ${RESCUE.cards.countedOnce}` },
           { id: 'watch', view: 'watch', label: RESCUE_VIEWS_TITLE.watch, value: r.book ? watchingWords(watching) : r.bookError ? RESCUE.cards.unread : RESCUE.cards.reading,
             note: r.book ? watchLines(r.book, now).note : RESCUE.cards.watchNote },
         ]}
