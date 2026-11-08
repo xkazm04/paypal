@@ -3444,7 +3444,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/director/film.test.ts:161 The film-record tests rebuild the shipped readChapterRecord in their own shopOf and weekOf helpers and pick groups[0] where production picks the haggle's group (takes.ts:815), so a broken group selection or swapped decisions and deadlines branches (takes.ts:829) stays green while the comment at film.test.ts:129 says the two read the same.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "table",

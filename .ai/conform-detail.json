@@ -10126,6 +10126,52 @@
           "evidence": "crates/table-app/src/pipeline/send.rs:243 The payee check reads PayPal's record, not anything the counterparty being judged wrote."
         }
       ]
+    },
+    "301e09f0-979a-4861-b442-b4efe22b7bd2/test-harness": {
+      "context": "director-preview-stories",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T23:23:46.975Z",
+      "worker": "8fef0eff-5081-44a7-a4d9-6985826d493c",
+      "techniques": [
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/director/film.test.ts:161 The shipped reader is callable with the same core, but its success path is only asserted as `rec.shop` defined (film.test.ts:376), and the 'end' branch only on failure."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/director/stories.test.ts:171 The pin reads one line, the first starting with that selector, so a later `.dir-tum iframe` rule or a selector list setting color-scheme stays green under a name claiming the frame is transparent in both themes."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/director/film.test.ts:68 The walk over film scripts declares a floor, so an empty population is red."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/director/film.test.ts:339 The on-screen checker is itself shown to fail on a wrong count."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/director/film.test.ts:366 A failed read is told apart from the empty 'no figures' record, so the two producers do not share one answer."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/director/story.test.ts:143 Story deadlines move on the simulated world clock, not on elapsed time."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/director/story.test.ts:40 Mock world storage is cleared before each story run."
+        }
+      ]
     }
   }
 }
