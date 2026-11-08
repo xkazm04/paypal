@@ -59,6 +59,8 @@ export const MODULE_CRUMBS_LABEL = 'This page';
 /** The module layer chrome. */
 export const YOUR_CALL = 'Your call';
 export const yourCallLabel = (n: number): string => (n === 1 ? 'One decision here needs you. Open it.' : `${n} decisions here need you. Open them.`);
+/** A module page before setup is done: one way forward instead of an empty page. */
+export const MODULE_FINISH_SETUP = { label: 'Finish setup', why: 'Nothing here works until your keys and rules are in.' } as const;
 export const MODULE_EMPTY = 'Nothing here yet. If you do nothing, no money moves.';
 export const MODULE_SUMMARY_LABEL = 'At a glance';
 

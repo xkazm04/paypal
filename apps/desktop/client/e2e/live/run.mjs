@@ -105,6 +105,22 @@ for (const t of tabs) {
   });
 }
 
+// ---------------------------------------------------------------- first run: every page offers the way forward
+await check('setup', 'each module page offers "Finish setup" before setup is done', async () => {
+  const missing = [];
+  for (const t of tabs) { await page.click(`#${t.id}`); await sleep(500); if (!(await page.$('.ml-setup-btn'))) missing.push(t.text?.replace(/\d+$/, '').trim()); }
+  return { ok: missing.length === 0, note: missing.length ? 'missing on ' + missing.join(', ') : '' };
+});
+await check('setup', '"Finish setup" opens the Set up page with the keys step', async () => {
+  await page.click('.ml-setup-btn'); await sleep(900); await snap('setup-page');
+  const t = await page.evaluate(() => document.querySelector('.cs-layer')?.textContent ?? '');
+  return { ok: /PayPal sandbox keys|PayPal keys/i.test(t) && !!(await page.$('text=/Add PayPal keys/')), note: t.slice(0, 60) };
+});
+await check('setup', 'the copy says Signet, not "The Table"', async () => {
+  const t = await page.evaluate(() => document.body.innerText);
+  return { ok: !/The Table/.test(t), note: (t.match(/.{0,30}The Table.{0,30}/) ?? [''])[0] };
+});
+
 // ---------------------------------------------------------------- places menu
 await check('places', 'the Places menu button is clickable (not hidden behind a layer)', () => onTop('#cs-place-menu'));
 await check('places', 'the Places menu opens in front of everything', async () => {
@@ -172,6 +188,26 @@ await check('chat', 'a question goes to the assistant, not a flow', async () => 
 });
 await check('chat', 'the Platform switch round-trips back to Chat', async () => {
   await goView('platform'); await goView('chat'); return { ok: (await view()) === 'chat' };
+});
+
+// ---------------------------------------------------------------- the other windows (opened, looked at, never clicked inside)
+await goView('platform');
+await check('windows', 'Add PayPal keys hands off to the approval window', async () => {
+  await page.click(`#${tabs[0].id}`); await sleep(400); await page.click('.ml-setup-btn'); await sleep(800);
+  await page.click('button:has-text("Add PayPal keys")');
+  const ap = await ctx.waitForEvent('page', { timeout: 10000 }).catch(() => null) ?? ctx.pages().find((p) => /approval/.test(p.url()));
+  if (!ap) return { ok: false, note: 'no approval window page' };
+  await ap.waitForLoadState('domcontentloaded').catch(() => {}); await sleep(1500);
+  await ap.screenshot({ path: join(out, `${String(++shot).padStart(2, '0')}-approval-window.png`) }).catch(() => {});
+  const text = await ap.evaluate(() => document.body.innerText).catch(() => '');
+  return { ok: text.length > 40 && !/The Table/.test(text), note: text.slice(0, 80).replaceAll('\n', ' / ') };
+});
+await check('windows', 'the tumbler (mini window) renders', async () => {
+  const tp = ctx.pages().find((p) => /tumbler/.test(p.url()));
+  if (!tp) return { ok: false, note: 'no tumbler page' };
+  await tp.screenshot({ path: join(out, `${String(++shot).padStart(2, '0')}-tumbler.png`) }).catch(() => {});
+  const text = await tp.evaluate(() => document.body.innerText).catch(() => '');
+  return { ok: !/The Table/.test(text), note: text.slice(0, 80).replaceAll('\n', ' / ') };
 });
 
 await check('app', 'no page errors or console errors during the run', async () => ({ ok: errors.length === 0, note: errors.slice(0, 3).join(' | ') }));

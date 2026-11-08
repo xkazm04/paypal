@@ -57,6 +57,10 @@
 .ml-say { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
 .ml-say .cs-title, .ml-vhead .cs-title { margin: 0; }
 .ml-sub { margin: 0; color: var(--muted); font-size: var(--fs-title3); max-width: 48rem; line-height: 1.45; }
+.ml-setup { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); margin: var(--sp-2) 0 0; color: var(--muted); font-size: var(--fs-small); }
+.ml-setup-btn { height: var(--ctl); padding: 0 var(--sp-4); border: 1px solid var(--gold); border-radius: var(--r-pill); background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold-l); font: var(--fw-semibold) var(--fs-body)/1 var(--font); cursor: pointer; }
+.ml-setup-btn:hover { background: color-mix(in srgb, var(--gold) 24%, transparent); }
+.ml-setup-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ml-calls { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); margin-top: var(--sp-2); }
 .ml-call { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: var(--target); height: var(--ctl); padding: 0 var(--sp-3); cursor: pointer;
   border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent); border-radius: var(--r-pill); background: color-mix(in srgb, var(--gold) 10%, transparent);

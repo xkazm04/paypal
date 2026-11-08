@@ -8,7 +8,7 @@
 // draws its own Back).
 import type { CSSProperties, ReactNode } from 'react';
 import type { Module } from '@bindings/Module';
-import { IF_NOTHING, MODULE_CRUMBS_LABEL, MODULE_EMPTY, YOUR_CALL, yourCallLabel } from '../../../lib/words';
+import { IF_NOTHING, MODULE_CRUMBS_LABEL, MODULE_EMPTY, MODULE_FINISH_SETUP, YOUR_CALL, yourCallLabel } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
 import { KeyArt } from '../../../shared/brand';
 import { MODULE } from '../../../shared/modules';
@@ -16,7 +16,7 @@ import { Disclosure } from '../../../shared/ui';
 import { silenceParts } from '../home/model';
 import { useModuleRoute } from '../viewNav';
 import { useNeeds } from '../world';
-import { useLayerNav } from './layers';
+import { useLayerNav, useLayerState } from './layers';
 import { ContentCrumbs } from './CrumbTrail';
 import { crumbItems } from './crumbItems';
 import { Latest, LatestSkeleton, type LatestProps } from './Latest';
@@ -78,6 +78,7 @@ export function ModuleLayer(p: ModuleLayerProps) {
   const call = p.yourCall === undefined ? own : p.yourCall;
   const style = { '--mc': MODULE[p.module].cssVar } as CSSProperties;
   const nav = useLayerNav();
+  const { firstRun } = useLayerState();
   const view = route.view ? p.views?.[route.view] : undefined;
   // The page's own breadcrumb: the module, and its open view, from the same routes the top bar draws.
   const here = { level: 'module', module: p.module } as const;
@@ -112,6 +113,7 @@ export function ModuleLayer(p: ModuleLayerProps) {
           {crumbs}
           <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{p.answer}</h1>
           {p.sub ? <p className="ml-sub">{p.sub}</p> : null}
+          {firstRun && !route.view ? <p className="ml-setup"><button type="button" className="ml-setup-btn" onClick={() => nav.setup()}>{MODULE_FINISH_SETUP.label}</button><span>{MODULE_FINISH_SETUP.why}</span></p> : null}
           {call || p.action ? (
             <div className="ml-calls">
               {call ? (
