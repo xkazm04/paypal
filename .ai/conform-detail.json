@@ -9127,16 +9127,11 @@
       "context": "approval-window-shell",
       "subject": "agent-instruction-files",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-11-06",
-      "evaluatedTs": "2026-11-06T00:14:41.046Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "556e4198-172a-4b3e-85a2-2e71d05af013",
-        "state": "not-applicable",
-        "at": "2026-11-06T00:15:06.393876+00:00",
-        "reason": "reviewer (sonnet): Both anchors are incidental. OwnerConfig.tsx:1 is a header comment describing the owner checklist UI, and gating.ts:3 says the module never grants anything and Rust re-checks it. Neither line shows that no agent instruction file is written or read, and the only support is a filename grep over one di"
-      }
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T23:56:38.953Z",
+      "worker": "a0d134cc-c9b0-47af-9edf-1c715b38b228",
+      "techniques": []
     },
     "44983015-e31a-41fb-92ee-ab6637c0cc3e/prompt-assembly": {
       "context": "book-module",

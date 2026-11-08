@@ -1057,7 +1057,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/model.ts:2 The 'model' and 'gating' that matched this subject are a UI view-model and button gating over Rust-owned data, not an LLM or instruction surface; a case-insensitive search of the approval directory for the listed terms found zero hits, and 'prompt' occurs only for OS credential and Windows Hello dialogs.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:9b02cf004a7ce444",
+          "evaluatedRevision": 32
         },
         {
           "subject": "hitl-approval",
