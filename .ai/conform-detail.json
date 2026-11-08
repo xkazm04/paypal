@@ -9823,6 +9823,136 @@
           "evidence": "apps/desktop/client/src/mock/backend.ts:548 Enforcement is a code gate over the authority table (the authorization subject), not a row policy on a store the browser reaches, so the row-policy technique's precondition does not hold."
         }
       ]
+    },
+    "9a4f1dcb-2f71-4b8d-835c-a38862a5c22a/demo-data-plane": {
+      "context": "client-runtime-foundation",
+      "subject": "demo-data-plane",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:24:23.739Z",
+      "worker": "206a4048-5811-4fb0-a062-340667d115ec",
+      "techniques": [
+        {
+          "technique": "runtime-dispatch-not-build-flag",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:13 The plane is chosen at runtime inside the one artifact (good: the mock is a lazy chunk and a failed load never enters the demo, runtime.ts:50). But the choice comes from a stored preference, which the technique lists as a forbidden source."
+        },
+        {
+          "technique": "fake-surface-honesty-contract",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/preview.ts:8 Clause 3 (not persisted across sessions) is broken: the demo is a remembered toggle, not one explicit act per session. Clause 2 holds: a mock load failure goes back to live and never into the demo. Also seen, not anchored: director.html (a file of this context) has no robots/noindex meta, though it is a localhost-only page today."
+        },
+        {
+          "technique": "one-interface-many-planes",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/contract.ts:26 One Backend interface exists, and the mock's handlers are a mapped type over CommandName, so completeness is checked at build time. But the interface also exposes which plane is active, and consumers outside this context compare it to a constant to change behaviour (e.g. SettingsLayer, Charter, Proof, DealPage). The technique names this as 'out, specifically'."
+        },
+        {
+          "technique": "replay-clock-pinning",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/clock.ts:5 The clock is injected and only the mock can offset it. The demo is a generated mock world, not a recorded moment replayed through live ingestion, so the precondition does not hold."
+        }
+      ],
+      "registryProposal": "For a single-owner local desktop app with a permanent in-chrome demo badge and an always-visible Exit, a stored demo toggle may be a deliberate owner preference rather than hidden state. The corpus could say whether clause 3 bends when the only viewer is the person who set it and the marker is unmissable."
+    },
+    "301e09f0-979a-4861-b442-b4efe22b7bd2/demo-data-plane": {
+      "context": "director-preview-stories",
+      "subject": "demo-data-plane",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:24:23.739Z",
+      "worker": "206a4048-5811-4fb0-a062-340667d115ec",
+      "techniques": [
+        {
+          "technique": "fake-surface-honesty-contract",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:639 There is a persistent banner and it is asserted per beat (takes.ts:424). The page is entered explicitly. Per STATUS.md it is a dev-only, localhost build input, so the indexing clause is moot. Beats never move money (beats.test.ts)."
+        },
+        {
+          "technique": "fixture-self-consistency",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/director/beats.test.ts:41 Referential closure is tested: every deal a beat names must exist in buildMockState. Routes are also checked against the real router. The scale mismatch (finding #20) was fixed by never opening Maya's story on a sized world."
+        },
+        {
+          "technique": "seeded-determinism",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:376 Deterministic, not static: a seek resets the world to the story start and re-applies the beats up to n, so a reload or seek replays the same script."
+        },
+        {
+          "technique": "replay-clock-pinning",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:106 The story start is a reference instant taken at entry (optionally pinned by ?date=) over a generated mock world. Nothing is replayed through live ingestion."
+        },
+        {
+          "technique": "mixed-plane-coexistence",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/entry.tsx:17 The page refuses to run inside the shell, so every frame is mock. Demo and real data never share a screen."
+        }
+      ]
+    },
+    "c02a6103-08a3-462b-84a7-23d7c9ec8c58/demo-data-plane": {
+      "context": "console-framework",
+      "subject": "demo-data-plane",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:24:23.739Z",
+      "worker": "206a4048-5811-4fb0-a062-340667d115ec",
+      "techniques": [
+        {
+          "technique": "fake-surface-honesty-contract",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/DemoSwitch.tsx:30 Clause 3 is broken (the choice persists across sessions). Other clauses hold: a footer badge and Exit demo show in a desktop demo (line 145), entry is an explicit pick, and StaleBanner shows failed reads as failures rather than fixtures."
+        },
+        {
+          "technique": "runtime-dispatch-not-build-flag",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/DemoSwitch.tsx:7 The switch is at runtime in the same artifact, with a reload so the page-pinned plane always matches. But the session state comes from a persisted preference, which the technique forbids."
+        },
+        {
+          "technique": "one-interface-many-planes",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/DemoSwitch.tsx:124 A console surface imports the fake plane directly (to reset it and to probe it at line 125). The technique allows only the dispatch point to reference an implementation."
+        }
+      ]
+    },
+    "a1a41cac-6c94-418e-8740-5d1188336cb0/demo-data-plane": {
+      "context": "director-takes-rig",
+      "subject": "demo-data-plane",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:24:23.739Z",
+      "worker": "206a4048-5811-4fb0-a062-340667d115ec",
+      "techniques": [
+        {
+          "technique": "fake-surface-honesty-contract",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/scripts/takes.mjs:74 The marker is held by assertion, not review: a missing banner or 'Preview · sample data' badge fails the run (takes.ts:424-427; film-capture logs NO BANNER). It never clicks inside a frame or pays."
+        },
+        {
+          "technique": "seeded-determinism",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/scripts/export-scale-fixtures.mjs:13 The export fixes 'now' so the seeded scale worlds come out byte-identical. takes.mjs also pins --date and --tz so stills do not vary with the machine."
+        },
+        {
+          "technique": "fixture-self-consistency",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/scripts/export-scale-fixtures.mjs:2 Prototype fixtures are projected from the one generator, not hand re-declared, so they match what the app shows."
+        },
+        {
+          "technique": "replay-clock-pinning",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/takes.mjs:20 Pinning the date is for screenshot stability over a generated mock world. No recorded moment is replayed through live ingestion."
+        },
+        {
+          "technique": "mixed-plane-coexistence",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/takes.mjs:6 Only the mock plane is ever on screen, so no demo rows sit beside real ones."
+        }
+      ]
     }
   }
 }

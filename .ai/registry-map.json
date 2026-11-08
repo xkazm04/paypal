@@ -2148,7 +2148,11 @@
           "revision": 5,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:13 The desktop app picks its plane at startup from a demo choice stored in localStorage, so the choice survives a restart; the standard forbids taking session state from anything persisted across sessions.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:8b6581bd5537bf1b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "sidecar-provisioning",
@@ -3465,7 +3469,11 @@
           "revision": 5,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:639 The director runs entirely on the mock behind a permanent banner, replays a scripted world that is rebuilt from one reset point, and is tested so every deal a beat names exists in the root fixture.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:8b6581bd5537bf1b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "terminal-multiplexing",
@@ -3575,7 +3583,11 @@
           "revision": 5,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "apps/desktop/client/scripts/takes.mjs:74 The rig enforces the honesty marker by assertion on every beat. It pins the story's day and time zone and exports the scale worlds byte-reproducibly from the generator rather than re-declaring them.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:8b6581bd5537bf1b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "test-harness",
@@ -9805,7 +9817,11 @@
           "revision": 5,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/DemoSwitch.tsx:30 The console switcher writes the demo choice to localStorage, so the desktop app comes back in demo after a restart: a remembered toggle where the standard demands one explicit act per session.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:8b6581bd5537bf1b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "test-harness",
