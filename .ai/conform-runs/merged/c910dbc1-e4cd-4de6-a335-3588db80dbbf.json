@@ -1,0 +1,119 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c910dbc1-e4cd-4de6-a335-3588db80dbbf",
+ "subject": "retry-backoff",
+ "evaluatedAt": "2026-11-07T00:15:20.915827+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "design-system-styles",
+   "subject": "retry-backoff",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/design/motion.ts:3 A case-insensitive search of apps/desktop/client/src/design and apps/desktop/client/src/shared/brand for retry, backoff, jitter, circuit and attempt found nothing; the only timing constants here are named animation durations, so these files contain no failed-call recovery for the subject to govern.",
+   "techniques": [],
+   "absenceTerms": [
+    "retry",
+    "backoff",
+    "jitter",
+    "circuit"
+   ]
+  },
+  {
+   "context": "client-foundation",
+   "subject": "retry-backoff",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/lib/contract.ts:65 toWalletError files every unregistered or untyped failure (a transport failure, an unknown command, a bare string) under UNAVAILABLE, which is the class the read layer retries, so there is no separate unknown lane and new failures are quietly treated as transient.",
+   "techniques": [
+    {
+     "technique": "error-classification-for-retry",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/contract.ts:65 Classification happens at the boundary against the structured code (good), but the default branch puts unknown failures into the retryable UNAVAILABLE class instead of a separately counted unknown lane. Writes are correctly never retried (hooks.ts useMutation)."
+    },
+    {
+     "technique": "backoff-design",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/data/client.ts:39 Outside the context but used by its hooks.ts useQuery/useCommand: the single read retry waits a fixed 750 ms (RETRY_DELAY_MS, line 9) with no jitter, so reads that fail together retry together."
+    }
+   ]
+  },
+  {
+   "context": "safety-and-setup",
+   "subject": "retry-backoff",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/joinRetry.ts:12 The join retry decides retryability with a regex over the error's message text instead of a structured class, so a change to that wording silently turns the retry off (or on) without any typecheck noticing.",
+   "techniques": [
+    {
+     "technique": "error-classification-for-retry",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/joinRetry.ts:12 Retry is limited to one narrow case and house mode never retries (good), but the class comes from re-parsing the message, which the standard forbids downstream of the boundary."
+    },
+    {
+     "technique": "backoff-design",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/joinRetry.ts:8 A fixed 3 s delay with no jitter. It matches the peer's 3 s poll (close to a stated schedule) and the total is capped at 5 attempts, but the standard asks for jitter on top of a stated schedule. Herd risk is low because there is one joiner per pairing."
+    },
+    {
+     "technique": "retry-observability",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx:391 When the 5 attempts run out, the screen shows the same notice as a single failure. The exhausted state and the attempt count are never spelled out, so the owner cannot tell 'gave up after 5 tries' from 'failed once'."
+    },
+    {
+     "technique": "circuit-breakers",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/setup/circuit.ts:74 Here 'circuit' and 'breaker' are a picture of the money path and its pause switch, derived as a pure function of settings. No breaker tracks dependency health."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-07T00:15:20.915827+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "retry-backoff"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "design-system-styles",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T00:15:20.915827+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "retry-backoff"
+   ],
+   "techniques": [
+    "backoff-design",
+    "error-classification-for-retry"
+   ],
+   "deviations": 1,
+   "context": "client-foundation",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T00:15:20.915827+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "retry-backoff"
+   ],
+   "techniques": [
+    "backoff-design",
+    "circuit-breakers",
+    "error-classification-for-retry",
+    "retry-observability"
+   ],
+   "deviations": 1,
+   "context": "safety-and-setup",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

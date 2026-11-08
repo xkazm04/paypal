@@ -776,6 +776,51 @@ async fn pairing_abort_is_unprivileged_and_scoped_and_confirm_tells_main_it_pinn
 }
 
 #[tokio::test]
+async fn a_sheet_is_a_setup_step_from_main_only_never_a_deal() {
+    let (r, deal, _, _, _) = negotiating();
+    let (actor, _) = spawn(r);
+    let sheet = |deal_id, target| {
+        Action::OpenApproval(ApprovalOpenArgs {
+            deal_id,
+            pairing: None,
+            target,
+            draft: None,
+            presentation: Some(ApprovalPresentation::Sheet),
+        })
+    };
+    // Keys and rules as a sheet, from Main: admitted.
+    for target in [ApprovalTarget::Credentials, ApprovalTarget::Mandate] {
+        actor
+            .execute::<()>(caller("main", None), sheet(None, Some(target)))
+            .await
+            .unwrap();
+    }
+    // A deal, unlock or the rescue pages are never a sheet.
+    for (deal_id, target) in [
+        (Some(deal.id), Some(ApprovalTarget::Deal)),
+        (Some(deal.id), None),
+        (None, Some(ApprovalTarget::Unlock)),
+        (None, Some(ApprovalTarget::Rescue)),
+        (None, None),
+    ] {
+        let refused = actor
+            .execute::<()>(caller("main", None), sheet(deal_id, target))
+            .await
+            .unwrap_err();
+        assert!(matches!(refused.code, ErrorCode::Invalid), "{target:?}");
+    }
+    // The Tumbler routes to the approval window but never opens a sheet.
+    let refused = actor
+        .execute::<()>(
+            caller("tumbler", None),
+            sheet(None, Some(ApprovalTarget::Credentials)),
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(refused.code, ErrorCode::Permission));
+}
+
+#[tokio::test]
 async fn approval_open_targets_and_drafts_are_checked_prefill_only_and_never_signed() {
     let (r, deal, _, http, _) = negotiating();
     let mandates_before = r.mandate_list().unwrap();
@@ -787,6 +832,7 @@ async fn approval_open_targets_and_drafts_are_checked_prefill_only_and_never_sig
             pairing: None,
             target,
             draft,
+            presentation: None,
         })
     };
     let band =

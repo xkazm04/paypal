@@ -166,3 +166,6 @@
 /* a short list is drawn at its own height, the picked row's pane beside it at its content's */
 .ar-shield .le.few, .ar-shield .le.few .le-main { flex: 0 1 auto; min-height: 0; }
 .ar-shield .le.few .le-detail { align-self: start; }
+/* Reveal sections (design/Reveal): a block that keeps the page's own column gap inside it. */
+.ar-shield .sh-sec { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.ar-shield .sh-how .sh-sec { gap: var(--sp-3); }

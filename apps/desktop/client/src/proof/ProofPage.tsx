@@ -11,6 +11,9 @@ import { ProofChecker, type ProofSource } from '../shared/proofcheck/ProofChecke
 // paints first, the checker (the heavy part) takes the next wave.
 import { Reveal, Skeleton } from '../windows/main/console/stagger';
 
+/** The standing marker, worded as the director's banner is: sample data, not the wallet. */
+const SAMPLE_NOTE = 'Practice deal on sample data, not the wallet. Nothing here is a real payment; the checks themselves are real.';
+
 /** Links made for showing it: `?check=1` checks on arrival, `?break=price` then breaks it that way,
  *  `?edit=1` opens on the file's text, `?demo=1` plays it through by itself (for a recording), and
  *  `?file=arena-<attack id>` opens one of Break The Table's recorded deal files (and checks it on
@@ -47,13 +50,14 @@ export function ProofPage({ host = 'page' }: { host?: 'page' | 'console' } = {})
       <header className="pf-head">
         <p className="kicker">{PROOF_CHECKER.page.back}</p>
         <h1 className={inConsole ? 'display cs-title' : 'display'} tabIndex={inConsole ? -1 : undefined} data-layer-title={inConsole ? '' : undefined}>{PROOF_CHECKER.page.title}</h1>
+        <p className="pf-sample" role="note" data-proof-sample=""><span className="pf-dot" aria-hidden="true" />{SAMPLE_NOTE}</p>
         <p className="pf-lede">{PROOF_CHECKER.page.lede}</p>
         <p className="pf-watch">
           <a className="ui-btn sm" href={way.demo ? link('') : link('?demo=1')}>{way.demo ? PROOF_CHECKER.page.stop : PROOF_CHECKER.page.watch}</a>
         </p>
       </header>
       <Reveal wave={1} sizeKey="proof:checker" skeleton={<Skeleton h="62rem" />}>
-        {source ? <ProofChecker key={source.name} source={source} samples={SAMPLES} own={AUTHORITY_MANIFEST} heading={false} lede={false} level={2} {...way} />
+        {source ? <ProofChecker key={source.name} source={source} samples={SAMPLES} own={AUTHORITY_MANIFEST} heading={false} lede={false} level={2} ownerChecklist {...way} />
           : <p className="pf-lede" role="status">{ARENA_PROOF.loading}</p>}
       </Reveal>
     </Shell>

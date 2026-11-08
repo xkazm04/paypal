@@ -121,6 +121,14 @@ pub fn decision_fits(decision: &str, operation: &str) -> bool {
     MoneyOp::from_name(operation).is_some_and(|op| op.owner_decision() == decision)
 }
 
+/// Whether an owner decision recorded as starting the step `recorded` (its row's `operation`) may
+/// stand before the money step `step`: the step it names, or, for the fix's one decision
+/// (invoice-create), the send that follows the create under the same decision.
+pub fn operation_fits(recorded: &str, step: &str) -> bool {
+    recorded == step
+        || (recorded == MoneyOp::InvoiceCreate.name() && step == MoneyOp::InvoiceSend.name())
+}
+
 /// Who is reading the step, which decides one thing only: whether a first-format (v1) file is
 /// asked for the rows the wallet records since (each step's `money.authorized` row by request id,
 /// and the owner decision before an owner's step).

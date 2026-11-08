@@ -10,6 +10,7 @@ import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import { useQuery } from '../../../../../lib/hooks';
 import { headlineWords, LATEST_OF, OPEN_THE_DEAL, TABLES, TABLES_TRADE, TABLES_VIEWS, TABLES_WATCH, tablesClip, tablesItem, tablesShortWho } from '../../../../../lib/words';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, useLayer, useToast } from '../../../../../shared/ui';
 import { silenceParts, shortTitle } from '../../../home/model';
@@ -193,8 +194,8 @@ export function TablesLayer({ nav }: LayerProps) {
     const need = needOf.get(d.id);
     const who = c.who(d);
     return (
-      <div className="tb-pane" key={d.id}>
-        <header className="tr-phead">
+      <RevealGroup className="tb-pane" key={d.id}>
+        <Reveal><header className="tr-phead">
           <h2 title={disp.title}>{disp.title}</h2>
           <span className="tr-with" title={who.full}>{TABLES.withWho(who.short)}</span>
           <StateChip deal={d} />
@@ -202,12 +203,12 @@ export function TablesLayer({ nav }: LayerProps) {
           <span className="ui-spacer" />
           {worthWatching(d, disp.band) ? <Btn sm kind="plain" onClick={() => { watchTable(d.id); route.open('watch'); }} title={TABLES_WATCH.watchItTitle}>{TABLES_WATCH.watchIt}</Btn> : null}
           <Btn sm kind="plain" onClick={() => open(d)} title={TABLES_TRADE.openDealTitle}>{TABLES_TRADE.openDeal}</Btn>
-        </header>
-        <p className="tr-note">{tableNote(d, c)}</p>
-        {withNeed && need ? <NeedCard deal={d} disp={disp} need={need} who={who.short} onDeal={() => open(d)} onToast={say} /> : null}
-        <TableDetail deal={d} disp={disp} need={need} who={who.short} st={stateOf(d.id)} steps={handlers(d)} onToast={say} />
-        <TheirWords dealId={d.id} who={who.full} />
-      </div>
+        </header></Reveal>
+        <Reveal><p className="tr-note">{tableNote(d, c)}</p></Reveal>
+        {withNeed && need ? <Reveal><NeedCard deal={d} disp={disp} need={need} who={who.short} onDeal={() => open(d)} onToast={say} /></Reveal> : null}
+        <Reveal><TableDetail deal={d} disp={disp} need={need} who={who.short} st={stateOf(d.id)} steps={handlers(d)} onToast={say} /></Reveal>
+        <Reveal><TheirWords dealId={d.id} who={who.full} /></Reveal>
+      </RevealGroup>
     );
   };
   const tableList = (rows: readonly Deal[], label: string, picked: Deal | undefined, pick: (k: string) => void, empty: string) => (

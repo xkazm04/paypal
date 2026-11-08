@@ -13,6 +13,13 @@ export const SAY_MAX = 600;
 export const OPS_MAX = 8;
 export const WHY_MAX = 160;
 export const DEAL_ID_MAX = 64;
+/** How many answer panels the board's composition region holds at once (windows/main/switchboard/
+ *  region.ts). Three: the answer area is one narrow rail beside a board that must stay whole, so a
+ *  fourth panel would push the first out of sight and the region would stop reading at a glance; and
+ *  one slot is always left for the model (PIN_MAX = REGION_MAX - 1), so the owner's pins never
+ *  silence an answer. Not in the prompt yet: the pinned prompt copy (crates/table-client/src/
+ *  assistant_contract.json) only changes with a shell rebuild. */
+export const REGION_MAX = 3;
 
 /** Setup targets an action may name (the approval window opens on them; nothing is signed here). */
 export const SETUP_TARGETS: readonly Extract<ApprovalTarget, 'credentials' | 'mandate' | 'unlock'>[] = ['credentials', 'mandate', 'unlock'];

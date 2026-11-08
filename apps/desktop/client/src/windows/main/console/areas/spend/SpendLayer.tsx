@@ -26,6 +26,7 @@ import type { ModuleCard } from '../../ModuleSummary';
 import { Amount, Countdown, Row1 } from '../../rows';
 import { SplitView, usePick } from '../tables/parts';
 import { GateView } from './Gate';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { ClauseList, PurchaseDecision, PurchasePane, type Lane } from './Purchase';
 
 const selModuleOf = (w: World) => w.moduleOfDeal;
@@ -225,10 +226,10 @@ export function SpendLayer({ nav }: LayerProps) {
           title: SPEND_VIEWS.rules, sub: m ? SPEND.rulesSub : undefined,
           actions: <Btn kind="primary" onClick={() => nav.place('rules')}>{SPEND.changeRulesBtn}</Btn>,
           render: () => rulesState ?? (m ? (
-            <div className="sp-rules">
-              <ClauseList m={m} lane={null} />
-              <Hint>{SPEND.changeHint}</Hint>
-            </div>
+            <RevealGroup className="sp-rules">
+              <Reveal><ClauseList m={m} lane={null} /></Reveal>
+              <Reveal><Hint>{SPEND.changeHint}</Hint></Reveal>
+            </RevealGroup>
           ) : <p className="le-empty">{SPEND.rulesNone}</p>),
         },
       }} />

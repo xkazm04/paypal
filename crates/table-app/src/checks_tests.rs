@@ -1,6 +1,8 @@
 //! One test per approval check (pass and fail), over the pure `compose`.
 #![allow(clippy::unwrap_used)]
-use crate::{CheckFacts, MandateFact, PayeeFact, SettleFact, compose, plain_money};
+use crate::{
+    CheckFacts, DayFigure, LeftToday, MandateFact, PayeeFact, SettleFact, compose, plain_money,
+};
 use table_core::{
     ApprovalCheck, ApprovalCheckId, ApprovalCheckStatus as S, Currency, Deal, DealKind, DealState,
     Delivery, H256, ItemRef, KeyId, Mode, Money, PayeeRef, PaypalRefs, ShieldVerdict, Side, Terms,
@@ -67,6 +69,7 @@ fn ready(deal: &Deal) -> CheckFacts<'_> {
         mandate: MandateFact::Allow {
             per_deal: Some(Money::new(34_000, Currency::USD).unwrap()),
             ask_above: None,
+            left_today: None,
         },
     }
 }
@@ -357,6 +360,7 @@ fn mandate_names_the_clause_that_applies_including_clause_6() {
     f.mandate = MandateFact::Ask {
         clause: 6,
         threshold: Some(Money::new(25_000, Currency::USD).unwrap()),
+        left_today: None,
     };
     let ask = one(&f, ApprovalCheckId::Mandate);
     assert_eq!(ask.status, S::Pass, "the owner decision satisfies clause 6");
@@ -387,4 +391,83 @@ fn money_reads_like_the_window_formats_it() {
     assert_eq!(m(132_900, Currency::USD), "$1,329.00");
     assert_eq!(m(5, Currency::EUR), "€0.05");
     assert_eq!(m(120_000, Currency::JPY), "120,000 JPY");
+}
+
+fn usd(minor: i64) -> Money {
+    Money::new(minor, Currency::USD).unwrap()
+}
+/// A daily cap as the gates count it: `used` by every other deal today, this $329 deal added once.
+fn figure(used: i64, cap: i64) -> DayFigure {
+    DayFigure {
+        used: usd(used),
+        cap: usd(cap),
+        left: table_core::day_left(usd(used), usd(32_900), usd(cap)).unwrap(),
+    }
+}
+
+#[test]
+fn the_rules_line_says_what_todays_budget_leaves_after_this_deal() {
+    let d = deal(Side::Buyer, DealState::AwaitingApproval);
+    let mut f = ready(&d);
+    // Clause 5 at $500 a day, no earlier deal, a $329 purchase.
+    let rule_only = LeftToday {
+        amount: usd(32_900),
+        rule: Some(figure(0, 50_000)),
+        wallet: None,
+    };
+    f.mandate = MandateFact::Allow {
+        per_deal: Some(usd(34_000)),
+        ask_above: None,
+        left_today: Some(rule_only),
+    };
+    let allow = one(&f, ApprovalCheckId::Mandate);
+    assert_eq!(
+        allow.text,
+        "Inside your rules: up to $340.00 per deal. After this, $171.00 of today’s $500.00 is left."
+    );
+    assert!(
+        allow
+            .detail
+            .contains("clause 5 max_total_day 500.00 USD − (used today 0.00 USD + this 329.00 USD) = 171.00 USD left"),
+        "{}",
+        allow.detail
+    );
+    assert!(
+        allow.detail.contains("resets at 00:00 UTC"),
+        "{}",
+        allow.detail
+    );
+    plain(&allow);
+
+    // A $400 wallet limit is tighter: the line names it and its figure; both figures in detail.
+    let both = LeftToday {
+        wallet: Some(figure(0, 40_000)),
+        ..rule_only
+    };
+    f.mandate = MandateFact::Ask {
+        clause: 6,
+        threshold: Some(usd(25_000)),
+        left_today: Some(both),
+    };
+    let ask = one(&f, ApprovalCheckId::Mandate);
+    assert_eq!(
+        ask.text,
+        "Above your ask-me limit of $250.00, so it’s your call. After this, $71.00 of your wallet’s $400.00 daily limit is left today."
+    );
+    assert!(ask.detail.contains("clause 5 max_total_day 500.00 USD"));
+    assert!(ask.detail.contains("wallet limit max_out_day 400.00 USD"));
+    assert!(
+        ask.detail.contains("tighter: the wallet limit"),
+        "{}",
+        ask.detail
+    );
+    plain(&ask);
+
+    // No daily cap at all: no sentence.
+    f.mandate = MandateFact::Allow {
+        per_deal: None,
+        ask_above: None,
+        left_today: None,
+    };
+    assert_eq!(one(&f, ApprovalCheckId::Mandate).text, "Inside your rules.");
 }

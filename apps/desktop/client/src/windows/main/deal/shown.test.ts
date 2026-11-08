@@ -3,7 +3,7 @@ import type { HistoryStep } from '@bindings/HistoryStep';
 import type { RungMark } from '@bindings/RungMark';
 import { MONEY_CHECK_ENDED_SHORT } from '../../../lib/words';
 import { buildMockState, fakeUlid } from '../../../mock/fixtures';
-import { shownParts, shownStep, shownTime } from './shown';
+import { shownDecisionParts, shownParts, shownStep, shownTime } from './shown';
 
 /** Local wall-clock seconds for a day of October 2026 at hh:mm (the strip prints local times). */
 const t = (day: number, hh: number, mm: number) => Math.floor(new Date(2026, 9, day, hh, mm).getTime() / 1000);
@@ -77,5 +77,25 @@ describe('what you were shown', () => {
     expect(hold && shownParts(hold, t(9, 12, 0))).toContain('not notified: Do Not Disturb was on');
     // Nothing on a deal the owner decided herself.
     expect(of('D-0180')).toBeNull();
+  });
+});
+
+describe('an owner decision on the deal story', () => {
+  const decided = (over: Partial<NonNullable<HistoryStep['decision']>> = {}): HistoryStep => step({
+    at: t(6, 14, 2), kind: 'owner_decided', state_after: null, authority: { type: 'owner' },
+    decision: { decision: 'deal_countersign', operation: 'create', checks: 6, later: 3, later_passed: 3, before_payment: true, ...over },
+  });
+  it('reads when, how many lines were recorded, and that the later ones passed before payment', () => {
+    expect(shownDecisionParts(decided(), t(6, 20, 0)).join(' · ')).toBe('Approved 14:02 · 6 checks · 3 checked later, all passed before payment');
+  });
+  it('says only what the record shows: passed but not before payment, or left to the step itself', () => {
+    expect(shownDecisionParts(decided({ before_payment: false }), t(6, 20, 0)).join(' · ')).toBe('Approved 14:02 · 6 checks · 3 checked later, all passed');
+    expect(shownDecisionParts(decided({ later_passed: 1, before_payment: false }), t(6, 20, 0)).join(' · ')).toBe('Approved 14:02 · 6 checks · 3 checked later, by the step itself');
+    expect(shownDecisionParts(decided({ later: 0, later_passed: 0, before_payment: false }), t(6, 20, 0))).toEqual(['Approved 14:02', '6 checks']);
+  });
+  it('names the step decided, and an older record with only the fingerprint gives the time alone', () => {
+    expect(shownDecisionParts(decided({ operation: 'hand_off' }), t(7, 9, 0))[0]).toMatch(/^Opened PayPal \w+ 14:02$/);
+    expect(shownDecisionParts(decided({ checks: null }), t(6, 20, 0))).toEqual(['Approved 14:02']);
+    expect(shownDecisionParts(step({}), t(6, 20, 0))).toEqual([]);
   });
 });

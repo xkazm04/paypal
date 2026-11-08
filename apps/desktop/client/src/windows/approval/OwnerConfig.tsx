@@ -11,7 +11,8 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { WalletError } from '../../lib/contract';
 import { useNow, useQuery } from '../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../lib/lazy';
-import { APPROVAL_FIRST_RUN, APPROVAL_TABLE, OWNER_KEY, rulesName, SAFETY_PROMISE, START_STEP, timeLeftWords, watchingWords, type StartStepKey } from '../../lib/words';
+import { AGENT_APP, APPROVAL_FIRST_RUN, APPROVAL_TABLE, OWNER_KEY, rulesName, ruleRowLabel, ruleSetOrdinal, SAFETY_PROMISE, START_STEP, timeLeftWords, watchingWords, type StartStepKey } from '../../lib/words';
+import { agentAppAvailable, useAgentApp } from '../../lib/engine';
 import { connectionFacts, gettingStarted, rulesInForce, settingsFacts } from '../../lib/firstRun';
 import { StartProgress, StartSteps, type StepAction } from '../../shared/start';
 import { TakeTour, Tour } from '../../shared/tour';
@@ -48,7 +49,7 @@ const HOUSE_TONE: Record<HouseState, ChipTone> = { unavailable: 'line', idle: 'l
 const PAIRING_RECHECK_MS = 30_000;
 
 const INFO = {
-  unlock: 'Signing rules, saving keys and connecting wallets ask for Windows Hello first. Like PayPal, the wallet locks again after 15 quiet minutes. You can always look around.',
+  unlock: 'Signing rules, saving keys and connecting wallets ask for your fingerprint, face or PIN first. Like PayPal, the wallet locks again after 15 quiet minutes. You can always look around.',
   creds: 'Registering at developer.paypal.com creates a sandbox business account with its test keys; that is where yours come from. A Windows dialog asks for each key and saves it in your computer’s secure store. Nothing is typed into this window, and the key never shows up here.',
   engine: 'The agent app is chosen in The Table, under Settings. This window only shows which one is in use.',
   house: 'A demo shop that is always open, built into this app. Join its table from The Table, then confirm its four words here.',
@@ -69,7 +70,7 @@ const INFO_LABEL: Record<InfoKey, string> = {
   key: 'About your owner key',
 };
 
-const TARGET_TEXT = { credentials: 'save a key', mandate: 'sign rules', unlock: 'unlock with Windows Hello' } as const;
+const TARGET_TEXT = { credentials: 'save a key', mandate: 'sign rules', unlock: 'unlock with fingerprint, face or PIN' } as const;
 
 export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A replayed renewal opened its fix: review it here. */ onReplayed?: (deal: Deal) => void }) {
   const s = useSession();
@@ -86,6 +87,8 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   const limits = useQuery('envelope_get', null, { refreshOn: ['settings:changed'] });
   // Subscribe, then fetch: the pending pairing Rust selected for this window (null = none).
   const pairing = useQuery('approval_pairing', null, { refreshOn: ['settings:changed'] });
+  // The same engine_brief answer The Table's footer and Set up read: one agent app state everywhere.
+  const agentApp = useAgentApp(s.settings?.selected_engine).state;
   // Who is connected (first run: has the house seller been connected yet?).
   const connections = useQuery('counterparty_list', null, { refreshOn: ['settings:changed'] });
   // Read-only owner facts: here, the owner's public key id for Details.
@@ -197,7 +200,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   const active = list.filter((m) => isMandateActive(m, now) && !m.refusal);
   // First run: the same steps as The Table (lib/firstRun.ts), with the next one in gold.
   const gs = gettingStarted({
-    ...settingsFacts(st), rulesInForce: rulesInForce(mandates.data, now), ...connectionFacts(connections.data),
+    ...settingsFacts(st), engineAvailable: agentAppAvailable(agentApp), rulesInForce: rulesInForce(mandates.data, now), ...connectionFacts(connections.data),
   });
   const first = gs.show;
   const saveKeys = async () => {
@@ -213,7 +216,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   };
   const stepAction = (k: StartStepKey): StepAction => (k === 'practice' || k === 'engine' ? null : {
     label: locked ? 'Unlock first' : k === 'paypal' ? 'Add keys…' : 'Choose rules…',
-    title: locked ? 'Unlock with Windows Hello first' : k === 'paypal' ? 'A secure dialog asks for your sandbox keys and saves them on this computer' : 'Start from a ready-made set of rules, check it, then sign',
+    title: locked ? 'Unlock with fingerprint, face or PIN first' : k === 'paypal' ? 'A secure dialog asks for your sandbox keys and saves them on this computer' : 'Start from a ready-made set of rules, check it, then sign',
     run: () => runStep(k),
   });
   const nextStep = gs.next === 'paypal' || gs.next === 'rules' ? gs.next : null;
@@ -270,14 +273,14 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
 
         <Section title="Wallet" end={i('unlock')} tour="owner-config">
           <Group>
-            <Row title="Unlock" sub={locked ? 'Changes here ask for Windows Hello' : 'Locks again after 15 quiet minutes'} need={locked}>
+            <Row title="Unlock" sub={locked ? 'Changes here ask for your fingerprint, face or PIN' : 'Locks again after 15 quiet minutes'} need={locked}>
               {locked ? <Chip tone="gold">locked</Chip> : <Chip tone="ok">unlocked</Chip>}
             </Row>
             {/* on first run the PayPal keys are step 1 above; the price key is optional, so never gold then */}
             {first ? null : <Credential kind="paypal_sandbox" name="PayPal connection" what="your PayPal sandbox app keys" stored={!!st?.payment_executor_configured} locked={locked} />}
             <Credential kind="channel3" name="Market prices" what={first ? 'optional · the key for comparing prices' : 'the key for comparing prices'} stored={!!st?.channel3_configured} locked={locked} gold={!first} />
             <Row title="Agent app" sub={st ? `${ENGINE_NAME[st.selected_engine]}${st.agents_paused ? ' · all agents paused' : ''} · change it in The Table` : 'Reading settings…'}>
-              <Chip tone={st?.agents_paused ? 'gold' : 'line'}>{st?.agents_paused ? 'paused' : 'in use'}</Chip>
+              <Chip tone={st?.agents_paused ? 'gold' : agentApp.kind === 'connected' ? 'ok' : agentApp.kind === 'unknown' ? 'dashed' : 'line'}>{st?.agents_paused ? 'paused' : AGENT_APP.chip[agentApp.kind]}</Chip>
               {i('engine')}
             </Row>
             <Row title="House seller" sub={st ? `${HOUSE_TEXT[st.house]}${st.relay_available ? '' : ' · can’t be reached'}` : 'Reading settings…'}>
@@ -291,7 +294,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
         <Section title="Agent rules" end={<>{i('mandates')}<Btn kind={active.length || first ? 'default' : 'gold'} sm onClick={() => setEditing({ sel: null })}>{active.length ? 'New rules…' : 'Sign your first rules…'}</Btn></>}>
           {mandates.error ? <WalletNotice error={mandates.error} what="Agent rules" /> : null}
           <Group empty={mandates.loading ? 'Reading your rules…' : mandates.error && !mandates.data ? 'Your rules can’t be read right now.' : 'No rules signed yet, so agents can’t do anything.'}>
-            {list.map((m) => <MandateRow key={`${m.payload.id}:${m.payload.version}`} m={m} now={now} onOpen={() => setEditing({ sel: m.payload.id })} />)}
+            {list.map((m, i) => <MandateRow key={`${m.payload.id}:${m.payload.version}`} m={m} now={now} which={ruleSetOrdinal(list.slice(0, i + 1).filter((x) => x.agent === m.agent).length, list.filter((x) => x.agent === m.agent).length)} onOpen={() => setEditing({ sel: m.payload.id })} />)}
           </Group>
         </Section>
 
@@ -361,7 +364,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   );
 }
 
-function MandateRow({ m, now, onOpen }: { m: MandateListEntry; now: number; onOpen: () => void }) {
+export function MandateRow({ m, now, onOpen, which = '' }: { m: MandateListEntry; now: number; onOpen: () => void; which?: string }) {
   const p = m.payload;
   const live = isMandateActive(m, now) && !m.refusal;
   // The two or three limits that say the most, in plain words; ids and keys live in the editor.
@@ -373,14 +376,14 @@ function MandateRow({ m, now, onOpen }: { m: MandateListEntry; now: number; onOp
       title={<>{name} <span className="dim">· updated {new Date(p.not_before * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span></>}
       sub={m.refusal ? NO_LONGER_FITS : key.map(clauseText).join(' · ')}
       onOpen={onOpen}
-      label={`Open ${name} to see or change them`}
+      label={ruleRowLabel(name, p.version, new Date(p.not_before * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), live ? 'in force' : m.refusal ? 'needs signing again' : p.not_before > now ? 'not started yet' : 'expired', which)}
     >
       <Chip tone={live ? 'ok' : m.refusal ? 'gold' : 'line'}>{live ? `in force · ${timeLeftWords(p.expires - now)} left` : m.refusal ? 'needs signing again' : p.not_before > now ? 'not started yet' : 'expired'}</Chip>
     </Row>
   );
 }
 
-function Credential({ kind, name, what, stored, locked, gold = true }: { kind: CredentialArgs; name: string; what: string; stored: boolean; locked: boolean; /** Gold while missing (off when it is optional). */ gold?: boolean }) {
+export function Credential({ kind, name, what, stored, locked, gold = true }: { kind: CredentialArgs; name: string; what: string; stored: boolean; locked: boolean; /** Gold while missing (off when it is optional). */ gold?: boolean }) {
   const s = useSession();
   const [error, setError] = useState<WalletError | null>(null);
   const [done, setDone] = useState(false);
@@ -398,7 +401,7 @@ function Credential({ kind, name, what, stored, locked, gold = true }: { kind: C
       <Row title={name} sub={done ? 'Saved securely on this computer' : stored ? `${what} · saved securely on this computer` : `${what} · not saved yet`} need={!stored && gold}>
         <Chip tone={stored ? 'ok' : gold ? 'gold' : 'line'}>{stored ? 'connected' : gold ? 'needed' : 'not set'}</Chip>
         <Btn kind="plain" sm icon aria-label={`About ${name}`} aria-haspopup="dialog" onClick={(e) => { const el = e.currentTarget; setA((x) => (x ? null : el)); }}>ⓘ</Btn>
-        <Btn sm kind={stored || !gold ? 'default' : 'gold'} locked={locked} disabled={locked || !s.tokenReady || s.pending !== null} onClick={() => void run()}>
+        <Btn sm kind={stored || !gold ? 'default' : 'gold'} locked={locked} disabled={locked || !s.tokenReady || s.pending !== null} aria-label={`${stored ? 'Replace' : 'Add'} the saved ${name} (${what})`} onClick={() => void run()}>
           {s.pending === 'set_credentials' ? 'Dialog open…' : stored ? 'Replace…' : 'Add…'}
         </Btn>
       </Row>

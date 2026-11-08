@@ -1,6 +1,9 @@
 // SANDBOX SAMPLE DATA for the browser mock - Maya's week from the design report "The Table"
 // (docs/design/the-table.html §2) in the exact Rust binding shapes. Maya, Dan and every
 // counterparty are fictional. Deadlines are relative to page load so countdowns stay live.
+import type { ApprovalCheck } from '@bindings/ApprovalCheck';
+import type { ApprovalSummary } from '@bindings/ApprovalSummary';
+import type { DecisionStep } from '@bindings/DecisionStep';
 import { AUTHORITY_MANIFEST } from '@bindings/authority';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Category } from '@bindings/Category';
@@ -154,7 +157,14 @@ export type MockState = {
   rescueWatches?: RescueWatchView[];
   /** Subscription checks made today (fixed in the mock). */
   rescueWatchReadsToday?: number;
+  /** The owner's decisions per deal id, oldest first, as Rust's `owner.decision` rows keep them
+   *  (attempt 1 only: the mock never re-settles). approval_summary reads the newest as `decided`. */
+  decisions?: Record<string, MockDecisionRow[]>;
+  /** Deals whose PayPal approval link was handed to the browser (the ledger's hand-off flag). */
+  handedOff?: string[];
 };
+/** One recorded owner decision: the step it started and the checklist the owner saw (its hash too). */
+export type MockDecisionRow = { seq: number; decision: string; operation: DecisionStep; at: number; checks: ApprovalCheck[]; checks_hash: ApprovalSummary['checks_hash'] };
 /** A shop-around group as the ledger keeps it (deal_groups + deals.group_id). `sample` marks the
  *  fixture's own group, which `?groups=none` hides to preview the "Shop around" action. */
 export type MockGroup = { group_id: string; item_ref: string; opened_at: number; winner: string | null; deal_ids: string[]; sample?: boolean };
@@ -560,6 +570,8 @@ export function buildMockState(now: number): MockState {
     rescue[d.deal.id] = {
       deal_id: d.deal.id, source, offer, text: invoiceText(offer), failed_payments: 1, next_retry_at: retry,
       recipient: `${email.slice(0, 1)}•••@example.com`, invoice: d.deal.paypal.order, counted,
+      // One sample the wallet would refuse (Runtime::rescue_refusal): the share is over what the rules allow.
+      refusal: label === 'D-0188' ? 'over_discount_share' : null,
     };
   }
 

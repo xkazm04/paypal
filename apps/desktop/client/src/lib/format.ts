@@ -2,6 +2,7 @@ import type { Currency } from '@bindings/Currency';
 import type { Money } from '@bindings/Money';
 import type { H256 } from '@bindings/H256';
 import { clockNow } from './clock';
+import { timeLeftWords } from './words';
 
 /** Minor-unit exponents, matching the Rust Currency table. Money never touches floats in Rust;
  *  the client only formats it for display. */
@@ -38,11 +39,14 @@ export function formatMinor(minor: number, currency: Currency, opts: { code?: bo
 const GROUPED = /^\d{1,3}(?:,\d{3})+(?:\.\d*)?$/;
 
 /** "58", "58.", "$ 58", "$1,058.50" -> integer minor units in `currency`; null when it is not an amount
- *  (a comma that is not a thousands group, too many decimals, 10+ whole digits). String arithmetic only:
- *  no float ever touches the amount. The one parser for every owner-typed price. */
+ *  (a comma that is not a thousands group, too many decimals, 10+ whole digits, another currency's
+ *  symbol: "$500" in a EUR field is not 500 EUR). String arithmetic only: no float ever touches the
+ *  amount. The one parser for every owner-typed price. */
 export function parseMoneyText(text: string, currency: Currency): number | null {
   const exp = EXPONENT[currency];
-  const t = text.trim().replace(/^[$€£]\s*/, '');
+  const typed = text.trim();
+  const sym = SYMBOL[currency];
+  const t = sym && typed.startsWith(sym) ? typed.slice(sym.length).trimStart() : typed;
   if (t.includes(',') && !GROUPED.test(t)) return null; // "58,50" is not 5850
   const s = t.replace(/,/g, '');
   const m = exp ? s.match(new RegExp(`^(\\d{1,9})(?:\\.(\\d{0,${exp}}))?$`)) : s.match(/^(\d{1,9})$/);
@@ -110,9 +114,7 @@ export function shortHash(h: H256 | null | undefined): string {
 export function countdown(deadline: number, now: number): string {
   let s = Math.max(0, Math.floor(deadline - now));
   if (s >= 86400) {
-    const d = Math.floor(s / 86400);
-    const h = Math.floor((s % 86400) / 3600);
-    return `${d} ${d === 1 ? 'day' : 'days'}${h ? ` ${h} h` : ''}`;
+    return timeLeftWords(s); // the one time-left formatter: whole days floored, then hours
   }
   const h = Math.floor(s / 3600);
   s -= h * 3600;

@@ -1,0 +1,102 @@
+{
+ "schema": "conform-run/1",
+ "worker": "64cdb9ab-101b-4173-b659-8637116fb894",
+ "subject": "prompt-assembly",
+ "evaluatedAt": "2026-11-07T00:45:14.779726+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "runtime-money-controls",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-runtime/src/limits.rs:1 The context's 25 files (limits, policy, rescue, safety, proof, witness, history, forecast, simulate, groups and their tests) are deterministic money-control logic that builds no model prompt. A search of those files for prompt|llm|system_prompt|compaction found only capability-token and deal-transcript (hash chain) hits. Across crates/table-runtime/src there are 0 hits for compaction, max_tokens, context_window or cache_control. 'prompt' does appear in that directory, but only in engines.rs, agent_surface_tests.rs and credentials.rs (OS credential prompt), and none of those files belongs to this context.",
+   "techniques": [],
+   "absenceTerms": [
+    "compaction",
+    "max_tokens",
+    "context_window",
+    "cache_control"
+   ]
+  },
+  {
+   "context": "client-runtime-foundation",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/lib/clock.ts:1 The context's files are bridge, runtime detection, contract types, a UI clock for countdowns, formatting, hooks and lazy/mount helpers. None of them builds text for a model; the clock feeds UI deadlines, not a prompt, so pinned-prompt-clock does not apply. A search of the context's files for prompt|llm|system_prompt found only capability-token hits. Across apps/desktop/client there are 0 hits for compaction, max_tokens, context_window or cache_control. 'prompt' does appear in apps/desktop/client/src/lib/assistant/*, a separate assistant context that is not in this file list.",
+   "techniques": [],
+   "absenceTerms": [
+    "compaction",
+    "max_tokens",
+    "context_window",
+    "cache_control"
+   ]
+  },
+  {
+   "context": "shared-ui-primitives",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/shared/ui/why.tsx:3 The shared UI primitives (sheets, popovers, toasts, hold-to-confirm, why/story explainers, error boundaries) make no model calls. The why explainer says outright that its text is deterministic with no model. A search of apps/desktop/client/src/shared for prompt, compaction, max_tokens and context_window returned 0 hits.",
+   "techniques": [],
+   "absenceTerms": [
+    "prompt",
+    "compaction",
+    "max_tokens",
+    "context_window"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "prompt-assembly",
+   "context": "counter-and-tables-modules",
+   "reason": "evidence leans on lib/words/arena.ts, which is not a tracked file"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T00:45:14.779726+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "runtime-money-controls",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T00:45:14.779726+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "client-runtime-foundation",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T00:45:14.779726+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shared-ui-primitives",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,140 @@
+{
+ "schema": "conform-run/1",
+ "worker": "9731e44a-7ffa-4387-8409-9382baed8276",
+ "subject": "agent-memory",
+ "evaluatedAt": "2026-11-03T16:03:55.447050+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "tumbler-window",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:171 The Tumbler draws Rust's attention snapshot and keeps no state of its own (it does not even remember a snooze), and a case-insensitive search of the tumbler directory for episod, consolidat, belief, embedding and memories found nothing, so there is no agent working, episodic or consolidated store here for the subject to govern.",
+   "techniques": [],
+   "absenceTerms": [
+    "episod",
+    "consolidat",
+    "belief",
+    "embedding",
+    "memories"
+   ]
+  },
+  {
+   "context": "deal-review",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:4 The deal-review modules only pick display words for the human owner from facts the wallet reports, and a case-insensitive search of the whole approval directory for episod, consolidat, belief, embedding and memories found nothing (the 'memory' hits are an in-RAM capability and a hold-button flag), so there is no agent memory pipeline here.",
+   "techniques": [],
+   "absenceTerms": [
+    "episod",
+    "consolidat",
+    "belief",
+    "embedding",
+    "memories"
+   ]
+  },
+  {
+   "context": "spend-firewall-and-agent-policy",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-core/src/agent.rs:223 The agent's table_view projection keeps only the newest 64 signed transcript steps and drops the older ones with no in-band notice of kind, count or cause, and AgentProjection (deny_unknown_fields) has no field that could carry one; max_rounds is a u8 that mandate validation only checks is nonzero, so deals with more than 64 steps can happen, and agent_tests.rs:282 pins the silent cut at 100 steps.",
+   "techniques": [
+    {
+     "technique": "loss-site-inventory",
+     "verdict": "deviation",
+     "evidence": "crates/table-core/src/agent.rs:223 Window of the newest N steps with no notice in the agent's channel naming how many older signed steps were dropped and why; the operator's transcript view shows them all, which is the 'second door' gap."
+    },
+    {
+     "technique": "working-memory",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/agent.rs:245 The operative state (band, rounds left, last prices, turn, deadline) goes into named slots recomputed from the full step list on every build, so the history cut does not evict the goal or the constraints."
+    },
+    {
+     "technique": "consolidation",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/agent.rs:161 Projection is a typed view of the signed ledger; no distillation into beliefs exists in this crate."
+    }
+   ]
+  },
+  {
+   "context": "director-preview-stories",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/director/stories.ts:4 The director is a pure browser-only rig that maps a search string to scripted story beats over a mock world, and a case-insensitive search of src/director for episod, consolidat, belief, embedding and memories found nothing (the only memory-like hit is resetTourMemory, onboarding-tour UI state), so it has no agent memory store.",
+   "techniques": [],
+   "absenceTerms": [
+    "episod",
+    "consolidat",
+    "belief",
+    "embedding",
+    "memories"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-memory",
+   "context": "wallet-app-services",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-03T16:03:55.447050+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "tumbler-window",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T16:03:55.447050+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "deal-review",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T16:03:55.447050+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [
+    "consolidation",
+    "loss-site-inventory",
+    "working-memory"
+   ],
+   "deviations": 1,
+   "context": "spend-firewall-and-agent-policy",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T16:03:55.447050+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "director-preview-stories",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

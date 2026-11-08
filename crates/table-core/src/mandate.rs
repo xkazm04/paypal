@@ -544,13 +544,11 @@ impl MandatePayload {
                     if usage.deals_today >= *max_deals_day {
                         return Err(Refusal::new(5, "max_deals_day reached"));
                     }
-                    let total = usage
+                    usage
                         .total_today
                         .checked_add(amount)
                         .map_err(|_| Refusal::new(5, "invalid daily currency or total"))?;
-                    if total.currency() != max_total_day.currency()
-                        || total.minor() > max_total_day.minor()
-                    {
+                    if crate::day_left(usage.total_today, amount, *max_total_day).is_none() {
                         return Err(Refusal::new(5, "max_total_day exceeded"));
                     }
                 }

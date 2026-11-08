@@ -91,11 +91,11 @@ export function useMutation<K extends CommandName>(cmd: K): Mutation<K> {
  *  client clock (lib/clock.ts): wall time in the shell; in a browser preview a jump of the
  *  simulated clock re-renders every countdown at once instead of on the next second. */
 const clock = (() => {
-  let now = nowUnix();
+  let now = nowUnix(); // the last ticked second, kept for subscribers only
   const subs = new Set<() => void>();
   let timer: ReturnType<typeof setInterval> | null = null;
   let offJump: (() => void) | null = null;
-  const tick = () => { now = nowUnix(); subs.forEach((s) => s()); };
+  const tick = () => { now = nowUnix(); void now; subs.forEach((s) => s()); };
   return {
     subscribe(cb: () => void) {
       subs.add(cb);
@@ -107,9 +107,10 @@ const clock = (() => {
         if (!subs.size && offJump) { offJump(); offJump = null; }
       };
     },
-    // With nothing subscribed no tick runs, so the first countdown drawn after a quiet spell
-    // reads the clock itself instead of the second the last countdown left.
-    get: () => (subs.size ? now : (now = nowUnix())),
+    // Always the clock itself (whole seconds, so the snapshot is stable within a second): a cached
+    // value from the last tick made a first paint up to a second behind the surfaces that read the
+    // clock directly, so "4 days" showed where they said "3 days 23 h".
+    get: () => (now = nowUnix()),
   };
 })();
 

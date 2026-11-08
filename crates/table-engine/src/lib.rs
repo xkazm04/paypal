@@ -42,6 +42,21 @@ pub struct EngineInfo {
     pub version: Option<String>,
     pub reason: Option<String>,
 }
+/// The least an unprivileged window may learn about an engine: whether it can run. Never the
+/// version or the probe's reason (those are `EngineInfo`, main window only).
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EngineBrief {
+    pub id: EngineId,
+    pub available: bool,
+}
+impl From<&EngineInfo> for EngineBrief {
+    fn from(i: &EngineInfo) -> Self {
+        Self {
+            id: i.id,
+            available: i.available,
+        }
+    }
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Profile {
     Agent,

@@ -295,3 +295,11 @@ export const UI_WORDS = {
 
 /** What a ChecksSummary check says about itself, in a count and as an icon's accessible name. */
 export const CHECK_WORD = { pass: 'passed', ask: 'asks you', fail: 'stopped it', unknown: 'not checked here' } as const;
+
+/** The agent app's state in words, the one source every window reads (lib/engine.ts picks the key). */
+export const AGENT_APP = {
+  /** The footer chip and the Set up line. */
+  label: { connected: 'Agent app ready', practice: 'Practice agent ready', 'not-connected': 'Agent app not connected', unknown: 'Checking agent app…' },
+  /** The short chip beside the approval window's Agent app row. */
+  chip: { connected: 'ready', 'not-connected': 'not connected', unknown: 'checking' },
+} as const;

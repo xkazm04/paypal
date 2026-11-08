@@ -48,7 +48,12 @@ export type ActionRef =
   | { action: 'let_lapse'; deal_id: string };
 
 export type UiOp =
-  /** Put an answer panel in the answer area (replaces the current one). */
+  /** Add an answer panel to the board's answer region. Shows compose: several in one reply add several
+   *  panels; one equal to a panel already there (same kind and fields) is not added twice and becomes
+   *  the focus; when the region is full (REGION_MAX) the oldest panel the owner did not pin leaves
+   *  (windows/main/switchboard/region.ts). The wire shape is unchanged. NOTE: the model-facing words
+   *  (OPS.show in vocabulary.ts, pinned for the shell in assistant_contract.json) still read
+   *  "replaces the current one" until that pinned copy is regenerated with a shell rebuild. */
   | { op: 'show'; panel: PanelSpec }
   /** Light up a module row, a fate column, a cell or a deal on the board (never hides anything). */
   | { op: 'focus'; module: Module | null; fate: Fate | null; deal_id: string | null }

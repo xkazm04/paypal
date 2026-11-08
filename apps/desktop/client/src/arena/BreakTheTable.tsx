@@ -24,6 +24,7 @@ import {
 import { DAN_LABEL } from '../mock/haggle';
 import type { MockBackend } from '../mock/backend';
 import { Btn } from '../shared/ui';
+import { ARENA_RECORDER, NOTE_HONEST } from './copy';
 import { Corridor } from '../windows/main/console/areas/tables/Corridor';
 import { Answer, Finale, LiveAnswerView, VERDICT_WORDS } from './Answer';
 import { arenaHaggle, hitsWall } from './corridor';
@@ -220,6 +221,7 @@ export function BreakTheTable({ host, onOpenSafety }: { host: ArenaHost; /** The
             <span className="ar-tag">{ARENA_PREVIEW}</span>
             <h1>{ARENA_TITLE}</h1>
             <p className="ar-lede">{ARENA_LEDE}</p>
+            <p className="ar-recorder" data-arena-recorder="">{ARENA_RECORDER}</p>
           </div>
           {counter}
         </header>
@@ -229,6 +231,7 @@ export function BreakTheTable({ host, onOpenSafety }: { host: ArenaHost; /** The
             <p className="kicker">{ARENA_PLACE.kicker}</p>
             <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{ARENA_PLACE.title}</h1>
             <p className="ar-lede">{ARENA_PLACE.lede}</p>
+            <p className="ar-recorder" data-arena-recorder="">{ARENA_RECORDER}</p>
             <div className="ar-go">
               <Btn kind="gold" data-fk="try-attack" disabled={untried === null} title={untried ? ARENA_PLACE.attackTitle : ARENA_PLACE.attackDone} onClick={() => { if (untried) play(untried); }}>{ARENA_PLACE.attack}</Btn>
               {untried === null ? <span className="ar-hint">{ARENA_PLACE.attackDone}</span> : null}
@@ -270,6 +273,7 @@ export function BreakTheTable({ host, onOpenSafety }: { host: ArenaHost; /** The
           <section className="ar-note" aria-label={ARENA_NOTE.heading}>
             <h2>{ARENA_NOTE.heading}</h2>
             <p className="ar-sub">{ARENA_NOTE.sub}</p>
+            <p className="ar-hint ar-note-honest">{NOTE_HONEST}</p>
             <label className="ar-note-l" htmlFor="ar-note-text">{ARENA_NOTE.label}</label>
             <div className="ar-note-row">
               <textarea id="ar-note-text" maxLength={ARENA_NOTE_MAX} rows={2} aria-describedby="ar-note-limit" value={note} placeholder={ARENA_NOTE.placeholder} onChange={(e) => setNote(e.target.value)}
@@ -277,7 +281,6 @@ export function BreakTheTable({ host, onOpenSafety }: { host: ArenaHost; /** The
               <Btn kind="primary" disabled={!note.trim()} onClick={() => sendNote()} title={note.trim() ? undefined : ARENA_NOTE.empty}>{ARENA_NOTE.send}</Btn>
             </div>
             <p className="ar-hint" id="ar-note-limit">{ARENA_NOTE.limit(note.length, ARENA_NOTE_MAX)}</p>
-            <p className="ar-hint">{ARENA_NOTE.honest}</p>
             {liveNote !== null ? <p className="ar-hint" role="status">{liveNote ? ARENA_LIVE_MODE.noteSent : ARENA_LIVE_MODE.noteFailed}</p> : null}
           </section>
         </section>

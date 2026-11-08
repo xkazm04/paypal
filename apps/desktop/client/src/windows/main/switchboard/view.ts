@@ -1,10 +1,18 @@
-// Which view of the main window is showing: the console (default) or the board. The address
-// (`?view=board|console`) wins, then the remembered choice (localStorage `table-home-view`), then the
-// console. Switching remembers the choice and, when the address names a view, keeps the address
-// truthful. One tiny store so the console's top-bar button and the App read the same value without
-// remounting the providers. Storage is always wrapped: a private window or blocked storage just
-// means the choice is not remembered.
+// Which view of the main window is showing: the board (the default home, spark the-proof-table) or
+// the console. The rule, first match wins:
+//   1. the address: `?view=board|console`;
+//   2. a deep link into the console: a hash the console's router reads as anything but its home
+//      (logic.ts parseHash: `#d=` a deal, `#r=rewind`, `#m=` a module, `#p=` a place, `#s=setup`,
+//      `#w=waiting`, an old sheet link), so every link the Tumbler, the director and older builds
+//      wrote still lands where it did;
+//   3. the remembered choice (localStorage `table-home-view`);
+//   4. the board.
+// Switching remembers the choice and, when the address names a view, keeps the address truthful. One
+// tiny store so the console's top-bar button and the App read the same value without remounting the
+// providers. Storage is always wrapped: a private window or blocked storage just means the choice is
+// not remembered.
 import { useSyncExternalStore } from 'react';
+import { parseHash } from '../logic';
 
 export type HomeView = 'board' | 'console';
 export const VIEW_KEY = 'table-home-view';
@@ -29,9 +37,19 @@ function fromStorage(): HomeView | null {
   }
 }
 
-/** The view to open on right now: address, then remembered choice, then the console. */
+/** The console when the hash is a deep link into it (any route but its home), else null. */
+function fromConsoleLink(): HomeView | null {
+  try {
+    const h = window.location.hash;
+    return h && h !== '#' && parseHash(h).route.level !== 'home' ? 'console' : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The view to open on right now: the address, a console deep link, the remembered choice, the board. */
 export function initialView(): HomeView {
-  return fromAddress() ?? fromStorage() ?? 'console';
+  return fromAddress() ?? fromConsoleLink() ?? fromStorage() ?? 'board';
 }
 
 let current: HomeView | null = null;

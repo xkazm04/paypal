@@ -2,6 +2,7 @@
 import type { DealId } from "./DealId";
 import type { InvoiceText } from "./InvoiceText";
 import type { RescueOffer } from "./RescueOffer";
+import type { RescueRefusal } from "./RescueRefusal";
 import type { RescueSource } from "./RescueSource";
 
 /**
@@ -25,4 +26,10 @@ invoice?: string | null,
  * PayPal showed it paid and the wallet receipted it, on a failure PayPal reported: this is
  * the only money counted as recovered.
  */
-counted: boolean, };
+counted: boolean, 
+/**
+ * Why the wallet would not send this fix, when it would not: the engine's own refusal as a
+ * closed reason, never text. Absent when the fix is inside the signed rules. For display; the
+ * engine refuses the send itself, whatever the page shows.
+ */
+refusal?: RescueRefusal | null, };

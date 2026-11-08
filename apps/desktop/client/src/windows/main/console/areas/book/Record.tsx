@@ -16,6 +16,7 @@ import { decidedBy } from '../../../logic';
 import { useLayerNav } from '../../layers';
 import { fewRows, ListEngine, type ListFilter } from '../../ListEngine';
 import { type BookWorld } from './parts';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 
 /** Steps read per page (audit_page takes 1 to 200). */
 export const RECORD_PAGE = 200;
@@ -73,6 +74,8 @@ function StepRow({ r, deal, title }: { r: AuditRow; deal: Deal | undefined; titl
 }
 
 type Page = { next: number | null; oldest: number | null };
+
+const FILL = { display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0, minWidth: 0 } as const;
 
 export function Record({ b }: { b: BookWorld }) {
   const nav = useLayerNav();
@@ -158,9 +161,9 @@ export function Record({ b }: { b: BookWorld }) {
     );
   }
   return (
-    <div className="bk-record" onScrollCapture={onScroll}>
+    <RevealGroup className="bk-record" onScrollCapture={onScroll}>
       {read.error ? <WalletNotice error={read.error} what={BOOK.record.what} /> : null}
-      <div className="bk-rtools">
+      <Reveal className="bk-rtools">
         <label className="bk-jump">
           <span>{BOOK.record.goDay}</span>
           <Field type="date" value={day} aria-label={BOOK.record.goDay} onChange={(e) => void goDay(e.currentTarget.value)} />
@@ -169,18 +172,18 @@ export function Record({ b }: { b: BookWorld }) {
         <span className="ui-spacer" />
         <span className="bk-dim" role="status">{jumping ? BOOK.record.reading : short && day ? BOOK.record.dayShort : next === undefined ? null : next ? BOOK.record.readSoFar(rows.length) : BOOK.record.readAll(rows.length)}</span>
         {next ? <Btn sm disabled={read.pending} onClick={older}>{read.pending ? BOOK.record.reading : BOOK.record.older}</Btn> : null}
-      </div>
+      </Reveal>
       {/* Before the first page is read the list says nothing: a failed read is the notice above,
           never "nothing on record". */}
       {next === undefined ? (read.error ? null : <Loading what={BOOK.record.loading} />) : (
-        <ListEngine<AuditRow> className={fewRows(shown.length)} label={BOOK.record.label} rows={shown} getKey={(r) => String(r.seq)} filters={FILTERS} filterLabel={BOOK.record.filter.label} estimateSize={36} toolbarMin={0}
+        <Reveal style={FILL}><ListEngine<AuditRow> className={fewRows(shown.length)} label={BOOK.record.label} rows={shown} getKey={(r) => String(r.seq)} filters={FILTERS} filterLabel={BOOK.record.filter.label} estimateSize={36} toolbarMin={0}
           searchText={(r) => `${actionWord(r.action)} ${actorWord(r.actor)} ${titleOf(r) ?? ''}`}
           renderRow={(r) => <StepRow r={r} deal={r.deal_id ? byId.get(r.deal_id) : undefined} title={titleOf(r)} />}
           rowLabel={(r) => `${actionWord(r.action)}, ${clockLabel(r.at)}`}
           onOpen={(r) => { if (r.deal_id) nav.deal(r.deal_id); }}
-          empty={BOOK.record.empty} />
+          empty={BOOK.record.empty} /></Reveal>
       )}
-      <p className="ui-hint">{BOOK.record.hint}</p>
-    </div>
+      <Reveal><p className="ui-hint">{BOOK.record.hint}</p></Reveal>
+    </RevealGroup>
   );
 }

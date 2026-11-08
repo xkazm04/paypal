@@ -1,28 +1,35 @@
 // Engine and agent status for the console footer (console/Footer.tsx): two compact chips that open Settings.
 // No engine selected, an unavailable engine and a failed engine_status read all say so; until a read
 // answers, a chip says it is checking (dashed), never a state it has not read.
+import { useAgentApp } from '../../lib/engine';
 import { useQuery } from '../../lib/hooks';
-import { AGENTS_CHIP, ENGINE_CHIP, reasonWords } from '../../lib/words';
+import { AGENT_APP, AGENTS_CHIP, ENGINE_CHIP, reasonWords } from '../../lib/words';
 import { useRuns, useSettings } from './world';
 
 export function EngineChip({ onClick }: { onClick: () => void }) {
   const settings = useSettings();
+  // The state is engine_brief through agentAppState, the answer every window reads; engine_status
+  // (main only) adds the version and the probe's reason to the tooltip when it has answered.
+  const sel = settings.data?.selected_engine;
+  const { state, error: briefError } = useAgentApp(sel);
   const engines = useQuery('engine_status', null, { refreshOn: ['settings:changed'] });
   // Until settings are read, which agent app was chosen is not known: never "No agent app".
   const known = !!settings.data;
-  const sel = settings.data?.selected_engine;
   const info = engines.data?.find((e) => e.id === sel);
-  const ok = !!info?.available;
-  const unknown = !known || (!!sel && (!!engines.error || !info));
+  const ok = state.kind === 'connected';
+  const unknown = !known || (!!sel && state.kind === 'unknown');
   const label = !known ? (settings.error ? ENGINE_CHIP.statusUnknown : ENGINE_CHIP.checking)
-    : !sel ? ENGINE_CHIP.none : engines.error ? ENGINE_CHIP.statusUnknown : !info ? ENGINE_CHIP.checking : ok ? (sel === 'scripted' ? ENGINE_CHIP.practiceReady : ENGINE_CHIP.ready) : ENGINE_CHIP.notConnected;
+    : !sel ? ENGINE_CHIP.none : briefError ? ENGINE_CHIP.statusUnknown : state.kind === 'unknown' ? ENGINE_CHIP.checking
+      : ok ? (sel === 'scripted' ? AGENT_APP.label.practice : AGENT_APP.label.connected) : AGENT_APP.label['not-connected'];
   const title = !known
     ? (settings.error ? ENGINE_CHIP.settingsUnread : ENGINE_CHIP.checkingTitle)
-    : engines.error
+    : briefError
       ? ENGINE_CHIP.unchecked
-      : info
-        ? ok ? ENGINE_CHIP.isReady(info.id, info.version) : ENGINE_CHIP.isNotConnected(info.id, info.reason ? reasonWords(info.reason) : null)
-        : sel ? ENGINE_CHIP.checkingTitle : ENGINE_CHIP.pick;
+      : state.kind === 'connected'
+        ? ENGINE_CHIP.isReady(state.engine, info?.version)
+        : state.kind === 'not-connected'
+          ? ENGINE_CHIP.isNotConnected(state.engine, info?.reason ? reasonWords(info.reason) : null)
+          : sel ? ENGINE_CHIP.checkingTitle : ENGINE_CHIP.pick;
   return (
     <button type="button" className={`hs-chip ${ok ? 'ok' : unknown ? 'dashed' : 'warn'}`} onClick={onClick} title={title}>
       <i aria-hidden="true" />{label}

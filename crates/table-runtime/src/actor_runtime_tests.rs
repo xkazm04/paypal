@@ -693,3 +693,55 @@ async fn a_failed_engine_event_reports_the_failed_run_and_a_failed_finish_write(
     .await
     .expect("the engine fault, the run.finish fault and the Failed snapshot all arrive");
 }
+
+/// Every window may ask which engines can run, and is told that and nothing else: the version
+/// and the probe's reason (`engine_status`, main only) never reach the Tumbler or the approval
+/// window. The keys are pinned so a field added later cannot leak silently.
+#[tokio::test]
+async fn engine_brief_carries_only_id_and_available_and_refuses_an_unknown_window() {
+    let (mut r, _, _, _, _) = runtime(true);
+    let engine = Arc::new(WaitingEngine {
+        cancellations: AtomicUsize::new(0),
+    });
+    r.engines.push((
+        engine,
+        table_engine::EngineInfo {
+            id: table_engine::EngineId::ClaudeCode,
+            available: true,
+            version: Some("9.9.9-secret".into()),
+            reason: Some("/home/owner/bin/claude".into()),
+        },
+    ));
+    for label in ["main", "tumbler", "approval"] {
+        let v = r
+            .execute(caller(label, None), Action::EngineBrief)
+            .await
+            .unwrap();
+        let text = v.to_string();
+        assert!(
+            !text.contains("9.9.9") && !text.contains("/home/owner"),
+            "{label}: {text}"
+        );
+        let rows = v.as_array().unwrap();
+        assert_eq!(rows.len(), 3, "{label}");
+        for row in rows {
+            let keys: std::collections::BTreeSet<&str> = row
+                .as_object()
+                .unwrap()
+                .keys()
+                .map(String::as_str)
+                .collect();
+            assert_eq!(keys, ["available", "id"].into(), "{label}: {row}");
+        }
+        assert!(
+            rows.iter()
+                .any(|row| row["id"] == "claude-code" && row["available"] == true),
+            "{label}"
+        );
+    }
+    assert!(
+        r.execute(caller("devtools", None), Action::EngineBrief)
+            .await
+            .is_err()
+    );
+}

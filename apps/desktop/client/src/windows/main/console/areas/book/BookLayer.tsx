@@ -49,6 +49,9 @@ export function BookLayer({ nav }: LayerProps) {
   const today = usePaidToday(att?.exposure, b.all, needs);
   const f = useMemo(() => figures(b.weekDeals, b.checking), [b.weekDeals, b.checking]);
   const waiting = outlookCount(items);
+  // The card's held money is the outlook's own holds line (every hold that waits, any week, money
+  // out or in), so it describes the deals the count beside it counts (scale finding #8).
+  const heldWaiting = moneyList(items.find((it) => it.key === 'holds')?.total ?? []);
   const firstNeed = items.flatMap((it) => it.deals).map((d) => b.needOf.get(d.id)).find((n) => !!n);
   const views = useViews(b, scope, setScope, items, route.open);
 
@@ -78,7 +81,7 @@ export function BookLayer({ nav }: LayerProps) {
           { id: 'ledger', view: 'ledger', label: BOOK.cards.money, value: out ? BOOK.cards.paidOut(out) : BOOK.cards.noOut,
             note: [todayLine, moneyList(f.paidIn) ? BOOK.cards.paidIn(moneyList(f.paidIn)) : BOOK.payments(f.nOut)].filter(Boolean).join(' · ') },
           { id: 'outlook', view: 'outlook', label: BOOK.cards.outlook, value: waiting ? BOOK.cards.waits(waiting) : BOOK.cards.nothingWaits,
-            note: waiting ? BOOK.cards.outlookNote(moneyList(f.heldOut)) : BOOK.cards.outlookNone, chip: waiting ? BOOK.cards.check : undefined, chipTone: 'gold',
+            note: waiting ? BOOK.cards.outlookNote(heldWaiting) : BOOK.cards.outlookNone, chip: waiting ? BOOK.cards.check : undefined, chipTone: 'gold',
             ifNothing: firstNeed ? silenceParts(firstNeed.on_silence).head : null },
           { id: 'record', view: 'record', label: BOOK.cards.record, value: BOOK.cards.recordValue, note: BOOK.cards.recordNote },
           { id: 'ask', view: 'ask', label: BOOK.cards.ask, value: BOOK.cards.askValue, note: BOOK.cards.askNote },

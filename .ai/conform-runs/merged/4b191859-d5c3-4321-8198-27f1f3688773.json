@@ -1,0 +1,226 @@
+{
+ "schema": "conform-run/1",
+ "worker": "4b191859-d5c3-4321-8198-27f1f3688773",
+ "subject": "audit-logging",
+ "evaluatedAt": "2026-11-04T22:21:09.626548+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "ledger-repositories-audit-evidence",
+   "subject": "audit-logging",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-ledger/src/audit.rs:176 The one append door hashes and stores whatever time the caller passes. The only check is at>=0. relay_clock_tests.rs writes rows under a clock that steps backwards, so `at` and the seq order can disagree, and history_rows filters on `at` but orders by seq.",
+   "techniques": [
+    {
+     "technique": "append-only-design",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/audit.rs:176 There is no mutation surface (only insert and read are exported, backed by store triggers), but the timestamp is supplied by the caller rather than assigned by the ledger's own clock at insert. The technique names exactly this as an ordering failure."
+    },
+    {
+     "technique": "write-chokepoint",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/repositories.rs:177 audit_log has a single door, audit::append. The paypal_calls ledger has a second insert door (the other is countersign.rs:43), and the two diverge: this one normalises bad metadata where the other refuses it, redacts with no sensitive values (&[]), skips the separate debug_id scrub, and stamps the operation's `at` instead of call.at."
+    },
+    {
+     "technique": "write-path-sanitization",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/audit.rs:173 Inside the door and before the hash, the detail goes through a per-action key allowlist, credential and email pattern scrubbing, and a 64 KiB cap that leaves an explicit truncation marker (audit_detail.rs)."
+    },
+    {
+     "technique": "tamper-evidence",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/audit.rs:94 The hash chain over a JCS preimage is recomputed from the stored rows on open, on every read page (audit_page and history_rows call verify first) and at append checkpoints. Writes are serialized with IMMEDIATE transactions."
+    },
+    {
+     "technique": "retention-and-partitioning",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/audit.rs:161 The door states no horizon, not even an explicit keep-forever, and has no checkpoint-trim plan. Records carry no origin tag from a validated vocabulary; the actor is a free non-empty string."
+    },
+    {
+     "technique": "audit-querying",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/audit.rs:275 The read API filters only by subject (deal) and time window, and it does report capped results through `more`. There is no actor, action or outcome filter, and rows with no deal_id (refusals, mandates) cannot be reached by this read at all."
+    },
+    {
+     "technique": "two-clock-records",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/repositories.rs:296 A fact learned from outside (a market price) keeps its own effective time beside the row's recorded `at`, and a future retrieved_at is refused at :282. Facts the ledger originates itself only need one clock."
+    }
+   ]
+  },
+  {
+   "context": "ledger-schema-migrations",
+   "subject": "audit-logging",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-ledger/migrations/0002_integrity.sql:6 audit_log's only index is by deal. Actor, action and time have no index, and there is no outcome column, so the query axes audit-querying requires are not structured, indexed columns.",
+   "techniques": [
+    {
+     "technique": "audit-querying",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/migrations/0002_integrity.sql:6 Only the subject axis is indexed. Outcome has no column and lives inside detail_json (0001:45), so a 'show failed attempts' query needs json_extract."
+    },
+    {
+     "technique": "append-only-design",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/migrations/0001_table.sql:47 Store-level hardening: update and delete are aborted (0001:48), and insert-over-an-existing-seq is aborted too (0002:19)."
+    },
+    {
+     "technique": "tamper-evidence",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/migrations/0001_table.sql:46 The schema names the chained digest recipe, including its canonical serialization, beside the columns it covers."
+    },
+    {
+     "technique": "retention-and-partitioning",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/migrations/0001_table.sql:48 Every delete is forbidden, including a horizon trim. No migration states a horizon or a checkpoint-trim plan, and there is no origin column, so the ledger is unbounded by default rather than by stated policy."
+    }
+   ]
+  },
+  {
+   "context": "runtime-money-controls",
+   "subject": "audit-logging",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-runtime/src/history_tests.rs:321 The test pins that reading the money history writes nothing to the trail. Access to a sensitive ledger is therefore never recorded, while audit-querying requires that reads of a sensitive trail go through the same door.",
+   "techniques": [
+    {
+     "technique": "audit-querying",
+     "verdict": "deviation",
+     "evidence": "crates/table-runtime/src/history_tests.rs:321 Reads are not audited. Otherwise the read model is good: it renders typed fields only, and a capped result sets `truncated` (history.rs:38)."
+    },
+    {
+     "technique": "best-effort-with-accounting",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/safety.rs:23 Refusal audit writes that failed or were rate-capped are counted and surfaced on the owner's safety record. The counter itself lives in memory in dispatcher.rs, outside this context."
+    },
+    {
+     "technique": "tamper-evidence",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/proof.rs:50 The exported proof carries an asymmetric Ed25519 signature over its evidence commitment, so a reader outside the operating team can verify it. safety.rs re-verifies the chain on read."
+    }
+   ],
+   "registryProposal": "audit-querying's read-access rule ('access to the trail is recorded in the trail' for sensitive ledgers) gives no exemption for a single-owner local tool whose only reader is gated to the owner's window (authority_table: deal_history is MAIN/Read). The standard already grants that exemption for access control; it should say whether read-recording follows it."
+  },
+  {
+   "context": "rewind-and-displays",
+   "subject": "audit-logging",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/console/areas/rewind/RewindLayer.tsx:119 The tape's empty message ('Nothing happened this week. If you do nothing, no money moves.') is passed unconditionally. When deal_history fails or is still loading and steps is empty, the tape claims nothing happened while the header says the record couldn't be read. Steps whose deal is not in the loaded list are also dropped silently (:132), with no note that the list is filtered.",
+   "techniques": [
+    {
+     "technique": "audit-querying",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/rewind/RewindLayer.tsx:119 An empty result is not told apart from a broken query on the tape, and the filtered listing at :132 does not say it is filtered. The header (:87) does handle loading, error and truncation honestly."
+    }
+   ]
+  },
+  {
+   "context": "offline-proof-verifier",
+   "subject": "audit-logging",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-verify/src/lib.rs:426 The verifier rebuilds the audit-row preimage by hand instead of sharing the ledger's AuditPreimage type (audit.rs:29). The writer and the verifier each hold their own copy of the digest recipe, and a field added to one and not the other would read as a hash mismatch.",
+   "techniques": [
+    {
+     "technique": "absent-not-null-in-hashed-records",
+     "verdict": "deviation",
+     "evidence": "crates/table-verify/src/lib.rs:426 The 'one parser for writer, importer and verifier' rule is broken: the field list is restated here. The format versioning is otherwise sound: v1/v2 are named, a v1 file with v2 fields is refused, and an unknown format is reported as a format error rather than as tampering (:106-109)."
+    },
+    {
+     "technique": "tamper-evidence",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/lib.rs:431 Each exported row's digest is recomputed offline. The verdicts distinguish passed, failed, not-checked and not-applicable, and the file's blind spot is stated plainly: KNOWN_LIMIT (:555) says tail truncation cannot be detected."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-04T22:21:09.626548+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "audit-logging"
+   ],
+   "techniques": [
+    "append-only-design",
+    "audit-querying",
+    "retention-and-partitioning",
+    "tamper-evidence",
+    "two-clock-records",
+    "write-chokepoint",
+    "write-path-sanitization"
+   ],
+   "deviations": 1,
+   "context": "ledger-repositories-audit-evidence",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T22:21:09.626548+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "audit-logging"
+   ],
+   "techniques": [
+    "append-only-design",
+    "audit-querying",
+    "retention-and-partitioning",
+    "tamper-evidence"
+   ],
+   "deviations": 1,
+   "context": "ledger-schema-migrations",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T22:21:09.626548+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "audit-logging"
+   ],
+   "techniques": [
+    "audit-querying",
+    "best-effort-with-accounting",
+    "tamper-evidence"
+   ],
+   "deviations": 1,
+   "context": "runtime-money-controls",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T22:21:09.626548+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "audit-logging"
+   ],
+   "techniques": [
+    "audit-querying"
+   ],
+   "deviations": 1,
+   "context": "rewind-and-displays",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T22:21:09.626548+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "audit-logging"
+   ],
+   "techniques": [
+    "absent-not-null-in-hashed-records",
+    "tamper-evidence"
+   ],
+   "deviations": 1,
+   "context": "offline-proof-verifier",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

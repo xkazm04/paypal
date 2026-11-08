@@ -1,0 +1,148 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c6d39c58-2788-4029-a5d9-b28783406335",
+ "subject": "voice-io",
+ "evaluatedAt": "2026-11-08T01:29:46.455821+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "director-preview-stories",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/director/actions.ts:51 I searched the director directory for speechSynthesis, getUserMedia, SpeechRecognition, AudioContext and MediaRecorder and found nothing; the 'say' action only types a sentence into The Table's Say it box, and the film narration is made outside this context (the film/ kit with ElevenLabs), so the rig neither captures nor plays speech itself.",
+   "techniques": [],
+   "absenceTerms": [
+    "speechSynthesis",
+    "getUserMedia",
+    "SpeechRecognition",
+    "AudioContext",
+    "MediaRecorder"
+   ]
+  },
+  {
+   "context": "browser-mock-backend",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/mock/backend.ts:1 I searched apps/desktop/client/src/mock for speechSynthesis, getUserMedia, SpeechRecognition, AudioContext and MediaRecorder and found nothing; the mock serves sample Rust-binding payloads and mirrors approval gates, with no audio capture, transcription or synthesis.",
+   "techniques": [],
+   "absenceTerms": [
+    "speechSynthesis",
+    "getUserMedia",
+    "SpeechRecognition",
+    "AudioContext",
+    "MediaRecorder"
+   ]
+  },
+  {
+   "context": "runtime-actor-and-engines",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-runtime/src/engines.rs:11 I searched crates/table-runtime/src for speechSynthesis, getUserMedia, SpeechRecognition, AudioContext and MediaRecorder (and for speech/tts/whisper/transcribe) and found nothing; its 'engines' are agent CLIs (claude-code/codex-cli), not speech engines, so voice I/O is not built here.",
+   "techniques": [],
+   "absenceTerms": [
+    "speechSynthesis",
+    "getUserMedia",
+    "SpeechRecognition",
+    "AudioContext",
+    "MediaRecorder"
+   ]
+  },
+  {
+   "context": "tumbler-window",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:106 I searched the tumbler directory for speechSynthesis, getUserMedia, SpeechRecognition, AudioContext and MediaRecorder and found nothing; its 'say'/tickerSpeech only write text into an aria-live region for screen readers (that is accessibility, not product speech synthesis or capture).",
+   "techniques": [],
+   "absenceTerms": [
+    "speechSynthesis",
+    "getUserMedia",
+    "SpeechRecognition",
+    "AudioContext",
+    "MediaRecorder"
+   ]
+  },
+  {
+   "context": "wallet-app-services",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-app/src/lib.rs:1 I searched crates/table-app/src for speechSynthesis, getUserMedia, SpeechRecognition, AudioContext and MediaRecorder and found nothing (every hit for 'voice' was the word 'invoice'); the crate is the money pipeline and approval checklist, with no audio I/O.",
+   "techniques": [],
+   "absenceTerms": [
+    "speechSynthesis",
+    "getUserMedia",
+    "SpeechRecognition",
+    "AudioContext",
+    "MediaRecorder"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-08T01:29:46.455821+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "director-preview-stories",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T01:29:46.455821+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "browser-mock-backend",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T01:29:46.455821+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "runtime-actor-and-engines",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T01:29:46.455821+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "tumbler-window",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T01:29:46.455821+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "wallet-app-services",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

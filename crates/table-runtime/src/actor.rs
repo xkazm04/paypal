@@ -53,6 +53,7 @@ pub enum Action {
     CardOpened(DealId),
     Engine(table_engine::EngineId),
     Engines,
+    EngineBrief,
     Start(DealId),
     Runs,
     MarketPrepare(DealId),
@@ -138,6 +139,7 @@ impl Action {
             Action::Credentials(_) | Action::CheckPrivilege => "set_credentials",
             Action::Engine(_) => "engine_select",
             Action::Engines => "engine_status",
+            Action::EngineBrief => "engine_brief",
             Action::Start(_) => "agent_start",
             Action::Runs => "agent_runs",
             // market_refresh binds the deal before the lookup and stores the answer after it.
@@ -253,6 +255,7 @@ impl Action {
             | Action::CardOpened(_)
             | Action::Engine(_)
             | Action::Engines
+            | Action::EngineBrief
             | Action::Start(_)
             | Action::MarketPrepare(_)
             | Action::MarketStore(..)

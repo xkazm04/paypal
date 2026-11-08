@@ -411,6 +411,13 @@ pub(super) async fn engine_status(
     ask(&window, &state, None, Action::Engines).await
 }
 #[tauri::command]
+pub(super) async fn engine_brief(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+) -> Result<Vec<table_engine::EngineBrief>, CommandError> {
+    ask(&window, &state, None, Action::EngineBrief).await
+}
+#[tauri::command]
 pub(super) async fn agent_start(
     window: WebviewWindow,
     state: State<'_, DesktopState>,

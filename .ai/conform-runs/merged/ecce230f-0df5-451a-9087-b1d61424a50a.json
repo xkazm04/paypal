@@ -1,0 +1,103 @@
+{
+ "schema": "conform-run/1",
+ "worker": "ecce230f-0df5-451a-9087-b1d61424a50a",
+ "subject": "prompt-assembly",
+ "evaluatedAt": "2026-11-07T23:41:10.748050+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "spend-firewall-and-agent-policy",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-core/src/agent.rs:223 The table projection the negotiator reads silently keeps only the newest 64 steps and has no omitted-count field, while the compiled-in playbook (prompts/buyer-haggler.md:34) calls `history` \"every signed step\"; mandate.rs:225 only rejects max_rounds == 0, so a u8 band of up to 255 own rounds plus counters can go past the cap and the model is misinformed rather than warned.",
+   "techniques": [
+    {
+     "technique": "context-budgeting",
+     "verdict": "deviation",
+     "evidence": "crates/table-core/src/agent.rs:223 The cut does not say what it dropped, and the prompt text says the list is complete. The standard says a truncation must name what it removed."
+    },
+    {
+     "technique": "capability-documentation",
+     "verdict": "deviation",
+     "evidence": "crates/table-core/src/agent.rs:549 The tool entries (names, arguments, formats) are hand-written markdown compiled in by include_str, not rendered from the AgentTool / MCP catalog. Two things soften this: a test pins refusal codes into every playbook (agent_tests.rs), and an off-context table-mcp test checks tool names. Argument prose is still a second copy."
+    },
+    {
+     "technique": "context-reachability",
+     "verdict": "conformant",
+     "evidence": "prompts/buyer-haggler.md:10 Live table state is reachable by a tool and is pulled through it, not inlined into the standing prompt, so it cannot go stale in the prefix."
+    },
+    {
+     "technique": "pinned-prompt-clock",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/agent_tests.rs:341 The system prompt has no date slot. `now` appears only in the table_view tool result, so there is no midnight drift in the standing layer."
+    }
+   ],
+   "registryProposal": "context-budgeting's rule that a truncation must name what it dropped is written for assembled prompt layers. It should say explicitly that it also covers bounded tool-result projections that a standing prompt describes as complete, because that is where this defect hides."
+  },
+  {
+   "context": "house-seller-service",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "services/house-seller/src/lib.rs:1 A search of services/house-seller for prompt, llm, playbook, system_prompt and compaction found no hits: the house counterparty uses the deterministic table_core::negotiation Policy and puts no model prompt together.",
+   "techniques": [],
+   "absenceTerms": [
+    "prompt",
+    "llm",
+    "playbook",
+    "system_prompt",
+    "compaction"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "prompt-assembly",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "native-shell",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "wallet-domain-primitives",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T23:41:10.748050+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [
+    "capability-documentation",
+    "context-budgeting",
+    "context-reachability",
+    "pinned-prompt-clock"
+   ],
+   "deviations": 1,
+   "context": "spend-firewall-and-agent-policy",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T23:41:10.748050+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "house-seller-service",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

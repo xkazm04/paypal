@@ -58,11 +58,13 @@ pub(super) fn dock_target(app: &AppHandle) -> Option<WebviewWindow> {
     (main.is_visible().unwrap_or(false) && !main.is_minimized().unwrap_or(true)).then_some(main)
 }
 
-/// Place the approval window: over `opener` (the main window) when `docked`, else beside it.
+/// Place the approval window (logical size `want`): over `opener` (the main window) when `docked`, else
+/// beside it.
 pub(super) fn position_approval(
     approval: &WebviewWindow,
     opener: &WebviewWindow,
     docked: bool,
+    want: (f64, f64),
 ) -> Result<(), CommandError> {
     let (work, scale) = monitor_work(opener)?;
     let origin = opener.outer_position().map_err(|_| invalid())?;
@@ -76,9 +78,10 @@ pub(super) fn position_approval(
     .logical(scale)
     .map_err(|_| invalid())?;
     let rect = if docked {
-        table_attention::approval_docked_rect(opener_rect, work).map_err(|_| invalid())?
+        table_attention::approval_docked_rect_sized(opener_rect, work, want)
+            .map_err(|_| invalid())?
     } else {
-        table_attention::approval_rect(opener_rect, work).map_err(|_| invalid())?
+        table_attention::approval_rect_sized(opener_rect, work, want).map_err(|_| invalid())?
     };
     put_outer_rect(approval, rect, scale)
 }

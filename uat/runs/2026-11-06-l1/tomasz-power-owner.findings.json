@@ -1,0 +1,326 @@
+{
+  "run": "2026-11-06-l1",
+  "character": "tomasz-power-owner",
+  "cert_level": "L1",
+  "journeys": {
+    "sign-rules": { "verdict": "L1-conditional", "time_saved_if_it_all_worked": "~3.5 h/week of ~8 h target", "confidence": "low-medium" },
+    "counter-shop-and-wallet": { "verdict": "L1-conditional", "time_saved_if_it_all_worked": "~1 h/week", "confidence": "low" }
+  },
+  "wiring_audit": {
+    "unit": "IPC field declarations (bindings) vs fields read under apps/desktop/client/src (windows, lib, shared)",
+    "ratio": "26/31",
+    "unread": ["ExposureView.signed_at", "MandateSimulation.from", "MandateSimulation.to", "MandateSimulation.not_simulated", "WalletEnvelope.version"],
+    "by_type": { "ExposureView": "4/5", "CurrencyExposure": "5/5", "WalletEnvelope": "5/6", "MandateSimulation": "1/4", "SimulatedLine": "11/11" }
+  },
+  "findings": [
+    {
+      "id": "TOM-L1-01", "journey": "sign-rules", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "trust", "severity": "major",
+      "impact": { "frequency": "med", "reachability": "high", "trust_erosion": "high" },
+      "dimension": "trust",
+      "title": "A wallet limit that caps an agent rule is never shown while editing the rule; when it binds, the what-if folds it into 'same'",
+      "expected": "Raising a per-deal / daily limit in an agent rule visibly says 'capped by your wallet limit of $X' (lever, what-if row or sign sheet), so the wallet limit visibly beats the rule.",
+      "got": "The only statements are static sentences ('can only make your rules stricter'). The rule editor levers carry no wallet cap marker. In the what-if a deal the cap refuses under both the old and the new rule has before == after (same clause 0, same reason), so sameVerdict() is true and it is folded under 'N deals that stay the same'. The owner widens a limit and sees no change, with no hint that the cap is why. The wallet limit only shows up as a visible winner after the fact, as the refusal word 'over your wallet limits' on a deal.",
+      "evidence": [
+        "apps/desktop/client/src/windows/approval/owner/simulation.ts:22-28",
+        "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx:84-120",
+        "apps/desktop/client/src/windows/approval/MandateEditor.tsx:158-231",
+        "apps/desktop/client/src/lib/words/rules.ts:93",
+        "apps/desktop/client/src/lib/words.ts:628",
+        "apps/desktop/client/src/lib/words.ts:552",
+        "crates/table-runtime/src/simulate.rs:166-187 (real engine applies under_limits to both before and after)",
+        "apps/desktop/client/src/mock/backend.ts:1337-1369 (mock mandate_simulate never applies the wallet limit)"
+      ],
+      "code_check": "confirmed-absent", "verdict": "confirmed",
+      "l2_priority": "Widen a rule's per-deal max above the signed wallet cap and read the what-if and sign sheet for any mention of the cap. PRECONDITION: the preview mock does not apply wallet limits in mandate_simulate (backend.ts:1337), so on the preview server the cap path can only be seen in the real shell or a Rust-backed run; on the mock, record 'uncertain, mock does not model it'. Need fixture: wallet limits signed (default Maya week has them: fixtures.ts:626) plus a deal above the cap.",
+      "suggested_acceptance": "When a drafted rule limit exceeds a signed wallet limit, the lever and the sign sheet say 'your wallet limit of $X still applies' and a refused-by-cap deal is never listed as 'stays the same' without that reason."
+    },
+    {
+      "id": "TOM-L1-02", "journey": "sign-rules", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "missing-feature", "severity": "major",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "effort",
+      "title": "No bulk or cross-agent rule change: one editor, one sign sheet and one signature per rule set",
+      "expected": "A power owner changes 'ask me above' (or a payee) across several agents in one pass and signs once, or at least copies a limit from one set to another.",
+      "got": "The editor works on one rule set at a time (tab per set). Changing the same limit on six sets is six edits, six review sheets and six signatures. There is no copy, duplicate or 'apply to' control, and ListEngine has no row selection at all, so the rules list cannot even multi-select. The approval window's own list of sets is a plain group, with no search, filter or sort.",
+      "evidence": [
+        "apps/desktop/client/src/windows/approval/MandateEditor.tsx:283-315",
+        "apps/desktop/client/src/windows/approval/OwnerConfig.tsx:291-296",
+        "apps/desktop/client/src/windows/main/console/ListEngine.tsx:43-85 (props: no selection or bulk)",
+        "apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx:188-191 (Change is one set at a time)"
+      ],
+      "code_check": "confirmed-absent", "verdict": "confirmed",
+      "l2_priority": "Count clicks to change one limit on 3 rule sets in the ?scale=large world. PRECONDITION: run on ?scale=large (8 sets in force), not the default Maya week (3 sets).",
+      "suggested_acceptance": "From the rules list the owner selects several sets, edits one limit once, sees the what-if per set and signs once (or a 'same change on N sets' review sheet)."
+    },
+    {
+      "id": "TOM-L1-03", "journey": "counter-shop-and-wallet", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "broken-flow", "severity": "major",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "med" },
+      "dimension": "effort",
+      "title": "Counter: many lowest-price edits drafted together hand off one price at a time to the approval window",
+      "expected": "'Floors are set once': edit N SKUs in the draft tray, hand all N to the approval window, sign once.",
+      "got": "The tray lists every changed price, but the hand-off argument carries only diff[0] (one item_ref, one floor). The toast says the rest 'follow one at a time'. The approval window reads a single floor seed. N changes cost N approval round trips and, as each is a signed edit of the shop rules, N versions.",
+      "evidence": [
+        "apps/desktop/client/src/windows/main/console/areas/counter/Prices.tsx:146-150",
+        "apps/desktop/client/src/lib/words/counter.ts:162",
+        "apps/desktop/client/src/windows/approval/OwnerConfig.tsx:80",
+        "apps/desktop/client/src/windows/main/console/areas/counter/CounterLayer.tsx:90-113"
+      ],
+      "code_check": "present-broken", "verdict": "confirmed",
+      "l2_priority": "Draft 3 prices in Counter > Prices and press Review & sign; check how many appear in the approval window. PRECONDITION: seller rules signed (mq.data has a shop_order mandate) and at least 3 catalog rows (?scale=large or default week).",
+      "suggested_acceptance": "All changed prices arrive in the approval window as one multi-floor draft and sign as one version."
+    },
+    {
+      "id": "TOM-L1-04", "journey": "sign-rules", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "missing-feature", "severity": "major",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "med" },
+      "dimension": "clarity",
+      "title": "What-if answers in counts, not in dollars: no 'would have blocked $X' total before signing",
+      "expected": "'Show me the diff before I sign': what-if states dollars changed (blocked / freed / now asked) as a total, for rules and for wallet limits.",
+      "got": "Scoreboard and summary sentence count outcomes ('refused 1, asked you about 2, allowed 6'; 'stopped 2 of 9 purchases'). Dollars appear only as the amount cell on each changed row, so the owner must add them up. Unchanged deals fold away, so there is no total exposure either. Neither SignSheet nor the limits sheet carries a money figure.",
+      "evidence": [
+        "apps/desktop/client/src/windows/approval/owner/simulation.ts:35-47",
+        "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx:29-50",
+        "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx:109-113",
+        "apps/desktop/client/src/windows/approval/owner/WalletLimits.tsx:49-57",
+        "apps/desktop/client/src/windows/approval/owner/WalletLimits.tsx:86-103"
+      ],
+      "code_check": "confirmed-absent", "verdict": "confirmed",
+      "l2_priority": "Edit a limit in the ?scale=large world and read the scoreboard and sign sheet for any money total. PRECONDITION: signed rule set with deals in the last 7 days.",
+      "suggested_acceptance": "The what-if line and sign sheet read e.g. 'would have refused $4,210 across 6 purchases' with one total per currency (never added across currencies)."
+    },
+    {
+      "id": "TOM-L1-05", "journey": "sign-rules", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "confusion", "severity": "major",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "med" },
+      "dimension": "clarity",
+      "title": "'Six agents' are three slots (shopper, negotiator, assistant): rule sets, Spend 'By agent' and tabs identify an agent only by slot and purpose",
+      "expected": "Each of six agents has its own name; lists, filters and sorts tell them apart.",
+      "got": "The wallet's agent is AgentSlot (three values). RuleRow and the list's search text use agentTitle(m.agent) with no kinds, so two Shopper sets with the same purpose read the same except the version. The approval tab strip numbers duplicates ('Shopper 2'). Spend's 'By agent' sort is the slot. There is no rename or nickname. Scale finding #15 only differentiates by purpose text.",
+      "evidence": [
+        "apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx:38-40",
+        "apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx:128,152,159",
+        "apps/desktop/client/src/windows/main/setup/limits.ts:37-40",
+        "apps/desktop/client/src/windows/approval/MandateEditor.tsx:307-310,452-458",
+        "apps/desktop/client/src/windows/main/console/areas/spend/SpendLayer.tsx:46"
+      ],
+      "code_check": "confirmed-absent", "verdict": "uncertain",
+      "l2_priority": "Open Rules in ?scale=large and see whether the 8 in-force rows are distinguishable at a glance. PRECONDITION: ?scale=large (the mock's slot map collapses its 8 agent names into 3 slots).",
+      "suggested_acceptance": "Each rule set shows an owner-given agent name; rows, search and the Spend sort use it."
+    },
+    {
+      "id": "TOM-L1-06", "journey": "sign-rules", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "quality-gap", "severity": "minor",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "effort",
+      "title": "List toolbar (search, filter chips, sort) is hidden at 8 rows or fewer, so a rules list of exactly Tomasz's size has none",
+      "expected": "A rules list that can grow with versions always offers search, filter and sort.",
+      "got": "toolbar = rows.length > 8. The preview 'large' world lists 8 sets in force (retired ones are not returned), so the rules list shows no 'Ends soonest' sort and no 'In force / Not in force' chips. The same gate hides the Tables filter (rows.length > 8). Rule search also covers only agent name and purpose, not payees, amounts or items.",
+      "evidence": [
+        "apps/desktop/client/src/windows/main/console/ListEngine.tsx:33,170",
+        "apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx:126-131",
+        "apps/desktop/client/src/mock/scale.ts:299-324 (8 in force) and mock/backend.ts:1179 (only active versions listed)",
+        "apps/desktop/client/src/windows/main/console/areas/tables/TablesLayer.tsx:214"
+      ],
+      "code_check": "present-but-missed", "verdict": "confirmed",
+      "l2_priority": "Open #p=rules on ?scale=large and look for the toolbar. PRECONDITION: ?scale=large.",
+      "suggested_acceptance": "Rules list passes toolbarMin 0 (as the Book record does) and searches limits and payees."
+    },
+    {
+      "id": "TOM-L1-07", "journey": "sign-rules", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "quality-gap", "severity": "minor",
+      "impact": { "frequency": "med", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "effort",
+      "title": "Every console list is paged at 20, so the react-virtual windowing is moot; UX guide still says 'windowed'",
+      "expected": "500-deal lists scroll (windowed) as the guide and the ListEngine header describe.",
+      "got": "useWindowedRows is built on @tanstack/react-virtual, but ListEngine slices to LIST_PAGE_SIZE = 20 first and no caller passes pageSize 0 (grep: none). 500 deals = 25 pages, searched and filtered across all rows, with a Pager and Page Up/Down flipping. Search, filter and sort hold up at scale; the cost is paging.",
+      "evidence": [
+        "apps/desktop/client/src/lib/data/useWindowedRows.ts:16",
+        "apps/desktop/client/src/windows/main/console/ListEngine.tsx:37,153-159,169",
+        "docs/ux/UX-GUIDE.md:207",
+        "apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx:126 (fitHeight uses 76 px rows against estimateSize 36)"
+      ],
+      "code_check": "by-design", "verdict": "uncertain",
+      "l2_priority": "Open Spend > Recent purchases on ?scale=large and check pager vs scroll feel and rows per screen. PRECONDITION: ?scale=large (500 deals).",
+      "suggested_acceptance": "Either the guide says 'paged at 20', or long lists pass pageSize 0 and scroll windowed with 'Showing N of M'."
+    },
+    {
+      "id": "TOM-L1-08", "journey": "sign-rules", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "trust", "severity": "minor",
+      "impact": { "frequency": "low", "reachability": "high", "trust_erosion": "med" },
+      "dimension": "senior-quality",
+      "title": "Wallet-limit change leaves an audit row in the ledger that the owner cannot read as such, and the signing date is never shown",
+      "expected": "A treasury lead sees 'Wallet limits changed, v3, 12 Nov' in the record and on the limits page.",
+      "got": "Rust appends 'wallet_limit.signed' on every limit signing. The Book record words only 'mandate.signed' and falls through to 'A step by your wallet' for it. ExposureView.signed_at has 0 UI readers. The mock's envelope_sign writes no audit row at all.",
+      "evidence": [
+        "crates/table-ledger/src/limits.rs:34-70",
+        "apps/desktop/client/src/lib/words/book.ts:186,204",
+        "apps/desktop/client/src/windows/main/console/areas/book/Record.tsx:33-38",
+        "apps/desktop/client/src/mock/backend.ts:1378-1387",
+        "bindings/ExposureView.ts (signed_at); grep signed_at under client/src: 0 hits"
+      ],
+      "code_check": "present-but-missed", "verdict": "confirmed",
+      "l2_priority": "Sign new wallet limits, open Book > record. PRECONDITION: Rust-backed shell (the preview mock writes no audit row, so on the mock this is 'uncertain, not reproducible').",
+      "suggested_acceptance": "Book record shows 'You changed your wallet limits'; the limits page shows 'signed <date>'."
+    },
+    {
+      "id": "TOM-L1-09", "journey": "counter-shop-and-wallet", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "trust", "severity": "minor",
+      "impact": { "frequency": "med", "reachability": "high", "trust_erosion": "med" },
+      "dimension": "trust",
+      "title": "Counter market band shows when it was checked but not 'saved copy' or what it was computed from, and has no staleness flag",
+      "expected": "'Market prices carry age and source honestly': age, cached-or-fresh and basis, with old data marked.",
+      "got": "ItemPane prints 'checked <clock>' only. MarketRef.cached and MarketRef.certificate are read by the deal proof and Tables ladder but have 0 readers in the Counter. No threshold marks an old check, and an absolute clock label is the only age.",
+      "evidence": [
+        "apps/desktop/client/src/windows/main/console/areas/counter/Prices.tsx:45",
+        "apps/desktop/client/src/windows/main/console/areas/tables/Ladder.tsx:107",
+        "apps/desktop/client/src/windows/main/console/areas/deal/Evidence.tsx:207",
+        "bindings/MarketRef.ts"
+      ],
+      "code_check": "present-but-missed", "verdict": "confirmed",
+      "l2_priority": "Open Counter > Prices on a row with a market band and read the market line. PRECONDITION: a row with a MarketRef (default week or large).",
+      "suggested_acceptance": "Market line adds '(saved copy)' when cached and a dashed 'old' chip past a stated age."
+    },
+    {
+      "id": "TOM-L1-10", "journey": "counter-shop-and-wallet", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "quality-gap", "severity": "minor",
+      "impact": { "frequency": "med", "reachability": "med", "trust_erosion": "low" },
+      "dimension": "effort",
+      "title": "Shop-around: one group at a time, and the groups list has no filter or sort control",
+      "expected": "Shop around several items in one pass; find a group among many.",
+      "got": "ShopAroundButton takes shopAroundSets(...)[0] only, so each press groups one item's sellers. The groups list has a single sort, so ListEngine draws no sort control (needs more than 1), and no filter chips. Search is present.",
+      "evidence": [
+        "apps/desktop/client/src/windows/main/console/areas/tables/Shop.tsx:44-46,63,129",
+        "apps/desktop/client/src/windows/main/modules/tables/groups.ts:19-31",
+        "apps/desktop/client/src/windows/main/console/ListEngine.tsx:244"
+      ],
+      "code_check": "confirmed-absent", "verdict": "confirmed",
+      "l2_priority": "In Tables with 3+ ungrouped items, count presses to group all. PRECONDITION: open haggles to 2+ sellers on 2+ items; the default week has one set (groups.test), ?scale=large has 1 group of 3.",
+      "suggested_acceptance": "Shop around lists every ready set and groups the chosen ones in one sheet."
+    },
+    {
+      "id": "TOM-L1-11", "journey": "sign-rules", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "confusion", "severity": "minor",
+      "impact": { "frequency": "med", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "effort",
+      "title": "Wallet limits can be read in the console but not opened for change: the hand-off lands on top of Wallet setup and he must scroll to the section",
+      "expected": "'Change' on the Wallet limits page opens the limits sheet.",
+      "got": "LimitsPlace's action is a ToApproval with no target ('there is no approval target for the limits; the bindings are frozen'). The approval window opens on its owner page, where Wallet limits sits below Wallet, Agent rules and Failed renewals. The what-if for limits only exists inside the sheet there.",
+      "evidence": [
+        "apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx:207-209,233",
+        "apps/desktop/client/src/windows/approval/OwnerConfig.tsx:271-314"
+      ],
+      "code_check": "by-design", "verdict": "confirmed",
+      "l2_priority": "From #p=limits press Change and note where the approval window lands. PRECONDITION: approval window reachable (/approval.html).",
+      "suggested_acceptance": "The hand-off opens the approval window scrolled to Wallet limits, or an approval target 'limits' opens the sheet."
+    },
+    {
+      "id": "TOM-L1-12", "journey": "sign-rules", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "confusion", "severity": "polish",
+      "impact": { "frequency": "low", "reachability": "med", "trust_erosion": "low" },
+      "dimension": "clarity",
+      "title": "Gold count per view: one gold on the rules and limits places and the sign sheets, but two gold Btns can sit on Wallet setup, and Tables may stack the Need card with a draft Review & sign",
+      "expected": "Never two gold buttons in one view (UX guide principle 5).",
+      "got": "Rules place: one gold (call) and 'Change' as default. Limits place: default. Editor footer: one gold; SignSheet: one gold (a sheet above). Counter prices tray: one gold (HandOff default kind). OwnerConfig (not first run): PayPal connection and Market prices both render gold Btns when keys are missing. Tables: NeedCard gold (Need.tsx:36) and Ladder HandOff gold when ready (Ladder.tsx:335) are both in the Tables layer; whether they show together depends on layout. Teal 'primary' buttons (Spend 'change rules', Ladder 'start at') are not gold.",
+      "evidence": [
+        "apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx:105-107,120",
+        "apps/desktop/client/src/windows/approval/OwnerConfig.tsx:277-278,398-402",
+        "apps/desktop/client/src/windows/main/console/areas/tables/Need.tsx:36",
+        "apps/desktop/client/src/windows/main/console/areas/tables/Ladder.tsx:335",
+        "apps/desktop/client/src/windows/main/console/areas/counter/Prices.tsx:146-160",
+        "apps/desktop/client/src/design/ui.css:94-100"
+      ],
+      "code_check": "present-but-missed", "verdict": "uncertain",
+      "l2_priority": "Count .ui-btn.gold per view in the browser. PRECONDITION: wallet with no PayPal or market key (default mock has keys; use ?first_run or clear settings) and an open table that needs the owner (D-0205 / large world).",
+      "suggested_acceptance": "One gold per view, asserted by a DOM count per layer in the scale smoke."
+    },
+    {
+      "id": "TOM-L1-13", "journey": "sign-rules", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "quality-gap", "severity": "minor",
+      "impact": { "frequency": "med", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "completion",
+      "title": "The what-if window is a fixed rolling 7 days: no range control and the replayed dates are not shown",
+      "expected": "'Against last week': the window is stated and can be widened for a seasonal check.",
+      "got": "The editor calls mandate_simulate with no from/to (backend default end-7d, 31-day cap). The response's from, to and not_simulated have 0 readers, so the UI says 'this week' without dates and cannot say how many deals could not be checked beyond the 'not checked' count.",
+      "evidence": [
+        "apps/desktop/client/src/windows/approval/MandateEditor.tsx:130-131",
+        "apps/desktop/client/src/windows/approval/owner/data.ts:22-24",
+        "apps/desktop/client/src/mock/backend.ts:1337-1341",
+        "bindings/MandateSimulation.ts"
+      ],
+      "code_check": "present-but-missed", "verdict": "confirmed",
+      "l2_priority": "None needed beyond reading the editor header; PRECONDITION: none.",
+      "suggested_acceptance": "Replay header reads '12-19 Nov' and a 7 / 14 / 30 day control re-runs the what-if."
+    },
+    {
+      "id": "TOM-L1-S1", "journey": "sign-rules", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "strength", "severity": "polish",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "trust",
+      "title": "A what-if exists before signing and it is the editor's default pane",
+      "expected": "What-if before sign.",
+      "got": "For an existing set the editor opens on 'This week' replay: scoreboard now to change per outcome, only moved deals listed, unchanged deals folded behind a toggle, deal amount per row, debounced live re-run, lever ticks showing where this week's deals sit, 'Withdraw' hover preview, 'In plain words' popover, and the same count line repeated on the SignSheet. The real engine replays both sides under the wallet limits.",
+      "evidence": [
+        "apps/desktop/client/src/windows/approval/MandateEditor.tsx:136,342-359,382-385",
+        "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx:52-125",
+        "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx:75-118",
+        "crates/table-runtime/src/simulate.rs:192-286"
+      ],
+      "code_check": "n-a", "verdict": "confirmed",
+      "l2_priority": "Confirm the replay renders with real rows. PRECONDITION: signed rule set with deals in the last 7 days.",
+      "suggested_acceptance": "Keep: replay is the first pane for a signed set; sign sheet repeats the what-if."
+    },
+    {
+      "id": "TOM-L1-S2", "journey": "sign-rules", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "strength", "severity": "polish",
+      "impact": { "frequency": "low", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "senior-quality",
+      "title": "Wallet-limit change has its own preview (envelope_simulate), a one-sentence consequence and a Now to With-these-limits table",
+      "expected": "A treasury lead rejects a limit change without a preview.",
+      "got": "LimitsSheet shows 'These limits would have stopped N of M purchases this week', names the binding limit per purchase (stoppedBy), lists only changed purchases, and sits above one gold signing button with Windows Hello lock handling. Meters on the limits place use meterFill, gold at 80 percent, and mixed currencies are never added.",
+      "evidence": [
+        "apps/desktop/client/src/windows/approval/owner/WalletLimits.tsx:35-106,154-222",
+        "apps/desktop/client/src/lib/limits.ts:34-57,64-108",
+        "apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx:235-250"
+      ],
+      "code_check": "n-a", "verdict": "confirmed",
+      "l2_priority": "Open the limits sheet and type a lower daily limit. PRECONDITION: wallet limits signed (default week) and 7-day buyer deals.",
+      "suggested_acceptance": "Keep."
+    },
+    {
+      "id": "TOM-L1-S3", "journey": "counter-shop-and-wallet", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "strength", "severity": "polish",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "effort",
+      "title": "Counter price draft: multi-item edit with impact preview, Esc warning and Ctrl+Enter",
+      "expected": "Set floors with a preview of what they do.",
+      "got": "Many floors are edited in one draft (typed, stepped, Shift x10); the tray lists each from to to price, counts 'quotes withdrawn', and a disclosure lists each affected quote before signing; filters 'with orders / above market / changed'; Esc asks once before dropping an unsigned draft. Buyer agents never read floors is the stated promise (COUNTER.promiseV).",
+      "evidence": [
+        "apps/desktop/client/src/windows/main/console/areas/counter/CounterLayer.tsx:91-128,232-247",
+        "apps/desktop/client/src/windows/main/console/areas/counter/Prices.tsx:105-184"
+      ],
+      "code_check": "n-a", "verdict": "confirmed",
+      "l2_priority": "Confirm 'withdraws' chips on live orders after typing a floor above their price. PRECONDITION: shop-order deals live with a seller mandate.",
+      "suggested_acceptance": "Keep."
+    },
+    {
+      "id": "TOM-L1-S4", "journey": "counter-shop-and-wallet", "character": "tomasz-power-owner", "cert_level": "L1",
+      "type": "strength", "severity": "polish",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "clarity",
+      "title": "Rewind explains each step and who decided; per-deal replay is one click away; lists everywhere search, filter with counts and sort",
+      "expected": "Rewind explains each step; search-less lists never.",
+      "got": "Rewind tape narrates every step, filters by who decided (owner / rule / buyer / default / refused), sorts both ways, searches title and narration, and each step opens its deal where StoryView shows the same steps with TickMark. Rewind covers a week back for up to 52 weeks plus a 72 h forecast and states truncation. ListEngine gives debounced search, count chips, sort, 'Showing N of M', roving-tab keyboard, Escape clears. Tables, Spend, Counter (3 lists), Shop around and Rewind all use it.",
+      "evidence": [
+        "apps/desktop/client/src/windows/main/console/areas/rewind/RewindLayer.tsx:44-52,128-151",
+        "apps/desktop/client/src/windows/main/console/areas/deal/StoryView.tsx:19,125,132",
+        "apps/desktop/client/src/windows/main/console/ListEngine.tsx:107-129,222-253",
+        "apps/desktop/client/src/windows/main/console/areas/spend/SpendLayer.tsx:34-47,175-178"
+      ],
+      "code_check": "n-a", "verdict": "confirmed",
+      "l2_priority": "Check the Rewind at 500 deals for responsiveness. PRECONDITION: ?scale=large.",
+      "suggested_acceptance": "Keep."
+    }
+  ]
+}

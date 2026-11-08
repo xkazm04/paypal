@@ -96,7 +96,8 @@ export const BOOK = {
     out: 'Paid out', outNote: 'the money moved',
     in: 'Paid in', inNote: 'the money moved',
     held: 'On hold', heldNote: 'not paid yet',
-    stopped: 'Stopped', stoppedNote: 'never paid, or paid back',
+    stopped: 'Stopped', stoppedNote: 'never paid, or paid back (refused, withdrawn and expired offers included)',
+    deals: (n: number) => plural(n, 'deal', 'deals'),
     why: (label: string) => `Why this figure for “${label}”?`,
   },
 
@@ -123,6 +124,8 @@ export const BOOK = {
   csv: 'Export CSV',
   csvTitle: 'Save these deals as a spreadsheet file. Nothing is uploaded.',
   saved: (file: string, n: number, modes: string) => `${file} saved · ${plural(n, 'row', 'rows')}, each marked ${modes}. Nothing was uploaded.`,
+
+  savedUnread: (n: number) => `${plural(n, 'row', 'rows')} marked unknown: PayPal’s statement could not be read for ${n === 1 ? 'it' : 'them'}.`,
 
   stmtReading: 'Reading PayPal’s statement for this payment',
   stmtUnread: 'PayPal’s statement for this payment could not be read',

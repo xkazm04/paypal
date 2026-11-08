@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { DealGroupView } from '@bindings/DealGroupView';
 import type { GroupTable } from '@bindings/GroupTable';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { formatMoney } from '../../../../../lib/format';
 import { useMutation } from '../../../../../lib/hooks';
 import { GROUP_CLOSED, GROUP_WINNER, itemWords, SHOP_AROUND, SHOP_AROUND_MEANS, SHOP_AROUND_OTHERS, sellersWord, shoppingFor, stateWord, TABLES, tablesItem, tablesShortWho } from '../../../../../lib/words';
@@ -89,13 +90,13 @@ function GroupDetail({ group, item, byId, who }: { group: DealGroupView; item: s
   const best = s.kind === 'bargaining' ? s.best : null;
   const c = chipOf(group, who);
   return (
-    <div className="tb-group">
-      <header className="tr-phead">
+    <RevealGroup className="tb-group">
+      <Reveal><header className="tr-phead">
         <h2 title={item}>{shoppingFor(item)}</h2>
         <Chip tone={c.tone} title={SHOP_AROUND_MEANS}>{c.text}</Chip>
-      </header>
-      <p className="tr-note">{sellersWord(group.tables.length)}{best?.seller_price ? ` · ${TABLES.best(formatMoney(best.seller_price))}` : ''}</p>
-      <ul className="tb-sellers" aria-label={TABLES.sellersFor(item)}>
+      </header></Reveal>
+      <Reveal><p className="tr-note">{sellersWord(group.tables.length)}{best?.seller_price ? ` · ${TABLES.best(formatMoney(best.seller_price))}` : ''}</p></Reveal>
+      <Reveal><ul className="tb-sellers" aria-label={TABLES.sellersFor(item)}>
         {group.tables.map((t) => {
           const deal = byId.get(t.deal_id);
           const word = group.winner === t.deal_id ? GROUP_WINNER : t.closed_by_group ? GROUP_CLOSED : stateWord(t.state, { side: 'buyer', kind: 'haggle' });
@@ -113,9 +114,9 @@ function GroupDetail({ group, item, byId, who }: { group: DealGroupView; item: s
             </li>
           );
         })}
-      </ul>
-      <p className="ui-hint">{s.kind === 'won' ? SHOP_AROUND_OTHERS : TABLES.shopMeansFirst}</p>
-    </div>
+      </ul></Reveal>
+      <Reveal><p className="ui-hint">{s.kind === 'won' ? SHOP_AROUND_OTHERS : TABLES.shopMeansFirst}</p></Reveal>
+    </RevealGroup>
   );
 }
 
