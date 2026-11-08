@@ -8674,12 +8674,11 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "crates/table-engine/src/native.rs:170 This context launches external CLI processes rather than embedding a language engine, and searches of its files and the repository found no ModuleLoader, JobExecutor, HostHooks or NativeJob constructs.",
-          "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:08d3fea13f40733a",
-          "evaluatedRevision": 2,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-engine/src/native.rs:78 This crate's 'engine' is an external agent CLI (Claude Code / Codex) spawned as an OS child process through tokio Command and driven over JSONL streams, not an embedded language engine with host hooks; a case-insensitive search of crates/table-engine and the workspace Cargo.toml for boa_engine, rquickjs, ModuleLoader, JobExecutor and HostHooks returned no hits, so none of the subject's seams (module loader, job executor, clock hook, job tracing) exist here.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:dcbd96d1274205ef",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-cli-transport",
