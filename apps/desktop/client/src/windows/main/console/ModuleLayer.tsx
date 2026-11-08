@@ -1,14 +1,14 @@
 // The common frame of a module layer (rebuild WP2.5). Every module page of the console is one
 // <ModuleLayer>: on its summary the module's key-art plate, the ONE answer line (the layer's
 // heading, focused going in), a "Your call" chip when a decision here waits for the owner (with
-// what happens if they do nothing), at most one gold action, 3-4 summary cards that each open a
-// nested detail view, an explanation behind a disclosure, and the page's own content (a list);
+// what happens if they do nothing), at most one gold action, and on its right 3-4 small summary
+// chips that each open a nested detail view, the module's key art faint behind it all), an explanation behind a disclosure, and the page's own content (a list);
 // with nothing to show, one calm line. On a detail view it hosts that view: its title as the
 // heading and its body. Back, Escape and the crumbs are the console's chrome (a nested view never
 // draws its own Back).
 import type { CSSProperties, ReactNode } from 'react';
 import type { Module } from '@bindings/Module';
-import { IF_NOTHING, MODULE_ART_LABEL, MODULE_EMPTY, YOUR_CALL, yourCallLabel } from '../../../lib/words';
+import { IF_NOTHING, MODULE_CRUMBS_LABEL, MODULE_EMPTY, YOUR_CALL, yourCallLabel } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
 import { KeyArt } from '../../../shared/brand';
 import { MODULE } from '../../../shared/modules';
@@ -17,6 +17,8 @@ import { silenceParts } from '../home/model';
 import { useModuleRoute } from '../viewNav';
 import { useNeeds } from '../world';
 import { useLayerNav } from './layers';
+import { ContentCrumbs } from './CrumbTrail';
+import { crumbItems } from './crumbItems';
 import { Latest, LatestSkeleton, type LatestProps } from './Latest';
 import { MAX_CARDS, ModuleSummary, type ModuleCard } from './ModuleSummary';
 import { Reveal, Skeleton } from './stagger';
@@ -38,7 +40,7 @@ export type ModuleLayerProps = {
   module: Module;
   /** The one answer line: what this module says to the owner right now. */
   answer: ReactNode;
-  /** Above the answer; defaults to the module's long name. */
+  /** Retired: the line above the answer is now the page's breadcrumb row. Accepted, not drawn. */
   kicker?: ReactNode;
   /** One line under the answer. */
   sub?: ReactNode;
@@ -75,13 +77,20 @@ export function ModuleLayer(p: ModuleLayerProps) {
   const own = useOwnCall(p.module);
   const call = p.yourCall === undefined ? own : p.yourCall;
   const style = { '--mc': MODULE[p.module].cssVar } as CSSProperties;
+  const nav = useLayerNav();
   const view = route.view ? p.views?.[route.view] : undefined;
+  // The page's own breadcrumb: the module, and its open view, from the same routes the top bar draws.
+  const here = { level: 'module', module: p.module } as const;
+  const crumbs = (
+    <ContentCrumbs label={MODULE_CRUMBS_LABEL} title={MODULE[p.module].long}
+      items={crumbItems(route.view ? [here, { ...here, view: route.view }] : [here], { back: () => route.open(null), go: nav.go })} />
+  );
 
   if (view) {
     return (
       <div className={`ml ml-view mod-${p.module}`} style={style} data-view={route.view ?? undefined}>
         <header className="ml-vhead">
-          <p className="kicker">{MODULE[p.module].name}</p>
+          {crumbs}
           <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{view.title}</h1>
           {view.sub ? <p className="ml-sub">{view.sub}</p> : null}
           {view.actions ? <div className="cs-acts">{view.actions}</div> : null}
@@ -98,8 +107,9 @@ export function ModuleLayer(p: ModuleLayerProps) {
   return (
     <div className={`ml mod-${p.module}`} style={style}>
       <header className="ml-head">
+        <KeyArt module={p.module} className="ml-art" />
         <div className="ml-say">
-          <p className="kicker">{p.kicker ?? MODULE[p.module].long}</p>
+          {crumbs}
           <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{p.answer}</h1>
           {p.sub ? <p className="ml-sub">{p.sub}</p> : null}
           {call || p.action ? (
@@ -114,16 +124,13 @@ export function ModuleLayer(p: ModuleLayerProps) {
             </div>
           ) : null}
         </div>
-        <Reveal wave={3} sizeKey="ml:art" skeleton={<Skeleton className="ml-art br-art" />}>
-          <KeyArt module={p.module} label={MODULE_ART_LABEL[p.module]} className="ml-art" />
-        </Reveal>
+        {/* The answer, Your call and the action are wave 0 (stagger.tsx); the cards take their turn. */}
+        {p.cards?.length ? (
+          <Reveal wave={1} sizeKey={`${p.module}:cards`} skeleton={<Skeleton className="ml-cards" blocks={Math.min(p.cards.length, MAX_CARDS)} block="ui-sumcard compact" style={{ '--n': Math.min(p.cards.length, MAX_CARDS) } as CSSProperties} />}>
+            <ModuleSummary cards={p.cards} />
+          </Reveal>
+        ) : null}
       </header>
-      {/* The answer, Your call and the action above are wave 0 (stagger.tsx); the rest takes its turn. */}
-      {p.cards?.length ? (
-        <Reveal wave={1} sizeKey={`${p.module}:cards`} skeleton={<Skeleton className="ml-cards" blocks={Math.min(p.cards.length, MAX_CARDS)} block="ui-sumcard" style={{ '--n': Math.min(p.cards.length, MAX_CARDS) } as CSSProperties} />}>
-          <ModuleSummary cards={p.cards} />
-        </Reveal>
-      ) : null}
       {p.latest ? <Reveal wave={2} sizeKey={`${p.module}:latest`} skeleton={<LatestSkeleton {...p.latest} />}><Latest {...p.latest} /></Reveal> : null}
       {p.children ? <Reveal wave={2} sizeKey={`${p.module}:body`} skeleton={<Skeleton className="ml-body" h="8rem" />}><div className="ml-body">{p.children}</div></Reveal> : null}
       {nothing ? <p className="ml-empty">{p.empty ?? MODULE_EMPTY}</p> : null}

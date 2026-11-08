@@ -1,0 +1,108 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b0fe5cb9-2e28-4c08-94e7-3141e84e1027",
+ "subject": "agent-cli-transport",
+ "evaluatedAt": "2026-11-08T01:55:09.001649+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "runtime-actor-and-engines",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-runtime/src/actor.rs:629 An Ok(TerminalVerdict::ErrorReported{subtype}) from the engine (e.g. a budget or turn cap) becomes a bare RunState::Failed with no cause, because cause is taken only from Err. The tool's own classification never reaches the audit row or the owner, and a grep of crates/ outside table-engine finds no reader of ErrorReported.",
+   "techniques": [
+    {
+     "technique": "output-normalization",
+     "verdict": "deviation",
+     "evidence": "crates/table-runtime/src/actor.rs:629 The envelope subtype is flattened to Failed, so the caller cannot branch on it."
+    },
+    {
+     "technique": "fallback-ladder",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/engines.rs:281 A run on the deterministic rung carries its own mode label into the snapshot and the run.start audit row. A native start is refused with a named reason when the engine is unavailable (line 216)."
+    },
+    {
+     "technique": "child-observed-posture",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/engines.rs:372 The run's MCP grant is enabled only after the child-attested Init event, never on host intent alone."
+    },
+    {
+     "technique": "thread-custody-across-resume",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-runtime/src/engines.rs:271 Each start mints a fresh run, and no child thread id is stored or passed back."
+    },
+    {
+     "technique": "host-routed-approval-round-trip",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-runtime/src/engines.rs:390 The child acts only through the host's own gated MCP tools, so there is no native approval request to route."
+    }
+   ]
+  },
+  {
+   "context": "rescue-spend-shield-modules",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/modules/shield/matrix.ts:38 These are client UI models and panels. They only label the model-backed check as not active. A search of the context files and their parent dirs (modules/, console/areas/, lib/words/) for child_process, spawn, argv, output-format and stream-json found nothing, and the only claude/codex hits are tests asserting those names never appear in copy.",
+   "techniques": [],
+   "absenceTerms": [
+    "child_process",
+    "spawn",
+    "argv",
+    "output-format",
+    "stream-json"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-cli-transport",
+   "context": "table-engine-agent-process",
+   "reason": "evidence leans on tests/native.rs, which is not a tracked file"
+  },
+  {
+   "subject": "agent-cli-transport",
+   "context": "agent-tool-surface",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-cli-transport",
+   "context": "client-foundation",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-08T01:55:09.001649+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [
+    "child-observed-posture",
+    "fallback-ladder",
+    "host-routed-approval-round-trip",
+    "output-normalization",
+    "thread-custody-across-resume"
+   ],
+   "deviations": 1,
+   "context": "runtime-actor-and-engines",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T01:55:09.001649+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "rescue-spend-shield-modules",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

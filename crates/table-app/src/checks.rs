@@ -40,16 +40,60 @@ pub enum PayeeFact {
     Unreadable,
 }
 
+/// Which daily cap a [`LeftToday`] figure comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DaySource {
+    /// The rules' daily limit (clause 5 `max_total_day`, per mandate).
+    Rule,
+    /// The owner's wallet limit (`max_out_day`, every mandate's money out).
+    WalletLimit,
+}
+
+/// One daily cap as it stands now: `used` = every other deal it counts today, `left` = what the
+/// cap leaves once this deal is added ([`table_core::day_left`]; zero if it is already over).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DayFigure {
+    pub used: Money,
+    pub cap: Money,
+    pub left: Money,
+}
+
+/// What today's budget leaves after this deal, from the gates' own counting (the ledger's usage
+/// window and the exposure fold) seen from now: every other deal that agreed today (UTC), with
+/// this deal's amount added once, whether or not it has agreed yet. `None` in the fact = no
+/// daily cap applies, or the deal agreed on an earlier UTC day (its money counted on that day).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LeftToday {
+    pub amount: Money,
+    pub rule: Option<DayFigure>,
+    pub wallet: Option<DayFigure>,
+}
+impl LeftToday {
+    /// The cap that leaves less; on a tie, the rules' own limit.
+    pub fn tighter(&self) -> Option<(DaySource, DayFigure)> {
+        match (self.rule, self.wallet) {
+            (Some(r), Some(w)) if w.left.minor() < r.left.minor() => {
+                Some((DaySource::WalletLimit, w))
+            }
+            (Some(r), _) => Some((DaySource::Rule, r)),
+            (None, Some(w)) => Some((DaySource::WalletLimit, w)),
+            (None, None) => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MandateFact {
     Allow {
         per_deal: Option<Money>,
         ask_above: Option<Money>,
+        left_today: Option<LeftToday>,
     },
     /// The mandate asks the owner (clause 6 above its threshold): an owner decision satisfies it.
     Ask {
         clause: u8,
         threshold: Option<Money>,
+        left_today: Option<LeftToday>,
     },
     Refused {
         clause: u8,
@@ -519,6 +563,52 @@ fn shield(f: &CheckFacts<'_>) -> ApprovalCheck {
     }
 }
 
+/// " After this, $171.00 of today’s $500.00 is left." for the tighter daily cap, or nothing.
+fn left_words(left: Option<&LeftToday>) -> String {
+    match left.and_then(LeftToday::tighter) {
+        Some((DaySource::Rule, f)) => format!(
+            " After this, {} of today’s {} is left.",
+            plain_money(f.left),
+            plain_money(f.cap)
+        ),
+        Some((DaySource::WalletLimit, f)) => format!(
+            " After this, {} of your wallet’s {} daily limit is left today.",
+            plain_money(f.left),
+            plain_money(f.cap)
+        ),
+        None => String::new(),
+    }
+}
+
+/// Layer 2: both raw figures, which one is tighter, and when the day resets.
+fn left_detail(left: Option<&LeftToday>) -> String {
+    let Some(l) = left else {
+        return String::new();
+    };
+    let figure = |name: &str, f: &DayFigure| {
+        format!(
+            "{name} {} − (used today {} + this {}) = {} left",
+            f.cap, f.used, l.amount, f.left
+        )
+    };
+    let mut parts = Vec::new();
+    if let Some(r) = &l.rule {
+        parts.push(figure("clause 5 max_total_day", r));
+    }
+    if let Some(w) = &l.wallet {
+        parts.push(figure("wallet limit max_out_day", w));
+    }
+    let tighter = match l.tighter() {
+        Some((DaySource::Rule, _)) => "clause 5",
+        Some((DaySource::WalletLimit, _)) => "the wallet limit",
+        None => "none",
+    };
+    format!(
+        "; after this: {}; tighter: {tighter}; counted now over every other deal agreed this UTC day, this deal once; the day resets at 00:00 UTC",
+        parts.join("; ")
+    )
+}
+
 fn mandate(f: &CheckFacts<'_>) -> ApprovalCheck {
     use ApprovalCheckStatus::*;
     let id = ApprovalCheckId::Mandate;
@@ -527,36 +617,52 @@ fn mandate(f: &CheckFacts<'_>) -> ApprovalCheck {
         MandateFact::Allow {
             per_deal,
             ask_above,
+            left_today,
         } => line(
             id,
             Pass,
-            match per_deal {
-                Some(max) => format!("Inside your rules: up to {} per deal.", plain_money(*max)),
-                None => "Inside your rules.".into(),
-            },
             format!(
-                "{which}: allowed{}{}",
+                "{}{}",
+                match per_deal {
+                    Some(max) =>
+                        format!("Inside your rules: up to {} per deal.", plain_money(*max)),
+                    None => "Inside your rules.".into(),
+                },
+                left_words(left_today.as_ref())
+            ),
+            format!(
+                "{which}: allowed{}{}{}",
                 per_deal
                     .map(|m| format!("; clause 3 limit per deal {m}"))
                     .unwrap_or_default(),
                 ask_above
                     .map(|m| format!("; clause 6 asks above {m}, not reached"))
-                    .unwrap_or_default()
+                    .unwrap_or_default(),
+                left_detail(left_today.as_ref())
             ),
         ),
-        MandateFact::Ask { clause, threshold } => line(
+        MandateFact::Ask {
+            clause,
+            threshold,
+            left_today,
+        } => line(
             id,
             Pass,
-            match threshold {
-                Some(t) => format!(
-                    "Above your ask-me limit of {}, so it’s your call.",
-                    plain_money(*t)
-                ),
-                None => "Your rules ask you to decide this one.".into(),
-            },
             format!(
-                "{which}: clause {clause} asks the owner{}; the owner decision satisfies it",
-                threshold.map(|t| format!(" above {t}")).unwrap_or_default()
+                "{}{}",
+                match threshold {
+                    Some(t) => format!(
+                        "Above your ask-me limit of {}, so it’s your call.",
+                        plain_money(*t)
+                    ),
+                    None => "Your rules ask you to decide this one.".into(),
+                },
+                left_words(left_today.as_ref())
+            ),
+            format!(
+                "{which}: clause {clause} asks the owner{}; the owner decision satisfies it{}",
+                threshold.map(|t| format!(" above {t}")).unwrap_or_default(),
+                left_detail(left_today.as_ref())
             ),
         ),
         MandateFact::Refused { clause, reason } => line(

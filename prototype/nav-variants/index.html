@@ -1,0 +1,143 @@
+<title>Signet Navigation Variants</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Marcellus&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a variant switcher on top, then one faithful mock of the app window. The header is fixed across variants; only the navigation under it changes. */
+:root {
+  --bg: #0b1226; --panel: #121b35; --panel2: #18234a; --line: #243056; --text: #f3ead6; --muted: #aeb4c6; --dim: #7c849c;
+  --gold: #c9a45c; --gold-l: #e6c98a; --teal: #3cc4b6; --refuse: #f2676b; --ui: "Hanken Grotesk", system-ui, sans-serif; --mono: "JetBrains Mono", monospace; --disp: "Marcellus", serif;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #eef0f5; --panel: #ffffff; --panel2: #e6e9f2; --line: #d5d9e6; --text: #101830; --muted: #4c556e; --dim: #7a829a; --gold: #8f6d1f; --gold-l: #7a5a14; --teal: #0a7169; --refuse: #b83236; color-scheme: light; } }
+:root[data-theme="light"] { --bg: #eef0f5; --panel: #ffffff; --panel2: #e6e9f2; --line: #d5d9e6; --text: #101830; --muted: #4c556e; --dim: #7a829a; --gold: #8f6d1f; --gold-l: #7a5a14; --teal: #0a7169; --refuse: #b83236; color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 15px/1.5 var(--ui); padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; }
+.top { max-width: 1120px; margin: 0 auto 20px; display: grid; gap: 14px; }
+h1 { margin: 0; font-size: clamp(24px, 4vw, 34px); letter-spacing: -.01em; }
+.lead { margin: 0; color: var(--muted); max-width: 70ch; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.tabs button { font: 600 14px var(--ui); color: var(--muted); background: var(--panel); border: 1px solid var(--line); padding: 9px 14px; border-radius: 999px; cursor: pointer; }
+.tabs button[aria-pressed="true"] { color: var(--bg); background: var(--gold); border-color: var(--gold); }
+.why { margin: 0; font-size: 14px; color: var(--muted); max-width: 80ch; }
+
+.win { max-width: 1120px; margin: 0 auto; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); display: grid; grid-template-rows: auto auto 1fr auto; min-height: 560px; }
+.ah { display: flex; align-items: center; gap: 12px; height: 40px; padding-left: 14px; background: var(--panel); border-bottom: 1px solid var(--line); min-width: 0; }
+.brand { display: flex; align-items: center; gap: 8px; font: 400 15px var(--disp); letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
+.mk { width: 20px; height: 20px; border-radius: 6px; background: var(--gold); display: grid; place-items: center; }
+.mk i { width: 7px; height: 7px; background: var(--bg); transform: rotate(45deg); }
+.slogan { color: var(--muted); font-size: 12px; padding-left: 12px; border-left: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fill { flex: 1; }
+.status { display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font: 600 12px var(--ui); white-space: nowrap; }
+.status::before { content: ""; width: 7px; height: 7px; background: var(--teal); border-radius: 1px; }
+.find { display: inline-flex; align-items: center; gap: 8px; height: 26px; min-width: 170px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); font: 12px var(--ui); }
+.find span { flex: 1; }
+kbd { font: 11px var(--mono); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--dim); }
+.wc { display: flex; align-self: stretch; }
+.wc b { width: 44px; display: grid; place-items: center; color: var(--muted); font-weight: 400; font-size: 12px; }
+
+.nav { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--line); min-height: 48px; position: relative; flex-wrap: wrap; }
+.nav .crumb { font-weight: 600; margin-right: 8px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--panel); }
+.seg button { border: 0; background: none; color: var(--muted); font: 600 13px var(--ui); padding: 5px 14px; border-radius: 999px; cursor: pointer; }
+.seg button.on { background: var(--gold); color: var(--bg); }
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid transparent; background: none; color: var(--muted); font: 500 13px var(--ui); border-radius: 999px; cursor: pointer; position: relative; }
+.btn:hover, .btn.on { color: var(--text); border-color: var(--line); background: var(--panel); }
+.btn.ico { width: 34px; padding: 0; justify-content: center; }
+.btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.sp { flex: 1; }
+.sepv { width: 1px; height: 20px; background: var(--line); margin: 0 6px; }
+.menu { position: absolute; top: 44px; right: 14px; z-index: 5; min-width: 230px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px; box-shadow: 0 12px 30px rgba(0,0,0,.35); display: none; }
+.menu.open { display: block; }
+.menu h4 { margin: 8px 10px 4px; font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+.menu button { display: flex; width: 100%; align-items: center; gap: 10px; text-align: left; border: 0; background: none; color: var(--text); font: 500 14px var(--ui); padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.menu button:hover { background: var(--panel2); }
+.menu button small { margin-left: auto; color: var(--dim); font: 11px var(--mono); }
+.menu svg { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 1.6; stroke-linecap: round; }
+
+.stage { padding: 22px 24px; display: grid; gap: 14px; align-content: start; }
+.sheet { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.mods { display: flex; gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.mod { border: 1px solid transparent; border-bottom: 0; background: none; color: var(--muted); font: 600 13px var(--ui); padding: 9px 14px; border-radius: 8px 8px 0 0; cursor: pointer; white-space: nowrap; display: flex; gap: 8px; align-items: center; }
+.mod.on { background: var(--bg); color: var(--text); border-color: var(--line); }
+.mod .n { font: 11px var(--mono); color: var(--dim); }
+.mod .w { background: var(--gold); color: var(--bg); border-radius: 999px; font: 700 10px var(--ui); padding: 1px 6px; }
+.body { padding: 22px; display: grid; gap: 8px; min-height: 230px; background: var(--bg); }
+.body h2 { margin: 0; font-family: var(--disp); font-weight: 400; font-size: 26px; }
+.body p { margin: 0; color: var(--muted); max-width: 60ch; }
+.foot { padding: 8px 16px; border-top: 1px solid var(--line); background: var(--panel); color: var(--dim); font: 11px var(--mono); }
+.count { margin-top: 12px; font: 500 12px var(--mono); color: var(--muted); }
+@media (max-width: 760px) { .slogan, .find span, .find kbd { display: none; } .find { min-width: 0; } }
+</style>
+
+<div class="top">
+  <h1>Navigation, from 14 controls to 3 clear groups</h1>
+  <p class="lead">Today the window carries 8 places in the top bar and 6 module tabs under it. The new header takes the non-navigation items (name, slogan, status, Find). Pick a variant to see what is left to navigate. Everything below is clickable.</p>
+  <div class="tabs" role="group" aria-label="Variant">
+    <button id="b1" aria-pressed="true">A · Toolbar with dropdown</button>
+    <button id="b2" aria-pressed="false">B · Icons only</button>
+    <button id="b3" aria-pressed="false">C · One unified row</button>
+  </div>
+  <p class="why" id="why"></p>
+</div>
+
+<div class="win">
+  <div class="ah"><div class="brand"><span class="mk"><i></i></span>Signet</div><span class="slogan">Your seal on every move.</span><span class="fill"></span>
+    <span class="status">Nothing needs you</span>
+    <span class="find"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3.5 3.5"/></svg><span>Find</span><kbd>/</kbd></span>
+    <div class="wc"><b>–</b><b>▢</b><b>✕</b></div></div>
+  <div class="nav" id="nav"></div>
+  <div class="stage"><div class="sheet"><div class="mods" id="mods"></div><div class="body"><h2 id="h">Tables</h2><p id="p">Your agents’ haggling: who they are dealing with, the price corridor, and what is waiting for your seal.</p><div class="count" id="count"></div></div></div></div>
+  <div class="foot">Waiting never pays · nothing moves without you</div>
+</div>
+
+<script>
+const I = {
+  rewind: '<path d="M3 8a5 5 0 1 0 1.6-3.7M3 3v3h3"/><path d="M8 5.5V8l1.8 1.2"/>',
+  rules: '<path d="M3 4h10M3 8h10M3 12h6"/>',
+  conn: '<path d="M6.5 9.5l3-3M5 11a2.1 2.1 0 0 1 0-3l1.5-1.5M11 5a2.1 2.1 0 0 1 0 3L9.5 9.5"/>',
+  set: '<circle cx="8" cy="8" r="2.2"/><path d="M8 2v1.6M8 12.4V14M2 8h1.6M12.4 8H14M3.8 3.8l1.1 1.1M11.1 11.1l1.1 1.1M3.8 12.2l1.1-1.1M11.1 4.9l1.1-1.1"/>',
+  brk: '<path d="M8 2l5 2v4c0 3-2.2 4.7-5 6-2.8-1.3-5-3-5-6V4z"/>',
+  proof: '<path d="M4 8.5l2.5 2.5L12 5"/>',
+  chat: '<path d="M2.5 4.5h11v6h-6l-3 2.5v-2.5h-2z"/>',
+  more: '<circle cx="3.5" cy="8" r=".9"/><circle cx="8" cy="8" r=".9"/><circle cx="12.5" cy="8" r=".9"/>',
+};
+const svg = k => `<svg viewBox="0 0 16 16" aria-hidden="true">${I[k]}</svg>`;
+const PLACES = [['Watch', [['rewind','Rewind'],['proof','Proof']]], ['Configure', [['rules','Rules'],['conn','Connections'],['set','Settings']]], ['Lab', [['brk','Break it']]]];
+const MODS = [['Tables','Your agents’ haggling: who they are dealing with, the price corridor, and what is waiting for your seal.',2],['Spend','Purchases your agents make on your rules, and the gate each one has to pass.',0],['Counter','Your shop: orders coming in and the rules that price them.',0],['Book','Every payment, the ledger and the outlook for the week.',0],['Shield','Scam checks on payees before money can leave.',1],['Rescue','Failed renewals your agents caught, and what was recovered.',0]];
+const WHY = {
+  1: 'The Chat/Everything switch stays visible because it changes the whole view. The six places that are rarely used at once move into one grouped “Places” menu. Top bar goes from 8 controls to 3, and the module tabs stay as they are.',
+  2: 'The toolbar becomes a quiet row of icons with tooltips. Fastest to scan once learned, and the smallest footprint, but the icons carry the cost: new owners must hover to learn what each one is.',
+  3: 'The two menus merge into one row: the view switch on the left, the six modules in the middle, one Places menu on the right. The sheet loses its own tab strip, so there is one place to look for navigation.'
+};
+let v = 1, mod = 0, view = 'Everything';
+const nav = document.getElementById('nav'), mods = document.getElementById('mods');
+function modTab(m, i) { return `<button class="mod ${i===mod?'on':''}" data-m="${i}">${m[0]} <span class="n">${i+1}</span>${m[2]?`<span class="w">${m[2]}</span>`:''}</button>`; }
+function seg() { return `<span class="seg" role="group" aria-label="View"><button class="${view==='Chat'?'on':''}" data-v="Chat">Chat</button><button class="${view==='Everything'?'on':''}" data-v="Everything">Everything</button></span>`; }
+function menu(items) { return `<div class="menu" id="menu">${PLACES.map(([g, list]) => `<h4>${g}</h4>${list.map(([k, n]) => `<button>${svg(k)}${n}</button>`).join('')}`).join('')}</div>`; }
+function render() {
+  document.getElementById('why').textContent = WHY[v];
+  const n = [];
+  if (v === 1) {
+    nav.innerHTML = `${seg()}<span class="sp"></span><button class="btn" data-menu>${svg('more')}Places<small style="color:var(--dim)">▾</small></button><button class="btn ico" title="Lock">${svg('set').replace(/<circle.*?<\/svg>/, '')}</button>` + menu();
+    document.getElementById('count').textContent = 'Controls: 1 switch + 1 menu (6 places inside) + 6 module tabs = 8 targets, 14 destinations.';
+  } else if (v === 2) {
+    nav.innerHTML = `${seg()}<span class="sp"></span>` + ['rewind','proof','rules','conn','set','brk'].map(k => `<button class="btn ico" title="${{rewind:'Rewind',proof:'Proof',rules:'Rules',conn:'Connections',set:'Settings',brk:'Break it'}[k]}" aria-label="${k}">${svg(k)}</button>`).join('<span></span>');
+    document.getElementById('count').textContent = 'Controls: 1 switch + 6 icons + 6 module tabs = 13 targets, but the row is 40% narrower.';
+  } else {
+    nav.innerHTML = `${seg()}<span class="sepv"></span>` + MODS.map((m, i) => `<button class="btn ${i===mod?'on':''}" data-m="${i}">${m[0]}${m[2]?` <span style="background:var(--gold);color:var(--bg);border-radius:999px;font:700 10px var(--ui);padding:1px 6px">${m[2]}</span>`:''}</button>`).join('') + `<span class="sp"></span><button class="btn" data-menu>${svg('more')}Places<small style="color:var(--dim)">▾</small></button>` + menu();
+    document.getElementById('count').textContent = 'Controls: 1 switch + 6 modules + 1 menu (6 places inside) = 8 targets in a single row.';
+  }
+  mods.innerHTML = v === 3 ? '' : MODS.map(modTab).join('');
+  mods.parentElement.querySelector('.mods').style.display = v === 3 ? 'none' : 'flex';
+  document.getElementById('h').textContent = MODS[mod][0];
+  document.getElementById('p').textContent = MODS[mod][1];
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t) return;
+  if (t.id && /^b[123]$/.test(t.id)) { v = +t.id[1]; document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-pressed', b === t)); render(); return; }
+  if (t.dataset.menu !== undefined) { document.getElementById('menu').classList.toggle('open'); return; }
+  if (t.dataset.m) { mod = +t.dataset.m; render(); return; }
+  if (t.dataset.v) { view = t.dataset.v; render(); return; }
+  const m = document.getElementById('menu'); if (m) m.classList.remove('open');
+});
+render();
+</script>

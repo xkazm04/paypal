@@ -1,0 +1,29 @@
+Generated with the built-in image_gen tool.
+The icon was used as the reference for the banner; both were references for the thumbnail.
+The banner's generated 1672x941 canvas was trimmed by 4 px on each side, 2 px at the top and 3 px at the bottom to achieve exact 16:9 (1664x936).
+
+ICON
+Use case: logo-brand
+Asset type: premium desktop app icon, exact 1:1 square canvas, ideally 1024x1024.
+Primary request: Create ONE finished icon image for a calm, precise, consent-first desktop app that lets an owner supervise AI agents handling money. Agents ask, the owner answers; nothing moves without approval.
+Subject: a unique abstract consent-gate symbol made of exactly two interlocking thick arcs. Their upward arching geometry subtly evokes an A-shaped open gateway and two sides meeting in a handshake, without any actual letter, lettering, typographic A, crossbar, or literal hands. Keep a clear open passage of negative space; elegant balanced silhouette, confident geometry, readable small.
+Composition: center the mark on a near-black rounded-square app tile, tile occupying about 88% of canvas with generous margin, no perspective. The mark occupies about 55% of tile. Flat indigo left arc (#6366F1), flat violet right arc (#9B7BFF), restrained mint (#9CF5D5) accent at the meeting point. Near-black (#10121F) tile, darker #090B12 outer background. Crisp smooth vector-style edges, minimal premium visual, no gradients, shadows, 3D, texture, glow, noise, UI, financial symbols, coins, robots or decoration.
+Constraints: one icon only, no presentation sheet, NO text, NO letters, NO words, NO numbers, NO logos of real companies, no watermark. Original abstract symbol only. Save/render as a square PNG.
+
+BANNER
+Use case: logo-brand
+Asset type: ONE finished brand banner, exact 16:9 wide canvas, preferably 2048x1152.
+Input image 1: reference image for the established brand mark and palette. Reuse the EXACT same abstract two-arc open-gateway/consent-handshake mark: indigo rising arc at left, violet rising arc at right, mint almond-shaped overlap at the top. Preserve its geometry and color placement. No actual letters.
+Primary request: calm premium branding for a desktop app where AI agents ask before handling money and the owner decides.
+Composition: edge-to-edge near-black (#10121F) background. Put the established mark as a clear, prominent standalone symbol on the RIGHT at about 73% horizontal, 49% vertical, width about 31% of canvas. No icon tile around it. Reserve the left 43% as quiet uninterrupted negative space for a future title; do not render any title. Create an atmospheric, very restrained graphic scene from broad nested gate arcs and fine orbital curved paths in dark indigo and muted violet, framing the right-hand mark, extending and cropping at top, right and bottom canvas edges. A few tiny mint accents as waiting points on paths, convey consent and patient readiness, no motion or transactions.
+Style: flat modern vector illustration, confident smooth geometry, generous negative space, premium, trustworthy, modern, precise, consent-first. Restrict palette to indigo #6366F1, violet #9B7BFF, mint #9CF5D5 and near-black. Flat fills, clean outlines, no photography, no 3D, no texture, no glow, no decorative clutter.
+Constraints: EXACT same original mark as reference, one landscape banner only. NO text, NO letters, NO numbers, NO company logos, NO watermarks, NO coins, currency signs, robot heads, UI screens, padlocks or shields.
+
+THUMBNAIL
+Use case: logo-brand
+Asset type: ONE finished app-store poster thumbnail, exact 2:3 PORTRAIT canvas, preferably 1024x1536.
+Input image 1: reference icon defining the exact established abstract consent-gate mark. Input image 2: reference banner defining the brand's graphic scene and palette. Keep the EXACT same mark geometry and color placement: thick indigo upward arc at left, thick violet upward arc at right, mint almond-shaped overlap at top, open passage below, no crossbar or actual letter.
+Primary request: calm, modern, precise, consent-first desktop app where agents ask and the owner decides before money moves.
+Composition: refined portrait poster. Near-black background edge-to-edge. The exact mark is the clear hero, centered horizontally at about 42% of image height, spanning about 61% of canvas width. NO tile around the mark. Below and around it, a few monumental cropped nested arch contours and broad flat arc bands in dark indigo and muted violet extend out of the bottom and side edges, with 2 or 3 tiny mint waiting points on delicate curved paths. Generous breathing room above and below the symbol, balanced premium poster silhouette, no typography.
+Style: flat modern vector illustration, confident geometric forms, clean edges, premium and trustworthy. Palette #10121F near-black, #6366F1 indigo, #9B7BFF violet, restrained #9CF5D5 mint. Maintain the reference's exact same coherent visual system.
+Constraints: exact 2:3 portrait single poster, not a mockup or sheet. NO text, NO letters, NO numbers, NO real company logos, NO watermark, no photography, no 3D, no texture, no UI, no money or currency symbols, no robots, no hands, no shields.

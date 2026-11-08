@@ -1,6 +1,7 @@
 /* Calibre console kit (rebuild WP1a): styles for src/shared/ui/console.tsx, HoldGesture.tsx and
-   Presence.tsx. Imported at the top of ui.css. Tokens only. Targets are at least 24px
-   (--target), readable text at least 12px (--fs-small). */
+   Presence.tsx, and (last section) the Proof Table's class-only pieces, which markup wears directly.
+   Imported at the top of ui.css. Tokens only. Targets are at least 24px (--target), readable text
+   at least 12px (--fs-small). */
 
 /* ---- Stack: the front sheet, the pile beneath, tabs on the top edge ------------------------------ */
 .ui-stack { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
@@ -42,21 +43,24 @@
 .ui-tabs { display: flex; align-items: flex-end; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .ui-tabs::-webkit-scrollbar { display: none; }
 .ui-tab { --c: var(--steel); position: relative; display: inline-flex; align-items: center; gap: var(--sp-2); height: 2.5rem; min-width: var(--target);
-  padding: 0 var(--sp-3); border: 0; border-radius: var(--r-pill) var(--r-pill) 0 0; cursor: pointer; white-space: nowrap; color: var(--muted);
-  font: var(--fw-medium) var(--fs-body)/1 var(--label); font-stretch: var(--label-stretch); letter-spacing: .05em;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 10%, var(--tab-mix)), var(--tab-lo));
-  box-shadow: inset 0 1px 0 var(--c), 0 0 0 1px var(--line2); transition: color var(--t-fast), box-shadow var(--t-fast); }
-.ui-tab .ico { width: 18px; height: 18px; display: grid; place-items: center; flex: none; color: var(--c); }
+  padding: 0 var(--sp-3); border: 0; border-radius: var(--r-pill) var(--r-pill) 0 0; cursor: pointer; white-space: nowrap; color: var(--dim);
+  font: var(--fw-regular) var(--fs-body)/1 var(--label); font-stretch: var(--label-stretch); letter-spacing: .05em;
+  background: var(--tab-lo);
+  box-shadow: 0 0 0 1px var(--line); transition: color var(--t-fast), background-color var(--t-fast), box-shadow var(--t-fast); }
+.ui-tab .ico { width: 18px; height: 18px; display: grid; place-items: center; flex: none; color: var(--c); opacity: .7; transition: opacity var(--t-fast); }
+.ui-tab:hover .ico, .ui-tab:focus-visible .ico, .ui-tab.active .ico { opacity: 1; }
 .ui-tab .ico svg { width: 18px; height: 18px; display: block; }
 .ui-tab .tt { font: var(--fw-medium) var(--fs-small)/1 var(--num); font-variant-numeric: tabular-nums lining-nums; color: var(--dim); letter-spacing: 0; }
 .ui-tab .cnt { display: grid; place-items: center; min-width: 1.4rem; height: 1.3rem; padding: 0 .35rem; border-radius: var(--r-tight);
   font: var(--fw-bold) var(--fs-small)/1 var(--num); font-variant-numeric: tabular-nums lining-nums; letter-spacing: 0;
   color: var(--on-gold); background: var(--gold); box-shadow: var(--glow-gold); }
-.ui-tab:hover, .ui-tab:focus-visible { color: var(--text); box-shadow: inset 0 1.5px 0 var(--c), 0 0 0 1px var(--c), 0 0 1.2rem color-mix(in srgb, var(--c) 28%, transparent); }
+.ui-tab:hover, .ui-tab:focus-visible { color: var(--text); background: var(--tab-mix); box-shadow: inset 0 1.5px 0 var(--c), 0 0 0 1px var(--line2); }
 .ui-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.ui-tab.active { z-index: 1; color: var(--text); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 16%, var(--tab-on)), var(--sheet-hi));
-  box-shadow: inset 0 2px 0 var(--c), 1px 0 0 var(--line2), -1px 0 0 var(--line2), 0 -.5rem 1.4rem color-mix(in srgb, var(--c) 22%, transparent); }
-:root[data-theme="light"] .ui-tab:hover, :root[data-theme="light"] .ui-tab.active { box-shadow: inset 0 2px 0 var(--c), 0 0 0 1px var(--line2); }
+/* the lit tab: full text colour, bold, a heavier top edge and an underline in the module colour; same box as the others */
+.ui-tab.active { z-index: 1; color: var(--text); font-weight: var(--fw-bold); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 16%, var(--tab-on)), var(--sheet-hi));
+  box-shadow: inset 0 3px 0 var(--c), inset 0 -3px 0 var(--c), 1px 0 0 var(--line2), -1px 0 0 var(--line2), 0 -.5rem 1.4rem color-mix(in srgb, var(--c) 22%, transparent); }
+:root[data-theme="light"] .ui-tab:hover { box-shadow: inset 0 2px 0 var(--c), 0 0 0 1px var(--line2); }
+:root[data-theme="light"] .ui-tab.active { box-shadow: inset 0 3px 0 var(--c), inset 0 -3px 0 var(--c), 0 0 0 1px var(--line2); }
 
 /* ---- filter chips ------------------------------------------------------------------------------- */
 .ui-filters { display: inline-flex; flex-wrap: wrap; gap: var(--sp-1); min-width: 0; }
@@ -128,3 +132,86 @@
 @keyframes ui-pres-rise { from { opacity: 0; transform: translateY(1rem); } }
 @keyframes ui-pres-drop { from { opacity: 0; transform: translateY(-.75rem); } }
 @keyframes ui-pres-out { to { opacity: 0; transform: translateY(.4rem); } }
+
+/* ---- the Proof Table's language (spark the-proof-table; prototype ai-ux-board-r2 B-2) ---------------
+   The night look of the board as kit classes: a ruled ground, one large sentence whose figures are
+   keys to their proof, lit cells, a sum line, key chips, rail panels and a ghost slot. Class-only (no
+   component): markup wears them. The sheet frame stays .ui-stack-sheet, the facts strip .ui-facts. */
+
+/* tone: the fixed colour meaning (tokens.css header) as two locals, set in this one place. --tc is
+   the fill and edge, --tl the ink for text. The set mirrors `Tone` in windows/main/switchboard/lit.ts.
+   data-tone goes on the element that wears the class (any element may carry it to read --tc/--tl);
+   without one the four classes are neutral. */
+:where(.ui-fig, .ui-lit, .ui-key, .ui-rail) { --tc: var(--steel); --tl: var(--text); }
+[data-tone="gold"] { --tc: var(--gold); --tl: var(--gold-l); }
+[data-tone="teal"] { --tc: var(--teal); --tl: var(--teal-l); }
+[data-tone="coral"] { --tc: var(--coral); --tl: var(--coral-l); }
+[data-tone="refuse"] { --tc: var(--refuse); --tl: var(--red-l); }
+[data-tone="ok"] { --tc: var(--ok); --tl: var(--ok); }
+[data-tone="market"] { --tc: var(--steel); --tl: var(--market); }
+
+/* the ground: a vignette over major lines every four pitches over minor lines every pitch, on --bg.
+   Unlike the brand's .br-ground (a masked layer element) this is the surface's own background. */
+.ui-ground { background:
+  radial-gradient(130% 100% at 50% 0%, transparent 55%, var(--vignette)),
+  linear-gradient(var(--grat-major) 1px, transparent 1px) 0 0 / calc(var(--grat-pitch) * 4) calc(var(--grat-pitch) * 4),
+  linear-gradient(90deg, var(--grat-major) 1px, transparent 1px) 0 0 / calc(var(--grat-pitch) * 4) calc(var(--grat-pitch) * 4),
+  linear-gradient(var(--grat) 1px, transparent 1px) 0 0 / var(--grat-pitch) var(--grat-pitch),
+  linear-gradient(90deg, var(--grat) 1px, transparent 1px) 0 0 / var(--grat-pitch) var(--grat-pitch),
+  var(--bg); }
+
+/* the sentence: the screen's one answer, large and light; it steps down with its length (is-h2..h4)
+   and is-h1 steps up with the window like the console's decision title */
+.ui-sentence { margin: 0; font: var(--fw-display) var(--fs-hero)/1.18 var(--display); letter-spacing: var(--track-display); color: var(--text); text-wrap: pretty; }
+.ui-sentence.is-h2 { font-size: var(--fs-display); line-height: 1.14; }
+.ui-sentence.is-h3 { font-size: var(--fs-title1); line-height: 1.3; }
+.ui-sentence.is-h4 { font-size: var(--fs-title2); line-height: 1.4; }
+@media (min-height: 960px) and (min-width: 1500px) { .ui-sentence.is-h1 { font-size: var(--fs-hero-l); } }
+@media (min-height: 1000px) and (min-width: 1700px) { .ui-sentence.is-h1 { font-size: var(--fs-hero-xl); } }
+
+/* a figure: inline in the sentence, set in its tone's ink, a key to its proof. Dotted underline at
+   rest; a solid underline and a fill while it is on (hover, focus, .is-on); a ring while held. */
+.ui-fig { appearance: none; display: inline; margin: 0 -.06em; padding: 0 .06em; border: 0; border-radius: var(--r-tight);
+  border-bottom: 1px dotted color-mix(in srgb, var(--tl) 60%, transparent); background: none; color: var(--tl);
+  font: inherit; letter-spacing: inherit; cursor: pointer; }
+.ui-fig .num { font-weight: var(--fw-medium); letter-spacing: var(--track-money); }
+.ui-fig:hover, .ui-fig:focus-visible, .ui-fig.is-on, .ui-fig.is-held { background: color-mix(in srgb, var(--tl) 16%, transparent); border-bottom-style: solid; }
+.ui-fig.is-held { box-shadow: 0 0 0 1px color-mix(in srgb, var(--tl) 55%, transparent); }
+
+/* a ghost: an empty slot drawn as an invitation (dashed, half a panel); a button or link one lights */
+.ui-ghost { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: var(--sp-1); padding: var(--sp-4) var(--sp-5);
+  text-align: left; border: 1px dashed var(--line2); border-radius: var(--r-sheet); background: color-mix(in srgb, var(--panel) 45%, transparent);
+  color: var(--muted); font: inherit; }
+:is(button, a).ui-ghost { cursor: pointer; }
+:is(button, a).ui-ghost:hover { border-color: var(--sel-line); background: var(--sel); color: var(--text); }
+
+/* a lit cell: its tone's edge, an 18% fill and the signal glow's shape in its tone; numbers in the ink.
+   By day there are no glows (--glow-signal: none), so the edge alone carries it. */
+.ui-lit { border-color: var(--tc); background: color-mix(in srgb, var(--tc) 18%, var(--panel));
+  box-shadow: inset 0 0 0 1px var(--tc), 0 0 .6rem color-mix(in srgb, var(--tc) 45%, transparent); }
+.ui-lit .num { color: var(--tl); }
+:root[data-theme="light"] .ui-lit { box-shadow: inset 0 0 0 1px var(--tc); }
+
+/* the sum line: "2 + 1 + 1 = 4 deals lit", the terms and the total read first */
+.ui-sum { margin: 0; min-height: 20px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-1); color: var(--muted); font-size: var(--fs-small); }
+.ui-sum .terms { color: var(--text); font-size: var(--fs-body); }
+.ui-sum .eq b { color: var(--text); font-size: var(--fs-title3); }
+.ui-sum.is-quiet { color: var(--dim); }
+
+/* a key chip: one lit deal, a tone-mixed fill with a 3px rail in the tone; its amount in the ink */
+.ui-key { display: inline-flex; align-items: center; gap: 5px; height: var(--ctl-sm); padding: 0 6px; border-radius: var(--r-tight);
+  background: color-mix(in srgb, var(--tc) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--tc) 50%, var(--line2)); border-left: 3px solid var(--tc);
+  color: var(--text); font-size: var(--fs-small); }
+.ui-key:hover { background: color-mix(in srgb, var(--tc) 22%, var(--panel)); }
+.ui-key .ref { font: var(--fs-small) var(--mono); color: var(--muted); }
+.ui-key .amt { font-weight: var(--fw-semibold); color: var(--tl); }
+
+/* a rail panel: a tone-mixed panel with an inset 3px rail in the tone */
+.ui-rail { padding: var(--sp-3); border-radius: var(--r); background: color-mix(in srgb, var(--tc) 10%, var(--panel)); box-shadow: inset 3px 0 0 var(--tc); }
+
+/* contrast themes drop fills and shadows: lit, on and railed need an edge */
+@media (forced-colors: active) {
+  .ui-lit { outline: 2px solid Highlight; outline-offset: -2px; }
+  .ui-fig.is-on, .ui-fig.is-held { outline: 1px solid Highlight; }
+  .ui-rail { border-left: 3px solid CanvasText; }
+}

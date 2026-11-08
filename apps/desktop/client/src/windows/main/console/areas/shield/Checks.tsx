@@ -6,7 +6,8 @@
 // and "Outcome only" fades the checks. No column is added per payee, so the page never scrolls
 // sideways. The picked row's whole story (every check, the price band, their note quarantined, the
 // decision and its hand-off) sits beside the list.
-import { Fragment, useMemo, useState } from 'react';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
+import { Fragment, useMemo, useState, type CSSProperties } from 'react';
 import type { Deal } from '@bindings/Deal';
 import { formatMinor } from '../../../../../lib/format';
 import { useNow } from '../../../../../lib/hooks';
@@ -49,6 +50,9 @@ function decisionWords(deal: Deal, s: ShieldWorld): string {
   return deal.shield === 'HOLD' ? SHIELD.move.closed(stateLabel(deal.state, deal).toLowerCase()) : SHIELD.move.elsewhere(s.moduleName(deal));
 }
 
+/** The checks row's columns; the narrower templates (by the row's own width) are in shield.css. */
+const CHECK_COLS = { '--cols': 'minmax(9rem, 1.6fr) 7rem 8.5rem minmax(0, .8fr) minmax(0, 1fr) minmax(0, .9fr) minmax(0, 1.2fr)' } as CSSProperties;
+
 function CheckRow({ deal, s, outcome }: { deal: Deal; s: ShieldWorld; outcome: boolean }) {
   const now = useNow();
   const cp = s.cpEntry(deal);
@@ -58,14 +62,14 @@ function CheckRow({ deal, s, outcome }: { deal: Deal; s: ShieldWorld; outcome: b
   const [pp] = paypalLine(deal);
   const need = s.need(deal);
   return (
-    <span className={`sh-crow${need ? ' needs' : ''}${outcome ? ' outcome' : ''}`}>
-      <span className="c-who"><b title={s.who(deal)}>{s.who(deal)}</b><span className="sh-sub" title={s.title(deal)}>{s.title(deal)}</span></span>
+    <span className={`row1 sh-crow${need ? ' needs' : ''}${outcome ? ' outcome' : ''}`} style={CHECK_COLS} title={`${s.who(deal)} · ${s.title(deal)}`}>
+      <span className="c-who"><b title={s.who(deal)}>{s.who(deal)}</b> <span className="sh-sub" title={s.title(deal)}>{s.title(deal)}</span></span>
       <span className="c-amt"><Amount money={dealTotal(deal)} tone={deal.shield === 'BLOCK' ? 'struck' : undefined} /></span>
       <span className="c-say"><VerdictChip v={deal.shield} /></span>
-      <span className={`c-chk c-new r-${newcp.r}`} title={newcp.l}><small>{SHIELD.col.newPayee}</small><span>{newcp.s}</span></span>
-      <span className={`c-chk c-mkt r-${market.r}${over ? ' tx-coral' : ''}`} title={market.l}><small>{SHIELD.col.price}</small><span><PriceMini deal={deal} />{market.s.replace(/ typical$/, '')}</span></span>
-      <span className="c-pp"><small>{SHIELD.col.paypal}</small><span className={pp.startsWith(SHIELD.nothingSentPrefix) ? 'tx-ok' : 'tx-gold'}>{pp}</span></span>
-      <span className={`c-move${need ? ' tx-gold' : ''}`}><small>{SHIELD.col.decision}</small><span>{decisionWords(deal, s)}</span></span>
+      <span className={`c-chk c-new r-${newcp.r}`} title={`${SHIELD.col.newPayee}: ${newcp.l}`}>{newcp.s}</span>
+      <span className={`c-chk c-mkt r-${market.r}${over ? ' tx-coral' : ''}`} title={`${SHIELD.col.price}: ${market.l}`}><PriceMini deal={deal} />{market.s.replace(/ typical$/, '')}</span>
+      <span className={`c-pp ${pp.startsWith(SHIELD.nothingSentPrefix) ? 'tx-ok' : 'tx-gold'}`} title={`${SHIELD.col.paypal}: ${pp}`}>{pp}</span>
+      <span className={`c-move${need ? ' tx-gold' : ''}`} title={`${SHIELD.col.decision}: ${decisionWords(deal, s)}`}>{decisionWords(deal, s)}</span>
     </span>
   );
 }
@@ -104,7 +108,8 @@ export function PayeeStory({ deal, s }: { deal: Deal; s: ShieldWorld }) {
   const [note, setNote] = useState(false);
   const first = cp ? new Date(cp.first_seen * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null;
   return (
-    <div className="sh-story">
+    <RevealGroup className="sh-story">
+      <Reveal className="sh-sec">
       <p className="kicker">{SHIELD.story.payee}</p>
       <h2 className="sh-h" title={s.who(deal)}>{s.who(deal)}</h2>
       <Kv items={[
@@ -114,10 +119,14 @@ export function PayeeStory({ deal, s }: { deal: Deal; s: ShieldWorld }) {
         [SHIELD.story.firstSeen, first ? `${first} (${checkCell('newcp', deal, cp, now).s.toLowerCase()})` : <Chip tone="dashed">{SHIELD.unknown}</Chip>],
         s.house(deal) ? [SHIELD.story.who, SHIELD.story.house] : null,
       ]} />
+      </Reveal>
+      <Reveal className="sh-sec">
       <h3 className="sh-h3">{SHIELD.story.says}</h3>
       <p className="sh-say"><VerdictChip v={deal.shield} /> <span>{v ? v.means : SHIELD.noVerdictTitle}</span></p>
       {deal.shield_rule ? <p className="sh-det"><b>{SHIELD.story.decidedBy}</b> {shieldRuleWord(deal.shield_rule).text}. {shieldRuleWord(deal.shield_rule).means}</p> : null}
       {shieldReleased(deal) ? <p className="sh-det">{SHIELD.story.released}</p> : null}
+      </Reveal>
+      <Reveal className="sh-sec">
       <ul className="sh-cklist">
         {CHECKS.map((chk, i) => {
           const x = checkCell(chk.k, deal, cp, now);
@@ -126,8 +135,12 @@ export function PayeeStory({ deal, s }: { deal: Deal; s: ShieldWorld }) {
         })}
       </ul>
       <Hint>{SHIELD.story.strictest}</Hint>
+      </Reveal>
+      <Reveal className="sh-sec">
       <h3 className="sh-h3">{SHIELD.story.price}</h3>
       <PriceBand deal={deal} />
+      </Reveal>
+      <Reveal className="sh-sec">
       <h3 className="sh-h3">{SHIELD.story.paypal}</h3>
       <p className="sh-det"><b>{a}</b> · {b}. {SHIELD.story.moneyNow(moneyNow(deal))}</p>
       {p.order || p.authorization || p.capture ? <Kv items={[p.order ? [SHIELD.story.order, <span className="mono">{p.order}</span>] : null, p.authorization ? [SHIELD.story.hold, <span className="mono">{p.authorization}</span>] : null, p.capture ? [SHIELD.story.payment, <span className="mono">{p.capture}</span>] : null]} /> : null}
@@ -135,6 +148,8 @@ export function PayeeStory({ deal, s }: { deal: Deal; s: ShieldWorld }) {
       <details className="ui-disclosure sh-note" onToggle={(e) => setNote(e.currentTarget.open)}><summary>{SHIELD.story.note}</summary>
         <div className="ui-disclosure-body">{note ? <NoteText dealId={deal.id} from={s.who(deal)} /> : null}</div>
       </details>
+      </Reveal>
+      <Reveal className="sh-sec">
       <h3 className="sh-h3">{SHIELD.story.decision}</h3>
       <p className="sh-det">{deal.shield === 'BLOCK' ? SHIELD.story.blockFinal : need && releasable(deal) ? SHIELD.releaseMeans[releaseCase(deal)] : need ? need.headline : SHIELD.story.nothing(v ? v.text : SHIELD.noVerdict, s.moduleName(deal))}</p>
       {need ? <p className="sh-det">{SHIELD.ifNothing}: <b>{need.on_silence}</b></p> : null}
@@ -143,7 +158,8 @@ export function PayeeStory({ deal, s }: { deal: Deal; s: ShieldWorld }) {
         {need ? <RefuseButton deal={deal} need={need} title={s.title(deal)} /> : null}
         <Btn sm onClick={() => nav.deal(deal.id)}>{SHIELD.openDeal}</Btn>
       </div>
-    </div>
+      </Reveal>
+    </RevealGroup>
   );
 }
 
@@ -163,22 +179,22 @@ export function Checks({ s }: { s: ShieldWorld }) {
     { value: 'clear', label: SHIELD.filter.clear, test: (d) => d.shield === 'CLEAR' && !s.need(d) },
   ], [s, now]);
   return (
-    <div className="sh-checks">
-      <WeekTiles strip={strip} />
-      <div className="sh-ctools">
+    <RevealGroup className="sh-checks">
+      <Reveal><WeekTiles strip={strip} /></Reveal>
+      <Reveal><div className="sh-ctools">
         <Seg label={SHIELD.scope.label} value={scope} onChange={setScope} options={[{ value: 'week', label: SHIELD.scope.week }, { value: 'all', label: SHIELD.scope.all }]} />
         <Seg label={SHIELD.show.label} value={outcome ? 'outcome' : 'all'} onChange={(v) => setOutcome(v === 'outcome')}
           options={[{ value: 'all', label: SHIELD.show.all }, { value: 'outcome', label: SHIELD.show.outcome, title: SHIELD.show.outcomeTitle }]} />
         <span className="ui-hint sh-unshown">{SHIELD.unshown}</span>
-      </div>
-      <ListEngine<Deal> className={fewRows(rows.length)} label={SHIELD.checksLabel} rows={rows} getKey={(d) => d.id} filters={filters} filterLabel={SHIELD.filter.label} estimateSize={52} wideAt={1200} toolbarMin={0}
+      </div></Reveal>
+      <ListEngine<Deal> className={fewRows(rows.length)} label={SHIELD.checksLabel} rows={rows} getKey={(d) => d.id} filters={filters} filterLabel={SHIELD.filter.label} estimateSize={36} wideAt={1200} toolbarMin={0}
         searchText={(d) => `${s.who(d)} ${s.title(d)} ${d.shield ? shieldWord(d.shield).text : ''}`}
         renderRow={(d) => <CheckRow deal={d} s={s} outcome={outcome} />}
         rowLabel={(d) => `${s.who(d)}, ${d.shield ? shieldWord(d.shield).text : SHIELD.noVerdict}`}
         onOpen={(d) => nav.deal(d.id)}
         detail={(d) => <PayeeStory key={d.id} deal={d} s={s} />}
         empty={scope === 'week' ? SHIELD.checksEmptyWeek : SHIELD.checksEmpty} />
-    </div>
+    </RevealGroup>
   );
 }
 
@@ -186,21 +202,27 @@ export function Checks({ s }: { s: ShieldWorld }) {
  *  and how their messages are read. */
 export function HowShield() {
   return (
-    <div className="sh-how">
-      <p className="sh-det">{SHIELD.how.lede}</p>
+    <RevealGroup className="sh-how">
+      <Reveal><p className="sh-det">{SHIELD.how.lede}</p></Reveal>
+      <Reveal className="sh-sec">
       <h2 className="sh-h3">{SHIELD.how.checks}</h2>
       <ol className="sh-steps">
         {CHECKS.map((c) => <li key={c.k}><b>{c.name}</b> <span className="tx-dim">· {c.kind}.</span> {SHIELD.how.ifFinds} <VerdictChip v={c.effect} /></li>)}
       </ol>
       <p className="sh-det">{SHIELD.how.noPrice}</p>
+      </Reveal>
+      <Reveal className="sh-sec">
       <h2 className="sh-h3">{SHIELD.how.results}</h2>
       <Kv items={(['CLEAR', 'ASK', 'HOLD', 'BLOCK'] as const).map((v) => [<VerdictChip v={v} />, shieldWord(v).means] as const)} />
+      </Reveal>
+      <Reveal className="sh-sec">
       <h2 className="sh-h3">{SHIELD.how.messages}</h2>
       <p className="sh-det">{SHIELD.how.messagesText}</p>
       <div className="sh-legend">
         <span><span className="sh-hatch" aria-hidden="true" /> {SHIELD.how.hatch}</span>
         <span><Chip tone="dashed">{SHIELD.how.noteChip}</Chip> {SHIELD.how.noteText}</span>
       </div>
-    </div>
+      </Reveal>
+    </RevealGroup>
   );
 }

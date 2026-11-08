@@ -12,6 +12,7 @@ import { BOOK, PROOF_CHECKS, PROOF_LIMIT } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Loading } from '../../../../../shared/ui';
 import { ProofReportView } from '../../../modules/book/ProofCheck';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 
 const BrowserChecker = lazy(() => import('../../../../../shared/proofcheck/SampleChecker').then((m) => ({ default: m.SampleChecker })));
 
@@ -36,18 +37,18 @@ function WalletProof() {
     if (r) setReport(r);
   };
   return (
-    <div className="bk-proof">
-      <div className="cs-acts">
+    <RevealGroup className="bk-proof">
+      <Reveal className="cs-acts">
         <Btn kind="primary" disabled={check.pending} onClick={() => void pick()}>{check.pending ? BOOK.proof.checking : report ? BOOK.proof.another : BOOK.proof.choose}</Btn>
-      </div>
+      </Reveal>
       {check.error ? <WalletNotice error={check.error} what={BOOK.proof.what} /> : null}
       {report ? <ProofReportView report={report} own={own} /> : (
-        <>
+        <Reveal>
           <p className="bk-h3">{BOOK.proof.checks}</p>
           <ul className="bk-proofchecks">{Object.entries(PROOF_CHECKS).map(([id, text]) => <li key={id}>{text}</li>)}</ul>
-        </>
+        </Reveal>
       )}
-      <p className="ui-hint">{PROOF_LIMIT}</p>
-    </div>
+      <Reveal><p className="ui-hint">{PROOF_LIMIT}</p></Reveal>
+    </RevealGroup>
   );
 }

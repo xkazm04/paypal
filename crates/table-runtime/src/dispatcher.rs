@@ -608,20 +608,16 @@ impl Runtime {
                 json(())
             }
             Action::Engines => json(self.engine_info()?),
+            Action::EngineBrief => json(
+                self.engine_info()?
+                    .iter()
+                    .map(table_engine::EngineBrief::from)
+                    .collect::<Vec<_>>(),
+            ),
             Action::Start(id) => json(self.start_agent(id)?),
             Action::Runs => json(self.run_snapshots()),
-            Action::Resume => {
-                // Read before the write: a report that cannot be read leaves the pause in place.
-                // Resume starts nothing; each restart stays the owner's own agent_start.
-                let waiting = self.waiting_on_agent(self.clock.now())?;
-                app(self
-                    .pipeline
-                    .wallet
-                    .ledger
-                    .set_preference("agents_paused", &false))?;
-                self.paused = false;
-                json(ResumeReport { waiting })
-            }
+            // Read before the write; starts nothing (acts.rs).
+            Action::Resume => json(self.resume_all()?),
             Action::Mandates => json(self.mandate_list()?),
             Action::Sign(args) => json(self.sign_mandate(args)?),
             Action::Revoke(args) => {
@@ -713,22 +709,8 @@ impl Runtime {
                 )?;
                 json(())
             }
-            Action::LetLapse(id) => {
-                // The same gate the card offered: a Hold or an Authorized deal has no Let lapse.
-                if !self.card_item(id)?.is_some_and(|i| {
-                    i.kind == table_attention::AttnKind::Gate
-                        && i.actions
-                            .contains(&table_attention::TumblerAction::LetLapse)
-                }) {
-                    return Err(invalid());
-                }
-                app(self
-                    .pipeline
-                    .wallet
-                    .ledger
-                    .set_preference(&format!("lapse.{id}"), &true))?;
-                json(())
-            }
+            // The same gate the card offered: a Hold or an Authorized deal has none (acts.rs).
+            Action::LetLapse(id) => json(self.let_lapse(id)?),
             Action::Snooze(id) => {
                 let now = self.clock.now();
                 let Some(item) = self.card_item(id)?.filter(|i| {
@@ -764,16 +746,12 @@ impl Runtime {
                 }
                 json(joined?)
             }
-            Action::Pause => {
-                app(self
-                    .pipeline
-                    .wallet
-                    .ledger
-                    .set_preference("agents_paused", &true))?;
-                self.paused = true;
-                self.cancel_runs()?;
-                json(())
-            }
+            Action::Pause => json(self.pause_all()?),
+            // Safe acts (acts.rs).
+            Action::LapseUndo(id) => json(self.lapse_undo(id)?),
+            Action::AgentPause(slot) => json(self.pause_agent(slot)?),
+            Action::AgentResume(slot) => json(self.resume_agent(slot)?),
+            Action::AssistantAct(args) => json(self.assistant_act(args)?),
             Action::QuitSummary => json(self.quit_summary()?),
             Action::QuitConfirm(args) => {
                 if self.quit_summary()?.confirmation_id != args.confirmation_id {

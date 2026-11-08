@@ -196,6 +196,9 @@ fn client_reads_and_snooze_have_their_precise_label_grants() {
         ("envelope-get", vec!["main", "tumbler", "approval"]),
         ("rescue-replay", vec!["approval"]),
         ("rescue-book", vec!["main", "approval"]),
+        // The board assistant: main only, never the Tumbler or the approval window.
+        ("assistant-ask", vec!["main"]),
+        ("assistant-status", vec!["main"]),
     ] {
         for raw in capabilities {
             let v: Value = serde_json::from_str(raw).unwrap();

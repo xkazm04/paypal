@@ -1,0 +1,60 @@
+{
+ "schema": "conform-run/1",
+ "worker": "f7226a82-a2c7-460e-87c9-c262d4d9d20e",
+ "subject": "prompt-assembly",
+ "evaluatedAt": "2026-11-06T23:40:35.597291+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "tumbler-window",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:3 The Tumbler is a pure projection of Rust attention snapshots into window forms; a recursive grep of apps/desktop/client/src/windows/tumbler for prompt, system_prompt, compaction and 'context window' returned zero files, so no prompt is assembled here.",
+   "techniques": [],
+   "absenceTerms": [
+    "prompt",
+    "system_prompt",
+    "compaction",
+    "context window"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "prompt-assembly",
+   "context": "runtime-money-controls",
+   "reason": "evidence leans on engines.rs/actor.rs/agent_surface_tests.rs, which is not a tracked file"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "client-runtime-foundation",
+   "reason": "evidence leans on lib/assistant/prompt.ts, which is not a tracked file"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "counter-and-tables-modules",
+   "reason": "evidence leans on words/arena.ts, which is not a tracked file"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-06T23:40:35.597291+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "tumbler-window",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

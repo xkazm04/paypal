@@ -18,6 +18,7 @@ import { useCpLookup } from '../ui';
 import { useDeals, useDisplayOf, useWorldSelector, type World } from '../world';
 import { Latest, LatestSkeleton, MAX_ROWS, type LatestProps } from './Latest';
 import { DealRow } from './rows';
+import { Reveal as Rise, RevealGroup } from '../../../design/Reveal';
 import { Reveal } from './stagger';
 
 const selModuleOf = (w: World) => w.moduleOfDeal;
@@ -51,11 +52,11 @@ export function Waiting({ queue, module, onFilter, onPick, onDeal }: {
   const decided = useMemo(() => (deals ?? []).filter((d) => !!d.decided_by && (!module || moduleOfDeal(d) === module))
     .sort((a, b) => (b.updated_at ?? b.created_at ?? 0) - (a.updated_at ?? a.created_at ?? 0)), [deals, module, moduleOfDeal]);
   return (
-    <div className={`cs-waiting${short ? ' short' : ''}`}>
-      <div className="cs-lhead">
+    <RevealGroup className={`cs-waiting${short ? ' short' : ''}`}>
+      <Rise className="cs-lhead">
         <p className="kicker">{WAITING_KICKER}</p>
         <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{queue.length ? waitingTitle(queue.length) : WAITING_TITLE}</h1>
-      </div>
+      </Rise>
       <ListShell label={WAITING_TITLE} className="cs-wlist"
         filters={options.length > 2 ? <FilterChips<Filter> label={WAITING_FILTER} multi={false} options={options} value={[module ?? 'all']}
           onChange={(v) => { const f = v[0]; onFilter(!f || f === 'all' ? undefined : f); }} /> : undefined}
@@ -74,7 +75,7 @@ export function Waiting({ queue, module, onFilter, onPick, onDeal }: {
         // The waiting list is the decisions themselves (wave 0); what was decided lately takes its turn.
         <DecidedLately decided={decided} onDeal={onDeal} who={(d) => cp(d.counterparty).name} />
       ) : null}
-    </div>
+    </RevealGroup>
   );
 }
 

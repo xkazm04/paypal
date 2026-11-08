@@ -21,7 +21,7 @@ import type { OpenMandate } from '@bindings/OpenMandate';
 import type { WalletError } from '../../lib/contract';
 import { shortHash, shortId } from '../../lib/format';
 import { useNow, useQuery } from '../../lib/hooks';
-import { kindWord, rulesName, SAY_EDITOR, timeLeftWords } from '../../lib/words';
+import { kindWord, rulesName, SAY_EDITOR, timeLeftWords, WHATIF_FIRST_RULE, WHATIF_NO_CHANGE } from '../../lib/words';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Hourglass, Kv, Popover, Seg, Spacer, type IconName } from '../../shared/ui';
 import { bpToPercent, buildMandate, CLAUSE_NUMBER, draftFrom, draftFromRules, fromLocalInput, newDraft, percentDiffers, previewClauses, refusalWords, ruleProblems, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from './mandateDraft';
@@ -34,7 +34,7 @@ import { amountTicks, priceTicks } from './owner/levers';
 import { Scoreboard, WhatIfTable } from './owner/WhatIf';
 import { SignSheet } from './owner/SignSheet';
 import { repairs } from './owner/repair';
-import { changed, hitPhrase, ifWithdrawn, summaryWords } from './owner/simulation';
+import { countOf, headlineWords, hitPhrase, ifWithdrawn, outcomeChanged, summaryWords } from './owner/simulation';
 import { WhoWhat } from './owner/WhoWhat';
 import { TemplatePicker, type BlankField } from './owner/Templates';
 import { connectedPayees, templateBlanks, templateDraft, TEMPLATES, type TemplateBlank, type TemplateKey } from './templates';
@@ -132,7 +132,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
   // A REFUSED (the draft can't be signed) or a failed read shows instead of a stale answer.
   const answered = args && !what.error ? what.sim : null;
   const lines = answered ? (preview && base ? ifWithdrawn(answered.lines) : answered.lines) : null;
-  const movedCount = lines ? lines.filter(changed).length : 0;
+  const movedCount = lines ? lines.filter(outcomeChanged).length : 0;
   const shownPane: Pane = pane ?? (base ? 'replay' : 'levers');
   const signedName = 'Now';
   const draftName = preview ? 'If withdrawn' : !base ? 'These rules' : changes.length ? 'Your change' : 'Unchanged';
@@ -274,7 +274,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
         ? {
             tone: 'need', icon: 'rules', plain: true,
             title: `You changed ${changes.length} ${changes.length === 1 ? 'thing' : 'things'}${tighter || looser ? ` (${[tighter ? `${tighter} tighter` : '', looser ? `${looser} looser` : ''].filter(Boolean).join(', ')})` : ''}. Nothing is signed yet.`,
-            sub: lines ? `${movedCount} ${movedCount === 1 ? 'deal would' : 'deals would'} have gone differently this week.` : undefined,
+            sub: lines ? headlineWords(lines, !base) : undefined,
           }
         : base.refusal
           ? { tone: 'alert', icon: 'block', title: NO_LONGER_FITS, sub: 'Fix what the line at the bottom says, then sign again, or withdraw them.' }
@@ -348,7 +348,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
               onChange={setPane}
               options={[
                 { value: 'levers', label: `Limits${changes.length ? ` · ${changes.length}` : ''}` },
-                { value: 'replay', label: lines ? `This week · ${lines.length} deals${movedCount ? ` · ${movedCount} changed` : ''}` : 'This week' },
+                { value: 'replay', label: lines ? `This week · ${countOf(lines.length, 'deal')}${movedCount ? ` · ${movedCount} changed` : ''}` : 'This week' },
               ]}
             />
             <Chip tone="line" title="Your wallet tried this week’s deals with the same check every agent request goes through. Nothing is signed or sent.">your wallet’s own check · nothing signed</Chip>
@@ -356,7 +356,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
         </div>
 
         {shownPane === 'replay' ? (
-          <WhatIfTable lines={lines} error={args ? what.error : null} updating={what.updating} signedName={signedName} draftName={draftName} />
+          <WhatIfTable lines={lines} error={args ? what.error : null} updating={what.updating} signedName={signedName} draftName={draftName} firstRule={!base} />
         ) : (
           <div className="ow-levers" key={tpl ?? 'own'}>
             <div className="ui-section-h">
@@ -387,7 +387,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
         {base ? (
           <Btn kind="danger" locked={locked} disabled={!s.tokenReady || s.pending !== null}
             onMouseEnter={() => setPreview(true)} onMouseLeave={() => setPreview(false)} onFocus={() => setPreview(true)} onBlur={() => setPreview(false)}
-            title={locked ? 'Unlock with Windows Hello first' : 'Point at it to preview · one click withdraws now'} onClick={() => void revoke()}>
+            title={locked ? 'Unlock with fingerprint, face or PIN first' : 'Point at it to preview · one click withdraws now'} onClick={() => void revoke()}>
             {s.pending === 'mandate_revoke' ? 'Withdrawing…' : 'Withdraw these rules'}
           </Btn>
         ) : null}
@@ -425,7 +425,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
       ) : null}
       {why && !preview ? (
         <Popover anchor={why} onClose={() => setWhy(null)} title="What the changes did this week" className="ow-pop wide">
-          <Conseq changes={changes} summary={lines ? summary : null} hits={hits} />
+          <Conseq changes={changes} summary={lines ? summary : null} hits={hits} first={!base} />
         </Popover>
       ) : null}
       {sheet && args ? (
@@ -463,11 +463,11 @@ function withFloorSeed(d: MandateDraft, seed: { item_ref: string; floor: Money }
   return { ...d, clauses: d.clauses.map((c) => (c.type === 'band' && c.items.split(/[\s,]+/).includes(seed.item_ref) ? { ...c, floor: minorToInput(seed.floor.minor, d.currency) } : c)) };
 }
 
-function Conseq({ changes, summary, hits }: { changes: Change[]; summary: string | null; hits: string }) {
+function Conseq({ changes, summary, hits, first }: { changes: Change[]; summary: string | null; hits: string; first: boolean }) {
   return (
     <ul className="ow-conseq">
       {changes.map((c, i) => <li key={i} className={c.dir}>{c.text}.</li>)}
-      <li className="live">{summary ? `${summary}${hits ? ` Against the rules now, it would have ${hits}.` : ' No deal this week would have gone differently.'}` : 'This week’s effect shows once the wallet has tried these rules.'}</li>
+      <li className="live">{summary ? `${summary}${hits ? ` Against the rules now, it would have ${hits}.` : first ? ` ${WHATIF_FIRST_RULE}` : ` ${WHATIF_NO_CHANGE}`}` : 'This week’s effect shows once the wallet has tried these rules.'}</li>
     </ul>
   );
 }

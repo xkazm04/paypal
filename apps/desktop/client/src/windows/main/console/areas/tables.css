@@ -4,12 +4,12 @@
    the --dur-* / --ease-* tokens. Table rules are scoped under .mod-tables (the module layer's root). */
 
 /* ---- shared by tables, spend and counter -------------------------------------------------------- */
-.tr-split { display: grid; grid-template-columns: minmax(18rem, 2fr) minmax(0, 3fr); gap: var(--sp-4); flex: 1 1 0; min-height: 26rem; }
-.tr-list { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.tr-split { display: grid; grid-template-columns: minmax(26rem, 9fr) minmax(0, 11fr); gap: var(--sp-4); flex: 1 1 0; min-height: 26rem; }
+.tr-list { container: trlist / inline-size; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .tr-pane { min-height: 0; min-width: 0; overflow: auto; padding: var(--sp-4); border-radius: var(--r-card); scrollbar-width: thin;
   background: color-mix(in srgb, var(--bg) 35%, transparent); box-shadow: 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: var(--sp-4); }
 .tr-pane > * { flex: none; }
-@media (min-width: 1500px) { .tr-split { grid-template-columns: minmax(22rem, 2fr) minmax(0, 3fr); } }
+@media (min-width: 1500px) { .tr-split { grid-template-columns: minmax(28rem, 9fr) minmax(0, 11fr); } }
 
 .tr-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--sp-3); min-width: 0; }
 .tr-row .dot { width: 6px; height: 6px; border-radius: 1px; background: var(--mc, var(--steel)); }
@@ -268,3 +268,29 @@
   .hc.compact .hc-caption { font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 @media (max-height: 640px) { .cs-haggle { display: none; } }
+
+/* ---- one-line rows (the .row1 contract lives in framework.css; these are the trade areas' cells) -- */
+.row1 > * { min-width: 0; }
+.row1 .c-who { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.row1 .c-who b { font-weight: var(--fw-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.row1 .c-who .cs-who-chip { color: var(--muted); font-size: var(--fs-small); max-width: 9rem; flex: 0 1 auto; }
+.row1 .dot { flex: none; width: 6px; height: 6px; border-radius: 1px; background: var(--mc, var(--steel)); }
+.row1.needs .dot { background: var(--gold); box-shadow: var(--glow-gold); }
+.row1 .c-state { overflow: hidden; white-space: nowrap; }
+.row1 .c-time { white-space: nowrap; }
+.row1 .c-amt { white-space: nowrap; }
+.row1 .c-amt { text-align: right; justify-self: end; font-family: var(--num); font-variant-numeric: tabular-nums lining-nums; }
+.row1 .c-time { justify-self: end; color: var(--muted); font-size: var(--fs-small); }
+.row1 .c-time .cs-cd { height: auto; padding: 0 var(--sp-1); }
+.row1 .c-note { color: var(--dim); font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.le-row:has(.row1.picked) { background: var(--sel); box-shadow: inset 2px 0 0 var(--signal), 0 0 0 1px var(--sel-line); }
+/* Below the note's breakpoint the note's track goes with it, so the other cells keep the room. */
+@media (max-width: 1099.98px) { .row1[data-noted] { grid-template-columns: var(--cols-lite); } }
+.tr-note { margin: 0; color: var(--muted); font-size: var(--fs-small); }
+/* A narrow list drops its columns in priority order (the note is already gone in a split): the time
+   goes first, then the state; the name never does. */
+@container trlist (max-width: 31rem) {
+  .tr-list .row1 { grid-template-columns: minmax(9rem, 1fr) 8.5rem 6.5rem; }
+  .tr-list .row1 .c-time { display: none; }
+  .tr-list .row1.sp-lane { grid-template-columns: minmax(9rem, 1fr) 6.5rem 8.5rem 6.5rem; }
+}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import { understand } from './understand';
-import { aggregate, BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, csvCell, decimal, LENSES, readQuery, runQuery, serverStateLabel, stateKey, statementCounts, statementKey, sums, toCSV, vsMedianPct, type BookQuery, type Ctx } from './model';
+import { aggregate, BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, csvCell, decimal, LENSES, readQuery, runQuery, serverStateLabel, stateKey, statementCounts, statementKey, sums, toCSV, CSV_HEAD, hashHex, vsMedianPct, type BookQuery, type Ctx } from './model';
 
 const H = Array.from({ length: 32 }, () => 0) as unknown as Deal['transcript_head'];
 function deal(id: string, o: Partial<Deal> & { price?: number; cur?: Deal['terms']['currency'] } = {}): Deal {
@@ -142,6 +142,23 @@ describe('csv', () => {
     const state = (id: string) => csv.split('\r\n').find((l) => l.split(',')[1] === id)?.split(',')[7];
     expect(state('h')).toBe('held');
     expect(state('k')).toBe('checking');
+  });
+});
+
+describe('csv audit columns', () => {
+  it('adds authorization, deal id, decider and transcript hash, with explicit unknowns', () => {
+    const d = deal('01ARZ3NDEKTSV4RRFFQ69G5FAV', { state: 'AUTHORIZED' });
+    const csv = toCSV([d], { ...ctx, label: (x) => x.id }, '');
+    const [head, row] = csv.split('\r\n');
+    expect(head).toBe(CSV_HEAD.join(','));
+    for (const c of ['paypal_authorization', 'deal_id', 'decided_by', 'transcript_hash']) expect(head).toContain(c);
+    const cells = row!.split(',');
+    expect(cells[CSV_HEAD.indexOf('deal_id')]).toBe('01ARZ3NDEKTSV4RRFFQ69G5FAV');
+    expect(cells[CSV_HEAD.indexOf('paypal_authorization')]).toBe(d.paypal.authorization ?? 'none');
+    expect(cells[CSV_HEAD.indexOf('transcript_hash')]).toBe(hashHex(d.transcript_head));
+    expect(cells[CSV_HEAD.indexOf('decided_by')]).not.toBe('');
+    expect(hashHex(null)).toBe('unknown');
+    expect(hashHex(new Array(32).fill(255))).toBe('ff'.repeat(32));
   });
 });
 

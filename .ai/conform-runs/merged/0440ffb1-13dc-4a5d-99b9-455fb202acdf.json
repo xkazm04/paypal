@@ -1,0 +1,105 @@
+{
+ "schema": "conform-run/1",
+ "worker": "0440ffb1-13dc-4a5d-99b9-455fb202acdf",
+ "subject": "mcp-tools",
+ "evaluatedAt": "2026-11-07T00:29:38.369159+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "deal-detail",
+   "subject": "mcp-tools",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/deal/model.ts:2 The deal view is pure client presentation logic. It neither serves nor calls any tool protocol: protocol terms (inputSchema, jsonrpc, tools/call, tools/list, McpServer) do not appear in its directories. 'mcp' appears once, in a comment in outOfFence.test.tsx, which is outside the listed files and describes the Rust side.",
+   "techniques": [],
+   "absenceTerms": [
+    "inputSchema",
+    "jsonrpc",
+    "tools/call",
+    "tools/list",
+    "McpServer"
+   ]
+  },
+  {
+   "context": "money-guidance-and-onboarding",
+   "subject": "mcp-tools",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/lib/fairPrice.ts:3 These are pure client helpers for prices, limits, first run and the tour, and they expose or consume no tool protocol. A search of the listed files for mcp/tool found only a tooltip comment, and the protocol terms below do not occur anywhere under client/src/lib.",
+   "techniques": [],
+   "absenceTerms": [
+    "inputSchema",
+    "jsonrpc",
+    "tools/call",
+    "tools/list",
+    "McpServer"
+   ]
+  },
+  {
+   "context": "prototype-dial-shell-and-design-system",
+   "subject": "mcp-tools",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "prototype/build-index.mjs:1 This is a static HTML/JS design prototype and gallery builder with no tool server or client. MCP is mentioned only as UI copy in modules.js:297 ('runs with no tools and no MCP servers'), and protocol terms (inputSchema, jsonrpc, tools/call, tools/list, McpServer) do not occur in prototype/main or prototype/shared.",
+   "techniques": [],
+   "absenceTerms": [
+    "inputSchema",
+    "jsonrpc",
+    "tools/call",
+    "tools/list",
+    "McpServer"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "mcp-tools",
+   "context": "runtime-money-controls",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "mcp-tools",
+   "context": "native-shell",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T00:29:38.369159+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "mcp-tools"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "deal-detail",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T00:29:38.369159+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "mcp-tools"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "money-guidance-and-onboarding",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T00:29:38.369159+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "mcp-tools"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "prototype-dial-shell-and-design-system",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

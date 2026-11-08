@@ -32,20 +32,22 @@
 /* ---- the ledger --------------------------------------------------------------------------------- */
 .ar-book .bk-ledger, .ar-book .bk-outlook, .ar-book .bk-record { display: flex; flex-direction: column; gap: var(--sp-3); flex: 1 1 auto; min-height: 0; min-width: 0; }
 .ar-book .bk-went > summary { color: var(--muted); }
-.ar-book .bk-row, .ar-book .bk-step { display: grid; align-items: center; gap: var(--sp-3); min-width: 0; }
-.ar-book .bk-row { grid-template-columns: 5.5rem minmax(0, 1fr) auto 7rem 8rem; }
-.ar-book .bk-step { grid-template-columns: 5.5rem minmax(0, 1fr) minmax(0, 18rem); }
-.ar-book .bk-when { color: var(--dim); font-size: var(--fs-small); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.ar-book .bk-what { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.ar-book .bk-what > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ar-book .bk-what b { font-weight: var(--fw-semibold); }
+/* one-line rows: the grid is .row1 (framework.css); --cols is set by the row */
+.ar-book .row1 > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-book .bk-when { color: var(--dim); font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
+.ar-book .bk-t { font-weight: var(--fw-semibold); }
 .ar-book .bk-sub { color: var(--muted); font-size: var(--fs-small); }
 .ar-book .bk-who { color: var(--coral-l); }
-.ar-book .bk-st, .ar-book .bk-stm { display: flex; min-width: 0; }
-.ar-book .bk-amt { text-align: right; white-space: nowrap; }
+.ar-book .bk-st { display: flex; align-items: center; gap: var(--sp-1); }
+.ar-book .bk-stm { display: flex; }
+.ar-book .bk-amt { text-align: right; }
 .ar-book .bk-in { margin-left: var(--sp-1); color: var(--dim); font-size: var(--fs-small); }
-.ar-book .bk-change { color: var(--muted); font-size: var(--fs-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
-@media (max-width: 1100px) { .ar-book .bk-row { grid-template-columns: 4.5rem minmax(0, 1fr) auto 7rem; } .ar-book .bk-stm { display: none; } .ar-book .bk-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ar-book .bk-change { color: var(--muted); font-size: var(--fs-small); }
+/* a row is its own container: the columns fold by the list's width (narrower beside a detail pane), not the window's */
+.ar-book .bk-ledger .le-row, .ar-book .bk-record .le-row { container-type: inline-size; }
+@media (max-width: 1100px) { .ar-book .bk-row.row1 { grid-template-columns: 4.5rem minmax(9rem, 1fr) minmax(9rem, max-content) 8rem; } .ar-book .bk-step.row1 { grid-template-columns: 4.5rem minmax(9rem, 1fr) minmax(0, 1.2fr); } .ar-book .bk-stm { display: none; } .ar-book .bk-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (max-width: 64rem) { .ar-book .bk-row.row1 { grid-template-columns: 5.5rem minmax(9rem, 1fr) minmax(9rem, max-content) minmax(10rem, max-content) 8rem; } .ar-book .bk-step.row1 { grid-template-columns: 5.5rem minmax(9rem, 1fr) minmax(0, 1.2fr); } .ar-book .c-note { display: none; } }
+@container (max-width: 46rem) { .ar-book .bk-row.row1 { grid-template-columns: 4.5rem minmax(9rem, 1fr) minmax(9rem, max-content) 8rem; } .ar-book .bk-stm { display: none; } }
 
 /* a row's detail beside the list */
 .ar-book .bk-detail { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }

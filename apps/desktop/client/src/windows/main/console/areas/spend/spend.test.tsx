@@ -73,7 +73,7 @@ describe('Spend flows', () => {
 
   it('the rule check draws a refused purchase’s amount struck, as every other purchase list does', async () => {
     const r = await renderLayerAtScale({ level: 'module', module: 'spend', view: 'gate' }, 'large');
-    const refused = [...r.layer.querySelectorAll<HTMLElement>('.sp-lane')].filter((row) => row.querySelector('.sp-out')?.textContent?.startsWith(SPEND.fRefused));
+    const refused = [...r.layer.querySelectorAll<HTMLElement>('.row1.sp-lane')].filter((row) => row.querySelector('.sp-out')?.textContent?.startsWith(SPEND.fRefused));
     expect(refused.length).toBeGreaterThan(0);
     expect(refused.filter((row) => !row.querySelector('.cs-amt.struck')).length).toBe(0);
   }, 60_000);
@@ -84,6 +84,41 @@ describe('Spend flows', () => {
     const paid = [...r.layer.querySelectorAll<HTMLButtonElement>('.ui-filter')].find((b) => b.textContent?.startsWith(SPEND.fPaid));
     act(() => { paid?.click(); });
     await waitFor(() => expect(paid?.getAttribute('aria-pressed')).toBe('true'));
+  }, 60_000);
+});
+
+
+describe('spend rows are one line', () => {
+  it.each(['need', 'week', 'gate'] as const)('every row of the %s list is one .row1, its note is a c-note cell and the row title', async (view) => {
+    const r = await renderLayerAtScale({ level: 'module', module: 'spend', view }, 'large');
+    const rows = [...r.layer.querySelectorAll<HTMLElement>('.tr-list .le-row')];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.querySelectorAll('.row1')).toHaveLength(1);
+      expect(row.querySelector('.tr-row, .t .sub')).toBeNull();
+      const note = row.querySelector('.row1 > .c-note');
+      if (note) expect(row.querySelector('.row1')?.getAttribute('title')).toBeTruthy();
+    }
+  }, 60_000);
+});
+
+describe('spend Latest strip rows are one line', () => {
+  it('each strip row is a single .row1 with no second text block', async () => {
+    const r = await renderLayerAtScale({ level: 'module', module: 'spend' }, 'large');
+    await waitFor(() => expect(r.layer.querySelectorAll('.lt-item').length).toBeGreaterThan(0));
+    for (const item of r.layer.querySelectorAll('.lt-item')) {
+      expect(item.querySelectorAll('.row1')).toHaveLength(1);
+      expect(item.querySelector('.tr-row, .cs-dealrow, .t .sub')).toBeNull();
+    }
+  }, 60_000);
+});
+
+describe('spend split lists leave the note to the pane', () => {
+  it.each(['need', 'week', 'gate'] as const)('the %s list beside its pane draws no note column', async (view) => {
+    const r = await renderLayerAtScale({ level: 'module', module: 'spend', view }, 'large');
+    expect(r.layer.querySelectorAll('.tr-list .le-row .row1').length).toBeGreaterThan(0);
+    expect(r.layer.querySelectorAll('.tr-list .c-note')).toHaveLength(0);
+    expect(r.layer.querySelectorAll('.tr-list .row1[data-noted]')).toHaveLength(0);
   }, 60_000);
 });
 

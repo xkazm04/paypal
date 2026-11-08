@@ -27,6 +27,11 @@
 .ar-connections .cn-people .le-main { min-height: 0; }
 .ar-connections .cn-person { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; }
 .ar-connections .cn-person .cs-who-chip { max-width: 100%; font-weight: var(--fw-semibold); }
+.ar-connections .cn-person .st-rt { flex-direction: row; align-items: baseline; gap: var(--sp-3); }
+.ar-connections .cn-person .st-rt > b { flex: 0 1 auto; min-width: min(9rem, 100%); }
+.ar-connections .le-row { container-type: inline-size; }
+@container (max-width: 28rem) { .ar-connections .cn-person .st-rt > small { display: none; } }
+.ar-connections .cn-person .st-rt > small { flex: 1 1 0; min-width: 0; }
 .ar-connections .cn-person small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- the pairing desk as its own layer ------------------------------------------------------- */

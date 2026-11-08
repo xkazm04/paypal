@@ -1,7 +1,7 @@
 //! Row classification for the Rewind read: what one audit row says, from its action name and
 //! typed fields only, and the small mappings the projection folds those rows with.
 use table_client::*;
-use table_core::{DealState, DecidedBy, RungMark, Timestamp};
+use table_core::{ApprovalCheck, DealState, DecidedBy, RungMark, Timestamp};
 use table_ledger::AuditRecord;
 
 fn authority_of(decided: &DecidedBy) -> HistoryAuthority {
@@ -122,6 +122,9 @@ const BOOKKEEPING: &[&str] = &[
     "rescue.watch_read",
     "rescue.watch_seen",
     "rescue.watch_unread",
+    // Safe acts: the provenance of an act the owner pressed on an assistant proposal. A pause or a
+    // lapse moves no money and is no step; a lapsed deal's step is its deadline's safe default.
+    "assistant.act",
 ];
 /// What one row says, before folding.
 pub(super) enum Row {
@@ -138,7 +141,24 @@ pub(super) enum Row {
     /// A rung of the attention ladder for one deadline (attention-ladder-1). Not a step: it rides
     /// on the safe default that cites it, so the lapse can say what the owner was shown.
     Rung(Timestamp, RungMark),
+    /// The owner's decision row: what was decided, the step it starts and the lines recorded
+    /// with it (`None` on a row that kept only their hash).
+    Decided {
+        decision: String,
+        operation: DecisionStep,
+        lines: Option<Vec<ApprovalCheck>>,
+    },
 }
+/// The decisions an `owner.decision` row may name (service.rs `Decision::name`; a void writes no
+/// row). Any other name is not a decision this projection shows.
+const DECISIONS: &[&str] = &[
+    "deal_owner_accept",
+    "deal_countersign",
+    "deal_capture",
+    "shield_release",
+    "rescue_approve",
+    "open_paypal_in_browser",
+];
 fn operation(record: &AuditRecord) -> Option<PaypalMethod> {
     match record.detail.get("operation")?.as_str()? {
         "create" => Some(PaypalMethod::CreateOrder),
@@ -275,9 +295,28 @@ pub(super) fn classify(record: &AuditRecord) -> Row {
             Some("needs_owner") => Row::Step(K::CheckingWithPaypal, A::None),
             _ => Row::Skip,
         },
-        // A re-send reuses the same operation and request id, and an owner decision's authority
-        // is on its money rows.
-        "money.resent" | "owner.decision" => Row::Skip,
+        // A re-send reuses the same operation and request id.
+        "money.resent" => Row::Skip,
+        // The owner's decision, with the step it starts: a row that names no known decision or
+        // step, or no owner, is left out (never guessed).
+        "owner.decision" => match (
+            record.detail.get("decision").and_then(|d| d.as_str()),
+            record
+                .detail
+                .get("operation")
+                .and_then(|o| o.as_str())
+                .and_then(DecisionStep::parse),
+            decided(record),
+        ) {
+            (Some(decision), Some(operation), Some(A::Owner)) if DECISIONS.contains(&decision) => {
+                Row::Decided {
+                    decision: decision.to_owned(),
+                    operation,
+                    lines: typed(record, "checks"),
+                }
+            }
+            _ => Row::Skip,
+        },
         // Another table of the group agreed first: the group rule withdrew this one (T8).
         "group.withdrawn" => match record.detail.get("decided_by").and_then(|d| d.as_str()) {
             Some(table_ledger::GROUP_RULE) => Row::Step(K::GroupWithdrawn, A::GroupRule),

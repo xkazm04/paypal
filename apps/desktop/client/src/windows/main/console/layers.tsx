@@ -80,6 +80,10 @@ export type LayerDef = {
   /** The layer fits the sheet and scrolls its own list (the waiting list, a long ledger), instead
    *  of growing with its content and scrolling the sheet. */
   fit?: boolean;
+  /** Once opened, the layer stays mounted (hidden) while another is in front, so coming back is
+   *  instant and keeps its state (a game, a dropped file, a playing film). For heavy, self-contained
+   *  surfaces only: the console renders it outside the per-route remount. */
+  keepAlive?: boolean;
   /** The layer draws the wallet's seal itself, so the sheet's corner seal is left out. */
   ownSeal?: boolean;
   /** A deal's or a place's nested card views (`&dv=` / `&v=` in the hash): key -> crumb label.
@@ -136,7 +140,7 @@ export const useLayerState = (): LayerState => useContext(StateContext);
 export function LayerSkeleton() {
   return (
     <div className="cs-skel" role="status" aria-label={LAYER_LOADING}>
-      <span className="b1" /><span className="b2" /><span className="b3" />
+      <span className="b1" /><span className="b2" />
     </div>
   );
 }
@@ -145,7 +149,7 @@ export function LayerSkeleton() {
  *  fallback (never a blank window), a loading chunk the skeleton. Inside it the console's chrome
  *  owns Back (`ChromeBackContext`), a module layer gets its detail-view route, and the layer's parts
  *  take their turns in one reveal sequence (`Stagger`, stagger.tsx). */
-export function LayerHost({ def, route, nav, state, resetKey }: { def: LayerDef; route: Route; nav: LayerNav; state: LayerState; resetKey: string }) {
+export function LayerHost({ def, route, nav, state, resetKey, active = true }: { def: LayerDef; route: Route; nav: LayerNav; state: LayerState; resetKey: string; active?: boolean }) {
   const C = def.component;
   // Re-render once a module registers its view labels (a lazy page may register them as it loads).
   const known = useViewLabel(route.level === 'module' ? route.module : 'book', route.level === 'module' ? route.view : undefined) !== null;
@@ -179,7 +183,7 @@ export function LayerHost({ def, route, nav, state, resetKey }: { def: LayerDef;
     <NavContext.Provider value={nav}>
       <StateContext.Provider value={state}>
         <ChromeBackContext.Provider value={true}>
-          <LayerSuspense layer="view" resetKeys={[resetKey]} fallback={<LayerSkeleton />}><Stagger>{body}</Stagger></LayerSuspense>
+          <LayerSuspense layer="view" resetKeys={[resetKey]} fallback={<LayerSkeleton />}><Stagger active={active} warmKey={resetKey}>{body}</Stagger></LayerSuspense>
         </ChromeBackContext.Provider>
       </StateContext.Provider>
     </NavContext.Provider>

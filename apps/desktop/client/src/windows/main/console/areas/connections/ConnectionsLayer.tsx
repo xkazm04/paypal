@@ -70,7 +70,7 @@ function Connections({ nav }: { nav: LayerProps['nav'] }) {
     : !s.payment_executor_configured ? { title: CONNECTIONS_ANSWER.noKey, sub: CONNECTIONS_ANSWER.noKeySub }
       : { title: CONNECTIONS_ANSWER.ready(modeWord(s.mode)), sub: CONNECTIONS_ANSWER.readySub };
   const call: CallLine | null = s && !s.payment_executor_configured
-    ? { ifNothing: CONNECTIONS_ANSWER.ifNoKey, action: <ToApproval label={CONNECTIONS_PAYPAL.save} target="credentials" title={CONNECTIONS_PAYPAL.saveTitle} /> }
+    ? { ifNothing: CONNECTIONS_ANSWER.ifNoKey, action: <ToApproval label={<>{CONNECTIONS_PAYPAL.save}<span className="sr-only"> {CONNECTIONS_PAYPAL.forKey(CONNECTIONS_PAYPAL.paypalKey)}</span></>} target="credentials" title={CONNECTIONS_PAYPAL.saveTitle} /> }
     : null;
 
   const picked = engines.data?.find((e) => e.id === s?.selected_engine);
@@ -123,7 +123,7 @@ function Connections({ nav }: { nav: LayerProps['nav'] }) {
 
 // ---- PayPal and your keys ------------------------------------------------------------------------
 
-function PaypalView({ keyAt, marketAt, ownerKey, factsError, watch }: { keyAt: number | null; marketAt: number | null; ownerKey: string | undefined; factsError: Parameters<typeof OwnerKey>[0]['error']; watch: readonly MarketWatchFact[] }) {
+export function PaypalView({ keyAt, marketAt, ownerKey, factsError, watch }: { keyAt: number | null; marketAt: number | null; ownerKey: string | undefined; factsError: Parameters<typeof OwnerKey>[0]['error']; watch: readonly MarketWatchFact[] }) {
   const s = useSettings().data;
   return (
     <div className="cn-view">
@@ -161,7 +161,7 @@ function KeyRow({ name, stored, storedAt, required }: { name: string; stored: bo
       <span className="st-rt"><b>{name}{required ? null : <span className="dim"> · {CONNECTIONS_PAYPAL.optional}</span>}</b>
         <small className={stored ? 'okc' : stored === false && required ? 'red' : undefined}>{line}</small></span>
       {stored === null ? <Chip tone="dashed">{CONNECTIONS_ENGINE.unknown}</Chip>
-        : <ToApproval label={stored ? CONNECTIONS_PAYPAL.replace : CONNECTIONS_PAYPAL.save} kind={stored || !required ? 'default' : 'gold'} sm target="credentials" title={CONNECTIONS_PAYPAL.saveTitle} />}
+        : <ToApproval label={<>{stored ? CONNECTIONS_PAYPAL.replace : CONNECTIONS_PAYPAL.save}<span className="sr-only"> {CONNECTIONS_PAYPAL.forKey(name)}</span></>} kind={stored || !required ? 'default' : 'gold'} sm target="credentials" title={CONNECTIONS_PAYPAL.saveTitle} />}
     </li>
   );
 }
@@ -255,7 +255,7 @@ function PeopleView({ rows, error }: { rows: CounterpartyDisplay[] | null; error
     <div className="cn-people" style={{ height: fitHeight(list.length, 56) }}>
       <ListEngine<CounterpartyDisplay> label={CONNECTIONS_PEOPLE.list} rows={list} getKey={(c) => c.key_id}
         searchText={(c) => `${houseWords(c.display_name)} ${c.declared_payee ? houseWords(c.declared_payee) : ''}`}
-        filters={PEOPLE_FILTERS} sorts={PEOPLE_SORTS} estimateSize={54}
+        filters={PEOPLE_FILTERS} sorts={PEOPLE_SORTS} estimateSize={36}
         renderRow={(c) => <PersonRow c={c} />} rowLabel={(c) => houseWords(c.display_name)}
         empty={CONNECTIONS_PEOPLE.empty} noMatch={CONNECTIONS_PEOPLE.noMatch} />
     </div>

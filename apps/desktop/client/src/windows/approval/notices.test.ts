@@ -23,7 +23,7 @@ const about = (error: string) => notices.filter((n) => n.element.includes(`error
 describe('the approval window’s notices never show the wallet’s own text', () => {
   it('every token notice carries footerNoticeText(token)', () => {
     const found = about('s.tokenError');
-    expect(found.length).toBe(3); // DealReview once, OwnerConfig twice
+    expect(found.length).toBe(4); // DealReview once, OwnerConfig twice, the bare forms' Gate (bare/parts.tsx) once
     expect(found.filter((n) => n.file === 'OwnerConfig.tsx').length).toBe(2);
     for (const n of found) expect(n.element).toContain("message={footerNoticeText('token'");
   });

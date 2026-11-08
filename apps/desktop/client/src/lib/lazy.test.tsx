@@ -114,3 +114,36 @@ describe('preloadWhenIdle', () => {
     expect(b.preload).not.toHaveBeenCalled();
   });
 });
+
+describe('ready, whenPartsReady and preload order', () => {
+  it('a part reports ready only once its chunk has loaded, and a navigation can wait for it', async () => {
+    const { whenPartsReady } = await import('./lazy');
+    let release!: () => void;
+    const part = lazyPart(() => new Promise<() => null>((res) => { release = () => res(() => null); }));
+    expect(part.ready()).toBe(false);
+    const waited = whenPartsReady([part, () => null], 1000);
+    release();
+    await waited;
+    expect(part.ready()).toBe(true);
+    await expect(whenPartsReady([part], 1)).resolves.toBeUndefined();
+  });
+  it('gives up waiting after the cap, so a slow network never freezes the click', async () => {
+    const { whenPartsReady } = await import('./lazy');
+    const never = lazyPart(() => new Promise<() => null>(() => undefined));
+    await expect(whenPartsReady([never], 20)).resolves.toBeUndefined();
+    expect(never.ready()).toBe(false);
+  });
+  it('preloads one part per idle slot, in order', () => {
+    vi.useFakeTimers();
+    const order: string[] = [];
+    const mk = (n: string) => ({ preload: vi.fn(async () => { order.push(n); }) });
+    const [a, b, c] = [mk('a'), mk('b'), mk('c')];
+    preloadWhenIdle([a, b, c], 10);
+    vi.advanceTimersByTime(10);
+    vi.advanceTimersToNextTimer();
+    expect(order).toEqual(['a']);
+    vi.runAllTimers();
+    expect(order).toEqual(['a', 'b', 'c']);
+    vi.useRealTimers();
+  });
+});

@@ -303,6 +303,65 @@ impl Wallet {
         self.envelope_check(deal, now)?;
         Ok(decision)
     }
+    /// Read-only, for the approval checklist: what today's budget leaves after `deal`, under the
+    /// rules' daily limit (clause 5) and the wallet limit (`max_out_day`, money out only). The
+    /// counting is the gates' own (`usage_for`'s window, the exposure fold) seen from `now`: every
+    /// other deal agreed this UTC day, before or after this one, plus this deal's amount once, so
+    /// creating, authorizing and capturing one purchase read the same figure. A deal that agreed
+    /// on an earlier UTC day is counted in that day: `None`. Signed limits that do not verify or
+    /// ran out give no figure (the check itself refuses money out under them).
+    pub(crate) fn left_today(
+        &self,
+        deal: &Deal,
+        now: Timestamp,
+    ) -> Result<Option<crate::LeftToday>, Error> {
+        if let Some((_, at)) = self.ledger.agreed_moment(deal.id)?
+            && utc_day(at) != utc_day(now)
+        {
+            return Ok(None);
+        }
+        let amount = deal.terms.amount()?;
+        let figure = |used: Money, cap: Money| -> Option<crate::DayFigure> {
+            if used.currency() != cap.currency() || amount.currency() != cap.currency() {
+                return None;
+            }
+            let left =
+                day_left(used, amount, cap).or_else(|| Money::new(0, cap.currency()).ok())?;
+            Some(crate::DayFigure { used, cap, left })
+        };
+        let m = self
+            .ledger
+            .active_mandate(deal.mandate_id, deal.mandate_version, &self.owner)?;
+        let rule = match m.payload.clauses.iter().find_map(|c| match c {
+            Clause::Velocity { max_total_day, .. } => Some(*max_total_day),
+            _ => None,
+        }) {
+            Some(cap) => figure(self.ledger.usage_today_without(deal, now)?.total_today, cap),
+            None => None,
+        };
+        let wallet = match self.ledger.active_wallet_envelope(&self.owner) {
+            Ok(Some((envelope, _)))
+                if deal.side == Side::Buyer && now < envelope.payload.expires =>
+            {
+                let exposure = exposure_today_without(
+                    &self.ledger.exposure_deals()?,
+                    deal.id,
+                    amount.currency(),
+                    now,
+                )?;
+                figure(exposure.out_today, envelope.payload.max_out_day)
+            }
+            Err(LedgerError::Sql(error)) => return Err(LedgerError::Sql(error).into()),
+            Ok(_) | Err(_) => None,
+        };
+        Ok(
+            (rule.is_some() || wallet.is_some()).then_some(crate::LeftToday {
+                amount,
+                rule,
+                wallet,
+            }),
+        )
+    }
     /// The owner's signed wallet limits (T14) for `deal` at `now`. No limits signed: no extra
     /// limit. Limits that fail to verify, or ran out, refuse money out (fail closed). Money in
     /// is never limited. Refusals carry [`ENVELOPE_CLAUSE`] and name the limit.

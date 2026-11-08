@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Backend } from '../../../lib/contract';
-import { IF_NOTHING, MODULE_EMPTY, STATE_UNKNOWN, YOUR_CALL } from '../../../lib/words';
+import { IF_NOTHING, MODULE_CRUMBS_LABEL, MODULE_EMPTY, STATE_UNKNOWN, YOUR_CALL } from '../../../lib/words';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 import { DetailPage, UNKNOWN } from '../../../shared/ui';
 import { MODULE_KEYS, PLACES, type Route } from '../logic';
@@ -96,9 +96,19 @@ describe('the module layer chrome', () => {
     expect(document.querySelector('.ml-silence')?.textContent).toContain(`${IF_NOTHING}:`);
     fireEvent.click(call);
     expect(n.go).toHaveBeenCalledWith({ level: 'waiting', module: 'spend' });
-    // a needs-you card carries the "if you do nothing" line, and opens its view with focus to return to
+    // a needs-you card is label + value only: the "if you do nothing" line is its accessible description
+    // (a hidden element it points at, and its tooltip), never visible text; it opens its view with focus to return to
     const card = document.querySelector<HTMLButtonElement>('[data-card="recent"]');
-    expect(card?.textContent).toContain(`${IF_NOTHING}: nothing is paid`);
+    expect(card?.classList.contains('compact')).toBe(true);
+    expect(card?.classList.contains('needs')).toBe(true);
+    expect(card?.querySelector('.sc-note, .sc-open')).toBeNull();
+    const desc = document.getElementById(card?.getAttribute('aria-describedby') ?? '');
+    expect(desc?.textContent).toBe(`${IF_NOTHING}: nothing is paid`);
+    expect(desc?.classList.contains('sr-only')).toBe(true);
+    expect(card?.getAttribute('title')).toBe(`Recent 12 purchases - ${IF_NOTHING}: nothing is paid`);
+    expect(screen.getByRole('button', { name: 'Recent 12 purchases' })).toBe(card);
+    expect(card?.querySelector('.sc-label')?.textContent).toBe('Recent');
+    expect(card?.querySelector('.sc-value')?.textContent).toBe('12 purchases');
     fireEvent.click(card as HTMLButtonElement);
     expect(n.go).toHaveBeenCalledWith({ level: 'module', module: 'spend', view: 'recent' }, { focus: 'card:recent' });
   });
@@ -108,6 +118,24 @@ describe('the module layer chrome', () => {
     ));
     expect(screen.getByRole('heading', { level: 1, name: 'Recent purchases' })).toBeTruthy();
     expect(screen.getByText('the list')).toBeTruthy();
+    // the page's own breadcrumb: the module is a link, the view is the current page
+    const crumbs = screen.getByRole('navigation', { name: MODULE_CRUMBS_LABEL });
+    expect(crumbs.querySelector('button')?.textContent).toBe('Spend');
+    expect(crumbs.querySelector('[aria-current="page"]')?.textContent).toBe('Recent purchases');
+    expect(document.querySelector('.kicker')).toBeNull();
+  });
+  it('a module root shows its name as the current crumb, and its key art is a hidden background', () => {
+    host({ level: 'module', module: 'spend' }, () => <ModuleLayer module="spend" answer="x" yourCall={null} cards={[{ id: 'a', view: 'a', label: 'A', value: '1' }]} />);
+    const crumbs = screen.getByRole('navigation', { name: MODULE_CRUMBS_LABEL });
+    expect(crumbs.querySelectorAll('button')).toHaveLength(0);
+    expect(crumbs.querySelector('[aria-current="page"]')?.textContent).toBe('Spend');
+    const art = document.querySelector('.ml-head > svg.ml-art');
+    expect(art?.getAttribute('aria-hidden')).toBe('true');
+    expect(art?.getAttribute('role')).toBeNull();
+    expect(art?.hasAttribute('aria-label')).toBe(false);
+    expect(screen.queryByRole('img')).toBeNull();
+    // the cards sit in the title row itself (no band of their own)
+    expect(document.querySelector('.ml-head .ml-cards')).toBeTruthy();
   });
   it('a summary that shows only its Latest strip does not also say there is nothing', () => {
     host({ level: 'module', module: 'book' }, () => (
@@ -147,5 +175,18 @@ describe('the row parts', () => {
     expect(who?.getAttribute('title')).toBe('Hamburg-Altona Gebrauchte Büro- und Computermöbel GmbH');
     expect(document.querySelectorAll('.cs-who-chip')[1]?.classList.contains('unknown')).toBe(true);
     expect(document.querySelector('.cs-cd.none')).toBeTruthy();
+  });
+});
+
+describe('the module title row stylesheet', () => {
+  it('has no fixed min-height band for the cards, and the key art is a faint non-interactive background', async () => {
+    const { readFileSync } = await import('node:fs');
+    const css = readFileSync('src/windows/main/console/framework.css', 'utf8');
+    expect(css).not.toMatch(/max-height: 14rem/);
+    expect(css).not.toMatch(/\.ml-cards \.ui-sumcard \{[^}]*min-height: (?!0)/);
+    expect(css).toMatch(/\.ml-cards \.ui-sumcard \{[^}]*min-height: 0/);
+    expect(css).toMatch(/\.ml-art \{[^}]*position: absolute[^}]*opacity: \.1[0-4][^}]*pointer-events: none/);
+    expect(css).toMatch(/\[data-theme="light"\] \.ml-art \{ opacity: \.0[89]/);
+    expect(css).toMatch(/\.ml-cards \.ui-sumcard \.sc-value \{[^}]*white-space: nowrap[^}]*text-overflow: ellipsis/);
   });
 });

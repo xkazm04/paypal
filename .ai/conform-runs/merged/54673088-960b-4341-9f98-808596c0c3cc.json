@@ -1,0 +1,232 @@
+{
+ "schema": "conform-run/1",
+ "worker": "54673088-960b-4341-9f98-808596c0c3cc",
+ "subject": "mcp-tools",
+ "evaluatedAt": "2026-11-03T17:08:53.264556+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "table-engine-agent-process",
+   "subject": "mcp-tools",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "crates/table-engine/src/native.rs:142 The engine is the MCP host side for spawned agent CLIs: it writes a per-run config that names only the wallet server and carries credentials as env placeholders rather than secrets, checks the attested tool inventory, and kills the whole process tree, so config-as-credential-store and connection custody are handled.",
+   "techniques": [
+    {
+     "technique": "client-integration",
+     "verdict": "conformant",
+     "evidence": "crates/table-engine/src/native.rs:142 The per-run config file holds env placeholders, not the token. The token goes in through env (native.rs:174) and is zeroized on drop (lib.rs:66). The spawn uses an argv array with no shell (resolve.rs:1)."
+    },
+    {
+     "technique": "transport-selection",
+     "verdict": "conformant",
+     "evidence": "crates/table-engine/src/native.rs:131 Loopback HTTP is chosen because the server lives in the wallet process, not as a child of the CLI. The client refuses any URL that is not 127.0.0.1 or that carries userinfo, a query or a fragment, and it requires both credentials. Origin validation on the server half sits in table-mcp, outside this context."
+    },
+    {
+     "technique": "authentication-and-scoping",
+     "verdict": "conformant",
+     "evidence": "crates/table-engine/src/native.rs:137 Each run carries its own grant (token plus secret) and refuses to start without both. env_clear plus ENV_ALLOW (native.rs:81) keep the host's API keys from passing through to the child."
+    },
+    {
+     "technique": "untrusted-result-handling",
+     "verdict": "conformant",
+     "evidence": "crates/table-engine/src/policy.rs:234 The negotiator parses the tool result into a closed typed projection with no counterparty free text, and shape failure is an error."
+    },
+    {
+     "technique": "tool-schema-design",
+     "verdict": "conformant",
+     "evidence": "crates/table-engine/src/policy.rs:169 As a consumer it honours the in-band error flag (refusal is None) and fails closed when the flag is missing. A refused act still ends the run Clean, per the comment at policy.rs:238, because the wallet audited the refusal."
+    },
+    {
+     "technique": "first-party-agent-is-a-principal",
+     "verdict": "conformant",
+     "evidence": "crates/table-engine/src/policy.rs:2 Strong form: the first-party deterministic negotiator goes through the same grant and door as third-party agent CLIs, with no private code path."
+    },
+    {
+     "technique": "one-server-many-registrations",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/argv.rs:27 Strict config, ignored user config and an inventory check that demands exactly one server named wallet (parser.rs:76) together rule out a second registration of the server."
+    },
+    {
+     "technique": "command-audit-by-position",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/resolve.rs:35 The host owns the argv entirely. Binaries come from a fixed table and no user-configured command string is executed, so there is nothing to audit by position."
+    },
+    {
+     "technique": "catalog-projection-modes",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/parser.rs:4 The catalog is seven tools on one server under strict config, so no host tool ceiling applies."
+    },
+    {
+     "technique": "egress-argument-gating",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/parser.rs:157 The arguments go to the first-party wallet server, which owns and gates the schema. There is no third-party schema for the host to gate."
+    },
+    {
+     "technique": "ambient-selection-is-not-an-argument",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-engine/src/policy.rs:226 table_view with no arguments resolves the deal from the server-minted grant scope, not from a UI's current selection, so the single-seat-application precondition does not hold."
+    }
+   ]
+  },
+  {
+   "context": "wallet-app-tests",
+   "subject": "mcp-tools",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-app/tests/gauntlet.rs:1110 The gauntlet counts any call answered on the protocol channel as a fault. Off-catalog names (\"shell\", \"capture\", gauntlet.rs:1683) and envelope-malformed calls (a non-string tool name, gauntlet.rs:1702) are required to come back as in-band isError results coded tool_absent / malformed_call (gauntlet.rs:2088). That pins the server's routing of unknown-tool and envelope failures to the model, against the two-channel rule.",
+   "techniques": [
+    {
+     "technique": "tool-schema-design",
+     "verdict": "deviation",
+     "evidence": "crates/table-app/tests/gauntlet.rs:1110 The standard routes unknown tool and call-envelope schema failure to protocol errors. The test requires in-band results for both, matching table-mcp lib.rs:541-546. No recorded opacity decision sits next to it."
+    },
+    {
+     "technique": "authentication-and-scoping",
+     "verdict": "conformant",
+     "evidence": "crates/table-app/tests/gauntlet.rs:1096 Every call carries a fresh per-call grant scoped to one deal and role (gauntlet.rs:1080), which is revoked right after."
+    },
+    {
+     "technique": "untrusted-result-handling",
+     "verdict": "conformant",
+     "evidence": "crates/table-app/tests/gauntlet.rs:1118 Every answer is checked for the injected counterparty-note tag, so counterparty text never reaches the agent."
+    },
+    {
+     "technique": "caller-differentiated-capability",
+     "verdict": "conformant",
+     "evidence": "crates/table-app/tests/gauntlet.rs:1683 Agents reach for owner-surface money verbs and tools outside their role's catalog. The test asserts these are refused and reach no PayPal call, so the agent surface stays a strict subset."
+    },
+    {
+     "technique": "server-composition",
+     "verdict": "conformant",
+     "evidence": "crates/table-app/tests/gauntlet.rs:1102 Each hostile call goes through the real single router door, so validation, scoping and audit are exercised at dispatch."
+    }
+   ],
+   "registryProposal": "Every refusal here must leave exactly one audited intent.refused row that the model can read. tool-schema-design could say whether an audit-every-refusal requirement justifies delivering unknown-tool and envelope failures in-band, or whether the audit should be written and the protocol error still returned."
+  },
+  {
+   "context": "director-preview-stories",
+   "subject": "mcp-tools",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/director/Director.tsx:5 The director is a browser-only rehearsal rig that plays beat files against the mock wallet over BroadcastChannel. A search of apps/desktop/client/src/director for mcp, jsonrpc, tools/call and tool_use found no hits, so no tool server or tool client exists here.",
+   "techniques": [],
+   "absenceTerms": [
+    "mcp",
+    "jsonrpc",
+    "tools/call",
+    "tool_use"
+   ]
+  },
+  {
+   "context": "offline-proof-verifier",
+   "subject": "mcp-tools",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-verify/src/lib.rs:1 The verifier is a pure offline checker of signed proof bundles and house ledgers with no tool protocol surface. A search of crates/table-verify for jsonrpc, tools/call, McpGrant and inputSchema found nothing; \"MCP\" appears only as prose in acceptance-ids.txt:27 (an acceptance-ID label), not as code.",
+   "techniques": [],
+   "absenceTerms": [
+    "jsonrpc",
+    "tools/call",
+    "McpGrant",
+    "inputSchema"
+   ]
+  },
+  {
+   "context": "ipc-contract-and-authority-table",
+   "subject": "mcp-tools",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-client/src/authority_table.rs:16 This contract is Tauri IPC between the desktop shell's windows and the runtime, authorised by window label, not a model-facing tool protocol. A search of crates/table-client for jsonrpc, tools/call, McpGrant and inputSchema found nothing; \"MCP\" appears only at assistant.rs:136, as a word a test forbids in user-facing refusal text.",
+   "techniques": [],
+   "absenceTerms": [
+    "jsonrpc",
+    "tools/call",
+    "McpGrant",
+    "inputSchema"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-03T17:08:53.264556+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "mcp-tools"
+   ],
+   "techniques": [
+    "ambient-selection-is-not-an-argument",
+    "authentication-and-scoping",
+    "catalog-projection-modes",
+    "client-integration",
+    "command-audit-by-position",
+    "egress-argument-gating",
+    "first-party-agent-is-a-principal",
+    "one-server-many-registrations",
+    "tool-schema-design",
+    "transport-selection",
+    "untrusted-result-handling"
+   ],
+   "deviations": 0,
+   "context": "table-engine-agent-process",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T17:08:53.264556+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "mcp-tools"
+   ],
+   "techniques": [
+    "authentication-and-scoping",
+    "caller-differentiated-capability",
+    "server-composition",
+    "tool-schema-design",
+    "untrusted-result-handling"
+   ],
+   "deviations": 1,
+   "context": "wallet-app-tests",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T17:08:53.264556+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "mcp-tools"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "director-preview-stories",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T17:08:53.264556+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "mcp-tools"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "offline-proof-verifier",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T17:08:53.264556+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "mcp-tools"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "ipc-contract-and-authority-table",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

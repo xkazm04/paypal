@@ -25,6 +25,10 @@ mod recorded;
 const RECORDING: &str = "../../apps/desktop/client/src/mock/haggle.json";
 /// The house table's agreed deal, as the wallet exports it: the proof checker's recorded sample.
 const HOUSE_PROOF: &str = "../../apps/desktop/client/src/lib/proof/sample/d-0205.tableproof";
+/// The `forged decision` tamper for that file: an owner decision added and the file sealed again with
+/// the run's own agent key (only the run that writes the file holds that key), keyed by the file's
+/// evidence head. The proof checker's recorder holds it to the file (sample_proof.rs).
+const HOUSE_FORGED: &str = "../../apps/desktop/client/src/lib/proof/sample/d-0205.forged.json";
 const RERUN: &str = "TABLE_RECORD=haggle cargo test -p table-runtime --lib recorded_haggles";
 /// The demo's rules (the film's and the director's): Maya pays at most $340 over six offers, and
 /// above $250 she decides. The market for the monitor: p25 $300, median $330, p75 $360.
@@ -67,7 +71,11 @@ async fn play(
     ask: i64,
     port: u16,
     owner_says_yes: bool,
-) -> (Vec<Value>, Value, Option<table_proto::ProofBundle>) {
+) -> (
+    Vec<Value>,
+    Value,
+    Option<(table_proto::ProofBundle, ed25519_dalek::SigningKey)>,
+) {
     let usd = |n| Money::new(n, Currency::USD).unwrap();
     let (mut r, _, http, _, _) = runtime(true);
     let mut limits = clauses(Side::Buyer, DealKind::Haggle);
@@ -312,7 +320,8 @@ async fn play(
     let outcome =
         json!({"state": "AGREED", "price": price, "decided_by": "owner", "paypal_calls": 0});
     let bundle = r.export_proof(deal.id).unwrap();
-    (lines, outcome, Some(bundle))
+    let agent = r.slot_holding(bundle.mandate.payload.agent_key).unwrap();
+    (lines, outcome, Some((bundle, agent)))
 }
 
 #[tokio::test]
@@ -363,13 +372,21 @@ async fn the_recorded_haggles_are_what_the_engine_signs() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let record = recorded::recording("haggle", Some("TABLE_HAGGLE_RECORD"));
     // The house table's agreed deal: the proof checker's recorded sample (the preview's D-0205).
-    recorded::keep_bundle(
-        &root.join(HOUSE_PROOF),
-        &house_deal.expect("the house table is agreed"),
-        record,
-        RERUN,
-    )
-    .unwrap_or_else(|e| panic!("{e}"));
+    let (house_bundle, house_agent) = house_deal.expect("the house table is agreed");
+    recorded::keep_bundle(&root.join(HOUSE_PROOF), &house_bundle, record, RERUN)
+        .unwrap_or_else(|e| panic!("{e}"));
+    // Written with the file: a kept file keeps the tamper made with its own run's key.
+    let kept: table_proto::ProofBundle =
+        serde_json::from_slice(&std::fs::read(root.join(HOUSE_PROOF)).unwrap()).unwrap();
+    if kept.evidence_head == house_bundle.evidence_head {
+        let edits =
+            table_client::sample_proof::forged_decision(&house_bundle, &house_agent).unwrap();
+        let mut forged = serde_json::Map::new();
+        forged.insert(house_bundle.evidence_head.hex(), json!(edits));
+        let mut text = serde_json::to_string_pretty(&forged).unwrap();
+        text.push('\n');
+        std::fs::write(root.join(HOUSE_FORGED), text).unwrap();
+    }
     let path = root.join(RECORDING);
     if record {
         let mut text = serde_json::to_string_pretty(&recording).unwrap();

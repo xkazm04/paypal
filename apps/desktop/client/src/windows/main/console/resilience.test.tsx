@@ -27,9 +27,9 @@ describe('a layer that throws', () => {
     const fallback = await waitFor(() => { const el = document.querySelector('.cs-layer .boundary'); if (!el) throw new Error('no fallback'); return el; });
     expect(fallback.getAttribute('role')).toBe('alert');
     expect(document.body.textContent).not.toContain('the safety layer broke');
-    // the chrome is whole: the tabs, the top bar, the crumbs
+    // the chrome is whole: the tabs, the top bar, the place label
     expect(document.querySelector('[role="tablist"]')).toBeTruthy();
-    expect(document.querySelector('.cs-bar .ui-crumbs')?.textContent).toContain('Settings');
+    expect(document.querySelector('.cs-bar .cs-here')?.textContent).toBeTruthy();
     const back = document.querySelector<HTMLButtonElement>('.cs-back');
     if (!back) throw new Error('no Back');
     await act(async () => { fireEvent.click(back); });

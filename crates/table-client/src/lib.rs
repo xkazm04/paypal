@@ -6,8 +6,12 @@ use table_core::{Deal, DealId, H256, Mode};
 pub use table_proto::{PairingIdentity, SignedPairingIdentity};
 use ts_rs::TS;
 mod approval;
+pub mod assistant;
 pub mod authority;
 pub use approval::*;
+pub use assistant::{AssistantAskArgs, AssistantAvailability};
+mod acts;
+pub use acts::*;
 mod authority_table;
 pub mod deal_states;
 mod facts;
@@ -304,6 +308,7 @@ pub struct CommandContract {
     pub deal_evidence: Command<DealArgs, table_core::DealEvidence>,
     pub deal_reconcile: Command<ReconcileArgs, table_core::DealEvidence>,
     pub engine_status: Command<(), Vec<table_engine::EngineInfo>>,
+    pub engine_brief: Command<(), Vec<table_engine::EngineBrief>>,
     pub attention_list: Command<(), AttentionSnapshot>,
     pub main_open: Command<MainRoute, ()>,
     pub approval_open: Command<ApprovalOpenArgs, ()>,
@@ -383,6 +388,19 @@ pub struct CommandContract {
     pub counterparty_revoke: Command<CounterpartyRevokeArgs, ()>,
     /// Wallet-limits what-if: draft limits replayed over recorded purchases. Read-only, approval.
     pub envelope_simulate: Command<EnvelopeSimulateArgs, MandateSimulation>,
+    /// The board assistant: one tool-less turn over the question and board digest the main
+    /// window built; returns the raw, untrusted reply JSON text. Read tier, main only.
+    pub assistant_ask: Command<AssistantAskArgs, String>,
+    /// Whether the board assistant would try a question. Runs no model. Read tier, main only.
+    pub assistant_status: Command<(), AssistantAvailability>,
+    /// Safe acts (acts.rs): clears the lapse mark `deal_let_lapse` set, before the deadline (main).
+    pub deal_lapse_undo: Command<DealArgs, ()>,
+    /// Pauses one agent: its runs stop and none starts for it until `agent_resume` (main).
+    pub agent_pause: Command<AgentArgs, ()>,
+    /// Clears one agent's pause; starts nothing (main).
+    pub agent_resume: Command<AgentArgs, ()>,
+    /// Runs one safe act an assistant proposal led to and records its provenance (main).
+    pub assistant_act: Command<AssistantActArgs, ()>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -417,6 +435,8 @@ pub struct EventContract {
     pub main_route: MainRoute,
     #[serde(rename = "pairing:pinned")]
     pub pairing_pinned: PairingPinned,
+    #[serde(rename = "approval:sheet")]
+    pub approval_sheet: ApprovalSheet,
 }
 /// Declares [`WindowEvent`]: one variant per `EventContract` field, borrowing its payload, with
 /// the field's serde name. `tests/bindings.rs` checks every (name, payload type) pair against
@@ -469,6 +489,7 @@ window_events! {
     ApprovalSummary(ApprovalSummary) = "approval:summary",
     MainRoute(MainRoute) = "main:route",
     PairingPinned(PairingPinned) = "pairing:pinned",
+    ApprovalSheet(ApprovalSheet) = "approval:sheet",
 }
 impl WindowEvent<'_> {
     /// Every window this event is sent to: its row in the authority table (`authority::EVENTS`).

@@ -138,3 +138,22 @@
 .pk-how { margin: 0; padding-left: 1.2em; display: grid; gap: var(--sp-1); color: var(--muted); font-size: var(--fs-small); }
 .pk-copy { margin: 0; font-size: var(--fs-small); color: var(--muted); }
 .pk-top .pk-story { margin: 0; color: var(--muted); }
+
+/* ---- the owner's checklist (Proof page): each decision as a receipt ---------------------------- */
+.pk-owner { display: flex; flex-direction: column; gap: var(--sp-2); }
+.pk-receipts { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
+.pk-receipt { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); }
+.pk-receipt.bad { border-color: color-mix(in srgb, var(--refuse) 60%, var(--line)); background: color-mix(in srgb, var(--refuse) 9%, var(--panel)); }
+.pk-rhead { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); }
+.pk .pk-rstep { margin: 0; font-size: var(--fs-body); font-weight: var(--fw-semibold); }
+.pk-rlines { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); }
+.pk-rline { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr); gap: var(--sp-2); font-size: var(--fs-small); }
+.pk-rmark { display: grid; place-items: center; width: 1.125rem; height: 1.125rem; border-radius: 50%; border: 1.5px solid var(--line2); font-size: var(--fs-small); line-height: 1; color: var(--dim); }
+.pk-rline.pass .pk-rmark { background: var(--ok); border-color: var(--ok); color: var(--on-ok); }
+.pk-rline.fail .pk-rmark { background: var(--refuse); border-color: var(--refuse); color: var(--on-refuse); }
+.pk-rline.wait .pk-rmark, .pk-rline.not_applicable .pk-rmark { border-style: dashed; }
+.pk-rline.wait, .pk-rline.not_applicable { color: var(--muted); }
+.pk-rnote { margin: 0; font-size: var(--fs-small); color: var(--muted); }
+.pk-rnote.bad { color: var(--text); font-weight: var(--fw-semibold); }
+.pk-rnote.dashed { padding-left: var(--sp-2); border-left: 2px dashed var(--line2); }
+.pk-keynote { margin-top: var(--sp-1); }

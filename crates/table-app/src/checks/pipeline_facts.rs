@@ -98,18 +98,23 @@ impl Pipeline {
                     Clause::HumanPresentOver { amount } => Some(*amount),
                     _ => None,
                 });
+                // Today's budget after this deal, read only once the gates passed it: a figure
+                // that cannot be read fails the line closed, like the check itself.
                 match ledger
                     .deal_category(id)
                     .map_err(Error::from)
                     .and_then(|category| self.wallet.mandate_check(&deal, category, now))
+                    .and_then(|decision| Ok((decision, self.wallet.left_today(&deal, now)?)))
                 {
-                    Ok(MandateDecision::Allow) => MandateFact::Allow {
+                    Ok((MandateDecision::Allow, left_today)) => MandateFact::Allow {
                         per_deal,
                         ask_above,
+                        left_today,
                     },
-                    Ok(MandateDecision::Ask { clause }) => MandateFact::Ask {
+                    Ok((MandateDecision::Ask { clause }, left_today)) => MandateFact::Ask {
                         clause,
                         threshold: if clause == 6 { ask_above } else { None },
+                        left_today,
                     },
                     Err(Error::Refused(r)) => MandateFact::Refused {
                         clause: r.clause,

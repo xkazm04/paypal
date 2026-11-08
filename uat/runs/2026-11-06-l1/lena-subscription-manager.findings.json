@@ -1,0 +1,238 @@
+{
+  "run": "2026-11-06-l1",
+  "character": "lena-subscription-manager",
+  "journey": "subscription-rescue",
+  "cert_level": "L1",
+  "verdict": "L1-conditional",
+  "time_saved": { "promised_min_per_month": 210, "estimated_live_min_per_month": 90, "confidence": "medium-low", "basis": "Character baseline ~4 h/month manual vs ~30 min with the app (assumption). Only the discount fix is built, there is no monthly figure and Maya must approve each fix." },
+  "criteria": { "1_failed_renewals_listed_with_next_step": "pass", "2_lever_cost_visible": "partial", "3_outside_rule_lever_refused": "pass (engine, tested; invisible in Rescue)", "4_monthly_saved_figure": "fail", "5_plain_words": "partial" },
+  "findings": [
+    {
+      "id": "LENA-L1-01", "journey": "subscription-rescue", "character": "lena-subscription-manager", "cert_level": "L1",
+      "type": "missing-feature", "severity": "major",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "med" },
+      "dimension": "missing",
+      "title": "No monthly 'saved' figure: Recovered is an all-time, per-currency total",
+      "expected": "One line Lena can give Maya: 'rescued $X this month'.",
+      "got": "'Recovered so far: <money>' is the ledger's cumulative per-currency total with no period. The Rescue card says 'Counted once PayPal shows it paid'. Board panel and Book show the same undated total. The Book query type has a range field but the rescue question ('Rescued money') sets none.",
+      "evidence": [
+        "apps/desktop/client/src/lib/words/rescue.ts:173",
+        "apps/desktop/client/src/windows/main/console/areas/rescue/RescueLayer.tsx:135",
+        "apps/desktop/client/src/windows/main/console/areas/rescue/RescueLayer.tsx:269",
+        "bindings/RescueBook.ts:9",
+        "apps/desktop/client/src/windows/main/modules/rescue/model.ts:161-178",
+        "apps/desktop/client/src/windows/main/switchboard/Answer.tsx:225",
+        "apps/desktop/client/src/windows/main/modules/book/model.ts:152-153"
+      ],
+      "code_check": "confirmed-absent", "verdict": "confirmed",
+      "l2_priority": { "ask": "Is there any dated rescue total reachable in Book or Home (e.g. a range filter)? What does Lena read off the Recovered view with 1 counted case?", "environment_precondition": "Preview mock on :1430 with D-0178 counted; the sample has one counted case and no dates spanning a month." },
+      "suggested_acceptance": "Rescue summary shows 'Recovered this month: $X (N of M renewals)' per currency, computed from counted cases in the calendar month, and it never includes replays."
+    },
+    {
+      "id": "LENA-L1-02", "journey": "subscription-rescue", "character": "lena-subscription-manager", "cert_level": "L1",
+      "type": "missing-feature", "severity": "major",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "med" },
+      "dimension": "completion",
+      "title": "Only 1 of the 4 rescue levers is built; pause, retry-later and smaller plan are 'Not available yet'",
+      "expected": "Discount, pause, retry, downgrade as Lena's JTBD lists them, each with cost.",
+      "got": "cellState returns NOT_BUILT for every lever except the discount (and retry is separately gated for replay or a PayPal retry under 24 h). The UI says so honestly ('Not available yet'). The design list is closed at four; three have previews and API-call lists but cannot be sent.",
+      "evidence": [
+        "apps/desktop/client/src/windows/main/modules/rescue/model.ts:3-9",
+        "apps/desktop/client/src/windows/main/modules/rescue/model.ts:60",
+        "apps/desktop/client/src/windows/main/modules/rescue/model.ts:85-93",
+        "apps/desktop/client/src/lib/words/rescue.ts:114-119",
+        "crates/table-core/src/rescue.rs:145-152"
+      ],
+      "code_check": "by-design", "verdict": "confirmed",
+      "scope_note": "Deliberately not built (DECISIONS section 13 per model.ts header); not a defect, but it caps the time saved: a subscriber who needs a pause still gets a manual email from Lena.",
+      "l2_priority": { "ask": "Confirm the three non-discount fixes render as dashed/off and cannot be picked or handed off.", "environment_precondition": "Preview mock, any failing renewal (D-0188)." },
+      "suggested_acceptance": "Each unbuilt fix says 'Not available yet' and is never selectable; backlog entry tracks pause first (cheapest, no money moves)."
+    },
+    {
+      "id": "LENA-L1-03", "journey": "subscription-rescue", "character": "lena-subscription-manager", "cert_level": "L1",
+      "type": "quality-gap", "severity": "major",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "med" },
+      "dimension": "senior-quality",
+      "title": "Rescue shows the discount as a percent and two prices, never 'costs you $X'; the dollar cost lives only in the approval window",
+      "expected": "A support lead rejects a lever that loses money without the number: 'this costs the shop $2.40'.",
+      "got": "Rescue shows '20% off: $9.60 instead of $12.00' (offerLine), the invoice preview and 'Usual price / % off'. RescueOffer.discount (the money given up) is never rendered in the Rescue area (0 hits outside approval diff). The approval diff does print '20% off: $2.40 less'. No running 'discounts given' total exists. The cost is derivable by subtraction, so it is not hidden, but it is not stated where Lena works.",
+      "evidence": [
+        "apps/desktop/client/src/lib/words/rescue.ts:113",
+        "apps/desktop/client/src/windows/main/console/areas/rescue/parts.tsx:171",
+        "apps/desktop/client/src/windows/main/modules/rescue/preview.ts:70",
+        "bindings/RescueOffer.ts:17",
+        "apps/desktop/client/src/windows/approval/review/diff.ts:347-348"
+      ],
+      "code_check": "present-but-missed", "verdict": "confirmed",
+      "l2_priority": { "ask": "Would Lena read '$9.60 instead of $12.00' as a cost at a glance? Check the fix card at normal window width.", "environment_precondition": "Preview mock D-0188 (cycle $12.00, 20% off, capped at $5.00)." },
+      "suggested_acceptance": "Each discount card and Compare cell shows 'costs you $2.40' (offer.discount) beside the percent; Recovered shows discounts given next to money recovered."
+    },
+    {
+      "id": "LENA-L1-04", "journey": "subscription-rescue", "character": "lena-subscription-manager", "cert_level": "L1",
+      "type": "missing-feature", "severity": "major",
+      "impact": { "frequency": "high", "reachability": "med", "trust_erosion": "med" },
+      "dimension": "missing",
+      "title": "No customer history on a failed renewal; failed_payments is computed and never shown",
+      "expected": "Before offering money off: how long they have subscribed, how many times this card failed, prior fixes.",
+      "got": "RescueView.failed_payments is set by the runtime and has 0 hits in the client. Rescue rows carry name, amount, state, countdown, title only. History is one click away through 'Open deal', where WhoView prints 'since <date> · N earlier deals' from the counterparty book. That is a deals-closed count, not payment history, and it is empty for a replayed or watched 'sub:' counterparty with no entry.",
+      "evidence": [
+        "bindings/RescueView.ts:11",
+        "crates/table-app/src/rescue.rs:109",
+        "crates/table-app/src/rescue.rs:235",
+        "apps/desktop/client/src/windows/main/console/areas/rescue/parts.tsx:230-260",
+        "apps/desktop/client/src/windows/main/console/areas/deal/WhoView.tsx:31",
+        "apps/desktop/client/src/windows/main/console/areas/deal/WhoView.tsx:40"
+      ],
+      "code_check": "present-but-missed", "verdict": "confirmed",
+      "l2_priority": { "ask": "Open deal from D-0188 and from D-0182: what does the Who view show for a subscriber counterparty?", "environment_precondition": "Mock directory has entries for S-14/S-22/S-07 (fixtures.ts:495-497); a real watched subscription has none, so L2 on the mock will overstate history." },
+      "suggested_acceptance": "Fix card shows 'Failed N times · customer since <date> · N earlier fixes' with dashes where unknown."
+    },
+    {
+      "id": "LENA-L1-05", "journey": "subscription-rescue", "character": "lena-subscription-manager", "cert_level": "L1",
+      "type": "confusion", "severity": "minor",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "clarity",
+      "title": "Subscribers are named 'subscriber S-14' or a truncated subscription id, with a masked email; Lena cannot tell which customer",
+      "expected": "A customer-first user wants a name or recognisable email.",
+      "got": "name() falls back to subscriberName(): 'subscriber <id>' (id cut at 12 chars). Email is masked ('s•••@example.com') and the invoice goes to that address. Masking is a deliberate privacy choice, so Lena must match the id against her own billing list.",
+      "evidence": [
+        "apps/desktop/client/src/lib/words.ts:655-659",
+        "apps/desktop/client/src/windows/main/console/areas/rescue/parts.tsx:68",
+        "bindings/RescueView.ts:19",
+        "apps/desktop/client/src/mock/fixtures.ts:553-555"
+      ],
+      "code_check": "by-design", "verdict": "uncertain",
+      "l2_priority": { "ask": "Does the row title ('Care plan · subscriber S-14') plus masked email let Lena identify the customer?", "environment_precondition": "Preview mock names; real data uses PayPal subscription ids (I-XXXX), which would read worse." },
+      "suggested_acceptance": "Owner-set nickname per watched subscription, shown in rows (local, never sent to PayPal)."
+    },
+    {
+      "id": "LENA-L1-06", "journey": "subscription-rescue", "character": "lena-subscription-manager", "cert_level": "L1",
+      "type": "trust", "severity": "minor",
+      "impact": { "frequency": "med", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "trust",
+      "title": "An outside-rule fix is refused in the engine but the refusal is invisible in Rescue",
+      "expected": "'Nothing is offered beyond the rescue rules' is demonstrable to Lena.",
+      "got": "The wallet only ever computes the largest discount inside the signed rule (propose_discount) and the owner cannot type an amount, so the UI cannot show an out-of-rule fix. The engine independently refuses one on clause 8 before any PayPal call. The Watching view states the signed ceiling in plain words. No Rescue surface lists refused attempts. Lena has to trust the sentence 'inside your rules'.",
+      "evidence": [
+        "crates/table-core/src/rescue.rs:111-137",
+        "crates/table-core/src/rescue.rs:145-180",
+        "crates/table-core/src/rescue.rs:93-95",
+        "crates/table-core/src/rescue.rs:378-405",
+        "crates/table-app/tests/rescue.rs:481-545",
+        "crates/table-app/src/agent.rs:299",
+        "apps/desktop/client/src/windows/main/console/areas/rescue/RescueLayer.tsx:193-203",
+        "apps/desktop/client/src/lib/words.ts:229"
+      ],
+      "code_check": "present-but-missed", "verdict": "confirmed",
+      "scope_note": "Criterion 3 passes at the engine. Tests confirm: tighter mandate (10% vs 20%) gives Refused clause 8 with 0 PayPal calls, cap and share boundaries, forged offer, currency mismatch, no fixes clause.",
+      "l2_priority": { "ask": "Confirm the Watching view shows the rule sentence 'a discount on one missed cycle: up to 20% and $5.00 per subscriber'.", "environment_precondition": "Preview mock with signed R-3 mandate (fixtures.ts:472-477)." },
+      "suggested_acceptance": "Rescue shows 'Refused by your rules: N this month' sourced from the safety record, with a plain reason."
+    },
+    {
+      "id": "LENA-L1-07", "journey": "subscription-rescue", "character": "lena-subscription-manager", "cert_level": "L1",
+      "type": "confusion", "severity": "minor",
+      "impact": { "frequency": "med", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "clarity",
+      "title": "A few machinery words reach Lena: 'Ledger', 'Replay', 'Open agent rules', raw PayPal API paths",
+      "expected": "Plain words only, no 'dunning' or mandate jargon.",
+      "got": "'dunning', 'mandate', 'clause', 'lever' do not appear in user-facing rescue strings: grep found no 'dunning' anywhere; 'Approve rescue lever' from Rust is rewritten to 'Approve a fix' (words.ts:389). Leaks: 'Ledger' as the name of the unreadable thing; 'Replay a renewal' and 'a replay' (an owner test concept) is the only failing case in the sample; 'Open agent rules'; and the 'What PayPal is asked to do' disclosure prints 'POST /v2/invoicing/invoices...'. 'your wallet' is the product's own term, used throughout.",
+      "evidence": [
+        "apps/desktop/client/src/lib/words/rescue.ts:33",
+        "apps/desktop/client/src/lib/words/rescue.ts:91",
+        "apps/desktop/client/src/lib/words/rescue.ts:211",
+        "apps/desktop/client/src/windows/main/modules/rescue/model.ts:27-40",
+        "apps/desktop/client/src/windows/main/console/areas/rescue/parts.tsx:223-225",
+        "apps/desktop/client/src/lib/words.ts:389"
+      ],
+      "code_check": "confirmed-absent", "verdict": "confirmed",
+      "l2_priority": { "ask": "Check rendered text of the Rescue summary and fix card for any of: Ledger, Replay, POST /.", "environment_precondition": "Preview mock; native shell strings from Rust (attention headlines) are not in the mock path and are L2-unreachable here." },
+      "suggested_acceptance": "No Rescue string contains ledger, mandate, clause, lever or an HTTP verb outside a disclosure; 'Ledger' becomes 'Your records'."
+    },
+    {
+      "id": "LENA-L1-08", "journey": "subscription-rescue", "character": "lena-subscription-manager", "cert_level": "L1",
+      "type": "broken-flow", "severity": "minor",
+      "impact": { "frequency": "high", "reachability": "med", "trust_erosion": "low" },
+      "dimension": "effort",
+      "title": "Lena can read Rescue but cannot approve; every fix is Maya's, in the approval window",
+      "expected": "Lena's JTBD is 'see what was offered' and 'tell Maya'; she should not need to approve.",
+      "got": "HandOff opens the approval window (the only place a fix is approved) and is locked until the owner unlocks. Lena's binding excludes that window. Fixes lapse at a deadline (default 5 days when PayPal gives no retry time), so Maya's availability bounds how fast Lena can rescue. Nothing in Rescue lets Lena nudge Maya or see 'waiting for Maya since...'.",
+      "evidence": [
+        "apps/desktop/client/src/windows/main/console/areas/rescue/parts.tsx:101-114",
+        "apps/desktop/client/src/lib/words/rescue.ts:80",
+        "apps/desktop/client/src/lib/words/rescue.ts:112",
+        "apps/desktop/client/src/windows/main/modules/rescue/model.ts:73-75"
+      ],
+      "code_check": "by-design", "verdict": "uncertain",
+      "l2_priority": { "ask": "What does a locked, non-owner viewer see on the gold button? Does the 'closes in N d' line make the wait clear?", "environment_precondition": "Preview mock locked state; the real Windows Hello lock is native-only and unverified (accepted-gaps)." },
+      "suggested_acceptance": "Rescue summary says whose move it is ('Waiting for Maya') and for how long."
+    },
+    {
+      "id": "LENA-L1-09", "journey": "subscription-rescue", "character": "lena-subscription-manager", "cert_level": "L1",
+      "type": "missing-feature", "severity": "minor",
+      "impact": { "frequency": "med", "reachability": "med", "trust_erosion": "low" },
+      "dimension": "time-saved",
+      "title": "Detection needs each subscription added by hand, capped at 20 watched and 100 checks a day",
+      "expected": "Failed renewals appear without Lena entering them.",
+      "got": "Failures enter through the watch list (added one subscription id at a time in the approval window; at most 20 watched; 100 checks per UTC day) or through a manual replay. A shop with more than 20 subscribers cannot watch them all. The cap and the 'checks left today' line are shown honestly.",
+      "evidence": [
+        "apps/desktop/client/src/mock/rescue.ts:68-71",
+        "apps/desktop/client/src/windows/main/console/areas/rescue/RescueLayer.tsx:185-190",
+        "apps/desktop/client/src/lib/words/rescue.ts:194-197",
+        "bindings/RescueBook.ts:13-17"
+      ],
+      "code_check": "by-design", "verdict": "uncertain",
+      "l2_priority": { "ask": "Count the steps to watch one subscription in the approval window; is there a bulk path?", "environment_precondition": "Preview mock; the mock never checks with PayPal and live PayPal sandbox spikes have not run (accepted-gaps), so real detection is L2-unverifiable." },
+      "suggested_acceptance": "Document the cap in setup; offer 'watch all subscribers on this plan' or the PayPal webhook path."
+    },
+    {
+      "id": "LENA-L1-10", "journey": "subscription-rescue", "character": "lena-subscription-manager", "cert_level": "L1",
+      "type": "strength", "severity": "polish",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "completion",
+      "title": "Failed renewals are listed with state, amount at risk, time left, and 'If you do nothing' for each",
+      "expected": "Criterion 1.", "got": "Needs a fix view: name, amount, 'Your call' chip, countdown, and 'If you do nothing: ...' per row; summary names the soonest and the count; Compare view puts all five outcomes side by side per renewal; default 'Do nothing' is preselected and explained (PayPal retries, nothing sent).",
+      "evidence": [
+        "apps/desktop/client/src/windows/main/console/areas/rescue/RescueLayer.tsx:58-70",
+        "apps/desktop/client/src/windows/main/console/areas/rescue/RescueLayer.tsx:31-48",
+        "apps/desktop/client/src/windows/main/console/areas/rescue/parts.tsx:143-192",
+        "apps/desktop/client/src/windows/main/console/areas/rescue/parts.tsx:253"
+      ],
+      "code_check": "n-a", "verdict": "confirmed",
+      "l2_priority": { "ask": "Visual check of the list and fix panel.", "environment_precondition": "Preview mock, D-0188 is the only failing row (a replay)." },
+      "suggested_acceptance": "Protect: every failing row keeps lever, deadline and 'If you do nothing'."
+    },
+    {
+      "id": "LENA-L1-11", "journey": "subscription-rescue", "character": "lena-subscription-manager", "cert_level": "L1",
+      "type": "strength", "severity": "polish",
+      "impact": { "frequency": "high", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "trust",
+      "title": "Recovered money is conservative and explained: only PayPal-paid, receipted, PayPal-reported failures count",
+      "expected": "A figure Lena can repeat to Maya without it being challenged.", "got": "Sent is not paid, replays and practice rows never count, currencies are never summed, and every non-counted row says why. The mock mirrors the Rust total.",
+      "evidence": [
+        "apps/desktop/client/src/windows/main/modules/rescue/model.ts:161-179",
+        "apps/desktop/client/src/lib/words/rescue.ts:175-186",
+        "bindings/RescueBook.ts:7"
+      ],
+      "code_check": "n-a", "verdict": "confirmed",
+      "l2_priority": { "ask": "n/a", "environment_precondition": "none" },
+      "suggested_acceptance": "Protect: any monthly figure (LENA-L1-01) must reuse the counted-only rule."
+    },
+    {
+      "id": "LENA-L1-12", "journey": "subscription-rescue", "character": "lena-subscription-manager", "cert_level": "L1",
+      "type": "strength", "severity": "polish",
+      "impact": { "frequency": "med", "reachability": "high", "trust_erosion": "low" },
+      "dimension": "trust",
+      "title": "Customer-facing wording is fixed, neutral and visible before it is sent; no plan-wide price change is possible",
+      "expected": "Customers must not feel nagged.", "got": "The invoice note ('Your last renewal payment did not go through ... this cycle only; your plan and its price stay the same') is the wallet's template, shown to the owner before approval. No agent writes it. A plan-wide price change is never offered. Cost to Lena: the tone is not hers to warm up.",
+      "evidence": [
+        "apps/desktop/client/src/mock/rescue.ts:44-49",
+        "apps/desktop/client/src/lib/words/rescue.ts:41",
+        "apps/desktop/client/src/lib/words/rescue.ts:139",
+        "apps/desktop/client/src/windows/main/console/areas/rescue/parts.tsx:216-221"
+      ],
+      "code_check": "n-a", "verdict": "confirmed",
+      "l2_priority": { "ask": "n/a", "environment_precondition": "none" },
+      "suggested_acceptance": "Protect: wording stays template-only; if warmth options are added they must be a fixed list."
+    }
+  ]
+}

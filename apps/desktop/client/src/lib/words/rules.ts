@@ -111,3 +111,7 @@ export const LIMITS_PLACE = {
   factInValue: 'Never limited',
   nothingYet: 'Nothing yet',
 } as const;
+
+/** The what-if's two empty answers, shared by the editor, the what-if table and the sign sheet so they always agree. */
+export const WHATIF_FIRST_RULE = 'Nothing to compare yet - this is your first rule.';
+export const WHATIF_NO_CHANGE = 'No deal this week would have gone differently.';

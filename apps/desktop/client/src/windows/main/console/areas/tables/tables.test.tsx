@@ -19,7 +19,7 @@ vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/r
 afterEach(() => { cleanup(); history.replaceState(null, '', '/'); });
 
 const reads = (r: LayerRun, cmd: string) => r.calls.filter((c) => c.cmd === cmd).length;
-const acts = (r: LayerRun) => r.calls.filter((c) => !/^(list_|get_|deal_display|deal_transcript|deal_evidence|deal_groups|attention_list|agent_runs|counterparty_|mandate_list|engine_status|safety_record|deal_history|approval_open)/.test(c.cmd));
+const acts = (r: LayerRun) => r.calls.filter((c) => !/^(list_|get_|deal_display|deal_transcript|deal_evidence|deal_groups|attention_list|agent_runs|counterparty_|mandate_list|engine_status|engine_brief|safety_record|deal_history|approval_open)/.test(c.cmd));
 
 describe('Tables at scale', () => {
   it.each(['small', 'large'] as const)('summary on the %s world', async (scale) => {
@@ -123,6 +123,41 @@ describe('Tables flows', () => {
     const row = r.layer.querySelector<HTMLButtonElement>('.le-row');
     act(() => { row?.click(); });
     await waitFor(() => expect(location.hash).toMatch(/^#d=/));
+  }, 60_000);
+});
+
+
+describe('tables rows are one line', () => {
+  it.each(['need', 'tables', 'ladder', 'closed', 'shop'] as const)('every row of the %s list is one .row1, its note is a c-note cell and the row title', async (view) => {
+    const r = await renderLayerAtScale({ level: 'module', module: 'tables', view }, 'large');
+    const rows = [...r.layer.querySelectorAll<HTMLElement>('.le-row')];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.querySelectorAll('.row1')).toHaveLength(1);
+      expect(row.querySelector('.tr-row, .t .sub')).toBeNull();
+      const note = row.querySelector('.row1 > .c-note');
+      if (note) expect(row.querySelector('.row1')?.getAttribute('title')).toBeTruthy();
+    }
+  }, 60_000);
+});
+
+describe('tables Latest strip rows are one line', () => {
+  it('each strip row is a single .row1 with no second text block', async () => {
+    const r = await renderLayerAtScale({ level: 'module', module: 'tables' }, 'large');
+    await waitFor(() => expect(r.layer.querySelectorAll('.lt-item').length).toBeGreaterThan(0));
+    for (const item of r.layer.querySelectorAll('.lt-item')) {
+      expect(item.querySelectorAll('.row1')).toHaveLength(1);
+      expect(item.querySelector('.tr-row, .cs-dealrow, .t .sub')).toBeNull();
+    }
+  }, 60_000);
+});
+
+describe('tables split lists leave the note to the pane', () => {
+  it.each(['need', 'tables', 'ladder', 'shop'] as const)('the %s list beside its pane draws no note column', async (view) => {
+    const r = await renderLayerAtScale({ level: 'module', module: 'tables', view }, 'large');
+    expect(r.layer.querySelectorAll('.tr-list .le-row .row1').length).toBeGreaterThan(0);
+    expect(r.layer.querySelectorAll('.tr-list .c-note')).toHaveLength(0);
+    expect(r.layer.querySelectorAll('.tr-list .row1[data-noted]')).toHaveLength(0);
   }, 60_000);
 });
 

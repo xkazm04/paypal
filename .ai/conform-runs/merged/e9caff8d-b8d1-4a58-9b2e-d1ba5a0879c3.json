@@ -1,0 +1,93 @@
+{
+  "schema": "conform-run/1",
+  "worker": "e9caff8d-b8d1-4a58-9b2e-d1ba5a0879c3",
+  "subject": "mcp-tools",
+  "evaluatedAt": "2026-11-05T23:20:46.081681+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "director-takes-rig",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "apps/desktop/client/scripts/lib/rig.mjs:89 The rig drives the director demo through Playwright Chromium to capture stills and video. It neither publishes nor calls a tool protocol. Searching apps/desktop/client/scripts for jsonrpc, tools/call, inputSchema and McpGrant found 0 hits (those terms appear only under src/arena).",
+      "techniques": [],
+      "absenceTerms": [
+        "jsonrpc",
+        "tools/call",
+        "inputSchema",
+        "McpGrant"
+      ]
+    },
+    {
+      "context": "client-data-layer",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "apps/desktop/client/src/lib/data/invoke.ts:72 The data layer wraps Tauri IPC invoke, the query cache and bus-driven invalidation for the UI. No model reads or calls through it. Searching apps/desktop/client/src/lib/data for mcp, jsonrpc, tools/call and inputSchema found 0 hits.",
+      "techniques": [],
+      "absenceTerms": [
+        "mcp",
+        "jsonrpc",
+        "tools/call",
+        "inputSchema"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "mcp-tools",
+      "context": "runtime-money-controls",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "mcp-tools",
+      "context": "deal-detail",
+      "reason": "evidence leans on lib/words/arena.ts, which is not a tracked file"
+    },
+    {
+      "subject": "mcp-tools",
+      "context": "native-shell",
+      "reason": "withdrawn after review: reviewer (sonnet): The evidence says the host's contact with the tool protocol is only a hand-off, but native.rs:342 calls table_runtime::spawn_networked, which binds a loopback table_mcp::Server and attaches it to the wallet actor (crates/table-runtime/src/actor.rs:556-580). The Tauri shell process therefore starts a"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-05T23:20:46.081681+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "native-shell",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-05T23:20:46.081681+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "director-takes-rig",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-05T23:20:46.081681+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "client-data-layer",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}
