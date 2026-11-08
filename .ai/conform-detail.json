@@ -10075,6 +10075,57 @@
       "evaluatedTs": "2026-11-08T03:30:29.640Z",
       "worker": "743d52ba-7324-4445-9e0d-eb7706c2f7d2",
       "techniques": []
+    },
+    "30af9627-32b0-465d-97de-4949dd83af41/quality-gates": {
+      "context": "wallet-app-services",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T22:52:53.429Z",
+      "worker": "4af4ca5d-140d-4464-aaaf-80bcaff00c0e",
+      "techniques": [
+        {
+          "technique": "vacuous-by-evaluation",
+          "verdict": "deviation",
+          "evidence": "crates/table-app/src/pipeline/shield_gate.rs:113 The caller supplies the value that satisfies the rule; a search of crates found no other production writer of ShieldRule::FriendsAndFamily. The unit test at crates/table-shield/src/lib.rs:195 proves the rule only with an input production never passes. The payee rule's matching self-comparison on line 112 is covered separately by raise_payee_mismatch in send.rs."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "deviation",
+          "evidence": "crates/table-app/src/checks.rs:533 On a rescue deal shield_gate.rs:99-104 runs no rules and defaults to Clear, yet compose_rescue keeps this line, so the owner reads 'looks safe' and 'rules re-run now' over a skip that is never announced. The fail-closed branches for an unreadable shield or mandate do hold."
+        },
+        {
+          "technique": "waiver-names-its-finding",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/src/pipeline/shield_gate.rs:151 A release counts only if it names the rule of every holding input; BLOCK cannot be released, and an unnamed rule is never covered (table-core shield.rs:43)."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/src/checks/pipeline_facts.rs:106 The checklist line comes from the same mandate check the money steps run, not a second evaluator."
+        },
+        {
+          "technique": "severity-by-construction",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/src/pipeline/shield_gate.rs:188 A disallowed verdict falls through to a recorded refusal and Err(Error::Permission) before any money operation."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/src/checks.rs:561 Could-not-run is its own failing line with distinct words, never folded into a pass."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/src/checks.rs:546 The one remedy named is reachable in the approval window through shield_release. Most other Fail lines name no remedy, which this technique leaves to its neighbours."
+        },
+        {
+          "technique": "self-reported-gate-inputs",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/src/pipeline/send.rs:243 The payee check reads PayPal's record, not anything the counterparty being judged wrote."
+        }
+      ]
     }
   }
 }

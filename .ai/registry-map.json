@@ -9259,7 +9259,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-app/src/pipeline/shield_gate.rs:113 The only production call into the scam shield hard-codes this input, so the BLOCK rule for friends-and-family payment can never fire outside table-shield's unit tests, and a deal asking for it is judged as if it had not.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "prompt-assembly",
