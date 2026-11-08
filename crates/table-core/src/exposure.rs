@@ -75,6 +75,18 @@ pub const fn utc_day(at: Timestamp) -> Timestamp {
     at.div_euclid(DAY)
 }
 
+/// What a daily cap leaves once `amount` is added to the `used` already counted that day: the one
+/// comparison the velocity clause (`max_total_day`) and the wallet limit (`max_out_day`) make.
+/// `None` = the sum overflows, is in another currency than the cap, or goes over it (the gate
+/// refuses); `Some(left)` = it fits, with `left` still free after it.
+pub fn day_left(used: Money, amount: Money, cap: Money) -> Option<Money> {
+    let total = used.checked_add(amount).ok()?;
+    if total.currency() != cap.currency() || total.minor() > cap.minor() {
+        return None;
+    }
+    Money::new(cap.minor() - total.minor(), cap.currency()).ok()
+}
+
 /// Whether `other` counts in the day window `day`, seen from a deal agreed at audit `own_seq`
 /// (`None`: the wallet itself, or a deal that has not agreed yet, sees everyone agreed so far).
 fn counts_today(other: &ExposureDeal, day: Timestamp, own_seq: Option<i64>) -> bool {
@@ -158,9 +170,31 @@ pub fn exposure_for_deal(
         .find(|d| d.id == subject)
         .and_then(|d| d.agreed);
     let day = utc_day(own.map_or(now, |(_, at)| at));
+    fold_without(deals, subject, currency, day, own.map(|(seq, _)| seq))
+}
+
+/// The same window seen from `now` instead of from the deal's place in its day: every other deal
+/// that agreed on `now`'s UTC day, before or after it (what a deal not agreed yet is judged by).
+/// The subject itself is never counted, so adding its amount once reads "after this, today".
+pub fn exposure_today_without(
+    deals: &[ExposureDeal],
+    subject: DealId,
+    currency: Currency,
+    now: Timestamp,
+) -> Result<CurrencyExposure, DomainError> {
+    fold_without(deals, subject, currency, utc_day(now), None)
+}
+
+fn fold_without(
+    deals: &[ExposureDeal],
+    subject: DealId,
+    currency: Currency,
+    day: Timestamp,
+    own_seq: Option<i64>,
+) -> Result<CurrencyExposure, DomainError> {
     let mut row = CurrencyExposure::zero(currency)?;
     for deal in deals.iter().filter(|d| d.id != subject) {
-        fold_into(&mut row, deal, day, own.map(|(seq, _)| seq))?;
+        fold_into(&mut row, deal, day, own_seq)?;
     }
     Ok(row)
 }
@@ -317,10 +351,7 @@ impl WalletEnvelope {
                 ),
             );
         }
-        let over = |used: Money, cap: Money| match used.checked_add(amount) {
-            Ok(total) => total.minor() > cap.minor(),
-            Err(_) => true,
-        };
+        let over = |used: Money, cap: Money| day_left(used, amount, cap).is_none();
         if over(exposure.out_today, self.max_out_day) {
             return D::refuse(
                 L::OutDay,

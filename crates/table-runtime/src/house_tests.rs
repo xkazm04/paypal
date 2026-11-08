@@ -1890,6 +1890,7 @@ fn house_table_draft_carries_only_the_table_rust_kept_at_pairing() {
         pairing: None,
         target,
         draft: Some(draft),
+        presentation: None,
     };
     let join = |house| ApprovalDraft::Table {
         counterparty: key.clone(),
@@ -2000,6 +2001,7 @@ fn a_refused_house_confirm_keeps_no_table_to_join() {
                     pairing: None,
                     target: None,
                     draft: Some(draft),
+                    presentation: None,
                 },
             )
             .is_err()
@@ -2041,6 +2043,7 @@ fn table_draft_is_refused_for_a_lapsed_pin_an_ended_table_or_a_non_house_key() {
             counterparty: counterparty.clone(),
             house,
         }),
+        presentation: None,
     };
     // Only Main carries a draft, not the approval window itself.
     assert!(
@@ -2178,6 +2181,7 @@ fn a_kept_table_is_bound_to_the_house_key_that_served_it() {
         pairing: None,
         target: None,
         draft: Some(draft),
+        presentation: None,
     };
     buyer.open_approval("main", open(draft(&key_a))).unwrap();
     assert!(buyer.open_approval("main", open(draft(&key_b))).is_err());
@@ -2233,6 +2237,7 @@ fn a_legacy_table_kept_by_deal_id_alone_is_refused() {
                     pairing: None,
                     target: None,
                     draft: Some(draft),
+                    presentation: None,
                 },
             )
             .is_err()

@@ -35,3 +35,4 @@ table-proto.workspace = true
 table-mcp = {path="../table-mcp"}
 ed25519-dalek.workspace = true
 axum.workspace = true
+tokio = { workspace = true, features = ["test-util"] }

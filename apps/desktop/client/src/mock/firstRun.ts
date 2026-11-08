@@ -44,6 +44,7 @@ export function buildFirstRunState(now: number): MockState {
       first_run: true,
       channel3_configured: false,
       agents_paused: false,
+      paused_agents: [],
       selected_engine: 'scripted',
       engine_chosen: false,
       house_connected: false,

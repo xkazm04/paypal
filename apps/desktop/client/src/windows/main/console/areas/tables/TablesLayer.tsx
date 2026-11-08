@@ -10,6 +10,7 @@ import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import { useQuery } from '../../../../../lib/hooks';
 import { headlineWords, LATEST_OF, OPEN_THE_DEAL, TABLES, TABLES_TRADE, TABLES_VIEWS, TABLES_WATCH, tablesClip, tablesItem, tablesShortWho } from '../../../../../lib/words';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, useLayer, useToast } from '../../../../../shared/ui';
 import { silenceParts, shortTitle } from '../../../home/model';
@@ -23,7 +24,7 @@ import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer, type YourCall } from '../../ModuleLayer';
 import type { ModuleCard } from '../../ModuleSummary';
-import { Amount, Countdown, DealRow, StateChip, WhoChip } from '../../rows';
+import { Amount, Countdown, DealRow1, Row1, StateChip, WhoChip } from '../../rows';
 import { EMPTY_TABLE, roomLine, TableDetail, type StepHandlers, type TableState } from './Ladder';
 import { NeedCard } from './Need';
 import { SplitView, TheirWords, usePick } from './parts';
@@ -78,25 +79,29 @@ function answerOf(c: Ctx, needDeals: readonly Deal[], live: number): { answer: s
   return { answer: TABLES.mismatch(who, item), sub: `${TABLES.mismatchSub}${more}` };
 }
 
-/** A table as a list row: what, with whom, the limit as signed (no read: the display has it), state, time. */
-function TableRow({ deal, c, picked }: { deal: Deal; c: Ctx; picked: boolean }) {
+/** The one line a table's list row keeps of its old second line: the limit as signed, or that there is none. */
+function tableNote(deal: Deal, c: Ctx): string {
+  const key = fenceKey(deal.side);
+  const fence = bandOf(c.display(deal).band)?.[key] ?? null;
+  return fence !== null ? `${LIMIT_WORD[key]} ${short(fence, deal.terms.currency)}` : TABLES.noRange;
+}
+
+/** A table as a one-line list row: what and with whom, state, amount, time; the limit trails as the note. */
+function TableRow1({ deal, c, picked }: { deal: Deal; c: Ctx; picked: boolean }) {
   const disp = c.display(deal);
   const need = c.needOf.get(deal.id);
-  const band = bandOf(disp.band);
-  const key = fenceKey(deal.side);
-  const fence = band?.[key] ?? null;
+  const note = tableNote(deal, c);
   return (
-    <span className={`tr-row${need ? ' needs' : ''}${picked ? ' picked' : ''}`}>
-      <span className="dot" aria-hidden="true" />
-      <span className="t">
+    <Row1 className={`${need ? 'needs ' : ''}${picked ? 'picked' : ''}`.trim() || undefined} note={note} title={note}>
+      <span className="c-who">
+        <span className="dot" aria-hidden="true" />
         <b title={disp.title}>{shortTitle(disp.title)}</b>
-        <span className="sub"><WhoChip name={c.who(deal).short} /> · {fence !== null ? <>{LIMIT_WORD[key]} <span className="num">{short(fence, deal.terms.currency)}</span></> : TABLES.noRange}</span>
+        <WhoChip name={c.who(deal).short} />
       </span>
-      <span className="tr-end">
-        {need ? <Chip tone="gold">{TABLES.needChip}</Chip> : <StateChip deal={deal} />}
-        <Countdown deadline={need?.deadline ?? disp.deadline} />
-      </span>
-    </span>
+      <span className="c-state">{need ? <Chip tone="gold">{TABLES.needChip}</Chip> : <StateChip deal={deal} />}</span>
+      <Amount money={dealTotal(deal)} tone={amountTone(deal)} />
+      <span className="c-time"><Countdown deadline={need?.deadline ?? disp.deadline} /></span>
+    </Row1>
   );
 }
 
@@ -189,8 +194,8 @@ export function TablesLayer({ nav }: LayerProps) {
     const need = needOf.get(d.id);
     const who = c.who(d);
     return (
-      <div className="tb-pane" key={d.id}>
-        <header className="tr-phead">
+      <RevealGroup className="tb-pane" key={d.id}>
+        <Reveal><header className="tr-phead">
           <h2 title={disp.title}>{disp.title}</h2>
           <span className="tr-with" title={who.full}>{TABLES.withWho(who.short)}</span>
           <StateChip deal={d} />
@@ -198,17 +203,18 @@ export function TablesLayer({ nav }: LayerProps) {
           <span className="ui-spacer" />
           {worthWatching(d, disp.band) ? <Btn sm kind="plain" onClick={() => { watchTable(d.id); route.open('watch'); }} title={TABLES_WATCH.watchItTitle}>{TABLES_WATCH.watchIt}</Btn> : null}
           <Btn sm kind="plain" onClick={() => open(d)} title={TABLES_TRADE.openDealTitle}>{TABLES_TRADE.openDeal}</Btn>
-        </header>
-        {withNeed && need ? <NeedCard deal={d} disp={disp} need={need} who={who.short} onDeal={() => open(d)} onToast={say} /> : null}
-        <TableDetail deal={d} disp={disp} need={need} who={who.short} st={stateOf(d.id)} steps={handlers(d)} onToast={say} />
-        <TheirWords dealId={d.id} who={who.full} />
-      </div>
+        </header></Reveal>
+        <Reveal><p className="tr-note">{tableNote(d, c)}</p></Reveal>
+        {withNeed && need ? <Reveal><NeedCard deal={d} disp={disp} need={need} who={who.short} onDeal={() => open(d)} onToast={say} /></Reveal> : null}
+        <Reveal><TableDetail deal={d} disp={disp} need={need} who={who.short} st={stateOf(d.id)} steps={handlers(d)} onToast={say} /></Reveal>
+        <Reveal><TheirWords dealId={d.id} who={who.full} /></Reveal>
+      </RevealGroup>
     );
   };
   const tableList = (rows: readonly Deal[], label: string, picked: Deal | undefined, pick: (k: string) => void, empty: string) => (
-    <ListEngine<Deal> label={label} rows={rows} getKey={(d) => d.id} filters={rows.length > 8 ? filters : undefined} sorts={sorts} estimateSize={60} measure
+    <ListEngine<Deal> label={label} rows={rows} getKey={(d) => d.id} filters={rows.length > 8 ? filters : undefined} sorts={sorts} estimateSize={36}
       searchText={(d) => `${display(d).title} ${cp(d.counterparty).name}`}
-      renderRow={(d) => <TableRow deal={d} c={c} picked={picked?.id === d.id} />}
+      renderRow={(d) => <TableRow1 deal={d} c={c} picked={picked?.id === d.id} />}
       rowLabel={(d) => `${display(d).title}, ${c.who(d).full}`} onPick={(d) => pick(d.id)} onOpen={open} empty={empty} />
   );
   const tablesView = (title: string, subLine: string) => ({
@@ -222,7 +228,7 @@ export function TablesLayer({ nav }: LayerProps) {
     title: LATEST_OF.tables, total: latestRows.length,
     rows: latestRows.slice(0, MAX_ROWS).map((d) => ({
       key: d.id, label: `${display(d).title}, ${OPEN_THE_DEAL}`, onOpen: () => open(d),
-      node: isLive(d) ? <TableRow deal={d} c={c} picked={false} /> : <DealRow deal={d} who={c.who(d).full} />,
+      node: isLive(d) ? <TableRow1 deal={d} c={c} picked={false} /> : <DealRow1 deal={d} who={c.who(d).full} />,
     })),
     seeAll: { onOpen: () => route.open(openDeals.length ? 'tables' : 'closed') },
   };
@@ -256,9 +262,9 @@ export function TablesLayer({ nav }: LayerProps) {
         closed: {
           title: TABLES_VIEWS.closed, sub: closed.length ? TABLES.endedSub(closed.length) : undefined,
           render: () => (
-            <ListEngine<Deal> label={TABLES.endedList} rows={closed} getKey={(d) => d.id} filters={ENDED_FILTERS} sorts={ENDED_SORTS} estimateSize={56} measure
+            <ListEngine<Deal> label={TABLES.endedList} rows={closed} getKey={(d) => d.id} filters={ENDED_FILTERS} sorts={ENDED_SORTS} estimateSize={36}
               searchText={(d) => `${display(d).title} ${cp(d.counterparty).name}`}
-              renderRow={(d) => <DealRow deal={d} who={c.who(d).full} />}
+              renderRow={(d) => <DealRow1 deal={d} who={c.who(d).full} />}
               rowLabel={(d) => `${display(d).title}, ${OPEN_THE_DEAL}`} onOpen={open} empty={TABLES.endedEmpty} />
           ),
         },

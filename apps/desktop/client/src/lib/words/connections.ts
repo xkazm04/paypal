@@ -43,6 +43,8 @@ export const CONNECTIONS_PAYPAL = {
   notSavedPlain: 'not saved',
   save: 'Save',
   replace: 'Replace',
+  /** Read after Save / Replace by a screen reader only, so two such buttons never share a name. */
+  forKey: (name: string): string => `the ${name} key`,
   saveTitle: 'Opens the approval window, where you type the key into a Windows dialog',
   notTested: 'connection not tested',
   notTestedTitle: 'The wallet doesn’t test the PayPal connection live, so it can’t say it works',
@@ -225,9 +227,9 @@ export const PAIR = {
   openTable: 'Open a table',
   openTableTitle: 'Opens the approval window: pick your rules and an asking price, then open the table. Opening pays nothing.',
   tableOpened: 'Approval window opened · pick your rules there',
-  tableOpenedLocked: 'Approval window opened · unlock with Windows Hello there first',
+  tableOpenedLocked: 'Approval window opened · unlock with fingerprint, face or PIN there first',
   confirm: 'Confirm in the approval window',
-  confirmLocked: 'Locked: the approval window asks for Windows Hello first',
+  confirmLocked: 'Locked: the approval window asks for your fingerprint, face or PIN first',
   confirmTitle: 'Confirm the words there, or stop',
   hint2: { create: 'Four words appear here when they type your code.', join: 'Four words appear here after you join.', house: 'Four words appear here after the house answers.' },
   stepsLabel: 'Connecting, step by step',
@@ -272,6 +274,9 @@ export const PAIR = {
   paidTo: 'Paid to',
   paidToTitle: 'Where money to you is paid. The other side saves it when you connect.',
   paidToPlaceholder: 'your PayPal email, or a shop name with no spaces',
+  /** Why the primary button is off, said beside it (L2A-05). */
+  blocked: { payee: 'Add a payee name above first: it is where money to you is paid.', code: 'Paste the other side’s code first.', waking: 'The house seller is waking up. This turns on by itself in about a minute.' },
+  paidToWhy: 'Your payee name is the short name (no spaces) the other side saves for you, so a payment to you can be told apart from one to anyone else. The Table cannot fill it in for you yet: use your PayPal email or a short shop name.',
   /** The payee rule the wallet holds (letters, digits and - _ . : @ +, at most 128). */
   payeeProblem: { chars: 'Use letters, digits and - _ . : @ + only, no spaces', long: 'Too long · 128 characters at most' },
 } as const;

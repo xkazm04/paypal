@@ -12,7 +12,7 @@ import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import { formatMinor, formatMoney, lineTotal, parseMoneyText } from '../../lib/format';
-import { CHECK_FAILED, REACHED_PAYPAL, ruleSentence, stateWord as plainState, STEP_NOT_CONFIRMED, SUMMARY_CHANGED, VOID_REACHED_PAYPAL } from '../../lib/words';
+import { CHECK_FAILED, HELLO_NEXT_STEP, REACHED_PAYPAL, ruleSentence, stateWord as plainState, STEP_NOT_CONFIRMED, SUMMARY_CHANGED, VOID_REACHED_PAYPAL } from '../../lib/words';
 import { isTerminal } from './gating';
 
 // ---------------------------------------------------------------------------------------------
@@ -74,7 +74,9 @@ export function derivePhase(summary: ApprovalSummary | undefined, o: { locked: b
   if (d.state === 'RECEIPTED' || d.state === 'RECONCILED' || d.state === 'CAPTURED') return 'done';
   if (isTerminal(d.state)) return 'stopped';
   if (d.shield === 'HOLD') return 'hold';
-  if (o.inBrowser && d.state === 'AWAITING_APPROVAL') return 'in_browser';
+  // In the browser: this window opened PayPal, or the wallet's record says the link was handed off
+  // (ApprovalSummary.handed_off), so a reopened window keeps the hand-off phase.
+  if ((o.inBrowser || summary.handed_off === true) && d.state === 'AWAITING_APPROVAL') return 'in_browser';
   if (o.locked) return 'locked';
   if (d.state === 'SETTLING' || (d.side === 'buyer' && d.kind !== 'purchase' && (d.state === 'APPROVED' || d.state === 'AGREED'))) return 'waiting';
   if (d.side === 'seller' && (d.state === 'AWAITING_APPROVAL' || d.state === 'APPROVED')) return 'waiting';
@@ -164,11 +166,11 @@ export function refusalText(error: { code: string; message: string }): string {
   if (error.message === SUMMARY_CHANGED || error.message === CHECK_FAILED || reachedPaypal(error)) return error.message;
   switch (error.code) {
     case 'LOCKED':
-      return 'The wallet is locked, so nothing was done. Unlock it with Windows Hello, then try again.';
+      return 'The wallet is locked, so nothing was done. Unlock it with your fingerprint, face or PIN, then try again.';
     case 'PERMISSION':
       return 'This window isn’t allowed to do that right now, so nothing was done.';
     case 'UNSUPPORTED':
-      return 'Windows Hello isn’t set up on this computer, so nothing was done.';
+      return `Sign-in by fingerprint, face or PIN isn’t set up on this computer, so nothing was done. ${HELLO_NEXT_STEP}`;
     case 'UNAVAILABLE':
       return 'The wallet couldn’t be reached, so nothing was done. Try again in a moment.';
     case 'NOT_FOUND':
@@ -193,7 +195,7 @@ export function footerNoticeText(kind: FooterNotice, error: { code: string }): s
     case 'read':
       switch (error.code) {
         case 'LOCKED':
-          return 'The wallet is locked, so this deal can’t be shown yet. Unlock it with Windows Hello.';
+          return 'The wallet is locked, so this deal can’t be shown yet. Unlock it with your fingerprint, face or PIN.';
         case 'NOT_FOUND':
           return 'The wallet can’t find this deal any more.';
         case 'LEDGER_TRUST':
@@ -224,7 +226,7 @@ export function footerNoticeText(kind: FooterNotice, error: { code: string }): s
         case 'PERMISSION':
           return 'This agent doesn’t match the one the wallet already knows, so nothing is connected.';
         case 'LOCKED':
-          return 'The wallet is locked, so nothing is connected. Unlock it with Windows Hello, then confirm again.';
+          return 'The wallet is locked, so nothing is connected. Unlock it with your fingerprint, face or PIN, then confirm again.';
         case 'UNAVAILABLE':
           return 'The wallet couldn’t be reached, so nothing is connected. Try again in a moment.';
         case 'LEDGER_TRUST':
@@ -246,13 +248,13 @@ export function footerNoticeText(kind: FooterNotice, error: { code: string }): s
     case 'unlock':
       switch (error.code) {
         case 'UNSUPPORTED':
-          return 'Windows Hello isn’t set up on this computer, so the wallet stays locked.';
+          return `Sign-in by fingerprint, face or PIN isn’t set up on this computer, so the wallet stays locked. ${HELLO_NEXT_STEP}`;
         case 'UNAVAILABLE':
-          return 'Windows Hello isn’t ready right now, so the wallet stays locked. Unlock again in a moment.';
+          return 'Sign-in isn’t ready right now, so the wallet stays locked. Unlock again in a moment.';
         case 'PERMISSION':
-          return 'Windows Hello didn’t confirm it was you, so the wallet stays locked. Unlock again when you’re ready.';
+          return 'Your computer didn’t confirm it was you, so the wallet stays locked. Unlock again when you’re ready.';
         default:
-          return 'The wallet stays locked. Unlock it again with Windows Hello.';
+          return 'The wallet stays locked. Unlock it again with your fingerprint, face or PIN.';
       }
   }
 }

@@ -23,13 +23,14 @@ import { lazyPart, preloadWhenIdle } from '../../../../../lib/lazy';
 import { RECORDED_DEAL_ID, RECORDED_DEAL_LABEL as RECORDED_LABEL } from '../../../../../lib/proof/sampleId';
 import { backend } from '../../../../../lib/runtime';
 import {
-  DEAL_ACT, DEAL_CARD, DEAL_DETAILS, DEAL_FIGS, DEAL_KICKER, DEAL_SIDE, DEAL_STORY, DEAL_WHO, houseRecordWord, houseWords, INSTRUCTIONS, kindWord, LATEST_OF, NOTICE_WHAT, OPEN_THE_DEAL, PROOF_CHECKER, rulesName, silenceWords, TABLES_WATCH,
+  DEAL_ACT, DEAL_CARD, DEAL_DETAILS, DEAL_FIGS, DEAL_KICKER, DEAL_SIDE, DEAL_STORY, DEAL_WHO, houseRecordWord, houseWords, INSTRUCTIONS, kindWord, LATEST_OF, NOTICE_WHAT, OPEN_THE_DEAL, PROOF_CHECKER, rulesName, TABLES_WATCH,
 } from '../../../../../lib/words';
 import { RunBadge, WalletNotice } from '../../../../../shared/honesty';
 import { MODULE } from '../../../../../shared/modules';
 import { Btn, Chip, Hint, Kv, Popover, Silence } from '../../../../../shared/ui';
 import { actingRun, heldRefs, lastFinishedRun, latestText, mayWithdraw, mirrorStrip, readClauses, stepWords, timelineRows } from '../../../deal/model';
 import { acceptedAtFloorLine, dealAnswer, ruleChecks, rulesBadge, standingFacts } from '../../../deal/story';
+import { ifNothingOf } from '../../../modules/rescue/model';
 import { canStartAgent, isLive, isTerminal, pairingFact } from '../../../logic';
 import { watchTable, worthWatching } from '../../../modules/tables/watchPick';
 import { useCpLookup, useToast } from '../../../ui';
@@ -38,7 +39,8 @@ import { useSheetView, type LayerNav } from '../../layers';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { DealRow, WhoChip } from '../../rows';
 import { PlaceFrame, type LensCard } from '../settings/frame';
-import { Reveal } from '../../stagger';
+import { Reveal as Wave } from '../../stagger';
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { DealDecision, StateStrip, Summary } from './Decision';
 import { InstructionsValue } from './InstructionsValue';
 import { ShownStrip } from './ShownStrip';
@@ -164,7 +166,7 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
   const strips = [onDeal, withThem].filter((x): x is LatestProps => !!x);
 
   const consequence = !need && !ended && isLive(deal) && disp.on_silence
-    ? <p className="dv-consequence"><Silence text={silenceWords(disp.on_silence)} deadline={deadline} /></p> : null;
+    ? <p className="dv-consequence"><Silence text={ifNothingOf(deal, disp.on_silence, null) ?? ''} deadline={deadline} /></p> : null;
 
   return (
     <PlaceFrame root="ar-deal" place="deal" tone={MODULE[module].cssVar}
@@ -175,15 +177,15 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
       action={<PageActions deal={deal} label={disp.label} entryAgent={entry?.agent ?? null} needs={!!need} onSheet={setSheet}
         onWatch={worthWatching(deal, disp.band) ? () => { watchTable(deal.id); nav.go({ level: 'module', module: 'tables', view: 'watch' }); } : null} />}
       lead={(
-        <div className="dv-lead">
+        <RevealGroup className="dv-lead">
           {disp.fallback ? <Hint>{DEAL_ACT.fallback}</Hint> : null}
-          <StateStrip strip={strip} />
+          <Reveal><StateStrip strip={strip} /></Reveal>
           {/* What the owner was shown (its own read of the record) takes the last turn (stagger.tsx). */}
-          {ended ? <Reveal wave={3}><ShownStrip deal={deal} /></Reveal> : null}
+          {ended ? <Wave wave={3}><ShownStrip deal={deal} /></Wave> : null}
           {atFloor ? <p className="dv-consequence">{atFloor}</p> : null}
           {consequence}
           <DealDecision deal={deal} need={need} canWithdraw={withdrawable} theirName={them} them={them} readings={readings} deadline={deadline} />
-        </div>
+        </RevealGroup>
       )}
       cards={cards} latest={strips} childrenWave={0}>
       {sheet === 'transcript' ? (

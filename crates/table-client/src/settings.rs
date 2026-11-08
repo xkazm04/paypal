@@ -16,6 +16,10 @@ pub struct SettingsSnapshot {
     pub first_run: bool,
     pub channel3_configured: bool,
     pub agents_paused: bool,
+    /// The agents paused one by one (`agent_pause`), in slot order. Older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub paused_agents: Option<Vec<crate::AgentSlot>>,
     pub selected_engine: table_engine::EngineId,
     /// The owner has chosen an agent app through `engine_select` (the ledger preference exists),
     /// including the practice agent. False on a new wallet, whose `scripted` is only a default.

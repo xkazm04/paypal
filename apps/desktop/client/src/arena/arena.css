@@ -285,3 +285,7 @@
 .ar-g-moved { margin: 12px 0 0; font-size: var(--fs-small); color: var(--text); }
 .ar-gauntlet.compact .ar-g-who li { flex-basis: 100%; grid-template-columns: 44px 1fr; align-items: baseline; }
 .ar-gauntlet.compact .ar-g-who b { display: inline; font-size: var(--fs-title3); }
+
+/* The plain statement of what PayPal is on this page: read before anything is played. */
+.ar-recorder { margin: 8px 0 0; max-width: 46rem; padding: 6px 10px; border-left: 3px solid var(--gold); color: var(--text); font-size: 0.9rem; }
+.ar-note-honest { color: var(--text); }

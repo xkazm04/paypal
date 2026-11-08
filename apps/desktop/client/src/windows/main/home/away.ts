@@ -125,6 +125,8 @@ function eventOf(s: HistoryStep, deal: Deal | undefined, reads: ReadonlyMap<stri
     case 'receipt_sent': case 'receipt_received': case 'receipted': case 'receipt_refused': case 'reporting_checked':
     case 'reconciled': case 'withdraw_sent': case 'withdraw_received': case 'withdrawn': case 'hold_released':
     case 'other': case 'invoice_created': case 'invoice_sent': case 'group_withdrawn':
+    // The owner's own decision in the approval window: she was there, so it is no news while away.
+    case 'owner_decided':
       return null;
     default: {
       const unheard: never = s.kind;

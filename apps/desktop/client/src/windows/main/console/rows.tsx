@@ -5,13 +5,13 @@
 // available yet" on a dashed chip, never the raw name; an unknown amount or deadline is the dash,
 // never zero or green. Counterparty names are their own words only as a name: truncated with the
 // full name in the title, quoted in full one level deeper (the deal), never as instructions.
-import type { CSSProperties, ReactNode } from 'react';
+import { createContext, useContext, type CSSProperties, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
 import type { Money } from '@bindings/Money';
-import { formatMinor } from '../../../lib/format';
+import { clockLabel, formatMinor } from '../../../lib/format';
 import { useNow } from '../../../lib/hooks';
 import { AMOUNT_UNKNOWN_TITLE, houseWords, IF_NOTHING, NO_DEADLINE, STATE_UNKNOWN, STATE_UNKNOWN_TITLE, stateWord, WHO_UNKNOWN, type WordTone } from '../../../lib/words';
 import { Countdown as Ticking } from '../../../shared/honesty';
@@ -102,5 +102,54 @@ export function DealRow({ deal, need, who, extra }: {
       <StateChip deal={deal} />
       {need ? <Countdown deadline={need.deadline} /> : null}
     </span>
+  );
+}
+
+/** Column widths of a one-line row (the `.row1` contract): the name takes what is left, the state,
+ *  the amount and the time are fixed so the columns line up from row to row. */
+export const ROW1_COLS = 'minmax(9rem, 1fr) 8.5rem 6.5rem 8rem';
+/** Whether a row may draw its note: false inside a split view (the list shares the sheet with a pane,
+ *  so the note is said in the pane and the row title instead). */
+export const RowNoteContext = createContext(true);
+/** The note track, added after the others when a row has a note. */
+const ROW1_NOTE = 'minmax(0, 1.2fr)';
+
+/** One list row on one line (cells: what and with whom, state, amount, time, then the note). The
+ *  note is the row's old second line: a trailing single-line cell that the engine's CSS hides on a
+ *  narrow window; it is also the row's title, and the area's detail pane says it in full. Content
+ *  only (the ListEngine row is the button): no control goes in a row. */
+export function Row1({ cols = ROW1_COLS, note, title, className, children }: {
+  cols?: string; note?: ReactNode; title?: string; className?: string; children: ReactNode;
+}) {
+  const room = useContext(RowNoteContext);
+  const noted = room && note !== undefined && note !== null && note !== '';
+  const style = { '--cols': noted ? `${cols} ${ROW1_NOTE}` : cols, '--cols-lite': cols } as CSSProperties;
+  return (
+    <span className={`row1${className ? ` ${className}` : ''}`} style={style} title={title} data-noted={noted ? '' : undefined}>
+      {children}
+      {noted ? <span className="c-note">{note}</span> : null}
+    </span>
+  );
+}
+
+/** A deal as a one-line row: its name and who, the state, the amount, and the time (the countdown
+ *  when it waits for the owner, else when it last moved). `note` is the optional trailing cell. */
+export function DealRow1({ deal, need, who, note, picked }: {
+  deal: Deal; need?: AttentionItem | null; who?: string | null; note?: ReactNode; picked?: boolean;
+}) {
+  const disp = useDisplayOf(deal.id);
+  const moduleOf = useWorldSelector(selCp);
+  const at = deal.updated_at ?? deal.created_at ?? null;
+  return (
+    <Row1 className={`${need ? 'needs ' : ''}${picked ? 'picked' : ''}`.trim() || undefined} note={note} title={typeof note === 'string' ? note : undefined}>
+      <span className="c-who" style={{ '--c': MODULE[moduleOf(deal)].cssVar } as CSSProperties}>
+        <span className="dot" aria-hidden="true" />
+        <b title={disp?.title}>{disp ? shortTitle(disp.title) : UNKNOWN}</b>
+        <WhoChip name={who} />
+      </span>
+      <span className="c-state"><StateChip deal={deal} /></span>
+      <Amount money={dealTotal(deal)} tone={amountTone(deal)} />
+      <span className="c-time">{need ? <Countdown deadline={need.deadline} /> : at ? clockLabel(at) : UNKNOWN}</span>
+    </Row1>
   );
 }

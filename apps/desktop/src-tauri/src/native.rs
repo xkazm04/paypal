@@ -1,10 +1,12 @@
 //! Native shell: views send all wallet commands to one Rust actor.
+mod acts;
 mod commands;
 mod events;
 mod navigation;
 mod routing;
 mod surface;
 mod toast;
+use acts::*;
 use commands::*;
 use routing::*;
 use serde::de::DeserializeOwned;
@@ -33,6 +35,33 @@ struct DesktopState {
     agents_paused: std::sync::atomic::AtomicBool,
     /// The tray menu as shown; every tray click is answered from it.
     tray: Mutex<table_client::tray::TrayModel>,
+    /// The board assistant (`assistant_ask`); `None` only if its pinned contract failed to load.
+    assistant: Option<table_engine::AssistantDoor>,
+    /// Counts sheet-presented approval windows (`approval:sheet`), so main can ignore a late close.
+    sheet_serial: std::sync::atomic::AtomicU32,
+}
+/// The board assistant's door: the installed `claude-code`, found and contained exactly as the
+/// agent engines are (`resolve_command`, `NativeEngine`), in its own run root, with the pinned
+/// prompt and schema. No engine found: a door that answers "not available".
+fn assistant_door(data: &std::path::Path) -> Option<table_engine::AssistantDoor> {
+    use table_engine::{
+        ASSISTANT_LIMITS, AssistantDoor, AssistantTurn, EngineId, NativeEngine, resolve_command,
+        search_paths,
+    };
+    let spec = table_client::assistant::assistant_spec().ok()?;
+    let engine = resolve_command(EngineId::ClaudeCode, &search_paths())
+        .ok()
+        .and_then(|exe| {
+            NativeEngine::new(
+                EngineId::ClaudeCode,
+                exe,
+                data.join("assistant"),
+                ASSISTANT_LIMITS,
+            )
+            .ok()
+        })
+        .map(|engine| Arc::new(engine) as Arc<dyn AssistantTurn>);
+    Some(AssistantDoor::new(engine, spec))
 }
 #[derive(Debug)]
 struct Surface {
@@ -201,6 +230,7 @@ pub fn run() -> Result<(), tauri::Error> {
             deal_evidence,
             deal_reconcile,
             engine_status,
+            engine_brief,
             attention_list,
             main_open,
             approval_open,
@@ -263,7 +293,13 @@ pub fn run() -> Result<(), tauri::Error> {
             rescue_watch_stop,
             safety_record,
             counterparty_revoke,
-            envelope_simulate
+            envelope_simulate,
+            assistant_ask,
+            assistant_status,
+            deal_lapse_undo,
+            agent_pause,
+            agent_resume,
+            assistant_act
         ])
         .setup(|app| {
             let data = app.path().app_data_dir()?;
@@ -331,11 +367,14 @@ pub fn run() -> Result<(), tauri::Error> {
                     agents_paused,
                     table_core::Clock::now(&table_runtime::SystemClock),
                 )),
+                assistant: assistant_door(&data),
+                sheet_serial: std::sync::atomic::AtomicU32::new(0),
             });
             tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .on_navigation(navigation::permits)
                 .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
-                .title("The Table")
+                .title("Signet")
+                .decorations(false)
                 .inner_size(1440.0, 900.0)
                 .visible(false)
                 .build()?;

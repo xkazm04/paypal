@@ -146,6 +146,43 @@ async fn spike_2_claude_agent_and_toolless_inventory() {
     );
     assert!(result.is_ok());
 }
+/// The board assistant through the installed CLI: the door's conformance turn, then one question
+/// over a tiny digest, with the pinned prompt and schema the shell embeds. Two model turns (about
+/// two cents at the measured rate); the reply is printed as evidence, never trusted.
+#[tokio::test]
+#[ignore = "owner-run native model/isolation probe; TABLE_LIVE_ENGINES=1"]
+async fn spike_7_claude_assistant_door() {
+    assert_eq!(
+        std::env::var("TABLE_LIVE_ENGINES").as_deref(),
+        Ok("1"),
+        "Engine run requires TABLE_LIVE_ENGINES=1"
+    );
+    let pinned: Value = serde_json::from_str(include_str!(
+        "../../table-client/src/assistant_contract.json"
+    ))
+    .unwrap();
+    let spec =
+        AssistantSpec::new(pinned["system_prompt"].as_str().unwrap(), &pinned["schema"]).unwrap();
+    let engine = NativeEngine::new(
+        EngineId::ClaudeCode,
+        resolve_command(EngineId::ClaudeCode, &search_paths())
+            .expect("Install/authenticate the requested CLI"),
+        root(),
+        ASSISTANT_LIMITS,
+    )
+    .unwrap();
+    let version = engine.probe().await.ok().and_then(|p| p.version);
+    let door = AssistantDoor::new(Some(Arc::new(engine)), spec);
+    let started = std::time::Instant::now();
+    let text = "What needs me today?\n\n<board>\n{\"now_ms\":0,\"first_run\":false,\"money\":{\"room_left_minor\":null,\"day_cap_minor\":null,\"held_minor\":null,\"paid_today_minor\":null,\"deals_today\":null,\"deals_cap\":null,\"currency\":null},\"rules_in_force\":1,\"setup\":[],\"deals\":[{\"id\":\"D1\",\"module\":\"tables\",\"fate\":\"needs\",\"label\":\"Monitor\",\"state\":\"waiting for you\",\"amount_minor\":12000,\"currency\":\"USD\",\"due_in_min\":90,\"on_silence\":\"lapses, no money moves\"}],\"more\":0}\n</board>\n";
+    let reply = door.ask(text).await;
+    emit(
+        json!({"spike":7,"engine":"claude-code","version":version,"profile":"assistant","ms":started.elapsed().as_millis(),"ok":reply.is_ok(),"refusal":reply.as_ref().err().map(|r| format!("{r:?}")),"reply":reply.as_ref().ok()}),
+    );
+    let reply: Value = serde_json::from_str(&reply.unwrap()).unwrap();
+    assert!(reply["say"].is_string(), "{reply}");
+    assert!(door.status().available);
+}
 #[tokio::test]
 #[ignore = "owner-run version-only local resolution; scripts/spike.ps1 -Spike 6"]
 async fn spike_6_windows_binary_resolution() {

@@ -4,10 +4,32 @@
 // An edit that leads nowhere in a given file (a file with no such record) is not offered for it.
 import { decimal, type Money } from './bundle';
 import { applyEdits, type Edit, readAt } from './edits';
+import { toHex } from './bytes';
+import { canonical } from './jcs';
+// The `forged decision` edits, made where the file's own agent key was at hand: the practice deal's by
+// the proofs recorder, the house haggle's by the haggle recorder (sample_proof.rs `forged_decision`).
+// A browser cannot seal a file again, so a file without an entry here is not offered this tamper.
+import forgedPractice from './sample/forged.json';
+import forgedHouse from './sample/d-0205.forged.json';
+
+const FORGED: Readonly<Record<string, Edit[]>> = { ...(forgedPractice as Record<string, Edit[]>), ...(forgedHouse as Record<string, Edit[]>) };
+const headHex = (doc: Doc): string => {
+  const head = readAt(doc, '/evidence_head');
+  if (!Array.isArray(head)) throw new Error('no evidence head');
+  return toHex(Uint8Array.from(head as number[]));
+};
+/** One owner decision row's detail, changed by `edit` and written back canonically (sample_proof.rs `decision_edit`). */
+const decisionEdit = (doc: Doc, n: number, edit: (d: Record<string, unknown>) => void): Edit[] => {
+  const path = `/audit/${nth(doc, 'owner.decision', n)}/detail_json`;
+  const detail = JSON.parse(text(doc, path)) as Record<string, unknown>;
+  edit(detail);
+  return [{ op: 'set', path, value: canonical(detail) }];
+};
 
 export type TamperId =
   | 'price' | 'paypal-amount' | 'payee' | 'receipt' | 'audit-line' | 'audit-gap' | 'signature' | 'refund' | 'rules' | 'relabel' | 'owner-key'
-  | 'shield-release' | 'market-price' | 'group-winner' | 'group-agreed' | 'request-id' | 'transcript-head';
+  | 'shield-release' | 'market-price' | 'group-winner' | 'group-agreed' | 'request-id' | 'transcript-head' | 'checklist'
+  | 'forged-decision' | 'decision-signature' | 'decision-unsigned' | 'decision-step';
 
 type Doc = unknown;
 const rows = (doc: Doc): Array<{ action: string; at: number }> => {
@@ -118,6 +140,44 @@ export const TAMPERS: ReadonlyArray<{ id: TamperId; edits: (doc: Doc) => Edit[] 
     },
   },
   { id: 'owner-key', edits: (d) => [{ op: 'set', path: '/owner_key', value: readAt(d, '/counterparty/owner_key') }] },
+  {
+    // One line of the checklist recorded with the owner's first decision reads as passed when it did not
+    // (sample_proof.rs `checklist_flip`): the first line that was not a pass; on a list of passes, the first
+    // line reads failed instead.
+    id: 'checklist',
+    edits: (d) => {
+      const path = `/audit/${nth(d, 'owner.decision', 0)}/detail_json`;
+      const detail = JSON.parse(text(d, path)) as { checks?: unknown };
+      const lines = detail.checks;
+      if (!Array.isArray(lines) || lines.length === 0) throw new Error('no recorded checklist');
+      const at = lines.findIndex((l) => (l as { status?: unknown }).status !== 'pass');
+      const line = lines[at < 0 ? 0 : at] as { status?: unknown };
+      line.status = at < 0 ? 'fail' : 'pass';
+      return [{ op: 'set', path, value: canonical(detail) }];
+    },
+  },
+  {
+    // An owner decision the owner never made, added and sealed again with the agent's own key.
+    id: 'forged-decision',
+    edits: (d) => {
+      const edits = FORGED[headHex(d)];
+      if (!edits) throw new Error('no forgery made for this file');
+      return structuredClone(edits);
+    },
+  },
+  {
+    // One byte of the owner key's signature on the second decision.
+    id: 'decision-signature',
+    edits: (d) => decisionEdit(d, 1, (detail) => {
+      const signature = detail.signature;
+      if (!Array.isArray(signature) || typeof signature[0] !== 'number') throw new Error('no signature');
+      signature[0] = signature[0] ^ 1;
+    }),
+  },
+  // The owner key's signature taken off the second decision, while the first keeps its own.
+  { id: 'decision-unsigned', edits: (d) => decisionEdit(d, 1, (detail) => { delete detail.signature; delete detail.owner_key; }) },
+  // The first decision said to start the capture.
+  { id: 'decision-step', edits: (d) => decisionEdit(d, 0, (detail) => { detail.operation = 'capture'; }) },
 ];
 
 /** The edits for one tamper on this file, or null when the file has nothing there to change. */

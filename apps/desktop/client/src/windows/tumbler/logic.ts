@@ -38,7 +38,13 @@ export const SECONDS = {
   snooze: LADDER.snooze_secs,
 } as const;
 
-export const TICKER_MS = { default: 6000, receipt: 2500, info: 2500 } as const;
+// Long enough to read once (GRACE-02: 6 s and 2.4 s were not); hovering or focusing a ticker holds it (Tumbler.tsx).
+export const TICKER_MS = { default: 8000, receipt: 5000, info: 5000 } as const;
+
+/** What a screen reader hears for a ticker: both lines as one sentence (the visual pill may leave before it is read). */
+export function tickerSpeech(t: Pick<Ticker, 'l1' | 'l2'>): string {
+  return `${t.l1.join('').replace(/\s+/g, ' ').trim()}. ${t.l2}`;
+}
 
 // ---------------------------------------------------------------------------------------
 // the attention ladder
@@ -205,8 +211,9 @@ export function cardActions(item: AttentionItem, now: number): CardAction[] {
 
 /** The card's keys in words, for its spoken name: only the keys the card's key handler acts on
  *  (Enter reviews when canReview; W withdraws when Rust lists withdraw; Escape always). */
-export function cardKeys(item: Pick<AttentionItem, 'kind' | 'actions'>): string {
-  const keys = [canReview(item) ? 'Enter reviews' : null, item.actions.includes('withdraw') ? 'W withdraws' : null, 'Escape returns to rest'];
+export function cardKeys(item: AttentionItem, now?: number): string {
+  const snooze = now !== undefined && snoozeEligible(item, now);
+  const keys = [canReview(item) ? 'Enter reviews' : null, item.actions.includes('withdraw') ? 'W withdraws' : null, snooze ? 'S snoozes for 30 minutes' : null, 'Escape returns to rest'];
   return `${keys.filter(Boolean).join(', ')}.`;
 }
 
@@ -552,9 +559,11 @@ export const MODE_SHORT: Record<Mode, string> = { sandbox: 'SANDBOX', replay: 'R
  *  words (lib/words modeWord, as the badge says it; never the raw key) and the lock. `unread`: the
  *  wallet has not given the page any cards yet (start-up, or every read failed), so an empty count
  *  is not "nothing needs you". */
-export function puckName(o: { needs: number; headline: string | null; inMotion: number; mode: Mode | null; locked: boolean; unread?: boolean }): string {
+export function puckName(o: { needs: number; headline: string | null; inMotion: number; mode: Mode | null; locked: boolean; unread?: boolean; holds?: number }): string {
+  // a hold and a decision differ in words here, as in shape on the puck: never colour alone
+  const split = o.holds && o.needs > o.holds ? ` (${o.needs - o.holds} to decide, ${o.holds} paused)` : o.holds ? ' (paused, nothing to pay)' : '';
   const lead = o.needs
-    ? `${o.needs} ${o.needs === 1 ? 'needs' : 'need'} you${o.headline ? ` · ${o.headline}` : ''}`
+    ? `${o.needs} ${o.needs === 1 ? 'needs' : 'need'} you${split}${o.headline ? ` · ${o.headline}` : ''}`
     : o.unread ? 'cards not read yet' : `nothing needs you · ${o.inMotion} in motion`;
   return `The Tumbler · ${lead}${o.mode ? ` · ${modeWord(o.mode)}` : ''}${o.locked ? ' · locked' : ''}`;
 }

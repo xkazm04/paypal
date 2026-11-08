@@ -25,7 +25,7 @@ import { PausedDecision, ReleaseHandoff, ShieldRow, useShieldWorld, type ShieldW
 function ShieldList({ rows, s, label, empty, paused }: { rows: Deal[]; s: ShieldWorld; label: string; empty: string; paused?: boolean }) {
   const nav = useLayerNav();
   return (
-    <ListEngine<Deal> className={fewRows(rows.length)} label={label} rows={rows} getKey={(d) => d.id} estimateSize={56} wideAt={paused ? 1200 : undefined}
+    <ListEngine<Deal> className={fewRows(rows.length)} label={label} rows={rows} getKey={(d) => d.id} estimateSize={36} wideAt={paused ? 1200 : undefined}
       searchText={(d) => `${s.who(d)} ${s.title(d)}`}
       renderRow={(d) => <ShieldRow deal={d} s={s} />}
       rowLabel={(d) => `${s.who(d)}, ${s.title(d)}`}

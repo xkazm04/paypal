@@ -7,6 +7,8 @@
 // (The four old page names are lib/words.ts RESCUE_VIEW_LABEL, repeated here as literals: this file
 // is re-exported by lib/words.ts and may not import from it.)
 
+import type { RescueRefusal } from '@bindings/RescueRefusal';
+
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** The Rescue's nested views: the crumb label and the view's heading. */
@@ -36,6 +38,21 @@ export const RESCUE = {
   opensApproval: 'Opens the approval window.',
   none: 'None',
   ifNothing: 'If you do nothing',
+  /** The wallet's own refusal of an offer, as a quiet line. One closed reason per engine refusal (bindings RescueRefusal); never the subscriber's or an agent's words. */
+  refusal: {
+    line: (why: string) => `The wallet won’t allow this offer: ${why}. Nothing is sent.`,
+    why: {
+      fixes_clause_missing: 'your rules don’t include a fix for failed renewals',
+      lever_not_allowed: 'your rules don’t allow this kind of fix',
+      currency_differs: 'it’s in a different currency than your rules',
+      invoice_not_cycle_less_discount: 'the invoice isn’t the renewal price less the discount',
+      over_discount_cap: 'the discount is more than your rules allow for one renewal',
+      over_discount_share: 'the discount is a bigger share than your rules allow',
+      share_mismatch: 'the discount share doesn’t match the amounts',
+      deal_not_invoicing_offer: 'the deal doesn’t match this offer',
+      rules_not_in_force: 'the rules it was made under are no longer in force',
+    } satisfies Record<RescueRefusal, string>,
+  },
   yourCall: 'Your call',
   openDeal: 'Open deal ›',
   never: 'Never a price change for everyone on the plan: changing the plan price would change it for every subscriber, not just the one who is struggling. No fix, agent or approval can do that from here, by design.',
@@ -63,6 +80,7 @@ export const RESCUE = {
     nothingWaiting: 'Nothing waiting',
     noneYet: 'None yet',
     countedOnce: 'Counted once PayPal shows it paid',
+    thisMonth: (m: string | null) => `${m ?? '—'} this month`,
     unread: 'Can’t be read',
     reading: 'Reading…',
     watchNote: 'Rules and watched subscriptions',
@@ -110,7 +128,9 @@ export const RESCUE = {
   replaySilence: 'nothing is sent · a replay, so PayPal has nothing to retry',
   /** The fix's deadline: Rust lets an unapproved fix lapse then, and nothing is sent. */
   closes: (at: string, left: string) => `This fix is open until ${at} (${left} left). If you haven’t approved it by then, it closes and nothing is sent.`,
-  offerLine: (pct: string, invoice: string, cycle: string) => `${pct} off: ${invoice} instead of ${cycle}`,
+  offerLine: (pct: string, invoice: string, cycle: string, giveUp: string) => `${pct} off: ${invoice} instead of ${cycle} · you give up ${giveUp}`,
+  /** The subscriber's history, from the wallet's count of failed payments. */
+  history: (n: number) => `${plural(n, 'failed payment', 'failed payments')} on this subscription so far.`,
   whyOff: { REPLAY: 'Not for a replay: no real balance to collect', 'retry <24h': 'Not now: PayPal retries within a day', NOT_BUILT: 'Not available yet' },
   pick: {
     DISCOUNT_THIS_CYCLE: { name: 'Offer a discount', does: 'A cheaper invoice for this month only' },
@@ -132,7 +152,7 @@ export const RESCUE = {
   fix: {
     aboutNone: 'What doing nothing does',
     about: (name: string) => `What “${name}” does`,
-    does: (invoice: string, cycle: string, pct: string) => `One PayPal invoice for this cycle at ${invoice} instead of ${cycle} (${pct} off). This cycle only; the plan and its price stay the same.`,
+    does: (invoice: string, cycle: string, pct: string, give: string) => `One PayPal invoice for this cycle at ${invoice} instead of ${cycle} (${pct} off), so you give up ${give}. This cycle only; the plan and its price stay the same.`,
     checks: 'Checks',
     sees: 'What the subscriber sees',
     wording: 'The invoice’s wording',
@@ -171,6 +191,8 @@ export const RESCUE = {
 
   recovered: {
     total: 'Recovered so far:',
+    month: 'Recovered this month:',
+    monthUnknown: 'not shown: a rescue has no payment date yet',
     noneYet: 'none yet',
     rule: 'Only an invoice PayPal shows paid, with its receipt saved, counts, and only for a renewal PayPal reported failed. Replays never do, and sent is not paid. Each currency is added up on its own.',
     counts: 'Counts', notCounts: 'Doesn’t count', closed: 'Closed',

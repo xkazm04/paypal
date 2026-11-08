@@ -8,7 +8,7 @@ import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { SIMULATE_DEBOUNCE_MS, useDebouncedSimulation, useSimulation } from './data';
 import { WhatIfTable } from './WhatIf';
-import { changed, hitPhrase, ifWithdrawn, sameVerdict, summaryWords, verdictWords } from './simulation';
+import { changed, countOf, headlineWords, movedMoney, movedMoneyWords, outcomeChanged, hitPhrase, ifWithdrawn, sameVerdict, summaryWords, verdictWords } from './simulation';
 
 const ALLOW: SimulatedVerdict = { type: 'allow' };
 const ASK: SimulatedVerdict = { type: 'ask', clause: 6 };
@@ -133,5 +133,28 @@ describe('useSimulation', () => {
     rerender({ a: args(2) });
     await act(async () => { vi.advanceTimersByTime(SIMULATE_DEBOUNCE_MS); await Promise.resolve(); await Promise.resolve(); });
     expect(result.current).toMatchObject({ sim: answer(9), error: null, updating: false });
+  });
+});
+
+describe('what-if honest count', () => {
+  const rule = line('D-1', CATEGORY, OVER, 1000);
+  const flip = line('D-2', ALLOW, PAYEE, 2500);
+  it('counts outcome changes, not rule changes, and totals only moved money', () => {
+    const w = [rule, flip, line('D-3', ALLOW, ALLOW)];
+    expect(changed(rule)).toBe(true);
+    expect(outcomeChanged(rule)).toBe(false);
+    expect(w.filter(outcomeChanged)).toHaveLength(1);
+    expect(movedMoney(w)).toEqual([{ minor: 2500, currency: 'USD' }]);
+    expect(headlineWords(w)).toContain('1 deal would have gone differently');
+    expect(headlineWords(w)).toContain('1 other deal is still refused');
+  });
+  it('dashes the total when unknown, and says first rule has nothing to compare', () => {
+    expect(movedMoneyWords([line('D-4', ALLOW, NONE)])).toBe('—');
+    expect(headlineWords([], true)).toBe('Nothing to compare yet - this is your first rule.');
+    expect(headlineWords([rule])).toMatch(/^No deal this week/);
+  });
+  it('plural helper', () => {
+    expect(countOf(1, 'deal that stays', 'deals that stay')).toBe('1 deal that stays');
+    expect(countOf(2, 'deal')).toBe('2 deals');
   });
 });

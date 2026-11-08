@@ -291,6 +291,22 @@ impl Ledger {
         rows.reverse();
         Ok((rows, more))
     }
+    /// A deal's `owner.decision` rows, newest first, at most `limit` of them. A read for the
+    /// approval window's summary, which polls: it does not verify the whole chain on every call
+    /// (what it returns is shown, never trusted to gate a decision).
+    pub fn owner_decisions(
+        &self,
+        deal: DealId,
+        limit: u32,
+    ) -> Result<Vec<AuditRecord>, LedgerError> {
+        let mut statement = self.conn.prepare(
+            "SELECT seq,at,actor,action,deal_id,detail_json FROM audit_log WHERE deal_id=?1 AND action='owner.decision' ORDER BY seq DESC LIMIT ?2",
+        )?;
+        statement
+            .query_map(params![deal.to_string(), i64::from(limit)], record_row)?
+            .map(|row| record(row?))
+            .collect()
+    }
     /// The HTTP statuses of the PayPal calls a deal recorded at `at` (0 = no response).
     pub fn paypal_statuses_at(&self, id: DealId, at: Timestamp) -> Result<Vec<u16>, LedgerError> {
         let mut statement = self

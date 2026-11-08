@@ -4,6 +4,7 @@
 // still see). And the closing view: every attack held, the attack deal's signed file checked in the proof
 // checker, the command that checks it all, the attacks as a file.
 import { useState } from 'react';
+import { NOTE_KEPT, NOTE_NONE_HEAD, NOTE_MATCH_HEAD, NOTE_NOT_ANALYSED, NOTE_RECORDED_TEXT, NOTE_SENT_STAND_IN } from './copy';
 import { ARENA_ANSWER, ARENA_CHECK, ARENA_FINALE, ARENA_LIVE_MODE, ARENA_NOTE, ARENA_VERDICT } from '../lib/words/arena';
 import type { LiveAnswer } from './live';
 import { Quarantine } from '../shared/honesty';
@@ -35,7 +36,7 @@ export function Answer({ attack: a, sentNote, noteDealId }: { attack: RecordedAt
       </div>
       {sentNote !== null ? (
         <div className="ar-yournote">
-          <p>{ARENA_NOTE.sent}</p>
+          <p>{NOTE_KEPT}</p>
           {noteDealId ? <NoteChip dealId={noteDealId} who={ARENA_NOTE.chipWho} /> : null}
         </div>
       ) : null}
@@ -51,8 +52,8 @@ export function Answer({ attack: a, sentNote, noteDealId }: { attack: RecordedAt
         {a.audit.length ? <ul className="ar-audit mono">{a.audit.map((r) => <li key={r.seq}>{auditLine(r)}</li>)}</ul> : null}
         <div className="ar-split">
           <div className="ar-sent">
-            <h5>{a.suit === 'agent' ? ARENA_ANSWER.sent : sentNote !== null ? ARENA_NOTE.recorded : ARENA_ANSWER.sentEnvelope}</h5>
-            <Sent attack={a} />
+            <h5>{a.suit === 'agent' ? ARENA_ANSWER.sent : sentNote !== null ? (asks.length === 0 ? NOTE_SENT_STAND_IN : ARENA_NOTE.recorded) : ARENA_ANSWER.sentEnvelope}</h5>
+            <Sent attack={a} typed={sentNote !== null} />
           </div>
           <div className={`ar-paypal${a.paypal_requests === 0 ? ' none' : ''}`}>
             <h5>{ARENA_ANSWER.paypal}</h5>
@@ -109,7 +110,7 @@ export function LiveAnswerView({ answer: a }: { answer: LiveAnswer }) {
 
 /** What was sent: the agent's tool call (its name, then its arguments), or the seller's envelope. A
  *  seller's note is their words: drawn only through Quarantine, never as plain page text. */
-function Sent({ attack: a }: { attack: RecordedAttack }) {
+function Sent({ attack: a, typed }: { attack: RecordedAttack; typed: boolean }) {
   if (a.suit === 'agent') {
     const { name, arguments: args } = a.sent as { name?: unknown; arguments?: unknown };
     return <pre className="mono"><b>{String(name)}</b>{NEWLINE}{JSON.stringify(args, null, 1)}</pre>;
@@ -118,7 +119,7 @@ function Sent({ attack: a }: { attack: RecordedAttack }) {
   return (
     <>
       <pre className="mono">{JSON.stringify(rest, null, 1)}</pre>
-      {typeof text === 'string' ? <Quarantine text={text} label={ARENA_ANSWER.theirWords} /> : null}
+      {typeof text === 'string' ? <Quarantine text={text} label={typed ? NOTE_RECORDED_TEXT : ARENA_ANSWER.theirWords} /> : null}
     </>
   );
 }
@@ -126,8 +127,8 @@ function Sent({ attack: a }: { attack: RecordedAttack }) {
 function NoteAsks({ asks }: { asks: string[] }) {
   return (
     <div className="ar-asks">
-      <h5>{ARENA_NOTE.obeyed}</h5>
-      {asks.length === 0 ? <p className="ar-hint">{ARENA_NOTE.obeyedNone}</p> : (
+      <h5>{asks.length === 0 ? NOTE_NONE_HEAD : NOTE_MATCH_HEAD}</h5>
+      {asks.length === 0 ? <p className="ar-hint">{NOTE_NOT_ANALYSED}</p> : (
         <ul>
           {asks.map((id) => {
             const a = attackById(id);

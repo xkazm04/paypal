@@ -276,6 +276,20 @@ pub const AUTHORITY: &[CommandAuthority] = &[
     row("counterparty_revoke",    APPROVAL, Owner,    PRIVILEGED, ANY,         R),
     // The wallet-limits what-if, like mandate_simulate: it replays, never signs or writes.
     row("envelope_simulate",      APPROVAL, Read,     OPEN,       ANY,         R),
+    // The board assistant: text in, untrusted reply text out; no tools, no wallet handle, moves
+    // nothing. Main only: never the Tumbler, never the approval window. The shell answers it.
+    row("assistant_ask",          MAIN,     Read,     OPEN,       ANY,         S),
+    row("assistant_status",       MAIN,     Read,     OPEN,       ANY,         S),
+    // Safe acts (acts.rs): reversible, no money, main only. The lapse undo and the one-agent
+    // pause/resume are each other's undo; assistant_act runs one of them and records provenance.
+    row("deal_lapse_undo",        MAIN,     Act,      OPEN,       ANY,         R),
+    row("agent_pause",            MAIN,     Act,      OPEN,       ANY,         R),
+    row("agent_resume",           MAIN,     Act,      OPEN,       ANY,         R),
+    row("assistant_act",          MAIN,     Act,      OPEN,       ANY,         R),
+    // The agent app's state in one word for every window: which engines are usable, nothing else
+    // (no version, no probe text: `engine_status` stays main-only). A read of the same facts the
+    // owner sees on the Connections page, so the approval window and the Tumbler agree with it.
+    row("engine_brief",           ALL,      Read,     OPEN,       ANY,         R),
 ];
 
 const fn release_count() -> usize {
@@ -362,6 +376,8 @@ pub const EVENTS: &[EventAudience] = &[
     event("approval:summary",  APPROVAL),
     event("main:route",        MAIN),
     event("pairing:pinned",    MAIN),
+    // A sheet-presented approval window opened or went away: main dims while it is up.
+    event("approval:sheet",    MAIN),
 ];
 
 /// The windows told this event, if it is one.

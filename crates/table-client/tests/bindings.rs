@@ -184,7 +184,7 @@ fn every_event_has_one_audience_row_and_one_typed_emit() {
             ((*name).to_owned(), ty.to_owned())
         })
         .collect();
-    assert_eq!(contract.len(), 15, "{decl}");
+    assert_eq!(contract.len(), 16, "{decl}");
     // Both directions: an event without an audience row would reach no window; a row without
     // an event would grant nothing and hide a typo.
     let names: std::collections::BTreeSet<&str> =

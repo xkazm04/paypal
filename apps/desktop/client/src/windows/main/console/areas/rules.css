@@ -6,7 +6,11 @@
 .ar-rules .rl-list .le-main { min-height: 0; }
 .ar-rules .rl-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; }
 .ar-rules .rl-row .dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--c); }
-.ar-rules .rl-row .t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ar-rules .rl-row .t { display: flex; align-items: baseline; gap: var(--sp-3); min-width: 0; }
+.ar-rules .rl-row .t > b { flex: 0 1 auto; min-width: min(9rem, 100%); }
+.ar-rules .le-row { container-type: inline-size; }
+@container (max-width: 26rem) { .ar-rules .rl-row .t > small { display: none; } }
+.ar-rules .rl-row .t > small { flex: 1 1 0; min-width: 0; }
 .ar-rules .rl-row .t > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ar-rules .rl-row b { font-weight: var(--fw-semibold); }
 .ar-rules .rl-row .rl-for { color: var(--muted); font-weight: var(--fw-medium); }

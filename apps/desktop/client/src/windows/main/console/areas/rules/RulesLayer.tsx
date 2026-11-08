@@ -126,7 +126,7 @@ function Rules({ nav }: { nav: LayerProps['nav'] }) {
           <div className="rl-list" style={{ height: fitHeight(rows.length, 76, '36rem') }}>
             <ListEngine<Row> label={RULES_LIST.label} rows={rows} getKey={keyOf} filters={FILTERS} sorts={SORTS}
               searchText={(m) => `${agentTitle(m.agent)} ${purposeOf(m.payload.clauses)}`}
-              estimateSize={72} renderRow={(m) => <RuleRow m={m} now={now} on={current ? keyOf(current) === keyOf(m) : false} />}
+              estimateSize={36} renderRow={(m) => <RuleRow m={m} now={now} on={current ? keyOf(current) === keyOf(m) : false} />}
               rowLabel={(m) => `${agentTitle(m.agent)}: ${purposeOf(m.payload.clauses)}`} onPick={(m) => setPicked(keyOf(m))}
               empty={RULES_LIST.empty} noMatch={RULES_LIST.noMatch} />
           </div>

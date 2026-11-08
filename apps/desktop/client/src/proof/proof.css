@@ -7,3 +7,6 @@
 .pf-lede { margin: var(--sp-2) 0 0; max-width: 44rem; color: var(--muted); }
 .pf-watch { margin: var(--sp-3) 0 0; }
 .pf-watch .ui-btn { text-decoration: none; display: inline-flex; align-items: center; }
+
+.pf-sample { display: inline-flex; align-items: center; gap: 8px; margin: var(--sp-2) 0 0; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line, currentColor); color: var(--muted); font-size: 0.9rem; }
+.pf-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--gold); }

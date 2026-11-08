@@ -26,6 +26,7 @@ import { App } from '../../App';
 import { formatHash, type Route } from '../../logic';
 import type { LayerId } from '../layers';
 import { setHarnessBackend } from './runtime';
+import { openOnConsole } from './home';
 
 export type Scale = 'small' | 'large';
 
@@ -127,6 +128,8 @@ export const LAYER_ROUTES: Readonly<Record<LayerId, LayerTarget>> = {
   settings: { level: 'place', place: 'settings' },
   safety: { level: 'place', place: 'safety' },
   try: { level: 'place', place: 'try' },
+  proof: { level: 'place', place: 'proof' },
+  director: { level: 'place', place: 'director' },
 };
 
 /** LAYER_ROUTES as [layer id, target] rows, for `it.each`. */
@@ -142,6 +145,7 @@ export async function renderLayerAtScale(route: LayerTarget, scale: Scale | null
   cleanup();
   localStorage.clear();
   sessionStorage.clear();
+  openOnConsole();
   const params = [scale ? `scale=${scale}` : '', o.search ?? ''].filter(Boolean).join('&');
   const q = params ? `?${params}` : '';
   history.replaceState(null, '', `/index.html${q}`);

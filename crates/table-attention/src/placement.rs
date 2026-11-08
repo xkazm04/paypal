@@ -140,11 +140,20 @@ pub const APPROVAL_SIZE: (f64, f64) = (744.0, 660.0);
 /// Review belongs beside its opener. Flip left if needed, then clamp to the
 /// opener's monitor; on a narrow screen the windows may overlap.
 pub fn approval_rect(opener: Rect, work: Rect) -> Result<Rect, PlacementError> {
-    if !opener.valid() || !work.valid() {
+    approval_rect_sized(opener, work, APPROVAL_SIZE)
+}
+
+/// [`approval_rect`] for a window of another size (a secure-step sheet).
+pub fn approval_rect_sized(
+    opener: Rect,
+    work: Rect,
+    size: (f64, f64),
+) -> Result<Rect, PlacementError> {
+    if !opener.valid() || !work.valid() || !(size.0 > 0.0 && size.1 > 0.0) {
         return Err(PlacementError);
     }
-    let width = APPROVAL_SIZE.0.min(work.width);
-    let height = APPROVAL_SIZE.1.min(work.height);
+    let width = size.0.min(work.width);
+    let height = size.1.min(work.height);
     let right = opener.x + opener.width + 12.0;
     let left = opener.x - width - 12.0;
     let x = if right + width <= work.x + work.width {
@@ -165,11 +174,20 @@ pub fn approval_rect(opener: Rect, work: Rect) -> Result<Rect, PlacementError> {
 /// The approval window docked over its opener (the main window): centred on it, then clamped to the
 /// opener's monitor. Used when the opener is on screen, so the review reads as part of the app.
 pub fn approval_docked_rect(opener: Rect, work: Rect) -> Result<Rect, PlacementError> {
-    if !opener.valid() || !work.valid() {
+    approval_docked_rect_sized(opener, work, APPROVAL_SIZE)
+}
+
+/// [`approval_docked_rect`] for a window of another size (a secure-step sheet over The Table).
+pub fn approval_docked_rect_sized(
+    opener: Rect,
+    work: Rect,
+    size: (f64, f64),
+) -> Result<Rect, PlacementError> {
+    if !opener.valid() || !work.valid() || !(size.0 > 0.0 && size.1 > 0.0) {
         return Err(PlacementError);
     }
-    let width = APPROVAL_SIZE.0.min(work.width);
-    let height = APPROVAL_SIZE.1.min(work.height);
+    let width = size.0.min(work.width);
+    let height = size.1.min(work.height);
     Ok(Rect {
         x: (opener.x + (opener.width - width) / 2.0).clamp(work.x, work.x + work.width - width),
         y: (opener.y + (opener.height - height) / 2.0).clamp(work.y, work.y + work.height - height),
@@ -178,7 +196,9 @@ pub fn approval_docked_rect(opener: Rect, work: Rect) -> Result<Rect, PlacementE
     })
 }
 
-/// Anchor is the resting puck. Grow from its edges; clamp only if neither side fits.
+/// Anchor is the resting puck. Grow from its edges; clamp only if neither side fits. A form
+/// narrower than the puck (the tab) keeps the puck's edge on the nearer side of the screen, so a
+/// tab snapped to the right edge stays flush with it.
 pub fn place(anchor: Rect, work: Rect, form: Form) -> Result<Placement, PlacementError> {
     if !anchor.valid() || !work.valid() {
         return Err(PlacementError);
@@ -190,7 +210,13 @@ pub fn place(anchor: Rect, work: Rect, form: Form) -> Result<Placement, Placemen
     let left = anchor.x + anchor.width - width;
     let down = anchor.y;
     let up = anchor.y + anchor.height - height;
-    let side = if right + width <= work.x + work.width {
+    let side = if width < anchor.width {
+        if anchor.x + anchor.width / 2.0 > work.x + work.width / 2.0 {
+            Side::Left
+        } else {
+            Side::Right
+        }
+    } else if right + width <= work.x + work.width {
         Side::Right
     } else {
         Side::Left
@@ -413,6 +439,19 @@ mod tests {
         assert_eq!((full.width, full.height), APPROVAL_SIZE);
     }
     #[test]
+    fn a_sheet_sized_approval_is_centred_over_its_opener_and_kept_on_screen() {
+        let work = rect(0.0, 0.0, 1920.0, 1080.0);
+        let opener = rect(200.0, 100.0, 1200.0, 800.0);
+        let sheet = approval_docked_rect_sized(opener, work, (520.0, 440.0)).unwrap();
+        assert_eq!((sheet.width, sheet.height), (520.0, 440.0));
+        assert_eq!((sheet.x, sheet.y), (540.0, 280.0));
+        let small = rect(0.0, 0.0, 400.0, 300.0);
+        let clamped = approval_docked_rect_sized(opener, small, (520.0, 440.0)).unwrap();
+        assert_eq!((clamped.width, clamped.height), (400.0, 300.0));
+        assert!(approval_docked_rect_sized(opener, work, (0.0, 440.0)).is_err());
+        assert!(approval_rect_sized(opener, work, (f64::NAN, 440.0)).is_err());
+    }
+    #[test]
     fn w8_placement_property_style_at_100_125_150_percent() {
         for scale in [1.0, 1.25, 1.5] {
             let work = rect(-1920.0 * scale, 0.0, 1920.0 * scale, 1080.0 * scale)
@@ -466,6 +505,31 @@ mod tests {
                 snap(rect(0.0, 200.0, 88.0, 88.0), work, None).unwrap().form,
                 Form::Tab
             );
+        }
+    }
+    #[test]
+    fn a_screen_edge_tab_docks_flush_against_that_edge_at_100_125_150_percent() {
+        for scale in [1.0, 1.25, 1.5] {
+            let work = rect(0.0, 0.0, 1920.0 * scale, 1040.0 * scale)
+                .logical(scale)
+                .unwrap();
+            for (x, class, edge) in [
+                (10.0, Snap::ScreenLeft, work.x),
+                (1920.0 - 98.0, Snap::ScreenRight, work.x + work.width),
+            ] {
+                let anchor = rect(x * scale, 300.0 * scale, 88.0 * scale, 88.0 * scale)
+                    .logical(scale)
+                    .unwrap();
+                let snapped = snap(anchor, work, None).unwrap();
+                assert_eq!((snapped.class, snapped.form), (class, Form::Tab));
+                let tab = place(snapped.anchor, work, snapped.form).unwrap().rect;
+                let touching = if class == Snap::ScreenLeft {
+                    tab.x
+                } else {
+                    tab.x + tab.width
+                };
+                assert_eq!(touching, edge, "{class:?} at {scale}: {tab:?}");
+            }
         }
     }
     #[test]

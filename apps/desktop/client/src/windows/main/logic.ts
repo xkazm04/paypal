@@ -25,7 +25,8 @@ import type { HistoryStep } from '@bindings/HistoryStep';
 import type { PaypalMethod } from '@bindings/PaypalMethod';
 import type { ReceiptEvent } from '@bindings/ReceiptEvent';
 import { formatMinor } from '../../lib/format';
-import { ENDING_UNREAD_NOW, ENDING_UNREAD_PILL, endingUnreadSentence, moneyCheckNow, moneyCheckPillText, receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord, unconfirmedSentence } from '../../lib/words';
+import { previewPagesAvailable } from '../../lib/preview';
+import { APPROVAL_DECIDED, DEAL_DECISION, ENDING_UNREAD_NOW, ENDING_UNREAD_PILL, endingUnreadSentence, moneyCheckNow, moneyCheckPillText, receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord, unconfirmedSentence } from '../../lib/words';
 
 export const MODULE_KEYS: readonly Module[] = ['tables', 'spend', 'counter', 'book', 'shield', 'rescue'];
 
@@ -345,9 +346,14 @@ export type SetupStep = (typeof SETUP_STEPS)[number];
 export type DealFrom = { module: Module; view?: string };
 /** The owner's places, each a layer of the console (rebuild WP2.5; they were sheets before):
  *  agent rules and the wallet limits under them, connections and the pairing desk, settings, the
- *  safety record, and Break The Table beside it ("Try to break it", src/arena). */
-export const PLACES = ['rules', 'limits', 'connections', 'pairing', 'settings', 'safety', 'try'] as const;
+ *  safety record, Break The Table beside it ("Try to break it", src/arena), the proof checker
+ *  (src/proof) and the scenario director (src/director, browser preview only). */
+export const PLACES = ['rules', 'limits', 'connections', 'pairing', 'settings', 'safety', 'try', 'proof', 'director'] as const;
 export type Place = (typeof PLACES)[number];
+/** Places that exist only in the browser preview (never in the desktop shell): the scenario director.
+ *  Their links parse as the centre anywhere else, so the shell can never be steered onto them. */
+export const PREVIEW_PLACES: readonly Place[] = ['director'];
+export const placeAvailable = (p: Place): boolean => !PREVIEW_PLACES.includes(p) || previewPagesAvailable();
 /** Where a place was opened from, when that is not its usual parent: a module page, or Settings. */
 export type PlaceFrom = Module | 'settings';
 export type Route =
@@ -395,7 +401,7 @@ export function parseHash(hash: string): { route: Route } {
   const p = params.get('p');
   // An old sheet or the safety sheet was drawn over the route: the place is what was in front.
   if (s === 'settings' || s === 'pairing' || s === 'mandates') return { route: { level: 'place', place: placeOfSheet(s) } };
-  if (isPlace(p)) {
+  if (isPlace(p) && placeAvailable(p)) {
     const from: PlaceFrom | null = !d && (isModule(m) || m === 'settings') && m !== p ? m : null;
     const route: Route = from ? { level: 'place', place: p, from } : { level: 'place', place: p };
     return { route: !d && v && VIEW_KEY.test(v) ? { ...route, view: v } : route };
@@ -466,7 +472,7 @@ export function withoutView(r: Route): Route {
 }
 
 /** A place's usual parent when it was not opened from anywhere in particular (null = the centre). */
-export const PLACE_PARENT: Readonly<Record<Place, Place | null>> = { rules: null, limits: 'rules', connections: null, pairing: 'connections', settings: null, safety: null, try: null };
+export const PLACE_PARENT: Readonly<Record<Place, Place | null>> = { rules: null, limits: 'rules', connections: null, pairing: 'connections', settings: null, safety: null, try: null, proof: null, director: null };
 
 /**
  * Where Esc / the back button goes from `route` (overlays are handled before this): a module's
@@ -735,6 +741,7 @@ export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side; 
     case 'invoice_sent': return `${by('The wallet')} had PayPal send the invoice for ${x} to the subscriber.${tail}`;
     case 'invoice_paid': return `The subscriber paid the invoice for ${x} on PayPal.`;
     case 'group_withdrawn': return `Another seller agreed first, so your wallet told this seller no on ${x}. No money moved.`;
+    case 'owner_decided': return s.decision ? DEAL_DECISION.sentence(APPROVAL_DECIDED.did[s.decision.operation], x) : `You decided on ${x}.`;
   }
 }
 

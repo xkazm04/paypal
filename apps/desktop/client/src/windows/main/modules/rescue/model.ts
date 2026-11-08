@@ -14,6 +14,7 @@ import type { RescueBook } from '@bindings/RescueBook';
 import type { RescueOffer } from '@bindings/RescueOffer';
 import type { RescueView } from '@bindings/RescueView';
 import type { RescueWatchHold } from '@bindings/RescueWatchHold';
+import { RESCUE, silenceWords, timeLeftWords } from '../../../../lib/words';
 import { dealTotal, isLive } from '../../logic';
 
 export type LeverKey = 'DISCOUNT_THIS_CYCLE' | 'PAUSE' | 'RETRY_AFTER_FIX' | 'DOWNGRADE';
@@ -63,7 +64,7 @@ export const NOT_BUILT = 'Not available yet: only a discount on this cycle can b
 export function retryLeft(deadline: number, now: number): string {
   const s = deadline - now;
   if (s <= 0) return 'now';
-  if (s >= DAY) return `${Math.round(s / DAY)} d`;
+  if (s >= DAY) return timeLeftWords(s); // one rounding rule for every time-left sentence: whole days floored, then hours
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   return `${h} h ${String(m).padStart(2, '0')} m`;
@@ -95,6 +96,23 @@ export function cellState(d: Pick<Deal, 'mode'>, col: Col, retryAt: number | nul
 /** A replayed failure (labelled REPLAY by the owner, PayPal can't fail a test renewal): there is no
  *  failed payment at PayPal, so no surface promises that PayPal retries it. */
 export const isReplay = (d: Pick<Deal, 'mode'>, view?: Pick<RescueView, 'source'> | null): boolean => d.mode === 'replay' || view?.source === 'replay';
+
+/** The one "if you do nothing" answer for a renewal. Rescue, the deal page and the approval window all
+ *  print this, so they cannot disagree: a replay has no failed payment at PayPal to retry, whatever
+ *  default the attention item carries. `raw` is the attention item's on-silence text, when it has one. */
+export function ifNothingOf(d: Pick<Deal, 'mode' | 'kind'>, raw: string | null | undefined, view?: Pick<RescueView, 'source'> | null): string | null {
+  const rescue = d.kind === 'rescue';
+  if (rescue && isReplay(d, view)) return RESCUE.replaySilence;
+  if (raw) return silenceWords(raw);
+  return rescue ? RESCUE.defaultSilence : null;
+}
+
+/** The wallet's own refusal of this fix as one quiet sentence, or null when it would send. Display
+ *  only: the engine refuses the send itself. It never touches "if you do nothing" (ifNothingOf). */
+export function refusalLine(view: Pick<RescueView, 'refusal'> | null | undefined): string | null {
+  const why = view?.refusal ? RESCUE.refusal.why[view.refusal] : null;
+  return why ? RESCUE.refusal.line(why) : null;
+}
 
 /** A fix the owner can pick on the card: the computed discount, or doing nothing. */
 export const pickable = (st: CellState): boolean => st.kind === 'default' || st.kind === 'offer';
@@ -186,6 +204,22 @@ export const viewFor = (book: Pick<RescueBook, 'cases'> | null | undefined, id: 
  *  (Rescue's strip, answer and card, Book's "Needs attention") uses this, so they agree. Without the
  *  wallet's rescue read it falls back to the deal's own terms. */
 export const atRiskOf = (d: Deal, book: Pick<RescueBook, 'cases'> | null | undefined): Money => viewFor(book, d.id)?.offer.cycle ?? dealTotal(d);
+
+/** What the rescues paid back this calendar month (UTC): only the wallet's counted ones, each at the
+ *  invoice it sent. A counted rescue with no date makes the month unknown (null), never a guess. */
+export function recoveredThisMonth(deals: readonly Deal[], book: Pick<RescueBook, 'cases'> | null | undefined, now: number): Money[] | null {
+  if (!book) return null;
+  const at = new Date(now * 1000);
+  const from = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), 1) / 1000;
+  const sums = new Map<Currency, number>();
+  for (const d of deals.filter(isRescueDeal)) {
+    const v = viewFor(book, d.id);
+    if (!v?.counted) continue;
+    if (d.updated_at === undefined) return null;
+    if (d.updated_at >= from) sums.set(v.offer.invoice.currency, (sums.get(v.offer.invoice.currency) ?? 0) + v.offer.invoice.minor);
+  }
+  return [...sums].map(([currency, minor]) => ({ minor, currency }));
+}
 
 // ---- watching ------------------------------------------------------------------------------------
 

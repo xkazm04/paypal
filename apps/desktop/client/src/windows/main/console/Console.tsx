@@ -14,16 +14,17 @@
 // and the browser's Back/forward walk the same chain. Going deeper focuses the new layer's heading;
 // coming back gives focus and scroll back to where they were left.
 // Money: the main window only ever opens the approval window (approval_open).
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
+import { startTransition, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import type { Module } from '@bindings/Module';
 import { useEvent, useMutation } from '../../../lib/hooks';
-import { lazyPart, preloadWhenIdle } from '../../../lib/lazy';
+import { isLazyPart, lazyPart, preloadOnIntent, preloadWhenIdle, whenPartsReady } from '../../../lib/lazy';
 import {
-  A_DEAL, BACK_TITLE, BRAND_NAME, WALLET_FAULT_TOAST, CHARTER_TITLE, BRAND_TITLE, CRUMBS_LABEL, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, NOTICE_WHAT, PLACE, PLACE_TITLE, PLACES_LABEL,
+  A_DEAL, BACK_TITLE, BOARD_TO_BOARD, BOARD_TO_BOARD_TITLE, VIEW_SWITCH, WALLET_FAULT_TOAST, CHARTER_TITLE, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, NOTICE_WHAT, PLACE, PLACE_TITLE,
   SEAL_RING, sealLabel, silenceWords, tabTitle, tabWaiting, TABS_LABEL,
 } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
-import { Mark, Seal } from '../../../shared/brand';
+import { Seal } from '../../../shared/brand';
+import { APP_BRAND_EVENT, APP_FIND_EVENT, APP_STATUS_EVENT, useAppHeaderEvent } from '../AppHeader';
 import { Glyph, MODULE, MODULES } from '../../../shared/modules';
 import { Btn, InspectorHostProvider, layerCount, ModuleTab, Stack, TabStrip, TOAST_MS, useInspectorHost, useToast } from '../../../shared/ui';
 import { shortTitle } from '../home/model';
@@ -37,26 +38,37 @@ import { useDealLabels, useDeals, useLocked, useNeeds, useWorldSelector, type Wo
 import type { CentreProps } from './Centre';
 import { currentIndex, cycle, orderQueue, presenceOf, putOff } from './centreModel';
 import { Find } from './Find';
+import { PlacesMenu, type PlaceGroup, type PlaceItem } from './PlacesMenu';
 import { switchDemo } from './DemoSwitch';
 import { Footer } from './Footer';
 import type { FindTarget } from './findIndex';
-import { CrumbTrail } from './CrumbTrail';
+import { CrumbLabel } from './crumbItems';
 import { CentreHost, type CentreHostValue } from './layers/core';
-import { LayerHost, layerIdOf, placeFromRoute, type LayerNav, type LayerState } from './layers';
-import { LAYER_PARTS, layerOf } from './layers.registry';
+import { LayerHost, layerIdOf, placeFromRoute, type LayerId, type LayerNav, type LayerState } from './layers';
+import { LAYERS, LAYER_PARTS, layerOf } from './layers.registry';
+import { placeAvailable } from '../logic';
 import { useWatching } from './ledger';
 import { focusKeyOf, restoreLayer, type LayerMemory } from './memory';
 import { chainOf, isAncestor, moduleOfRoute, mountKey, parentOf, routeKey, sameLayer, type ChainCtx } from './route';
 import { StaleBanner } from './StaleBanner';
+import { setHomeView } from '../switchboard/view';
 import { StaggerProvider } from './stagger';
 import { watchTable } from '../modules/tables/watchPick';
+// Every tab's stylesheet is part of the window's one eager stylesheet (never fetched with a tab's code),
+// so nothing restyles when a tab's chunk arrives.
+import '../../../arena/arena.css';
+import '../../../proof/proof.css';
+import './areas/try/preview.css';
 import './console.css';
 import './find.css';
 import './framework.css';
 import '../quit.css';
 
 const QuitSheet = lazyPart(() => import('../QuitSheet').then((m) => m.QuitSheet));
+// Idle preload order = likeliest next first (the six modules, then the places), one chunk per idle slot.
 const LATER_PARTS = [...LAYER_PARTS, QuitSheet];
+/** A navigation waits this long at most for the next tab's code, keeping the old screen up meanwhile. */
+const READY_CAP_MS = 300;
 
 type Dir = 'into' | 'out' | 'swap';
 type Nav = { route: Route; dir: Dir; restore: boolean; n: number };
@@ -74,11 +86,26 @@ function toneOf(r: Route, m: Module | null): string {
 }
 
 /** The places the top bar opens, and which place keeps a button lit. */
-const BAR_PLACES: ReadonlyArray<{ place: Place; label: string; title: string; lit: readonly Place[] }> = [
+type BarPlace = { place: Place; label: string; title: string; lit: readonly Place[] };
+const ALL_BAR_PLACES: readonly BarPlace[] = [
   { place: 'rules', label: PLACE.rules, title: PLACE_TITLE.rules, lit: ['rules', 'limits'] },
   { place: 'connections', label: PLACE.connections, title: PLACE_TITLE.connections, lit: ['connections', 'pairing'] },
   { place: 'settings', label: PLACE.settings, title: PLACE_TITLE.settings, lit: ['settings'] },
+  { place: 'try', label: PLACE.try, title: PLACE_TITLE.try, lit: ['try'] },
+  { place: 'proof', label: PLACE.proof, title: PLACE_TITLE.proof, lit: ['proof'] },
+  { place: 'director', label: PLACE.director, title: PLACE_TITLE.director, lit: ['director'] },
 ];
+/** The preview-only tab (the director) is left out of the desktop shell. */
+const BAR_PLACES = ALL_BAR_PLACES.filter((b) => placeAvailable(b.place));
+/** Hover / focus on a top-bar place or a module tab warms its chunk, so the click that follows swaps at once. */
+function warmOnIntent(e: { target: EventTarget }): void {
+  const el = e.target instanceof Element ? e.target.closest('[id^="cs-place-"],[id^="cs-tab-"]') : null;
+  const id = el?.id.replace(/^cs-(place|tab)-/, '');
+  if (!id) return;
+  const def = (LAYERS as ReadonlyMap<string, { component: unknown }>).get(id);
+  if (def) preloadOnIntent(def.component);
+}
+
 
 export function Console() {
   const toast = useToast();
@@ -116,6 +143,9 @@ export function Console() {
   const ctxRef = useRef(ctx);
   ctxRef.current = ctx;
 
+  const swapTicket = useRef(0);
+  /** The layer a press is waiting on (its code is still arriving): its tab lights now, the old screen stays. */
+  const [pending, setPending] = useState<Route | null>(null);
   const memory = useRef(new Map<string, LayerMemory>());
   const layerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -134,7 +164,16 @@ export function Console() {
     const dir: Dir = sameLayer(from, to) ? 'swap' : up ? 'out' : chainOf(to, c).length > chainOf(from, c).length ? 'into' : 'swap';
     // Opening or closing a card view keeps the sheet (and its entrance) as it is.
     const sameSheet = mountKey(from) === mountKey(to);
-    setNav((n) => ({ route: to, dir: sameSheet ? n.dir : dir, restore: up, n: sameLayer(from, to) ? n.n : n.n + 1 }));
+    const commit = () => startTransition(() => { setPending(null); setNav((n) => ({ route: to, dir: sameSheet ? n.dir : dir, restore: up, n: sameLayer(from, to) ? n.n : n.n + 1 })); });
+    // The old screen stays up until the next one's code is here (capped), then swaps in one commit; a
+    // newer move supersedes a pending one. Code already loaded swaps in the same tick.
+    const mine = ++swapTicket.current;
+    const part = layerOf(to).component;
+    // The press answers on the very frame (the tab / place lights at once) while the code arrives.
+    if (isLazyPart(part) && !part.ready()) setPending(to);
+    else setPending(null);
+    if (isLazyPart(part) && !part.ready()) void whenPartsReady([part], READY_CAP_MS).then(() => { if (swapTicket.current === mine) commit(); });
+    else commit();
   }, []);
 
   /** Go to a layer: a new history entry (or the same one with `replace`). */
@@ -207,6 +246,8 @@ export function Console() {
   const [find, setFind] = useState(false);
   const [help, setHelp] = useState(false);
   const [quit, setQuit] = useState(false);
+  // The app header's brand, status and Find (AppHeader.tsx) announce themselves; this view answers.
+  useAppHeaderEvent(APP_FIND_EVENT, useCallback(() => setFind(true), []));
   const [rewindAt, setRewindAt] = useState<number | null>(null);
   const [paidFlash, setPaidFlash] = useState(false);
   useEffect(() => preloadWhenIdle(LATER_PARTS), []);
@@ -214,6 +255,8 @@ export function Console() {
 
   // ---- navigation helpers ---------------------------------------------------------------------
   const goHome = useCallback(() => { if (navRef.current.route.level !== 'home') go({ level: 'home' }); }, [go]);
+  useAppHeaderEvent(APP_BRAND_EVENT, goHome);
+  useAppHeaderEvent(APP_STATUS_EVENT, useCallback(() => (queue.length ? go({ level: 'waiting' }) : goHome()), [queue.length, go, goHome]));
   const goModule = useCallback((m: Module) => go({ level: 'module', module: m }), [go]);
   const goDeal = useCallback((id: string) => {
     const r = navRef.current.route;
@@ -305,7 +348,7 @@ export function Console() {
   // ---- what the frame shows -------------------------------------------------------------------
   const chain = chainOf(route, ctx);
   const depth = chain.length;
-  const lit = moduleOfRoute(route, ctx);
+  const lit = moduleOfRoute(pending ?? route, ctx);
   const tabRow = useRef<HTMLDivElement>(null);
   useTabStop(tabRow, lit);
   const said = presenceOf({ firstRun, top, deal: topDeal, heldAtPayPal: watching.held, moving: watching.moving.length, paidFlash });
@@ -314,6 +357,14 @@ export function Console() {
   const centreRoute = route.level === 'home';
   const pile = centreRoute ? Math.min(3, Math.max(0, queue.length - 1)) : depth - 1;
   const def = layerOf(route);
+  // Kept-alive layers (heavy preview tabs): once opened they stay mounted behind the front one.
+  const [keptIds, setKeptIds] = useState<readonly LayerId[]>([]);
+  const keptRoutes = useRef(new Map<LayerId, Route>());
+  if (def.keepAlive) {
+    const id = layerIdOf(route);
+    keptRoutes.current.set(id, route);
+    if (!keptIds.includes(id)) setKeptIds([...keptIds, id]);
+  }
 
   const centre = useMemo<CentreProps>(() => ({
     queue, cur, presence, onPick: setPicked, onDeal: goDeal,
@@ -334,29 +385,47 @@ export function Console() {
   const layerState = useMemo<LayerState>(() => ({ rewindAt, pairMode: pairStart, firstRun, presence }), [rewindAt, pairStart, firstRun, presence]);
 
   const insp = useInspectorHost();
-  // A crumb goes to that layer; the one just above is the same as Back.
-  const crumbs = chain.map((r, i) => ({ label: <CrumbLabel r={r} firstRun={firstRun} />, onClick: i === chain.length - 2 ? back : i < chain.length - 2 ? () => go(r) : undefined }));
-  const placeLit = route.level === 'place' ? route.place : null;
+  // The top bar names the current place (the same label as the last crumb); the trail itself is in the content.
+  const here = chain.length ? chain[chain.length - 1] : null;
+  const litRoute = pending ?? route;
+  const placeLit = litRoute.level === 'place' ? litRoute.place : null;
+  const placeItem = (p: BarPlace): PlaceItem => ({ id: `cs-place-${p.place}`, label: p.label, title: p.title, lit: !!placeLit && p.lit.includes(placeLit), onPick: () => barPlace(p.place) });
+  const placeBy = (k: Place) => BAR_PLACES.filter((b) => b.place === k).map(placeItem);
+  const placeGroups: PlaceGroup[] = [
+    { key: 'watch', items: [{ id: 'cs-place-rewind', label: PLACE.rewind, title: PLACE_TITLE.rewind, lit: route.level === 'rewind', onPick: () => goRewind() }, ...placeBy('proof')] },
+    { key: 'configure', items: [...placeBy('rules'), ...placeBy('connections'), ...placeBy('settings')] },
+    { key: 'lab', items: [...placeBy('try'), ...placeBy('director')] },
+  ];
 
   return (
-    <div className={`cs-app${depth > 1 ? ' deep' : ''}`} inert={find || undefined} style={{ '--seal': `var(--${SEAL_TONE[presence.state]})` } as CSSProperties}>
+    <div className={`cs-app ui-ground${depth > 1 ? ' deep' : ''}`} inert={find || undefined} onPointerOver={warmOnIntent} onFocus={warmOnIntent} style={{ '--seal': `var(--${SEAL_TONE[presence.state]})` } as CSSProperties}>
       <header className="cs-bar">
         <div className="cs-barl">
-          <button type="button" className="cs-brand" onClick={goHome} title={BRAND_TITLE} aria-label={BRAND_TITLE}><Mark /><span>{BRAND_NAME}</span></button>
           {depth > 1 ? <button type="button" className="cs-back" onClick={back} title={BACK_TITLE}><span aria-hidden="true">‹</span> {DETAIL_BACK}</button> : null}
-          <CrumbTrail items={crumbs} label={CRUMBS_LABEL} depth={depth} chainKey={chain.map(routeKey).join('>')} />
+          {here ? <span className="cs-here" data-testid="cs-here" title={def.title(route)}><CrumbLabel r={here} firstRun={firstRun} /></span> : null}
         </div>
-        <nav className="cs-places" aria-label={PLACES_LABEL}>
-          <button type="button" id="cs-needpill" className={`cs-needpill${queue.length ? '' : ' zero'}`} aria-label={needPillLabel(queue.length)}
-            onClick={() => (queue.length ? go({ level: 'waiting' }) : goHome())}>{needPill(queue.length)}</button>
-          <button type="button" id="cs-place-rewind" className={`cs-place${route.level === 'rewind' ? ' on' : ''}`} onClick={() => goRewind()} title={PLACE_TITLE.rewind}>{PLACE.rewind}</button>
-          {BAR_PLACES.map((b) => (
-            <button key={b.place} type="button" id={`cs-place-${b.place}`} className={`cs-place${placeLit && b.lit.includes(placeLit) ? ' on' : ''}`}
-              aria-current={placeLit && b.lit.includes(placeLit) ? 'page' : undefined} onClick={() => barPlace(b.place)} title={b.title}>{b.label}</button>
-          ))}
-          <button type="button" className="cs-place" onClick={() => setFind(true)} title={PLACE_TITLE.find}>{PLACE.find} <kbd>/</kbd></button>
+        <div className="cs-view" role="group" aria-label={VIEW_SWITCH.label}>
+          <button type="button" id="cs-place-board" className="cs-seg" onClick={() => setHomeView('board')} title={BOARD_TO_BOARD_TITLE}>{BOARD_TO_BOARD}</button>
+          <button type="button" className="cs-seg on" aria-current="page" title={VIEW_SWITCH.everythingTitle}>{VIEW_SWITCH.everything}</button>
+        </div>
+        <div className="cs-tabrow" ref={tabRow}>
+          <TabStrip label={TABS_LABEL}>
+            {MODULES.map((m, i) => {
+              const waiting = queue.filter((n) => n.module === m.key).length;
+              const count = !deals ? null : m.key === 'book' ? deals.length : deals.filter((d) => moduleOfDeal(d) === m.key).length;
+              return (
+                <ModuleTab key={m.key} id={`cs-tab-${m.key}`} active={lit === m.key} onSelect={() => goModule(m.key)} color={m.cssVar} icon={<Glyph module={m.key} />} controls={PANEL_ID}
+                  title={tabTitle(m.name, m.long, i + 1)}
+                  label={<>{m.name}<span className={`tt${count === null ? ' unknown' : ''}`}>{formatCount(count)}</span>
+                    {waiting ? <span className="cnt"><span aria-hidden="true">{formatCount(waiting)}</span><span className="sr-only">{tabWaiting(waiting)}</span></span> : null}</>} />
+              );
+            })}
+          </TabStrip>
+        </div>
+        <div className="cs-places">
+          <PlacesMenu groups={placeGroups} />
           <LockButton />
-        </nav>
+        </div>
       </header>
       <StaleBanner />
       <InspectorHostProvider value={insp.value}>
@@ -364,28 +433,25 @@ export function Console() {
           <main className={`cs-stage${insp.open ? ' has-insp' : ''}`} ref={stageRef}>
             <Stack label={route.level === 'home' && firstRun ? CHARTER_TITLE : def.title(route)} depth={pile} tone={toneOf(route, lit)} gold={centreRoute && queue.length > 1}
               corner={depth > 1 && !def.ownSeal ? <Seal size="corner" state={presence.state} label={sealLabel(presence.word, presence.line)} ring={SEAL_RING} /> : undefined}
-              tabs={(
-                <div className="cs-tabrow" ref={tabRow}>
-                  <TabStrip label={TABS_LABEL}>
-                    {MODULES.map((m, i) => {
-                      const waiting = queue.filter((n) => n.module === m.key).length;
-                      const count = !deals ? null : m.key === 'book' ? deals.length : deals.filter((d) => moduleOfDeal(d) === m.key).length;
-                      return (
-                        <ModuleTab key={m.key} id={`cs-tab-${m.key}`} active={lit === m.key} onSelect={() => goModule(m.key)} color={m.cssVar} icon={<Glyph module={m.key} />} controls={PANEL_ID}
-                          title={tabTitle(m.name, m.long, i + 1)}
-                          label={<>{m.name}<span className={`tt${count === null ? ' unknown' : ''}`}>{formatCount(count)}</span>
-                            {waiting ? <span className="cnt"><span aria-hidden="true">{formatCount(waiting)}</span><span className="sr-only">{tabWaiting(waiting)}</span></span> : null}</>} />
-                      );
-                    })}
-                  </TabStrip>
-                  <p className="cs-presence" aria-live="polite"><b>{presence.word}</b> · {presence.line}</p>
+              tabs={<p className="cs-presence" aria-live="polite"><b>{presence.word}</b> · {presence.line}</p>}>
+              {def.keepAlive ? null : (
+                <div ref={layerRef} key={sheetKey} id={PANEL_ID} role={lit ? 'tabpanel' : undefined} aria-labelledby={lit ? `cs-tab-${lit}` : undefined} className="cs-layer" data-dir={nav.dir} data-level={route.level} data-layer={layerIdOf(route)} data-fit={def.fit ? '' : undefined}>
+                  <CentreHost.Provider value={host}>
+                    <LayerHost def={def} route={route} nav={layerNav} state={layerState} resetKey={sheetKey} />
+                  </CentreHost.Provider>
                 </div>
-              )}>
-              <div ref={layerRef} key={sheetKey} id={PANEL_ID} role={lit ? 'tabpanel' : undefined} aria-labelledby={lit ? `cs-tab-${lit}` : undefined} className="cs-layer" data-dir={nav.dir} data-level={route.level} data-layer={layerIdOf(route)} data-fit={def.fit ? '' : undefined}>
-                <CentreHost.Provider value={host}>
-                  <LayerHost def={def} route={route} nav={layerNav} state={layerState} resetKey={sheetKey} />
-                </CentreHost.Provider>
-              </div>
+              )}
+              {keptIds.map((id) => {
+                const on = def.keepAlive && layerIdOf(route) === id;
+                const kdef = LAYERS.get(id);
+                const kroute = on ? route : keptRoutes.current.get(id);
+                if (!kdef || !kroute) return null;
+                return (
+                  <div key={`kept:${id}`} ref={on ? layerRef : undefined} id={on ? PANEL_ID : undefined} className="cs-layer" hidden={!on} inert={!on || undefined} data-dir={nav.dir} data-level={kroute.level} data-layer={id} data-fit={kdef.fit ? '' : undefined}>
+                    <LayerHost def={kdef} route={kroute} nav={layerNav} state={layerState} resetKey={mountKey(kroute)} active={on} />
+                  </div>
+                );
+              })}
             </Stack>
             <aside className="ui-inspector cs-insp" ref={insp.ref} hidden={!insp.open} aria-label={INSPECTOR_LABEL} />
           </main>
@@ -416,17 +482,6 @@ function useTabStop(row: RefObject<HTMLDivElement | null>, lit: Module | null): 
 export const PAID_FLASH_MS = TOAST_MS;
 const selDisplay = (w: World) => w.display;
 const SEAL_TONE = { quiet: 'steel', watching: 'teal', needs: 'gold', holding: 'coral', paid: 'ok', stopped: 'red' } as const;
-
-/** A crumb: the layer's own Crumb (a deal's name, a module view's label), else its title. */
-function CrumbLabel({ r, firstRun }: { r: Route; firstRun: boolean }) {
-  if (r.level === 'home' && firstRun) return <>{CHARTER_TITLE}</>;
-  const def = layerOf(r);
-  const v = sheetViewOf(r);
-  const view = v ? def.views?.[v] : undefined;
-  if (view) return <>{view}</>;
-  const C = def.Crumb;
-  return C ? <C route={r} /> : <>{def.title(r)}</>;
-}
 
 /** Idle-lock state. Locked: a click opens the approval window, where Windows Hello unlocks. When the
  *  window could not open, a toast says so (the centre's gold action shows the same as a notice). */

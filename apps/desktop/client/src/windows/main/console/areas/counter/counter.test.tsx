@@ -67,6 +67,41 @@ describe('Counter flows', () => {
   }, 60_000);
 });
 
+
+describe('counter rows are one line', () => {
+  it.each(['orders', 'prices', 'earlier'] as const)('every row of the %s list is one .row1, its note is a c-note cell and the row title', async (view) => {
+    const r = await renderLayerAtScale({ level: 'module', module: 'counter', view }, 'large');
+    const rows = [...r.layer.querySelectorAll<HTMLElement>('.tr-list .le-row')];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.querySelectorAll('.row1')).toHaveLength(1);
+      expect(row.querySelector('.tr-row, .t .sub')).toBeNull();
+      const note = row.querySelector('.row1 > .c-note');
+      if (note) expect(row.querySelector('.row1')?.getAttribute('title')).toBeTruthy();
+    }
+  }, 60_000);
+});
+
+describe('counter Latest strip rows are one line', () => {
+  it('each strip row is a single .row1 with no second text block', async () => {
+    const r = await renderLayerAtScale({ level: 'module', module: 'counter' }, 'large');
+    await waitFor(() => expect(r.layer.querySelectorAll('.lt-item').length).toBeGreaterThan(0));
+    for (const item of r.layer.querySelectorAll('.lt-item')) {
+      expect(item.querySelectorAll('.row1')).toHaveLength(1);
+      expect(item.querySelector('.tr-row, .cs-dealrow, .t .sub')).toBeNull();
+    }
+  }, 60_000);
+});
+
+describe('counter split lists leave the note to the pane', () => {
+  it.each(['orders', 'prices', 'earlier'] as const)('the %s list beside its pane draws no note column', async (view) => {
+    const r = await renderLayerAtScale({ level: 'module', module: 'counter', view }, 'large');
+    expect(r.layer.querySelectorAll('.tr-list .le-row .row1').length).toBeGreaterThan(0);
+    expect(r.layer.querySelectorAll('.tr-list .c-note')).toHaveLength(0);
+    expect(r.layer.querySelectorAll('.tr-list .row1[data-noted]')).toHaveLength(0);
+  }, 60_000);
+});
+
 describe('Counter words', () => {
   it('never name a vendor other than PayPal, an engine, a raw state or an id', () => {
     for (const w of [...wordsOf(COUNTER), ...wordsOf(COUNTER_VIEWS)]) {

@@ -28,6 +28,17 @@ const HEAD_BYTES: usize = 2048;
 /// Every audit action the workspace writes and the detail keys it writes today.
 /// Adding an action is one entry here.
 pub(crate) const ACTION_KEYS: &[(&str, &[&str])] = &[
+    (
+        "assistant.act",
+        &[
+            "source",
+            "act",
+            "agent",
+            "consent",
+            "consent_hash",
+            "fingerprint",
+        ],
+    ),
     ("attention.rung", &["deadline", "rung", "reason"]),
     ("command.refused", &["command", "window", "tier"]),
     ("counterparty.expiry_set", &["key_id", "expires_at"]),
@@ -133,10 +144,14 @@ pub(crate) const ACTION_KEYS: &[(&str, &[&str])] = &[
         "owner.decision",
         &[
             "decision",
+            "operation",
             "decided_by",
+            "checks",
             "checks_hash",
             "terms_hash",
             "attempt",
+            "owner_key",
+            "signature",
         ],
     ),
     ("paypal.response", &["status", "path", "debug_id"]),

@@ -1,0 +1,139 @@
+<title>Five Names for the App</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Marcellus&family=Figtree:wght@500;700;800&family=Barlow+Condensed:wght@600;700&family=Bricolage+Grotesque:wght@600;800&family=Sora:wght@500;700&display=swap">
+<style>
+/* Layout: one calm reading column per proposal, each with its own palette; assets lead, rationale follows. */
+:root {
+  --bg: #f5f6f8; --panel: #ffffff; --fg: #16181d; --muted: #5a6070; --line: #dfe2e8;
+  --ui: "Hanken Grotesk", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0f1115; --panel: #171a20; --fg: #eef0f4; --muted: #9aa1b0; --line: #272b34; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #0f1115; --panel: #171a20; --fg: #eef0f4; --muted: #9aa1b0; --line: #272b34; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 400 16px/1.55 var(--ui); padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; }
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 56px; }
+header h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.05; margin: 0 0 12px; letter-spacing: -.02em; text-wrap: balance; }
+header p { margin: 0; max-width: 62ch; color: var(--muted); }
+.brief { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 12px/1 var(--mono); letter-spacing: .04em; padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+nav.jump { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+nav.jump a { font-weight: 600; font-size: 14px; text-decoration: none; color: var(--fg); padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); }
+nav.jump a:hover { border-color: var(--fg); }
+
+.brand { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; scroll-margin-top: 24px; }
+.hero { position: relative; background: var(--b-ground); color: var(--b-ink); padding: clamp(24px, 4vw, 44px); display: grid; gap: 24px; grid-template-columns: 1.1fr 1fr; align-items: center; }
+.hero .banner { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 12px; display: block; }
+.word { font-family: var(--b-font); font-weight: var(--b-weight, 700); font-size: clamp(44px, 8vw, 84px); line-height: .95; letter-spacing: var(--b-track, -.01em); margin: 0; text-transform: var(--b-case, none); }
+.slogan { margin: 12px 0 0; font-size: clamp(16px, 2vw, 20px); opacity: .85; text-wrap: balance; }
+.tag { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; opacity: .7; margin: 0 0 14px; }
+.body { padding: clamp(20px, 3vw, 36px); display: grid; gap: 32px; grid-template-columns: 200px 1fr 170px; align-items: start; }
+.body figure { margin: 0; display: grid; gap: 8px; }
+.body figcaption, .label { font: 500 11px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.icons { display: grid; gap: 14px; justify-items: start; }
+.icons img.icon { width: 160px; height: 160px; border-radius: 28px; display: block; }
+.icons .small { display: flex; gap: 10px; align-items: end; }
+.icons .small img { border-radius: 22%; display: block; }
+.copy { display: grid; gap: 18px; min-width: 0; }
+.copy h3 { margin: 0 0 4px; font-size: 13px; font: 500 11px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.copy p { margin: 0; max-width: 60ch; }
+.palette { display: flex; gap: 6px; flex-wrap: wrap; }
+.sw { width: 54px; display: grid; gap: 4px; font: 400 10px/1.2 var(--mono); color: var(--muted); }
+.sw i { display: block; height: 34px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--fg) 14%, transparent); }
+.voice { border-left: 3px solid var(--b-accent); padding-left: 14px; font-style: italic; }
+.risk { font-size: 14px; color: var(--muted); }
+.thumb img { width: 100%; max-width: 170px; aspect-ratio: 2/3; object-fit: cover; border-radius: 14px; display: block; }
+
+/* the app header, as it would read with this name */
+.mock { margin-top: 4px; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: var(--b-ground); color: var(--b-ink); font-size: 13px; min-width: 0; flex-wrap: wrap; }
+.mock img { width: 22px; height: 22px; border-radius: 6px; }
+.mock b { font-family: var(--b-font); font-weight: var(--b-weight, 700); letter-spacing: var(--b-track, 0); text-transform: var(--b-case, none); font-size: 15px; }
+.mock .sl { opacity: .7; padding-left: 10px; border-left: 1px solid color-mix(in srgb, var(--b-ink) 30%, transparent); }
+.mock .fill { flex: 1 1 20px; }
+.mock .pill { border: 1px solid color-mix(in srgb, var(--b-ink) 40%, transparent); border-radius: 999px; padding: 3px 10px; font-size: 12px; }
+
+.signet { --b-ground: #0e1730; --b-ink: #f3ead6; --b-accent: #c9a45c; --b-font: "Marcellus", serif; --b-weight: 400; --b-track: .14em; --b-case: uppercase; }
+.steward { --b-ground: #125a52; --b-ink: #f6efe2; --b-accent: #d98b63; --b-font: "Figtree", sans-serif; --b-weight: 800; --b-track: -.02em; }
+.keel { --b-ground: #052c4a; --b-ink: #f2f6f7; --b-accent: #f47a2b; --b-font: "Barlow Condensed", sans-serif; --b-weight: 700; --b-track: .06em; --b-case: uppercase; }
+.tally { --b-ground: #f26e5c; --b-ink: #25201d; --b-accent: #5fbf9f; --b-font: "Bricolage Grotesque", sans-serif; --b-weight: 800; --b-track: -.03em; }
+.aval { --b-ground: #0a0a18; --b-ink: #e9e8ff; --b-accent: #8b7cf6; --b-font: "Sora", sans-serif; --b-weight: 700; --b-track: -.02em; }
+
+.pick { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: grid; gap: 8px; }
+.pick h2 { margin: 0; font-size: 20px; }
+.pick p { margin: 0; color: var(--muted); max-width: 70ch; }
+@media (max-width: 860px) { .hero { grid-template-columns: 1fr; } .body { grid-template-columns: 1fr; } .thumb img { max-width: 200px; } }
+@media (prefers-reduced-motion: no-preference) { .brand { animation: rise .5s ease both; } @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } } }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="label">Naming round · desktop app</p>
+    <h1>Five names for the app that is not called The Table</h1>
+    <p>The product lets AI agents handle money while the owner decides. Nothing moves without a yes. Each proposal below has its own character, palette, voice and a full asset set: a 1:1 app icon, a 16:9 banner and a 2:3 thumbnail.</p>
+    <div class="brief"><span class="chip">Tone: calm, trustworthy, plain-spoken</span><span class="chip">Promise: agents work, you decide</span><span class="chip">Names are not trademark-cleared</span></div>
+    <nav class="jump" id="jump" aria-label="Proposals"></nav>
+  </header>
+  <main id="brands" class="wrap" style="gap:32px"></main>
+  <section class="pick">
+    <h2>Which one fits the product today</h2>
+    <p>Signet is the closest to what the app already does. Its approval ends in a hold-to-seal gesture and the existing mark is a seal, so the name explains the product without a tagline. Keel is the strongest runner-up if the product should feel less formal and more like infrastructure you stop thinking about. Check each name against trademark and domain availability before choosing.</p>
+  </section>
+</div>
+
+<script>
+const BRANDS = [
+  { id: 'signet', name: 'Signet', slogan: 'Your seal on every move.', tag: 'Heritage · authority',
+    character: 'A formal, quiet authority. Signet is the ring that makes a document official, so the name says that nothing here is valid until the owner puts a seal on it. It sounds like a bank that works for you.',
+    voice: '“Three things are waiting for your seal. Nothing has moved.”',
+    mark: 'A signet ring whose face is a round table seen from above, with a gold diamond at its centre: the old name survives as a quiet detail.',
+    risk: 'Common word; several finance and software products use it. Needs a clearance search.',
+    pal: [['Ink','#0e1730'],['Gold','#c9a45c'],['Ivory','#f3ead6'],['Slate','#2a3556']] },
+  { id: 'steward', name: 'Steward', slogan: 'Handled. You decide.', tag: 'Service · calm',
+    character: 'A household steward: attentive, discreet and never in the way. The app takes care of the routine and brings only the real choices to the owner, in plain words.',
+    voice: '“All quiet. Two renewals were handled; one purchase wants a look.”',
+    mark: 'An open hand cupping a small glowing coin under a serving dome: care, with something precious kept safe.',
+    risk: 'Used as a word in many product names; the single word may be hard to own.',
+    pal: [['Teal','#125a52'],['Cream','#f6efe2'],['Copper','#d98b63'],['Pine','#0b3b36']] },
+  { id: 'keel', name: 'Keel', slogan: 'Steady money, whatever the weather.', tag: 'Stability · seafaring',
+    character: 'The part of a ship you never see that keeps it upright. Keel sells stability: agents can lean into the wind because the owner’s rules hold the hull steady.',
+    voice: '“Rules held. Two payments stopped at the line you set.”',
+    mark: 'A keel blade crossed by a wave, whose crest forms the K. Orange is the one warning colour, used only when a person is needed.',
+    risk: 'Short, strong and available as a word, so expect crowded results in search.',
+    pal: [['Deep sea','#052c4a'],['Signal','#f47a2b'],['Foam','#f2f6f7'],['Tide','#1f6f8b']] },
+  { id: 'tally', name: 'Tally', slogan: 'Every cent accounted for.', tag: 'Plain-spoken · playful',
+    character: 'Friendly bookkeeping. Tally counts things the way a person would, with strokes on a page, and makes the owner feel on top of their money rather than watched over.',
+    voice: '“Five tallied today. €42.10 out, all of it yours to see.”',
+    mark: 'Four tally strokes crossed by a fifth that doubles as a check mark: counted and approved in one gesture.',
+    risk: 'Light, consumer-leaning tone; may undersell the security story for business owners.',
+    pal: [['Coral','#f26e5c'],['Paper','#f7f0e6'],['Ink','#25201d'],['Mint','#5fbf9f']] },
+  { id: 'aval', name: 'Aval', slogan: 'Agents ask. You answer.', tag: 'Modern · consent',
+    character: 'An aval is a guarantee signed on someone else’s behalf. The name carries consent and responsibility in two syllables, and the look is precise, technical and a little futuristic.',
+    voice: '“An agent is asking for €120. Approve, change or decline.”',
+    mark: 'Two interlocking arcs make an A that is also an open gate: something may pass, but only through you.',
+    risk: 'Unfamiliar word for most English speakers; pronounceable, but it needs explaining once.',
+    pal: [['Night','#0a0a18'],['Indigo','#5b6cf6'],['Violet','#9a78f8'],['Mint','#9ce8d2']] },
+];
+const root = document.getElementById('brands'), jump = document.getElementById('jump');
+for (const b of BRANDS) {
+  const a = document.createElement('a'); a.href = '#' + b.id; a.textContent = b.name; jump.append(a);
+  const s = document.createElement('section'); s.className = 'brand ' + b.id; s.id = b.id;
+  s.innerHTML = `
+    <div class="hero">
+      <div><p class="tag">${b.tag}</p><h2 class="word">${b.name}</h2><p class="slogan">${b.slogan}</p></div>
+      <img class="banner" src="${b.id}/banner.png" alt="${b.name} banner, 16 by 9" loading="lazy">
+    </div>
+    <div class="body">
+      <div class="icons"><figure><img class="icon" src="${b.id}/icon.png" alt="${b.name} app icon, 1 by 1" loading="lazy"><figcaption>Icon 1:1</figcaption></figure>
+        <div class="small"><img src="${b.id}/icon.png" width="48" height="48" alt=""><img src="${b.id}/icon.png" width="32" height="32" alt=""><img src="${b.id}/icon.png" width="20" height="20" alt=""></div></div>
+      <div class="copy">
+        <div><h3>Character</h3><p>${b.character}</p></div>
+        <div><h3>Voice</h3><p class="voice">${b.voice}</p></div>
+        <div><h3>Mark</h3><p>${b.mark}</p></div>
+        <div><h3>Palette</h3><div class="palette">${b.pal.map(([n,c]) => `<div class="sw"><i style="background:${c}"></i>${n}<br>${c}</div>`).join('')}</div></div>
+        <div><h3>In the app header</h3><div class="mock"><img src="${b.id}/icon.png" alt=""><b>${b.name}</b><span class="sl">${b.slogan}</span><span class="fill"></span><span class="pill">Nothing needs you</span></div></div>
+        <p class="risk"><b>Watch for:</b> ${b.risk}</p>
+      </div>
+      <div class="thumb"><figure><img src="${b.id}/thumbnail.png" alt="${b.name} thumbnail, 2 by 3" loading="lazy"><figcaption>Thumbnail 2:3</figcaption></figure></div>
+    </div>`;
+  root.append(s);
+}
+</script>

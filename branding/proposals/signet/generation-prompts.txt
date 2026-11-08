@@ -1,0 +1,34 @@
+Generated using built-in image_gen imagegen tool.
+
+Banner delivery crop: 4px left/right, 2px top and 3px bottom, for exact 16:9.
+
+icon.png
+Use case: logo-brand.
+Asset type: icon.png, premium desktop app icon. Generate ONE image, exactly square 1:1, 1024 x 1024.
+Primary request: a calm desktop app for an owner supervising AI agents handling money; the owner's seal on every move. Formal, authoritative, heritage, premium and trustworthy.
+Subject: ONE distinctive geometric signet ring. A small circular signet face reads as a round table seen exactly from above, a simple gold diamond precisely at its centre. A clean geometric ring band extends below the circular face as a symmetrical open loop, so the entire silhouette unmistakably reads as a signet ring. The table face has a restrained ivory circular outline and four subtle evenly spaced table-position notches. Clear balanced geometry, substantial strokes, simple enough to read as a small app icon.
+Composition: centre the complete mark on a deep ink navy rounded-square tile, itself centred on a warm ivory square canvas with generous even margins. The mark has generous breathing room within the tile.
+Color palette: deep ink navy #101D30, warm muted gold #C5A365, warm ivory #F6F0E4. Only these flat colors.
+Style: flat modern vector illustration, precise crisp geometry, confident silhouette, generous negative space. No gradients, no 3D, no metallic photography, no shadows, no texture.
+Constraints: NO text, NO letters, NO numbers, NO typography, NO real-company logos, NO watermark. One mark only. The central diamond must be gold.
+
+banner.png
+Use case: logo-brand.
+Asset type: banner.png. Generate ONE wide brand banner, exact 16:9 landscape ratio, preferably 1792 x 1008 or 2048 x 1152.
+Input image 1 is the identity reference: preserve this precise signet ring mark, its geometry, circular ivory table face with four inward notches, central gold diamond, and gold open-loop ring band. Reuse its proportions faithfully.
+Primary request: a calm desktop app for supervising AI agents handling money. Formal, authoritative, heritage; the owner's seal on every move.
+Composition: place one large complete signet mark in the right third, occupying about 60% of canvas height. Remove the app tile and ivory square surround; the signet appears directly against a full-bleed deep ink navy field. Leave the left 50% as generous quiet navy negative space for a future title, but render absolutely NO title or text.
+Atmospheric brand scene/pattern: restrained large circular table-inspired architectural arcs and concentric geometric rings extend from behind the mark to the top, bottom and right edges, with a few fine muted gold line details. Subtle flat navy tonal shapes; confident and serene, no busy web of nodes. Edge-to-edge composition.
+Palette: deep ink navy #101D30, warm muted gold #C5A365, ivory #F6F0E4; same palette as reference.
+Style: flat modern vector illustration, premium, crisp geometry, generous negative space, solid fills. NO gradients, textures, 3D, shadows, photographic materials.
+Constraints: preserve the exact reference signet as the single hero mark. NO text, letters, numbers, real-company logos, watermark. No app UI or extra symbols.
+
+thumbnail.png
+Use case: logo-brand.
+Asset type: thumbnail.png, premium app-store portrait poster. Generate ONE portrait image with exact 2:3 width:height ratio, 1024 x 1536.
+Input image 1 is the identity reference: faithfully preserve this exact signet mark and its proportions: circular ivory table face with four inward notches, a gold diamond at the exact centre, broad gold open-loop ring band below.
+Primary request: a calm desktop app where the owner supervises AI agents handling money and seals every approved move. Formal, authoritative, heritage.
+Composition: poster-like portrait, warm ivory field extending to all four edges, generous negative space above and below. A tall deep ink navy architectural panel with a semicircular arch at its top rises from near the lower edge, centred with substantial ivory margins, evoking a refined seal presentation. One complete large reference signet mark centred within the navy panel around the middle of the poster, with ample breathing room. A restrained thin warm gold inset arch line frames the signet; geometric circular motifs are subtle and secondary. Keep the signet untouched and easy to recognize.
+Palette: deep ink navy #101D30, warm muted gold #C5A365, ivory #F6F0E4, exactly the same visual family as reference.
+Style: flat modern vector illustration, crisp geometry, premium heritage stationery feeling, solid fills, generous negative space. No gradients, texture, 3D, photorealism or shadows.
+Constraints: only ONE hero signet mark. NO text, NO letters, NO numbers, NO typography, NO company logos, NO watermark. No UI or additional icons.

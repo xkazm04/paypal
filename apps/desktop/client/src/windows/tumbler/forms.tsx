@@ -20,7 +20,7 @@ import { ModeBadge } from '../../shared/honesty';
 import { MODULE } from '../../shared/modules';
 import { Btn, Chip, Hint, Hourglass, Kv, Meter, Popover } from '../../shared/ui';
 import {
-  MODE_SHORT, approveWindow, cardActions, cardClock, cardKeys, cardQuestion, cardWhy, moneyCheckEnded, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline, untilLabel,
+  MODE_SHORT, approveWindow, cardActions, cardClock, cardKeys, cardQuestion, cardWhy, moneyCheckEnded, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline, tickerSpeech, untilLabel,
   type CardAction, type Handoff, type Ticker,
 } from './logic';
 import { WALK_AWAY_HOURS, walkAway, type WalkAway } from './logic';
@@ -42,7 +42,7 @@ export function Flags({ mode, locked, compact }: { mode: Mode | null; locked: bo
   return (
     <span className="flags">
       <span className={`lockind${locked ? ' on' : ''}`} role="img" aria-label={locked ? 'locked' : 'unlocked'}
-        title={locked ? 'Locked after 15 quiet minutes · Review still opens the approval window, which unlocks with Windows Hello' : 'Unlocked · approvals lock after 15 quiet minutes'}>
+        title={locked ? 'Locked after 15 quiet minutes · Review still opens the approval window, which unlocks with your fingerprint, face or PIN' : 'Unlocked · approvals lock after 15 quiet minutes'}>
         <LockIcon open={!locked} />{locked && !compact ? 'locked' : null}
       </span>
       {mode ? <ModeBadge mode={mode} /> : null}
@@ -134,11 +134,15 @@ function AmountRing({ deadline, now, hold, children }: { deadline: number | null
 
 // ------------------------------------------------------------------------------- ticker
 
-export function TickerForm({ ticker, onOpen }: { ticker: Ticker | null; onOpen: () => void }) {
+/** The ticker is announced by the Tumbler's one persistent live region (a freshly mounted node is not reliably voiced),
+ *  so it carries no live role itself. Hover or keyboard focus holds it on screen (`onHold`), leaving restarts its clock. */
+export function TickerForm({ ticker, onOpen, onHold }: { ticker: Ticker | null; onOpen: () => void; onHold?: (held: boolean) => void }) {
   if (!ticker) return <div className="f ticker info still" />;
   const [lead, strong, tail] = ticker.l1;
   return (
-    <div className={`f ticker ${ticker.kind}`} role="status" aria-live="polite" onClick={onOpen} key={ticker.key}>
+    <div className={`f ticker ${ticker.kind}`} role="button" tabIndex={0} aria-label={`${tickerSpeech(ticker)} Press Enter to open.`} onClick={onOpen} key={ticker.key}
+      onMouseEnter={() => onHold?.(true)} onMouseLeave={() => onHold?.(false)} onFocus={() => onHold?.(true)} onBlur={() => onHold?.(false)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}>
       <span className="stripe" aria-hidden="true" />
       <div className="tx">
         <div className="l1">{lead}<b>{strong}</b>{tail}</div>
@@ -250,7 +254,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
   const r = rung(item.deadline, now);
   const clock = cardClock(item, now);
   // Spoken names carry the plain headline, never the deal's id (UX-GUIDE: ids live in Details).
-  const label = `${moneyCheckEnded(item) ? 'Ended' : item.money_check ? 'Checking with PayPal' : hold ? 'Paused' : 'Decision'}: ${item.headline}. ${cardKeys(item)}`;
+  const label = `${moneyCheckEnded(item) ? 'Ended' : item.money_check ? 'Checking with PayPal' : hold ? 'Paused' : 'Decision'}: ${item.headline}. ${cardKeys(item, now)}`;
   const askId = `c-ask-${item.deal_id}`;
 
   let line3: ReactNode;
@@ -414,7 +418,7 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
                 title={`${m.why}${m.key === 'out' && deals ? ` ${deals.label}: ${deals.value}${deals.of ? ` ${deals.of}` : ''}.` : ''} ${lim.line}`}>
                 <span className="k">{m.label}</span>
                 <span className="v">{m.value}</span>
-                {m.fill !== null ? <Meter value={m.fill} tone={m.near ? 'gold' : undefined} label={`${m.label} against ${m.of}`} /> : null}
+                {m.fill !== null ? <Meter value={m.fill} tone={m.near ? 'gold' : undefined} label={`${m.label}: ${m.value}${m.of ? ` ${m.of}` : ''}`} /> : null}
                 <span className={`ui-hint${lim.status === 'expired' || lim.status === 'unverified' ? ' gold' : ''}`}>{limHint(m.of)}</span>
               </div>
             )) : (

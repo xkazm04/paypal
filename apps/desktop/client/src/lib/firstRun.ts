@@ -10,7 +10,8 @@
 //                                 is 'scripted' and settings.engine_chosen is true (the owner kept the
 //                                 practice agent on purpose). The 'scripted' a new wallet starts on, with
 //                                 engine_chosen false, never counts.
-//                                 Main also reads engine_status: an app it reports unavailable is not done.
+//                                 Every window reads engine_brief (lib/engine.ts): an app reported unavailable is
+//                                 not done; one not read yet never blocks the step (the settings fact stands).
 // The practice deal runs on the practice agent, so the agent app comes last: it is the one step that
 // needs something installed outside the wallet, and nothing before it waits on it.
 // Pure: facts in, steps out. A fact a window cannot read stays unknown and is never shown as done.
@@ -33,7 +34,7 @@ export type StartFacts = {
   otherConnections: number | null;
   /** settings.selected_engine; null = settings not read. */
   engine: EngineId | null;
-  /** engine_status says the selected app is available (main only); null or absent = not read here. */
+  /** engine_brief says the selected app is available (every window); null or absent = not read yet. */
   engineAvailable?: boolean | null;
   /** settings.engine_chosen: the owner chose an agent app, the practice agent included; null or absent = not read. */
   engineChosen?: boolean | null;
@@ -61,6 +62,8 @@ const known = (b: boolean | null): StartStepState => (b === null ? 'unknown' : b
 export function engineChosen(engine: EngineId | null, available?: boolean | null, chosen?: boolean | null): boolean | null {
   if (engine === null) return null;
   if (engine === 'scripted') return chosen === true;
+  // Only a read that says unavailable un-does the step: a window that has not read engine_brief yet
+  // never blocks first-run completion on a fact it cannot know.
   return available !== false;
 }
 

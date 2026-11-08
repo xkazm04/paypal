@@ -37,6 +37,8 @@ zeroize.workspace = true
 table-verify.workspace = true
 [dev-dependencies]
 base64.workspace = true
+# The haggle recorder writes the house deal's `forged decision` tamper with the run's own agent key.
+table-client = { workspace = true, features = ["samples"] }
 house-seller = {path="../../services/house-seller"}
 rendezvous = {path="../../services/rendezvous"}
 tower = {version="0.5",features=["util"]}

@@ -43,6 +43,28 @@ pub struct HistoryStep {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub rungs: Option<Vec<table_core::RungMark>>,
+    /// On an `owner_decided` step: what the owner decided and the checklist recorded with it.
+    /// Absent on every other step.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub decision: Option<HistoryDecision>,
+}
+/// The owner's decision on an `owner_decided` step, from its `owner.decision` row: the step it
+/// started and counts over the checklist recorded with it (never the lines' words).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct HistoryDecision {
+    /// The command that carried it (`deal_countersign`, `deal_capture`, ...).
+    pub decision: String,
+    pub operation: crate::DecisionStep,
+    /// Lines recorded with the decision; null on a row that kept only their hash.
+    pub checks: Option<u8>,
+    /// Of those, the lines that read "checked later" (the step itself checks them).
+    pub later: u8,
+    /// Of the lines checked later, how many a later owner decision on this deal recorded passed.
+    pub later_passed: u8,
+    /// Every line checked later passed in a later decision before a payment was taken.
+    pub before_payment: bool,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -103,6 +125,9 @@ pub enum HistoryKind {
     /// The seller said a buyer's deal was paid, and PayPal's statement never showed it within the
     /// wallet's 72-hour window: the deal ends here. This wallet moved no money.
     Unconfirmed,
+    /// The owner decided in the approval window (approve, collect, unpause, open PayPal), on the
+    /// checklist recorded with it. The money step it starts, if any, is its own step.
+    OwnerDecided,
 }
 /// Who decided a step, from the typed `decided_by` the chain recorded (never inferred from text).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

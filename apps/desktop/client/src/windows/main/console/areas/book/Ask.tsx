@@ -159,7 +159,7 @@ export function Ask({ b }: { b: BookWorld }) {
           {phase === 'RESULT' && res ? (
             <div className="bk-behind">
               <h2 className="bk-h">{BOOK.ask.behind(res.rows.length)}</h2>
-              <ListEngine<Deal> className={fewRows(res.rows.length)} label={BOOK.ask.behindLabel} rows={res.rows} getKey={(d) => d.id} estimateSize={56} measure
+              <ListEngine<Deal> className={fewRows(res.rows.length)} label={BOOK.ask.behindLabel} rows={res.rows} getKey={(d) => d.id} estimateSize={36} measure
                 searchText={(d) => `${b.title(d)} ${b.who(d)}`}
                 renderRow={(d) => <DealRow deal={d} need={b.needOf.get(d.id)} who={b.who(d)} />}
                 rowLabel={(d) => b.title(d)} onOpen={(d) => nav.deal(d.id)} empty={BOOK.ask.none} />

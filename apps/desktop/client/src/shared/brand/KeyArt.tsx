@@ -180,8 +180,9 @@ const BRACKETS = 'M14 22V10H26M214 10H226V22M226 158V170H214M26 170H14V158';
 
 export type KeyArtProps = {
   module: Module;
-  /** Plain words, e.g. "Stylised drawing: two chairs at a table". */
-  label: string;
+  /** Plain words, e.g. "Stylised drawing: two chairs at a table". Left out, the plate is pure
+   *  decoration (a background): hidden from assistive technology. */
+  label?: string;
   className?: string;
 };
 
@@ -189,7 +190,7 @@ export function KeyArt({ module, label, className }: KeyArtProps) {
   const base = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const ids: Ids = { h1: `ka1${base}`, h2: `ka2${base}`, clip: `kac${base}` };
   return (
-    <svg className={`br-art${className ? ` ${className}` : ''}`} data-m={module} viewBox="0 0 240 180" role="img" aria-label={label} focusable="false">
+    <svg className={`br-art${className ? ` ${className}` : ''}`} data-m={module} viewBox="0 0 240 180" {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })} focusable="false">
       <defs>
         <pattern id={ids.h1} width="2.4" height="2.4" patternUnits="userSpaceOnUse"><circle cx="1.2" cy="1.2" r=".42" fill="currentColor" /></pattern>
         <pattern id={ids.h2} width="1.8" height="1.8" patternUnits="userSpaceOnUse"><path d="M0 .9H1.8" stroke="currentColor" strokeWidth=".4" /></pattern>

@@ -14,6 +14,8 @@ export function dashedWords(line: CheckLine): string {
   if (line.detail.includes('this page does not') || line.detail.includes('this page ran into')) return W.notYetBuilt;
   return PROOF_NOT_CHECKED;
 }
+/** A checklist line's status in the words the approval window uses. */
+const LINE_STATUS: Readonly<Record<string, string>> = { pass: 'passed', fail: 'failed', wait: 'checked later', not_applicable: 'not needed' };
 const PROOF_CHECKER_OLDER = 'Not checked: files saved by older versions of the wallet don’t carry this record.';
 
 export type Kind = 'ok' | 'bad' | 'dashed';
@@ -72,6 +74,29 @@ export function caption(tid: TamperId, doc: unknown, edits: ReturnType<typeof ed
       return 'the other table named the winner';
     case 'group-agreed':
       return 'the other table: withdrawn → receipted';
+    case 'checklist': {
+      const lines = (json: unknown): Array<{ status?: string }> => {
+        try {
+          const l = (JSON.parse(String(json)) as { checks?: unknown }).checks;
+          return Array.isArray(l) ? (l as Array<{ status?: string }>) : [];
+        } catch {
+          return [];
+        }
+      };
+      const was = lines(before);
+      const now = lines(first.value);
+      const at = now.findIndex((l, i) => l.status !== was[i]?.status);
+      const word = (status: string | undefined): string => LINE_STATUS[status ?? ''] ?? '—';
+      return at < 0 ? '' : `line ${at + 1} of the owner’s checklist: ${word(was[at]?.status)} → ${word(now[at]?.status)}`;
+    }
+    case 'forged-decision':
+      return 'one approval added, then the file sealed again with the agent’s key';
+    case 'decision-signature':
+      return 'the owner key’s signature on an approval, one byte';
+    case 'decision-unsigned':
+      return 'the owner key’s signature on one approval: there → gone';
+    case 'decision-step':
+      return 'the first approval: for the order → for the capture';
     case 'request-id':
       return `${String(before).slice(0, 14)}… → a-second-request-id`;
     default:

@@ -227,6 +227,7 @@ impl Fixture {
                 .await
             }
             "engine_status" => self.exec(&c, Action::Engines).await,
+            "engine_brief" => self.exec(&c, Action::EngineBrief).await,
             "attention_list" => self.exec(&c, Action::Attention).await,
             "approval_open" => {
                 self.exec(
@@ -236,6 +237,7 @@ impl Fixture {
                         pairing: None,
                         target: None,
                         draft: None,
+                        presentation: None,
                     }),
                 )
                 .await
@@ -510,6 +512,25 @@ impl Fixture {
                 )
                 .await
             }
+            // Safe acts (acts.rs).
+            "deal_lapse_undo" => self.exec(&c, Action::LapseUndo(id)).await,
+            "agent_pause" => self.exec(&c, Action::AgentPause(AgentSlot::Shopper)).await,
+            "agent_resume" => self.exec(&c, Action::AgentResume(AgentSlot::Shopper)).await,
+            "assistant_act" => {
+                self.exec(
+                    &c,
+                    Action::AssistantAct(AssistantActArgs {
+                        act: AssistantAct::PauseAgent {
+                            agent: AgentSlot::Negotiator,
+                        },
+                        consent: ConsentShown {
+                            words: "Pause your negotiator.".into(),
+                            fingerprint: "pause_agent|negotiator".into(),
+                        },
+                    }),
+                )
+                .await
+            }
             other => panic!("no conformance call for {other}: add it here when adding the row"),
         };
         value.map(|_| ())
@@ -518,13 +539,16 @@ impl Fixture {
 
 /// The shell answers these itself (window surface), checking the label against the table; the
 /// runtime never sees them. Pinned here so a new shell-only row is a deliberate choice.
-const SHELL_ONLY: [&str; 6] = [
+const SHELL_ONLY: [&str; 8] = [
     "main_open",
     "tumbler_set_form",
     "tumbler_pin",
     "tumbler_drag",
     "tumbler_snap",
     "proof_check",
+    // The board assistant: the shell's AssistantDoor, which holds no wallet handle.
+    "assistant_ask",
+    "assistant_status",
 ];
 
 /// One command's cells against a fresh wallet (an admitted call may change state: pause,

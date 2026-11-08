@@ -23,6 +23,7 @@
     "allow-quit-confirm",
     "allow-tumbler-drag",
     "allow-tumbler-snap",
-    "allow-envelope-get"
+    "allow-envelope-get",
+    "allow-engine-brief"
   ]
 }

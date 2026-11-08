@@ -78,6 +78,85 @@ fn main() {
             std::fs::write(evidence, std::process::id().to_string()).unwrap();
             std::thread::sleep(Duration::from_secs(30));
         }
+        // The board assistant (Profile::Assistant). Like the measured CLI, the inventory comes
+        // only after stdin is read. Labelled fixture output, never proof of a real CLI.
+        "assistant" | "assistant-decoy" | "assistant-tool" | "assistant-noreply"
+        | "assistant-big" | "assistant-error" => {
+            let mut input = String::new();
+            io::stdin().read_to_string(&mut input).unwrap();
+            std::fs::write(&evidence, &input).unwrap();
+            let argv: Vec<String> = args.collect();
+            std::fs::write(
+                evidence.with_extension("args"),
+                serde_json::to_string(&argv).unwrap(),
+            )
+            .unwrap();
+            let cwd = std::env::current_dir().unwrap();
+            std::fs::write(
+                evidence.with_extension("cwd"),
+                std::fs::read_dir(&cwd).unwrap().count().to_string(),
+            )
+            .unwrap();
+            let keys = std::env::vars()
+                .map(|(k, _)| k)
+                .filter(|k| {
+                    [
+                        "OPENAI_API_KEY",
+                        "ANTHROPIC_API_KEY",
+                        "NODE_OPTIONS",
+                        "CLAUDECODE",
+                    ]
+                    .contains(&k.as_str())
+                })
+                .collect::<Vec<_>>();
+            std::fs::write(evidence.with_extension("env"), keys.join(",")).unwrap();
+            let tools = if mode == "assistant-decoy" {
+                r#"["Bash","StructuredOutput"]"#
+            } else {
+                r#"["StructuredOutput"]"#
+            };
+            println!(
+                r#"{{"type":"system","subtype":"init","tools":{tools},"mcp_servers":[],"permissionMode":"dontAsk"}}"#
+            );
+            io::stdout().flush().unwrap();
+            if mode == "assistant-decoy" {
+                // Would go on to act; the host must kill it on the inventory alone.
+                std::thread::sleep(Duration::from_secs(30));
+                return;
+            }
+            io::stderr().write_all(&vec![b'x'; 128 * 1024]).unwrap();
+            let tool = if mode == "assistant-tool" {
+                "Bash"
+            } else {
+                "StructuredOutput"
+            };
+            println!(
+                r#"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","id":"t1","name":"{tool}","input":{{"v":1,"say":"Two need you.","ops":[]}}}}]}}}}"#
+            );
+            println!(
+                r#"{{"type":"user","message":{{"role":"user","content":[{{"tool_use_id":"t1","type":"tool_result","content":"Structured output provided successfully"}}]}}}}"#
+            );
+            println!(r#"{{"type":"rate_limit_event","rate_limit_info":{{"status":"allowed"}}}}"#);
+            if mode == "assistant-big" {
+                for _ in 0..80 {
+                    println!(
+                        r#"{{"type":"rate_limit_event","pad":"{}"}}"#,
+                        "x".repeat(1024)
+                    );
+                }
+            }
+            match mode.as_str() {
+                "assistant-noreply" => println!(
+                    r#"{{"type":"result","subtype":"success","is_error":false,"result":"fixture"}}"#
+                ),
+                "assistant-error" => println!(
+                    r#"{{"type":"result","subtype":"error_max_budget_usd","is_error":true,"result":"fixture"}}"#
+                ),
+                _ => println!(
+                    r#"{{"type":"result","subtype":"success","is_error":false,"result":"fixture","structured_output":{{"v":1,"say":"Two need you.","ops":[]}}}}"#
+                ),
+            }
+        }
         "agent" | "exit2" | "toolless" | "tree" | "bad-result" | "no-terminal" | "env" => {
             // Fake inventory is labelled by this binary; never proof of a real CLI.
             let inventory = if mode == "toolless" {

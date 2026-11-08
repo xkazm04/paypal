@@ -5,11 +5,13 @@ import type { Clause } from '@bindings/Clause';
 import type { Currency } from '@bindings/Currency';
 import type { Money } from '@bindings/Money';
 import { formatMinor, shortId } from '../../../lib/format';
-import { kindWord } from '../../../lib/words';
+import { kindWord, ruleSentence } from '../../../lib/words';
 import { CLAUSE_KINDS, CLAUSE_NUMBER, isIncomplete, type ClauseType, type DraftClause } from '../mandateDraft';
 
 export type Dir = 'widens' | 'restricts' | 'changes';
-export type Change = { clause: number; type: ClauseType | 'meta'; term: string; from: string; to: string; dir: Dir; text: string };
+export type Change = { clause: number; type: ClauseType | 'meta'; term: string; from: string; to: string; dir: Dir; text: string;
+  /** For an added or removed rule: its values in money words ("up to $100 per purchase"), so the sign sheet shows what is signed. */
+  value?: string };
 
 export type DiffSide = {
   clauses: readonly DraftClause[]; agent: AgentSlot; currency: Currency; expires: number | null;
@@ -118,8 +120,8 @@ export function diffPolicy(base: DiffSide | null, draft: DiffSide): Change[] {
     // Keeping prices fresh grants nothing: adding or removing it neither widens nor restricts.
     const neutral = k.type === 'market_watch';
     if (x && y) clauseDiff(x, y, out);
-    else if (x && !y && !draft.clauses.some((c) => c.type === k.type)) out.push({ clause: n, type: k.type, term: name(k.type).toLowerCase(), from: 'signed', to: 'removed', dir: neutral ? 'changes' : 'widens', text: `Removing “${name(k.type)}”` });
-    else if (!x && y) out.push({ clause: n, type: k.type, term: name(k.type).toLowerCase(), from: base ? 'none' : '—', to: 'added', dir: base && !neutral ? 'restricts' : 'changes', text: `Adding “${name(k.type)}”` });
+    else if (x && !y && !draft.clauses.some((c) => c.type === k.type)) out.push({ clause: n, type: k.type, term: name(k.type).toLowerCase(), from: 'signed', to: 'removed', dir: neutral ? 'changes' : 'widens', text: `Removing “${name(k.type)}” (${ruleSentence(x)})`, value: ruleSentence(x) });
+    else if (!x && y) out.push({ clause: n, type: k.type, term: name(k.type).toLowerCase(), from: base ? 'none' : '—', to: 'added', dir: base && !neutral ? 'restricts' : 'changes', text: `Adding “${name(k.type)}”: ${ruleSentence(y)}`, value: ruleSentence(y) });
   }
   return out;
 }

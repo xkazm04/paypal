@@ -140,17 +140,62 @@ fn basis_points(part: Money, whole: Money) -> Result<u16, RescueError> {
     u16::try_from(bp).map_err(|_| RescueError::InvalidDiscount)
 }
 
-/// The offer is inside the mandate's fixes clause and is exactly what the deal's terms invoice.
-/// Every rescue money step runs this with the mandate check (table-app `mandate_check`).
-pub fn check_offer(
+/// Why the wallet would not send a fix: one closed reason per way `check_offer` refuses, for
+/// display only. It carries no text, no amount and no counterparty or agent words; the Rescue page
+/// words each one from its own table (lib/words/rescue.ts). Serialised keys are pinned by a test.
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RescueRefusal {
+    /// The signed rules carry no fixes clause.
+    FixesClauseMissing,
+    /// The fix is outside the levers the rules allow.
+    LeverNotAllowed,
+    /// The fix is in a currency other than the rules' or the deal's.
+    CurrencyDiffers,
+    /// The invoice is not the cycle less the discount.
+    InvoiceNotCycleLessDiscount,
+    /// The discount is above the most the rules allow per cycle.
+    OverDiscountCap,
+    /// The discount is above the share of the cycle the rules allow.
+    OverDiscountShare,
+    /// The stated share does not match the amounts.
+    ShareMismatch,
+    /// The deal does not invoice exactly this fix.
+    DealNotInvoicingOffer,
+    /// The rules this fix was opened under are no longer in force.
+    RulesNotInForce,
+}
+
+impl RescueRefusal {
+    /// The refusal reason the engine records, word for word as `check_offer` has always given it.
+    pub fn reason(self) -> &'static str {
+        match self {
+            Self::FixesClauseMissing => "fixes clause missing",
+            Self::LeverNotAllowed => "this fix is not allowed",
+            Self::CurrencyDiffers => "currency differs from the fixes clause",
+            Self::InvoiceNotCycleLessDiscount => "the invoice is not the cycle less the discount",
+            Self::OverDiscountCap => "discount above the most allowed per cycle",
+            Self::OverDiscountShare => "discount above the share allowed per cycle",
+            Self::ShareMismatch => "discount share does not match the amounts",
+            Self::DealNotInvoicingOffer => "the deal does not invoice the offer",
+            Self::RulesNotInForce => "the rules are no longer in force",
+        }
+    }
+}
+
+/// The first rule the offer breaks, as a closed reason; None when it is inside the fixes clause
+/// and is exactly what the deal's terms invoice.
+pub fn offer_fault(
     mandate: &MandatePayload,
     offer: &RescueOffer,
     terms: &Terms,
-) -> Result<(), Refusal> {
-    let (levers, max_bp, max_discount) =
-        lever_clause(mandate).ok_or_else(|| lever_refusal("fixes clause missing"))?;
+) -> Option<RescueRefusal> {
+    use RescueRefusal::*;
+    let Some((levers, max_bp, max_discount)) = lever_clause(mandate) else {
+        return Some(FixesClauseMissing);
+    };
     if !levers.contains(&offer.lever) || offer.lever != RescueLever::DiscountThisCycle {
-        return Err(lever_refusal("this fix is not allowed"));
+        return Some(LeverNotAllowed);
     }
     let currency = offer.cycle.currency();
     if [offer.discount, offer.invoice, max_discount]
@@ -158,31 +203,42 @@ pub fn check_offer(
         .any(|m| m.currency() != currency)
         || terms.currency != currency
     {
-        return Err(lever_refusal("currency differs from the fixes clause"));
+        return Some(CurrencyDiffers);
     }
     if offer.discount.minor() == 0
         || offer.invoice.minor() == 0
         || offer.cycle.minor().checked_sub(offer.discount.minor()) != Some(offer.invoice.minor())
     {
-        return Err(lever_refusal(
-            "the invoice is not the cycle less the discount",
-        ));
+        return Some(InvoiceNotCycleLessDiscount);
     }
     if offer.discount.minor() > max_discount.minor() {
-        return Err(lever_refusal("discount above the most allowed per cycle"));
+        return Some(OverDiscountCap);
     }
     if i128::from(offer.discount.minor()) * 10000
         > i128::from(offer.cycle.minor()) * i128::from(max_bp)
     {
-        return Err(lever_refusal("discount above the share allowed per cycle"));
+        return Some(OverDiscountShare);
     }
     if basis_points(offer.discount, offer.cycle).ok() != Some(offer.discount_bp) {
-        return Err(lever_refusal("discount share does not match the amounts"));
+        return Some(ShareMismatch);
     }
     if terms.qty != 1 || terms.unit_price != offer.invoice {
-        return Err(lever_refusal("the deal does not invoice the offer"));
+        return Some(DealNotInvoicingOffer);
     }
-    Ok(())
+    None
+}
+
+/// The offer is inside the mandate's fixes clause and is exactly what the deal's terms invoice.
+/// Every rescue money step runs this with the mandate check (table-app `mandate_check`).
+pub fn check_offer(
+    mandate: &MandatePayload,
+    offer: &RescueOffer,
+    terms: &Terms,
+) -> Result<(), Refusal> {
+    match offer_fault(mandate, offer, terms) {
+        Some(fault) => Err(lever_refusal(fault.reason())),
+        None => Ok(()),
+    }
 }
 
 /// The invoice's wording, fixed in the wallet: the owner sees it before approving and PayPal
@@ -408,6 +464,79 @@ mod tests {
         assert!(propose_discount(usd(1200), 0, usd(500)).is_err());
         assert!(propose_discount(usd(1200), 10000, usd(500)).is_err());
         assert!(propose_discount(usd(1200), 2000, Money::new(5, Currency::EUR).unwrap()).is_err());
+    }
+    #[test]
+    fn each_engine_refusal_maps_to_one_closed_reason_and_the_keys_are_pinned() {
+        use RescueRefusal::*;
+        let usd = |v| Money::new(v, Currency::USD).unwrap();
+        let offer = propose_discount(usd(1200), 2000, usd(500)).unwrap();
+        let m = rescue_mandate(2000, 500);
+        let fault = |m: &MandatePayload, o: &RescueOffer, t: &Terms| offer_fault(m, o, t);
+        assert_eq!(fault(&m, &offer, &terms_for(&offer)), None);
+        assert_eq!(
+            fault(&rescue_mandate(1000, 500), &offer, &terms_for(&offer)),
+            Some(OverDiscountShare)
+        );
+        assert_eq!(
+            fault(&rescue_mandate(2000, 200), &offer, &terms_for(&offer)),
+            Some(OverDiscountCap)
+        );
+        let mut forged = offer;
+        forged.discount_bp = 1000;
+        assert_eq!(fault(&m, &forged, &terms_for(&forged)), Some(ShareMismatch));
+        let mut sum = offer;
+        sum.invoice = usd(900);
+        assert_eq!(
+            fault(&m, &sum, &terms_for(&sum)),
+            Some(InvoiceNotCycleLessDiscount)
+        );
+        let mut other = terms_for(&offer);
+        other.unit_price = usd(1200);
+        assert_eq!(fault(&m, &offer, &other), Some(DealNotInvoicingOffer));
+        other = terms_for(&offer);
+        other.currency = Currency::EUR;
+        assert_eq!(fault(&m, &offer, &other), Some(CurrencyDiffers));
+        let mut pause = offer;
+        pause.lever = RescueLever::Pause;
+        assert_eq!(fault(&m, &pause, &terms_for(&pause)), Some(LeverNotAllowed));
+        let mut bare = m.clone();
+        bare.clauses.retain(|c| !matches!(c, Clause::Lever { .. }));
+        assert_eq!(
+            fault(&bare, &offer, &terms_for(&offer)),
+            Some(FixesClauseMissing)
+        );
+        // check_offer keeps the engine's own words for every reason.
+        let refused = check_offer(&rescue_mandate(1000, 500), &offer, &terms_for(&offer));
+        assert_eq!(refused.unwrap_err().reason, OverDiscountShare.reason());
+        // The serialised keys are the contract with the Rescue page.
+        let keys: Vec<String> = [
+            FixesClauseMissing,
+            LeverNotAllowed,
+            CurrencyDiffers,
+            InvoiceNotCycleLessDiscount,
+            OverDiscountCap,
+            OverDiscountShare,
+            ShareMismatch,
+            DealNotInvoicingOffer,
+            RulesNotInForce,
+        ]
+        .iter()
+        .map(|r| serde_json::to_string(r).unwrap())
+        .collect();
+        assert_eq!(
+            keys,
+            [
+                "\"fixes_clause_missing\"",
+                "\"lever_not_allowed\"",
+                "\"currency_differs\"",
+                "\"invoice_not_cycle_less_discount\"",
+                "\"over_discount_cap\"",
+                "\"over_discount_share\"",
+                "\"share_mismatch\"",
+                "\"deal_not_invoicing_offer\"",
+                "\"rules_not_in_force\""
+            ]
+        );
     }
     #[test]
     fn proposed_offers_always_check_back_property_style() {

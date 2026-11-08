@@ -28,8 +28,7 @@ function WRow({ n, label, value, changed, onOpen }: { n: ReactNode; label: strin
     }
   };
   return (
-    <div className={`ui-row act ${changed ? 'chg' : ''}`} data-clause={n} role="button" tabIndex={0} aria-haspopup="dialog" onClick={(e) => onOpen(e.currentTarget)} onKeyDown={key}>
-      <span className="cn">{n}</span>
+    <div className={`ui-row act ${changed ? 'chg' : ''}`} data-clause={n} title={`Rule ${n} (shown in Details)`} role="button" tabIndex={0} aria-haspopup="dialog" onClick={(e) => onOpen(e.currentTarget)} onKeyDown={key}>
       <span className="lbl">{label}</span>
       <span className="val" title={value}>{value}</span>
       <span className="chev" aria-hidden="true" />
@@ -138,7 +137,7 @@ export function WhoWhat({ d, setD, now, changed, baseAgent }: { d: MandateDraft;
               const k = CLAUSE_KINDS.find((x) => x.type === t)!;
               return (
                 <Btn key={t} sm onClick={() => { setD({ ...d, clauses: [...d.clauses, emptyClause(t, now)] }); close(); }}>
-                  {CLAUSE_NUMBER[t]} · {k.name} <span className="dim">· {k.hint}</span>
+                  {k.name} <span className="dim">· {k.hint}</span>
                 </Btn>
               );
             })}

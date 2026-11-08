@@ -1,0 +1,62 @@
+{
+  "schema": "conform-run/1",
+  "worker": "3e0bcacd-e145-4e5a-a28e-1807e5143abe",
+  "subject": "supply-chain",
+  "evaluatedAt": "2026-11-06T00:00:22.268700+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "supply-chain",
+      "context": "table-engine-agent-process",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "supply-chain",
+      "context": "ledger-repositories-audit-evidence",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "supply-chain",
+      "context": "runtime-money-controls",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "supply-chain",
+      "context": "deal-review",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor says.ts:2 is a purity comment about one file and doesn't show that no third-party, archive or permission crossing exists; the evidence also admits DealReview.tsx:94 makes backend().invoke calls (an IPC/permission crossing), and the grep terms (unzip, lockfile, postinstall, advisory, ZipAr"
+    },
+    {
+      "subject": "supply-chain",
+      "context": "book-module",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor model.ts:1 is a header comment ('pure, no React, no IPC') for model.ts only, so it is incidental to the rest of the context (AskChips, AskReading, MoneyWent, ProofCheck, rules), and the absence search terms don't test for a supply-chain crossing."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-06T00:00:22.268700+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "supply-chain"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "deal-review",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T00:00:22.268700+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "supply-chain"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "book-module",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}
