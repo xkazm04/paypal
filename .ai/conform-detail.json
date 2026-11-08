@@ -9478,6 +9478,77 @@
       "evaluatedTs": "2026-11-08T00:24:18.404Z",
       "worker": "e243d4e9-40d8-405d-9065-dc2437b78534",
       "techniques": []
+    },
+    "bd6a5a80-3506-4c9d-bd06-06e18f3dd015/native-shell-integration": {
+      "context": "native-shell",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:37:37.344Z",
+      "worker": "ff5e4248-965b-433c-b746-82f1fa9355fe",
+      "techniques": [
+        {
+          "technique": "non-stealing-overlay",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/src-tauri/src/native.rs:144 The show path conforms: show_quietly (native.rs:151-155) uses SW_SHOWNOACTIVATE and has a comment saying why focus is not taken. The teardown is a bare hide here, in CloseRequested (native.rs:465) and in hide_and_exit (events.rs:7), with no click-through step and no off-viewport step."
+        },
+        {
+          "technique": "capability-presence-contract",
+          "verdict": "conformant",
+          "evidence": "crates/table-os/src/lib.rs:8 Windows-only interop is compiled out on other hosts and replaced by stubs whose supported() predicate says no. On Windows, a failed CheckAvailability returns ErrorCode::Unsupported, which is kept apart from Unavailable and Permission. One gap remains: every availability other than Available, DisabledByPolicy included, gets 'Configure Windows Hello' (windows_native.rs:40-44)."
+        },
+        {
+          "technique": "native-owned-stream",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/src-tauri/src/native.rs:457 The native process owns the runtime's event broadcast and fans it out to windows through the table-driven emit, so the views only render. A Lagged receiver resyncs by reading the lists again (events.rs:101-106). The stream is an in-process broadcast with no network producer, so the heartbeat-derived idle timeout does not apply."
+        },
+        {
+          "technique": "native-side-owns-the-target-set",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:464 Writing a file uses a native save dialog, proof_check uses a native pick dialog with a size cap, and open_paypal_in_browser opens a URL the actor builds from the deal id (routing.rs:175-183). No path or URL comes from the webview."
+        },
+        {
+          "technique": "permission-gate-vector",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/events.rs:237 No feature here depends on two or more separately granted host capabilities. The one host state used, notification quiet hours, is read up front and only degrades: the toast is held back and a suppression rung is recorded."
+        },
+        {
+          "technique": "host-forwarded-key-contract",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native.rs:456 The only hardware-key path is one global hotkey handled natively. No wrapper forwards host-held keys into an embedded page."
+        },
+        {
+          "technique": "layout-resolved-input-synthesis",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-os/src/lib.rs:1 All OS interop lives in this module, and a grep for SendInput, keybd_event and MapVirtualKey finds nothing. The product never synthesizes input into a foreign application."
+        },
+        {
+          "technique": "query-transparent-overlay",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native.rs:400 The Tumbler is visually transparent and only annotates. It never runs a point-under-cursor or accessibility query (grep for ElementFromPoint and UIAutomation finds nothing)."
+        },
+        {
+          "technique": "observer-perturbation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-os/src/windows_native.rs:13 The only window-manager calls are show-without-activate and a message box. The product reads no structure from foreign applications, so there is nothing for its own surface to perturb."
+        },
+        {
+          "technique": "unexported-capability-ladder",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-os/src/windows_native.rs:56 Every host capability is reached through exported, supported interfaces (WinRT interop, CredUI, ShowWindow). Nothing resolves unexported entry points (no GetProcAddress or offsets)."
+        }
+      ],
+      "registryProposal": "The non-stealing-overlay technique assumes a surface that only annotates. Here the same window (the Tumbler) arrives without activating (the annotator case) and, when the owner summons it by hotkey or tray, deliberately takes focus (summon at native.rs:132-134, the interactive case). The technique could say which teardown discipline applies to a hybrid surface like this. The answer is probably the annotator teardown whenever the surface can be hidden while it does not have focus.",
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "apps/desktop/src-tauri/src/native.rs:117 and :341 tear the transparent Tumbler down with a bare `let _ = t.hide();` - no click-through or off-screen parking, so where hide is only a request it can linger as an invisible click target stealing focus (non-stealing-overlay; show path conforms at native.rs:284)",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by ff5e4248-965b-433c-b746-82f1fa9355fe"
+        }
+      ]
     }
   }
 }

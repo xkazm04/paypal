@@ -5452,14 +5452,13 @@
           "changedAt": "2026-10-23",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "apps/desktop/src-tauri/src/native.rs:117 and :341 tear the transparent Tumbler down with a bare `let _ = t.hide();` - no click-through or off-screen parking, so where hide is only a request it can linger as an invisible click target stealing focus (non-stealing-overlay; show path conforms at native.rs:284)",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:0ab230f2977430e7",
-          "evaluatedRevision": 3,
+          "evidence": "apps/desktop/src-tauri/src/native.rs:144 toggle_tumbler puts away the transparent, skip-taskbar, optionally always-on-top Tumbler with a bare hide: it never makes the window click-through or parks it off-screen first (a repo-wide grep finds no ignore_cursor_events / WS_EX_TRANSPARENT), so if the host only partly honours the hide, an invisible window can still take clicks and pull focus away from the owner's work.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:838495bb60a986c6",
+          "evaluatedRevision": 6,
           "source": "conform",
           "adoptedFrom": "Desktop Shell/native-shell",
-          "revisionsBehind": 2,
-          "stale": true
+          "revisionsBehind": 2
         },
         {
           "subject": "prompt-assembly",
