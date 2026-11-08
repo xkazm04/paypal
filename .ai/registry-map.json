@@ -1633,8 +1633,12 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1 I searched apps/desktop/client/src/mock for speechSynthesis, getUserMedia, SpeechRecognition, AudioContext and MediaRecorder and found nothing; the mock serves sample Rust-binding payloads and mirrors approval gates, with no audio capture, transcription or synthesis.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "quality-gates",
@@ -3294,8 +3298,12 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/director/actions.ts:51 I searched the director directory for speechSynthesis, getUserMedia, SpeechRecognition, AudioContext and MediaRecorder and found nothing; the 'say' action only types a sentence into The Table's Say it box, and the film narration is made outside this context (the film/ kit with ElevenLabs), so the rig neither captures nor plays speech itself.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "prompt-assembly",
@@ -7109,8 +7117,12 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "crates/table-runtime/src/engines.rs:11 I searched crates/table-runtime/src for speechSynthesis, getUserMedia, SpeechRecognition, AudioContext and MediaRecorder (and for speech/tts/whisper/transcribe) and found nothing; its 'engines' are agent CLIs (claude-code/codex-cli), not speech engines, so voice I/O is not built here.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "agent-runtime-assembly",
@@ -8958,8 +8970,12 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:106 I searched the tumbler directory for speechSynthesis, getUserMedia, SpeechRecognition, AudioContext and MediaRecorder and found nothing; its 'say'/tickerSpeech only write text into an aria-live region for screen readers (that is accessibility, not product speech synthesis or capture).",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "native-shell-integration",
@@ -9214,8 +9230,12 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "crates/table-app/src/lib.rs:1 I searched crates/table-app/src for speechSynthesis, getUserMedia, SpeechRecognition, AudioContext and MediaRecorder and found nothing (every hit for 'voice' was the word 'invoice'); the crate is the money pipeline and approval checklist, with no audio I/O.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "test-harness",
