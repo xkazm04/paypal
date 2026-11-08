@@ -102,7 +102,7 @@ try {
     $release = (& (Join-Path $bin 'house-release.exe')) -join "`n"
     if ($LASTEXITCODE -ne 0) { throw 'house-release failed' }
     $env:TABLE_HOUSE_RELEASE_JSON = $release           # public compile pin, same for server + wallet
-    Set-Content -Path (Join-Path $work 'release.public.json') -Value $release -Encoding utf8
+    [System.IO.File]::WriteAllText((Join-Path $work 'release.public.json'), $release, (New-Object System.Text.UTF8Encoding $false))
 
     # (c) rebuild the server with the pin, then start it detached on localhost.
     & cargo build --quiet -p house-seller --bin house-seller

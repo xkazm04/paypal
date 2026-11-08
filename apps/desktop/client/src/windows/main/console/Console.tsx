@@ -277,7 +277,7 @@ export function Console() {
 
   const layerNav = useMemo<LayerNav>(() => ({
     go, back, home: goHome, module: goModule, deal: goDeal, need: pickNeed, place: goPlace, rewind: goRewind,
-    setup: (step) => go({ level: 'setup', step: step ?? 'keys' }), quit: () => setQuit(true),
+    setup: (step) => go(step ? { level: 'setup', step } : { level: 'setup' }), quit: () => setQuit(true),
   }), [go, back, goHome, goModule, goDeal, pickNeed, goPlace, goRewind]);
 
   const onFind = useCallback((t: FindTarget) => {

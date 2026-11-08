@@ -11,8 +11,9 @@ const b = await pw.chromium.connectOverCDP(process.argv[2] ?? 'http://127.0.0.1:
 const ctx = b.contexts()[0];
 const main = ctx.pages().find((p) => !/tumbler|approval/.test(p.url()));
 const step = (s) => console.log('setup: ' + s);
-await main.click('#cs-place-platform').catch(() => {});
-await main.waitForSelector('.cs-app');
+await main.waitForSelector('.cs-app, .fs-app', { timeout: 30000 });
+if (!(await main.$('.cs-app'))) await main.click('#cs-place-platform');
+await main.waitForSelector('.cs-app', { timeout: 30000 });
 await sl(600);
 // Unlock first when the wallet is locked (the debug stand-in answers the prompt).
 if (await main.$('.lockbtn')) {

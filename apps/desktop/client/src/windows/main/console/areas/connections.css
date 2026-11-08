@@ -52,7 +52,7 @@
 .ui-popover.setup-pop details.ui-disclosure .ui-kv { padding: 0 var(--sp-2) var(--sp-1); font-size: var(--fs-small); }
 
 /* ---- the pairing desk: a three-step wizard ---------------------------------------------------- */
-.pair-desk { max-width: 1160px; margin: 0 auto; }
+.pair-desk { max-width: 1160px; margin: 0 auto; container-type: inline-size; }
 .pair-desk .wz-modes { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-4); }
 .pair-desk .wz-modes-l { color: var(--muted); font-weight: var(--fw-medium); }
 .pair-desk .wz-modes .ui-seg button:disabled { opacity: .45; cursor: not-allowed; }
@@ -161,3 +161,5 @@
 .pair-desk .cn-m-t { margin: 0; display: flex; flex-direction: column; gap: 2px; color: var(--muted); line-height: 1.35; }
 .pair-desk .cn-m-t b { color: var(--text); font-weight: var(--fw-semibold); font-size: var(--fs-title3); }
 @media (prefers-reduced-motion: reduce) { .pair-desk .cn-in em { animation: none; } }
+/* Narrow hosts (the Set up page's left column): the steps take the full width and the other side's mirror goes under them; the fields stack. */
+@container (max-width: 760px) { .pair-desk .cn-grid { grid-template-columns: minmax(0, 1fr); } .pair-desk .wz-fields { grid-template-columns: minmax(0, 1fr); } .pair-desk .wz-body { margin-left: 0; } .pair-desk .wz-house { flex-wrap: wrap; } }
