@@ -1747,7 +1747,11 @@
           "revision": 4,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1269 The browser-only mock holds no credential at all: set_credentials records only that a kind was stored, the gates mirror the generated authority table, and a decision re-derives the checks hash rather than trusting the client's, so the UI is built against the same boundary the real shell enforces.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:8c4e4cc37445b46c",
+          "evaluatedRevision": 4
         },
         {
           "subject": "optional-dependency-degradation",
@@ -4137,12 +4141,11 @@
           "changedAt": "2026-10-27",
           "confidence": "probable",
           "state": "conformant",
-          "evidence": "crates/table-client/src/lib.rs:131 The webview-facing contract follows regime two: the browser UI only picks a credential kind, the runtime keeps the PayPal/Channel3 secret in the OS keyring, and the webview's only credential is the approval-window IPC token that the authority table gates.",
-          "evaluatedAt": "2026-10-25",
-          "evaluatedAgainst": "sha256-b2:d3eef10e9ed8459f",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-client/src/lib.rs:139 The webview-facing contract puts the PayPal and Channel3 secrets in regime two: the webview can only name a credential kind, the Rust runtime holds and attaches the secret, and callers are gated by a window label the shell assigns plus an approval token.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:8c4e4cc37445b46c",
+          "evaluatedRevision": 4,
+          "revisionsBehind": 1
         },
         {
           "subject": "agent-instruction-files",

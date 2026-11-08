@@ -8224,32 +8224,46 @@
       "subject": "browser-credential-boundary",
       "bundle": "software-engineering",
       "state": "conformant",
-      "evaluatedAt": "2026-10-25",
-      "evaluatedTs": "2026-10-25T23:05:21.392Z",
-      "worker": "91862238-0399-4108-a154-7c684ac96f3b",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:07:55.175Z",
+      "worker": "be08c249-de60-4c1f-ab9e-9ee9ae7ec136",
       "techniques": [
-        {
-          "technique": "omit-the-column-not-the-value",
-          "verdict": "conformant",
-          "evidence": "crates/table-client/tests/bindings.rs:142 CredentialArgs is a unit enum with no field that can hold a secret, and CredentialFact (facts.rs:89) only reports stored/stored_at. A test proves a client_secret field is refused, so the exclusion is built into the type, not left to filtering."
-        },
         {
           "technique": "broker-proxy-attaches-secret",
           "verdict": "conformant",
-          "evidence": "crates/table-client/src/authority_table.rs:16 The broker checks its own callers before spending a credential. Every command has one authority row (window labels assigned by the shell, plus token, unlock and selection flags), and authority.rs pins invariants such as tier>=Owner requiring token+unlock. Arguments are deny_unknown_fields, and the command list is closed (CommandContract). The secret itself is attached in table-runtime, not in this crate."
+          "evidence": "crates/table-client/src/authority_table.rs:16 The runtime is the broker. Callers are identified by a label the shell assigns, and the set of commands is an enumerated authority table (label/token/unlock/selection), so it is an allowlist, not a relay."
         },
         {
-          "technique": "allowlisted-operator-stream",
+          "technique": "omit-the-column-not-the-value",
           "verdict": "conformant",
-          "evidence": "crates/table-client/src/lib.rs:100 Debug output for credential-bearing DTOs is built field by field. DecisionArgs prints only deal_id and hides everything else, and IpcHeaders, UnlockArgs and the pairing args print [REDACTED]. This crate has no operator stream, so the technique's operator-credential half is not exercised here."
+          "evidence": "crates/table-client/src/lib.rs:139 Structural exclusion applied to the IPC shape: CredentialArgs is a bare enum with no field that could carry a secret, so no edit to a handler can put one on the wire."
         },
         {
           "technique": "opaque-upstream-errors",
           "verdict": "conformant",
-          "evidence": "crates/table-client/src/lib.rs:32 Callers branch on a closed set of SCREAMING_SNAKE codes (Locked, Permission, Refused, Invalid, NotFound, Unavailable, LedgerTrust, Unsupported). Caveat: lib.rs:70 builds message from error.to_string(), which passes LedgerError::Sql (rusqlite) text through transparently. That text comes from the local store, not a brokered upstream, and PayPal failures are replaced by a fixed message in table-runtime."
+          "evidence": "crates/table-client/src/lib.rs:66 Errors go out as a closed ErrorCode vocabulary. PayPal failures collapse to Error::Unavailable ('operation unavailable') in table-app resolve.rs defer(), so no upstream body crosses. Caveat: line 78 relays error.to_string(), which for transparent rusqlite and serde errors is local-store text, not upstream topology."
+        },
+        {
+          "technique": "server-sealed-client-roundtrip",
+          "verdict": "conformant",
+          "evidence": "crates/table-client/src/lib.rs:98 The checks_hash the client brings back is never trusted: Rust re-derives the checklist and refuses a hash that is missing or different. This is the technique's own 're-derive instead of seal' branch, so the claimant does not adjudicate."
+        },
+        {
+          "technique": "allowlisted-operator-stream",
+          "verdict": "conformant",
+          "evidence": "crates/table-client/src/lib.rs:107 Debug for DecisionArgs keeps only deal_id (finish_non_exhaustive), and IpcHeaders and UnlockArgs print [REDACTED] (line 136), so the log surface fails closed when a field is added."
         }
       ],
-      "registryProposal": "The subject assumes a web bundle talking to a hosted store or same-origin route. A desktop-webview IPC contract (Tauri commands, window-label authority, a per-window IPC token) realizes regime two without any HTTP route. A short note that IPC command dispatch counts as the 'broker route', and window labels assigned by the shell count as caller authentication, would make such contexts judgeable without reading by analogy."
+      "registryProposal": "The subject frames regime two as a same-origin HTTP broker route. A desktop webview whose broker is an IPC dispatcher, with callers authenticated by a window label the shell assigns plus a capability token, is the same boundary with no HTTP route. A short technique note on 'native-shell IPC as the broker' would stop reviewers marking the broker technique not-applicable just because there is no route.",
+      "superseded": [
+        {
+          "state": "conformant",
+          "evidence": "crates/table-client/src/lib.rs:131 The webview-facing contract follows regime two: the browser UI only picks a credential kind, the runtime keeps the PayPal/Channel3 secret in the OS keyring, and the webview's only credential is the approval-window IPC token that the authority table gates.",
+          "evaluatedAt": "2026-10-25T23:05:21.392Z",
+          "worker": "91862238-0399-4108-a154-7c684ac96f3b",
+          "reason": "replaced by be08c249-de60-4c1f-ab9e-9ee9ae7ec136"
+        }
+      ]
     },
     "eec42666-8620-4b0d-8d2e-bc418a280b71/conditional-service-composition": {
       "context": "house-seller-service",
@@ -9773,6 +9787,42 @@
       "evaluatedTs": "2026-11-08T01:55:09.001Z",
       "worker": "b0fe5cb9-2e28-4c08-94e7-3141e84e1027",
       "techniques": []
+    },
+    "97ce9cef-2512-4583-a3a5-6ee0b27f287d/browser-credential-boundary": {
+      "context": "browser-mock-backend",
+      "subject": "browser-credential-boundary",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:07:55.175Z",
+      "worker": "be08c249-de60-4c1f-ab9e-9ee9ae7ec136",
+      "techniques": [
+        {
+          "technique": "broker-proxy-attaches-secret",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1269 The mock reproduces regime two: the browser submits only a kind and never a secret, behind the privileged() gate (approval label + token + unlock)."
+        },
+        {
+          "technique": "server-sealed-client-roundtrip",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:640 The checks result the client carries back is recomputed (checksFor) and compared. A client cannot submit a pass that no check produced."
+        },
+        {
+          "technique": "omit-the-column-not-the-value",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:957 The credentials facts shape is {kind, stored, stored_at}, with no field for the secret value."
+        },
+        {
+          "technique": "opaque-upstream-errors",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:178 A PayPal-side failure is reported as the closed UNAVAILABLE code, never as upstream detail, mirroring Rust."
+        },
+        {
+          "technique": "default-deny-plus-defaulted-owner",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:548 Enforcement is a code gate over the authority table (the authorization subject), not a row policy on a store the browser reaches, so the row-policy technique's precondition does not hold."
+        }
+      ]
     }
   }
 }
