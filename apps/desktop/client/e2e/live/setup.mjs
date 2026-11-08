@@ -34,16 +34,14 @@ await main.click('.ml-setup-btn'); await sl(800);
 const text = () => main.evaluate(() => document.querySelector('.cs-layer')?.textContent ?? '');
 if (/Line I of V/i.test(await text()) && !/keys saved/i.test(await text())) { console.error('setup: the PayPal keys are not stored: run scripts/sandbox/store-keys.ps1'); process.exit(2); }
 if (await main.$('button:has-text("Next step")')) { await main.click('button:has-text("Next step")'); await sl(800); }
-if (await main.$('button:has-text("Sign rules")')) {
-  step('signing the shopper rules');
+if (await main.$('.st-card[data-starter="rules"]')) {
+  step('signing the starter rules');
   const opened = ctx.waitForEvent('page', { timeout: 10000 }).catch(() => null);
-  await main.click('button:has-text("Sign rules")');
+  await main.click('button:has-text("Review and sign")');
   const ap = (await opened) ?? ctx.pages().find((p) => /approval/.test(p.url()));
   await sl(2000);
-  await ap.click('text=Careful: asks me above $50'); await sl(800);
-  await ap.fill('input[placeholder^="e.g. packrite"]', 'house-seller'); await sl(600);
   await ap.click('button:has-text("Review & sign rules")'); await sl(1200);
-  await ap.click('button:has-text("Unlock with your fingerprint")'); await sl(2000);
+  if (await ap.$('button:has-text("Unlock with your fingerprint")')) { await ap.click('button:has-text("Unlock with your fingerprint")'); await sl(2000); }
   await ap.click('button:has-text("Sign with your owner key")'); await sl(2000);
   const done = /Signed with your owner key/.test(await ap.evaluate(() => document.body.innerText));
   step(done ? 'rules signed, wallet unlocked' : 'FAILED: no signed confirmation');

@@ -1,0 +1,12 @@
+/* The Set up page's starter rules card (StarterRules.tsx). Tokens only. */
+.st-card { display: grid; gap: var(--sp-3); max-width: 36rem; }
+.st-sizes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); }
+.st-size { display: grid; gap: var(--sp-1); text-align: left; padding: var(--sp-3); border: 1px solid var(--line2); border-radius: var(--r); background: var(--panel); color: var(--text); font: inherit; cursor: pointer; }
+.st-size span { color: var(--muted); font-size: var(--fs-small); }
+.st-size:hover { background: var(--panel2); }
+.st-size.on { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, var(--panel)); }
+.st-size:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.st-reads { margin: 0; padding: var(--sp-3); border-left: 3px solid var(--line2); color: var(--text); }
+.st-reads span { display: block; color: var(--dim); font-size: var(--fs-small); margin-bottom: var(--sp-1); }
+.st-safe { margin: 0; color: var(--muted); font-size: var(--fs-small); }
+@media (max-width: 700px) { .st-sizes { grid-template-columns: 1fr; } }

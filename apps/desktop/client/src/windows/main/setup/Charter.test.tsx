@@ -10,6 +10,7 @@ import { CHARTER_IN_APPROVAL, CHARTER_TITLE, CONNECTIONS_ENGINE, KEEP_PRACTICE_A
 import { mockBackend, resetMockState } from '../../../mock/backend';
 import { WorldProvider } from '../world';
 import { ToastProvider } from '../ui';
+import { STARTER } from './starterWords';
 import { Charter, HANDOFF } from './Charter';
 import type { SetupStep } from '../logic';
 import { resetTourMemory } from '../../../lib/tour';
@@ -54,13 +55,27 @@ describe('the Charter', () => {
 
   it('hands a privileged line to the approval window with its target, waits, and says when it came back unfinished', async () => {
     view('rules');
-    fireEvent.click(await screen.findByRole('button', { name: new RegExp(SETUP_STEP_COPY.rules.act) }));
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(STARTER.go) }));
     expect(await screen.findByText(SETUP_WAITING.title)).toBeTruthy();
-    expect(hoisted.opened).toEqual([{ deal_id: null, target: 'mandate' }]);
+    expect(hoisted.opened).toHaveLength(1); expect(hoisted.opened[0]).toMatchObject({ deal_id: null, target: 'mandate' });
     act(() => { window.dispatchEvent(new Event('focus')); });
     expect(await screen.findByText(SETUP_NOT_DONE.title, undefined, { timeout: 2000 })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(SETUP_WAITING.reopen) }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(STARTER.go) }));
     await waitFor(() => expect(hoisted.opened).toHaveLength(2));
+  });
+
+  it('the rules line is one card: three sizes, the rules in one sentence, one button that opens the approval window with the draft', async () => {
+    view('rules');
+    const sizes = await screen.findAllByRole('radio');
+    expect(sizes).toHaveLength(3);
+    expect(sizes[0]?.getAttribute('aria-checked')).toBe('true');
+    expect(document.querySelector('.st-reads')?.textContent).toContain('house seller');
+    fireEvent.click(sizes[1]!);
+    expect(sizes[1]?.getAttribute('aria-checked')).toBe('true');
+    expect(document.querySelector('.st-reads')?.textContent).toContain('$250');
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(STARTER.go) }));
+    await waitFor(() => expect(hoisted.opened).toHaveLength(1));
+    expect(hoisted.opened[0]).toMatchObject({ target: 'mandate', draft: { type: 'rules' } });
   });
 
   it('the keys and unlock lines open the approval window on their own pages', async () => {

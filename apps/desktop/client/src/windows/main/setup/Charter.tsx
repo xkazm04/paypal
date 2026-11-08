@@ -22,7 +22,7 @@ import {
 } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
 import { TakeTour, Tour } from '../../../shared/tour';
-import { Btn, Chip, Icon, useToast } from '../../../shared/ui';
+import { Btn, Chip, Disclosure, Icon, useToast } from '../../../shared/ui';
 import { SETUP_STEPS, type SetupStep } from '../logic';
 import { useLocked, useSettings } from '../world';
 import { Handoff } from './common';
@@ -31,6 +31,8 @@ import { switchDemo } from '../console/DemoSwitch';
 import { Reveal, RevealGroup } from '../../../design/Reveal';
 import type { PairMode } from './pairing';
 import { SayIt } from './SayIt';
+import { StarterRules } from './StarterRules';
+import { STARTER } from './starterWords';
 import { useStart } from './start';
 import './charter.css';
 
@@ -128,6 +130,8 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
         <div className="cs-acts">{open(SETUP_WAITING.reopen, 'default')}</div>
       </>
     );
+  } else if (step === 'rules') {
+    body = (<>{notDone ? <div className="ch-wait notdone" role="status"><b>{SETUP_NOT_DONE.title}</b><span>{SETUP_NOT_DONE.text}</span></div> : null}<StarterRules onOpened={opening} /></>);
   } else if (step === 'practice') {
     body = <PracticeStep />;
   } else if (step === 'agent') {
@@ -137,7 +141,7 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
       <>
         {notDone ? <div className="ch-wait notdone" role="status"><b>{SETUP_NOT_DONE.title}</b><span>{SETUP_NOT_DONE.text}</span></div> : null}
         {/* On the rules line "Say it" below holds the gold action; this one is the way to do it all by hand. */}
-        <div className="cs-acts">{open(notDone ? SETUP_WAITING.reopen : copy.act, step === 'rules' ? 'default' : 'gold')}</div>
+        <div className="cs-acts">{open(notDone ? SETUP_WAITING.reopen : copy.act, 'gold')}</div>
       </>
     );
   }
@@ -167,7 +171,7 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
               </div>
               {seal ? <div className="ch-seal">{seal}</div> : null}
             </Reveal>
-            {step === 'rules' && !all ? <Reveal><SayIt className="ch-sayit" timeline stepGold={!isDone} onOpened={opening} /></Reveal> : null}
+            {step === 'rules' && !all && !isDone ? <Reveal><Disclosure summary={STARTER.own} className="ch-own"><SayIt className="ch-sayit" timeline stepGold={false} onOpened={opening} /></Disclosure></Reveal> : null}
             {step !== 'practice' ? (
               <Reveal><section className={`ch-preview${isDone ? ' done' : ''}`} aria-label={isDone ? charterReads(numeral) : charterPreview(numeral)}>
                 <h2 className="cs-h3">{isDone ? charterReads(numeral) : charterPreview(numeral)}</h2>
