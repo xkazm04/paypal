@@ -62,6 +62,38 @@ export function filmEndingPreview(search: string = previewSearch()): FilmEnding 
   }
 }
 
+// ---- under the director ------------------------------------------------------------------------
+// The director (director.html) plays the real windows in frames of its own page, the rehearsal and the
+// film capture drive that page with `?take=1` / `?take=film`, the Tumbler's frame carries `frame=director`,
+// and Break The Table's film round is `arena.html?auto=1`. A page in any of these is being played or
+// recorded, not used: whatever it would do on its own for a person at the keyboard (live mode's probe of a
+// local sandbox, src/arena/live.ts) stays off, and a beat may stage what it shows (src/arena/stage.ts).
+
+export const TAKE_PARAM = 'take';
+
+/** What a page knows about where it runs, for `underDirector` (pure, tested). */
+export type DirectedEnv = { search: string; framed: boolean };
+
+/** True when this page is played or recorded by the director: framed by another page (the director is
+ *  the only page of this app that frames one), or opened with `?take=`, `frame=director` or `auto=1`. */
+export function underDirector(env: DirectedEnv = directedEnv()): boolean {
+  if (env.framed) return true;
+  try {
+    const q = new URLSearchParams(env.search);
+    return q.has(TAKE_PARAM) || q.get('frame') === 'director' || q.get('auto') === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** This page's own `DirectedEnv` (a page that cannot read its parent counts as framed). */
+export function directedEnv(): DirectedEnv {
+  if (typeof window === 'undefined') return { search: '', framed: false };
+  let framed = false;
+  try { framed = window.parent !== window; } catch { framed = true; }
+  return { search: typeof location === 'undefined' ? '' : location.search, framed };
+}
+
 /** The storage key and broadcast channel of the world a page belongs to. */
 export function worldKeys(store: string, channel: string, firstRun: boolean, scale: ScaleName | null = null): { store: string; channel: string } {
   if (firstRun) return { store: `${store}:first-run`, channel: `${channel}:first-run` };

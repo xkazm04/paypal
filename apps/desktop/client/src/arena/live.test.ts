@@ -1,9 +1,11 @@
-// Live mode against a mocked fetch: no sandbox reads as the recorded cards, a sandbox that answers
-// reads as live with the agent's tool calls mapped from its journal, and a note is POSTed with the
-// bridge's header. No socket is opened.
+// Live mode against a mocked fetch: no sandbox reads as the recorded cards and is asked again only on
+// focus or "Connect my agent app" (never on a timer), a sandbox that answers reads as live with the
+// agent's tool calls mapped from its journal, a note is POSTed with the bridge's header, and nothing is
+// ever sent under the director, a take or the desktop app. No socket is opened.
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LIVE_PORT, sendLiveNote, useLive } from './live';
+import { askForLive, LIVE_ASK_EVENT, liveApplies } from './liveReach';
 
 const BASE = 'http://127.0.0.1:1443';
 
@@ -64,11 +66,84 @@ describe('live mode', () => {
     await settle();
     expect(result.current).toEqual({ status: 'recorded' });
     expect(fetch).toHaveBeenCalledTimes(1);
-    // It asks again every 10 s, and stays recorded.
-    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
-    expect(fetch).toHaveBeenCalledTimes(2);
+    // Nobody there: it does not keep knocking (each refused probe is a console error in Chrome).
+    await act(async () => { await vi.advanceTimersByTimeAsync(120_000); });
+    expect(fetch).toHaveBeenCalledTimes(1);
     expect(result.current).toEqual({ status: 'recorded' });
     expect(error).not.toHaveBeenCalled();
+  });
+
+  it('looks again when the window gets the focus back, once for a focus and a visibility change together', async () => {
+    const fetch = vi.fn(async () => { throw new TypeError('Failed to fetch'); });
+    vi.stubGlobal('fetch', fetch);
+    renderHook(() => useLive());
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    // just after the mount's probe: no second knock
+    act(() => { window.dispatchEvent(new Event('focus')); });
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('looks when "Connect my agent app" asks, and goes live if the sandbox is up by then', async () => {
+    let up = false;
+    const live = sandbox('D1', []);
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (!up) throw new TypeError('Failed to fetch');
+      return live(input, init);
+    });
+    vi.stubGlobal('fetch', fetch);
+    const { result } = renderHook(() => useLive());
+    await settle();
+    expect(result.current).toEqual({ status: 'recorded' });
+    up = true;
+    act(() => { askForLive(); });
+    await settle();
+    expect(fetch.mock.calls.filter(([u]) => String(u).endsWith('/api/arena/hello'))).toHaveLength(2);
+    expect(result.current).toEqual({ status: 'live', table: 'D1', answers: [] });
+    expect(LIVE_ASK_EVENT).toBe('table:live-ask');
+  });
+
+  it('never probes under the director, a take or the film capture, nor in the desktop app', async () => {
+    const fetch = vi.fn(async () => json({ sandbox: 'table-sandbox', version: 1, table: 'D1' }));
+    vi.stubGlobal('fetch', fetch);
+    for (const search of ['?take=1', '?take=film', '?frame=director', '?auto=1']) {
+      history.replaceState(null, '', `/${search}`);
+      const { result, unmount } = renderHook(() => useLive());
+      await settle();
+      act(() => { window.dispatchEvent(new Event('focus')); askForLive(); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(result.current, search).toEqual({ status: 'recorded' });
+      unmount();
+    }
+    history.replaceState(null, '', '/');
+    const w = window as unknown as { __TAURI_INTERNALS__?: unknown };
+    w.__TAURI_INTERNALS__ = {};
+    try {
+      const { result } = renderHook(() => useLive());
+      await settle();
+      act(() => { askForLive(); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(result.current).toEqual({ status: 'recorded' });
+    } finally {
+      delete w.__TAURI_INTERNALS__;
+    }
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('applies only on a plain browser page: not framed (the director’s frames), not a take, not the desktop app', () => {
+    expect(liveApplies({ search: '', framed: false, desktop: false })).toBe(true);
+    expect(liveApplies({ search: '?story=try', framed: false, desktop: false })).toBe(true);
+    expect(liveApplies({ search: '', framed: true, desktop: false })).toBe(false);
+    expect(liveApplies({ search: '?take=1', framed: false, desktop: false })).toBe(false);
+    expect(liveApplies({ search: '', framed: false, desktop: true })).toBe(false);
   });
 
   it('gives up on a probe after 1 s', async () => {

@@ -9,6 +9,8 @@ import { mockBackend, type MockBackend } from '../mock/backend';
 import { foldScene, INITIAL_SCENE, runActions, WORLD_ACTIONS, applyWorld, type Stage } from './actions';
 import { BEATS, type ChapterId } from './beats';
 import { HAGGLE, HOLD, MISMATCH, helpers } from './helpers';
+import { DECIDED_BY_DEADLINE, EXPECT } from './takes';
+import { dealAnswer } from '../windows/main/deal/story';
 
 type Rec = { forms: Form[]; approvals: Array<string | null>; main: Array<{ open: boolean; route: string | null }>; transitions: Array<{ label: string; to: DealState }> };
 
@@ -98,6 +100,12 @@ describe("Maya's week on the mock", () => {
     expect(d?.deal.paypal.capture).toBeNull();
     expect(rec.main.some((m) => !m.open)).toBe(true);
     expect(rec.forms).toContain('welcome');
+    // The deal page's answer line names the deadline's safe default as who decided, in the words the
+    // end-proof beat expects on screen (it expected "decided by the deadline", a word retired 2026-10-22).
+    const answer = dealAnswer(d!.deal, { need: undefined, them: 'the dock seller', latest: null, band: null, mayWithdraw: false });
+    expect(answer.sub).toContain(DECIDED_BY_DEADLINE);
+    expect(DECIDED_BY_DEADLINE).toBe('decided by the safe default');
+    expect(EXPECT['end-proof']).toContainEqual({ in: 'main', text: DECIDED_BY_DEADLINE });
   });
 
   it('the whole run: every lapse is a safe default and nothing is ever captured', () => {
