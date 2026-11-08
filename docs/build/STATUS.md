@@ -2975,6 +2975,10 @@ recording, `apps/desktop/client/src/mock/haggle.json` (table-runtime's haggle re
 
 **Native UAT checklist (R2, 2026-10-31):** [UAT-CHECKLIST.md](UAT-CHECKLIST.md) is the owner's script for R3 (W1, W2, W5, W8, W9, W11, F4, U4, the README launch and the PR #6 fusion) with a results table; no GUI step has run yet, so M4 goal 12 above stays open, and W2, W5 and W11's cards are blocked on a fresh native wallet (no GATE item without a counterparty).
 
+## Delta publication scan (2026-10-31; docs/security/scan-2026-10-31-delta.md)
+
+- **20ad784a..c98151a6** (121 commits, the hackathon fusion and the 10-30 follow-ups), report-only: 0 open publication blockers. L-1 (Low): the sandbox page and banner name the vendor CLIs; L-2 (Info): the desktop's "Try to break it" place probes the sandbox port, which the CSP blocks; L-3 (Info): any local process can drive the sandbox's negotiator, by design. K-1 and K-2 are closed. The 194 gitleaks hits are signed envelopes in the proof samples, whose practice keys derive from public labels or a public seed; no private key is in any file. `cargo deny` ok, `pnpm audit` clean, no new third-party crate.
+
 ## The board composes, and every change it makes can be undone (spark ai-driven-ux-golden-standard, P1, 2026-11-03)
 
 Built against the registry's new `model-composed-workspace` standard (composition-region, arrangement-memory,

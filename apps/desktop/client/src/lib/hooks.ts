@@ -59,21 +59,25 @@ export type Mutation<K extends CommandName> = {
   reset: () => void;
 };
 
-/** A command with side effects. Failures are kept as typed state for honest rendering. */
+/** A command with side effects. Failures are kept as typed state for honest rendering. `pending`
+ *  and `error` are the latest run's: a run started again before the last one settled replaces it,
+ *  and the older run still answers its own caller but no longer moves this state. */
 export function useMutation<K extends CommandName>(cmd: K): Mutation<K> {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<WalletError | null>(null);
+  const latest = useRef(0);
   const run = useCallback(
     async (args: ArgsOf<K>, opts?: InvokeOptions) => {
+      const mine = ++latest.current;
       setPending(true);
       setError(null);
       try {
         return await backend().invoke(cmd, args, opts);
       } catch (e) {
-        setError(toWalletError(e));
+        if (mine === latest.current) setError(toWalletError(e));
         return undefined;
       } finally {
-        setPending(false);
+        if (mine === latest.current) setPending(false);
       }
     },
     [cmd],
