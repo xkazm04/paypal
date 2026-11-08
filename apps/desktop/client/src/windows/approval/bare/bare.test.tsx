@@ -177,7 +177,9 @@ describe('bare keys', () => {
     expect((secret as HTMLInputElement).type).toBe('text');
     await waitFor(() => expect(save().disabled).toBe(false));
     await act(async () => { fireEvent.click(save()); });
-    expect(await screen.findByText(BARE_KEYS.saved)).toBeTruthy();
+    // The save awaits the call and a settings re-read before the done state draws; a loaded CI runner
+    // can take longer than the default one second (failed in 3 of 4 runs of one push on 2026-11-08).
+    expect(await screen.findByText(BARE_KEYS.saved, undefined, { timeout: 5000 })).toBeTruthy();
     // The same command and gate as the approval window: only WHICH key, with the capability.
     expect(sent('set_credentials')).toEqual([{ cmd: 'set_credentials', args: 'paypal_sandbox', token: true }]);
     // The values never travel: no call carried them.
