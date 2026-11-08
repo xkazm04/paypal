@@ -9549,6 +9549,56 @@
           "reason": "replaced by ff5e4248-965b-433c-b746-82f1fa9355fe"
         }
       ]
+    },
+    "e2d9b89f-2eb9-4157-b0fd-b7560f70a75c/agent-memory": {
+      "context": "rendezvous-relay",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:49:53.862Z",
+      "worker": "beed319d-d188-4ae1-8c7c-a4c893d3185e",
+      "techniques": []
+    },
+    "9a477925-2fcc-4133-982d-849ca52dbe7f/agent-memory": {
+      "context": "shared-ui-primitives",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:49:53.862Z",
+      "worker": "beed319d-d188-4ae1-8c7c-a4c893d3185e",
+      "techniques": []
+    },
+    "b093c233-9d42-4fdb-8b3c-b9b5460ac5ad/agent-memory": {
+      "context": "attention-forecast-and-window-placement",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:49:53.862Z",
+      "worker": "beed319d-d188-4ae1-8c7c-a4c893d3185e",
+      "techniques": []
+    },
+    "97ce9cef-2512-4583-a3a5-6ee0b27f287d/agent-memory": {
+      "context": "browser-mock-backend",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:49:53.862Z",
+      "worker": "beed319d-d188-4ae1-8c7c-a4c893d3185e",
+      "techniques": []
+    },
+    "c02a6103-08a3-462b-84a7-23d7c9ec8c58/agent-memory": {
+      "context": "console-framework",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:49:53.862Z",
+      "worker": "beed319d-d188-4ae1-8c7c-a4c893d3185e",
+      "techniques": []
     }
   }
 }

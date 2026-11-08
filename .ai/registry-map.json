@@ -1155,8 +1155,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "crates/table-attention/src/lib.rs:1 The crate holds pure, read-only forecast, ladder and window-geometry functions with no stored beliefs or recall; a search of crates/table-attention for episodic, consolidat, recall, embedding and half-life found no hits.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "invariant-placement",
@@ -1714,8 +1718,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1 The mock serves fixture wallet state in Rust binding shapes and mocks no agent memory commands (the 'memory' hits are product descriptions in scale.ts and one in-memory save comment); a search of src/mock for episodic, consolidat, recall, embedding and half-life found no hits.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "browser-credential-boundary",
@@ -6582,8 +6590,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "services/rendezvous/src/lib.rs:1 The crate is a bounded mailbox relay whose only 'memory' is the in-process MemoryStore of queued messages; a search of services/rendezvous for episodic, consolidat, recall, embedding and half-life found no hits, so no agent working, episodic or consolidated memory exists here to judge.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "mcp-tools",
@@ -8063,8 +8075,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "apps/desktop/client/src/shared/ui/index.ts:1 The context only exports React UI primitives (sheets, popovers, focus, toasts); a search of shared/ui and shared/boundary for episodic, consolidat, recall, embedding and half-life found no hits (the one 'remember' is focus.ts remembering keyboard focus), so it has no agent memory pipeline.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "test-harness",
@@ -9658,8 +9674,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "apps/desktop/client/src/windows/main/console/memory.ts:6 The context's only 'memory' module stores UI layer scroll and focus keys for back-navigation, not agent beliefs or episodes; a search of the console directory for episodic, consolidat, recall, embedding and half-life found no hits, so the agent-memory subject does not govern it.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "sql-console",
