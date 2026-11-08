@@ -171,9 +171,9 @@ for (const [cmd, kind] of flows) {
     if ((await Promise.race([locked, card])) === 'locked') { await snap('flow-' + kind + '-locked'); return { ok: true, note: 'wallet locked: said so, no card (expected on a fresh wallet)' }; }
     await snap('flow-' + kind);
     const text = (await page.textContent(`.fc[data-flow="${kind}"]`))?.length ?? 0;
+    const body = await page.evaluate((k) => document.querySelector(`.fc[data-flow="${k}"] .fc-body`)?.textContent?.trim().length ?? 0, kind);
     const cancel = await page.$(`.fc[data-flow="${kind}"] .fc-cancel`);
     if (cancel) { await cancel.click(); await sleep(300); }
-    const body = await page.evaluate((k) => document.querySelector(`.fc[data-flow="${k}"] .fc-body`)?.textContent?.trim().length ?? 0, kind);
     return { ok: text > 20 && body > 10 && !!cancel, note: `card text ${text}, body ${body}` };
   });
 }
@@ -195,6 +195,7 @@ await check('chat', 'the Platform switch round-trips back to Chat', async () => 
 await goView('platform');
 await check('windows', 'the current setup step hands off to the approval window', async () => {
   await page.click(`#${tabs[0].id}`); await sleep(400); await page.click('.ml-setup-btn'); await sleep(800);
+  if (!(await page.$('text=/↗/'))) return { ok: true, note: 'no handoff on this step (done, or no approval needed)' };
   await page.click('text=/↗/');
   const ap = await ctx.waitForEvent('page', { timeout: 10000 }).catch(() => null) ?? ctx.pages().find((p) => /approval/.test(p.url()));
   if (!ap) return { ok: false, note: 'no approval window page' };

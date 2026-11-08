@@ -121,9 +121,24 @@ pub struct Client {
 }
 impl Client {
     /// The deployment supplies the HTTPS origin; no webview supplies an arbitrary URL.
+    ///
+    /// Debug builds only: `TABLE_E2E_ALLOW_HTTP_RELAY=1` also admits a plain-http loopback origin
+    /// (`http://127.0.0.1:<port>`) so an automated run can reach a co-hosted local HOUSE. Release
+    /// builds do not contain this path.
     pub fn new(origin: &str) -> Result<Self, Error> {
+        #[cfg(debug_assertions)]
+        let loopback = std::env::var("TABLE_E2E_ALLOW_HTTP_RELAY").as_deref() == Ok("1");
+        #[cfg(not(debug_assertions))]
+        let loopback = false;
+        Self::with_origin_policy(origin, loopback)
+    }
+    fn with_origin_policy(origin: &str, allow_http_loopback: bool) -> Result<Self, Error> {
         let origin = url::Url::parse(origin).map_err(|_| Error::Invalid)?;
-        if origin.scheme() != "https"
+        let scheme_ok = origin.scheme() == "https"
+            || (allow_http_loopback
+                && origin.scheme() == "http"
+                && origin.host_str() == Some("127.0.0.1"));
+        if !scheme_ok
             || origin.host_str().is_none()
             || !origin.username().is_empty()
             || origin.password().is_some()
@@ -290,6 +305,20 @@ mod tests {
         assert!(batch.validate().is_ok());
         batch.messages = vec!["a".repeat(table_proto::MAX_JWS_BYTES + 1)];
         assert!(batch.validate().is_err());
+    }
+    #[test]
+    fn http_loopback_origin_needs_the_explicit_opt_in_and_stays_loopback() {
+        assert!(Client::with_origin_policy("http://127.0.0.1:8080/", false).is_err());
+        assert!(Client::with_origin_policy("http://127.0.0.1:8080/", true).is_ok());
+        for url in [
+            "http://example.com/",
+            "http://localhost:8080/",
+            "http://127.0.0.1:8080/a",
+            "http://u:p@127.0.0.1:8080/",
+            "ftp://127.0.0.1/",
+        ] {
+            assert!(Client::with_origin_policy(url, true).is_err(), "{url}");
+        }
     }
     #[test]
     fn answers_split_into_full_refused_and_unavailable() {
