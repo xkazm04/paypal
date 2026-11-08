@@ -9657,6 +9657,26 @@
       "evaluatedTs": "2026-11-08T01:08:20.228Z",
       "worker": "2b92dd87-e663-4424-b8af-7fe417d8466b",
       "techniques": []
+    },
+    "e89814cc-f4e5-4bd4-bc27-9f356e7de9d4/prompt-assembly": {
+      "context": "wallet-domain-primitives",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T01:19:46.722Z",
+      "worker": "a63a0911-a220-4539-9892-498886ac43cd",
+      "techniques": []
+    },
+    "877e3281-ae38-485a-a404-4476986454a5/prompt-assembly": {
+      "context": "shared-surfaces-onboarding-honesty",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T01:19:46.722Z",
+      "worker": "a63a0911-a220-4539-9892-498886ac43cd",
+      "techniques": []
     }
   }
 }
