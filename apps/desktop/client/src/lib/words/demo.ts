@@ -54,7 +54,7 @@ export const DEMO_SWITCHING_SUB = 'Nothing is paid and nothing changes in your l
 /** The sample approval page (the main window's own view in demo mode). */
 export const DEMO_APPROVAL = {
   strip: 'Demo approval · simulated · nothing is paid',
-  title: 'This approval runs on sample data. Back to The Table or Esc returns where you were.',
+  title: 'This approval runs on sample data. Back to Signet or Esc returns where you were.',
 } as const;
 
 /** The one-time note after the sample data could not open and the window went back to live. */

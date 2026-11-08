@@ -33,7 +33,7 @@ describe('the quit sheet', () => {
   it('offers to read the forecast again when it could not be read, and then lets the owner quit', async () => {
     render(<ToastProvider><WorldProvider><QuitSheet onClose={() => {}} /></WorldProvider></ToastProvider>);
     await screen.findByRole('heading', { name: QUIT_SHEET.title });
-    const quit = () => screen.getByRole('button', { name: 'Quit The Table' }) as HTMLButtonElement;
+    const quit = () => screen.getByRole('button', { name: 'Quit Signet' }) as HTMLButtonElement;
     const again = await screen.findByRole('button', { name: BOUNDARY_RETRY });
     expect(quit().disabled).toBe(true);
     await act(async () => { fireEvent.click(again); });

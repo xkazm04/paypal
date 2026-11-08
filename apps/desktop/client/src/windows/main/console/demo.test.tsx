@@ -234,7 +234,7 @@ describe('demo words', () => {
     for (const s of strings) {
       const words = s.split(/(?<=[.?!:·])\s+/).flatMap((sentence) => sentence.split(/\s+/).slice(1)).filter((w) => /^[A-Z][a-z]/.test(w));
       // proper names only: PayPal, The Table, Esc, the sample names the switcher shows, Maya
-      for (const w of words) expect(['PayPal', 'PayPal,', 'Maya’s', 'Busy', 'Small', 'First', 'Sample', 'Live', 'Older', 'Locked', 'Demo:', 'The', 'Table', 'Esc'].some((ok) => w.startsWith(ok)), `${w} in "${s}"`).toBe(true);
+      for (const w of words) expect(['PayPal', 'PayPal,', 'Maya’s', 'Busy', 'Small', 'First', 'Sample', 'Live', 'Older', 'Locked', 'Demo:', 'Signet', 'The', 'Table', 'Esc'].some((ok) => w.startsWith(ok)), `${w} in "${s}"`).toBe(true);
     }
   });
 });

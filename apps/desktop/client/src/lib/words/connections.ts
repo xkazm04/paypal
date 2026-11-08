@@ -276,7 +276,7 @@ export const PAIR = {
   paidToPlaceholder: 'your PayPal email, or a shop name with no spaces',
   /** Why the primary button is off, said beside it (L2A-05). */
   blocked: { payee: 'Add a payee name above first: it is where money to you is paid.', code: 'Paste the other side’s code first.', waking: 'The house seller is waking up. This turns on by itself in about a minute.' },
-  paidToWhy: 'Your payee name is the short name (no spaces) the other side saves for you, so a payment to you can be told apart from one to anyone else. The Table cannot fill it in for you yet: use your PayPal email or a short shop name.',
+  paidToWhy: 'Your payee name is the short name (no spaces) the other side saves for you, so a payment to you can be told apart from one to anyone else. Signet cannot fill it in for you yet: use your PayPal email or a short shop name.',
   /** The payee rule the wallet holds (letters, digits and - _ . : @ +, at most 128). */
   payeeProblem: { chars: 'Use letters, digits and - _ . : @ + only, no spaces', long: 'Too long · 128 characters at most' },
 } as const;

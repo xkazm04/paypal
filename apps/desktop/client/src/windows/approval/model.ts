@@ -220,7 +220,7 @@ export function footerNoticeText(kind: FooterNotice, error: { code: string }): s
       // does not match), NOT_FOUND and LEDGER_TRUST (the wallet's records), and the gate's LOCKED and UNAVAILABLE.
       switch (error.code) {
         case 'INVALID':
-          return 'This connection can’t be made any more: it lapsed or no longer matches. Nothing is connected. Start again in The Table.';
+          return 'This connection can’t be made any more: it lapsed or no longer matches. Nothing is connected. Start again in Signet.';
         case 'NOT_FOUND':
           return 'The wallet can’t find this waiting connection any more. Nothing is connected.';
         case 'PERMISSION':
@@ -239,11 +239,11 @@ export function footerNoticeText(kind: FooterNotice, error: { code: string }): s
       // UNAVAILABLE when the wallet has stopped, INVALID when its answer can't be read). It needs no unlock.
       switch (error.code) {
         case 'PERMISSION':
-          return 'This window isn’t allowed to look for a waiting connection right now. Nothing is connected. Close it and open the connection again from The Table.';
+          return 'This window isn’t allowed to look for a waiting connection right now. Nothing is connected. Close it and open the connection again from Signet.';
         case 'UNAVAILABLE':
           return 'The wallet couldn’t be reached, so a waiting connection can’t be shown yet. Nothing is connected. Close this window and open it again.';
         default:
-          return 'A waiting connection couldn’t be read yet. Nothing is connected. Close this window and open the connection again from The Table.';
+          return 'A waiting connection couldn’t be read yet. Nothing is connected. Close this window and open the connection again from Signet.';
       }
     case 'unlock':
       switch (error.code) {

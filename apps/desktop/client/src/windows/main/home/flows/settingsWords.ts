@@ -1,6 +1,6 @@
 // Words of the Settings flow (spark chat-configure): one question per card, the owner's words.
 export const SETTINGS_FLOW = {
-  locked: 'Your wallet is locked. Unlock it to change a setting.',
+  locked: 'Your wallet is locked. Unlock it with the Locked button in Platform, then ask again.',
   topic: {
     ask: 'What would you like to change?',
     look: 'How it looks',

@@ -129,7 +129,7 @@ export const NOTICE_UNREAD = 'The wallet has not answered yet. If you do nothing
 export const WALLET_FAULT_TOAST = 'The wallet ran into a problem just now. If you do nothing, no money moves.';
 export const LOADING_WHAT = { rules: 'your rules', deal: 'the deal' } as const;
 /** The quit confirmation and the shortcuts sheet (moved from QuitSheet.tsx / Shortcuts.tsx). */
-export const QUIT_SHEET = { title: 'Quit The Table?', keep: 'Keep it running' } as const;
+export const QUIT_SHEET = { title: 'Quit Signet?', keep: 'Keep it running' } as const;
 export const SHORTCUTS_TRIAL = 'New layouts on trial';
 
 /** The "Latest" strip under a module's or a place's cards (rebuild WP4a): the first rows of the
@@ -238,11 +238,11 @@ export const AGENTS_CHIP = {
 
 /** The quit sheet's lines other than Rust's own (QUIT_SHEET above holds its title and Keep). */
 export const QUIT_SHEET_LINES = {
-  quit: 'Quit The Table',
-  closing: 'The Table is closing. The wallet stops now.',
+  quit: 'Quit Signet',
+  closing: 'Signet is closing. The wallet stops now.',
   checking: 'Checking your open deals…',
   changed: 'Something changed since this opened. Check the list again before you quit.',
-  unknown: 'What each deal does while The Table is off couldn’t be checked just now.',
+  unknown: 'What each deal does while Signet is off couldn’t be checked just now.',
 } as const;
 
 /** The empty Find: what was typed, and what is worth trying. */
@@ -258,12 +258,12 @@ export const FIND_PLACE_SUB = {
   setup: 'your keys, your rules and a practice deal, one step at a time',
   quit: 'stops the wallet · see what waits first',
 } as const;
-export const FIND_QUIT_TITLE = 'Quit The Table';
+export const FIND_QUIT_TITLE = 'Quit Signet';
 
 /** The quit sheet's lead line and its two section titles (windows/main/quit.ts). */
 export const QUIT_VIEW = {
   lead: (n: number): string => (n === 0 ? 'Nothing is waiting for you.' : n === 1 ? '1 deal is still open.' : `${n} deals are still open.`),
-  whileOff: 'Won’t happen while The Table is off',
+  whileOff: 'Won’t happen while Signet is off',
   atPaypal: 'Still happens at PayPal, by itself',
 } as const;
 

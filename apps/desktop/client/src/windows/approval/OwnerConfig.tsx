@@ -51,10 +51,10 @@ const PAIRING_RECHECK_MS = 30_000;
 const INFO = {
   unlock: 'Signing rules, saving keys and connecting wallets ask for your fingerprint, face or PIN first. Like PayPal, the wallet locks again after 15 quiet minutes. You can always look around.',
   creds: 'Registering at developer.paypal.com creates a sandbox business account with its test keys; that is where yours come from. A Windows dialog asks for each key and saves it in your computer’s secure store. Nothing is typed into this window, and the key never shows up here.',
-  engine: 'The agent app is chosen in The Table, under Settings. This window only shows which one is in use.',
-  house: 'A demo shop that is always open, built into this app. Join its table from The Table, then confirm its four words here.',
+  engine: 'The agent app is chosen in Signet, under Settings. This window only shows which one is in use.',
+  house: 'A demo shop that is always open, built into this app. Join its table from Signet, then confirm its four words here.',
   mandates: 'What each agent may do without asking you. Open a set of rules to see how this week would have gone under a change, before you sign it. Withdrawn rules stop every agent that used them.',
-  pairing: 'Connecting starts in The Table: one of you creates a code, the other joins it. Then each of you checks the same four words here, in your own approval window.',
+  pairing: 'Connecting starts in Signet: one of you creates a code, the other joins it. Then each of you checks the same four words here, in your own approval window.',
   key: 'Your rules and approvals are signed with your owner key, which never leaves this computer. Its id is public: a proof file names it, so whoever checks one compares it with the id you send them.',
 } as const;
 type InfoKey = keyof typeof INFO;
@@ -248,7 +248,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
               <StartProgress gs={gs} /><span className="dim">· nothing on this page pays anyone</span><TakeTour win="approval" gs={gs} className="ow-tour" />
             </div>
             <StartSteps gs={gs} action={stepAction} className="ow-steps" busy={s.pending === 'set_credentials' ? 'paypal' : null}
-              elsewhere={{ practice: gs.steps.find((x) => x.key === 'practice')?.state === 'done' ? START_STEP.practice.doneWhere : 'Next, in The Table: Connections › House seller', engine: 'In The Table: Settings › Agent app' }} />
+              elsewhere={{ practice: gs.steps.find((x) => x.key === 'practice')?.state === 'done' ? START_STEP.practice.doneWhere : 'Next, in Signet: Connections › House seller', engine: 'In Signet: Settings › Agent app' }} />
             {startError ? <WalletNotice error={startError} what={`${START_STEP.paypal.title}: not saved`} /> : null}
           </>
         ) : null}
@@ -267,7 +267,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
           </div>
         )}
         {hint ? <Hint>{hint}</Hint> : null}
-        {(handoff?.target === 'credentials' && !first) || handoff?.target === 'unlock' ? <Hint>The Table opened this window to {TARGET_TEXT[handoff.target]}.</Hint> : null}
+        {(handoff?.target === 'credentials' && !first) || handoff?.target === 'unlock' ? <Hint>Signet opened this window to {TARGET_TEXT[handoff.target]}.</Hint> : null}
         {s.settingsError ? <WalletNotice error={s.settingsError} what="Settings can’t be read" /> : null}
         {!s.tokenReady && s.tokenError ? <WalletNotice error={s.tokenError} what="This window can’t approve right now" message={footerNoticeText('token', s.tokenError)} /> : null}
 
@@ -279,7 +279,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
             {/* on first run the PayPal keys are step 1 above; the price key is optional, so never gold then */}
             {first ? null : <Credential kind="paypal_sandbox" name="PayPal connection" what="your PayPal sandbox app keys" stored={!!st?.payment_executor_configured} locked={locked} />}
             <Credential kind="channel3" name="Market prices" what={first ? 'optional · the key for comparing prices' : 'the key for comparing prices'} stored={!!st?.channel3_configured} locked={locked} gold={!first} />
-            <Row title="Agent app" sub={st ? `${ENGINE_NAME[st.selected_engine]}${st.agents_paused ? ' · all agents paused' : ''} · change it in The Table` : 'Reading settings…'}>
+            <Row title="Agent app" sub={st ? `${ENGINE_NAME[st.selected_engine]}${st.agents_paused ? ' · all agents paused' : ''} · change it in Signet` : 'Reading settings…'}>
               <Chip tone={st?.agents_paused ? 'gold' : agentApp.kind === 'connected' ? 'ok' : agentApp.kind === 'unknown' ? 'dashed' : 'line'}>{st?.agents_paused ? 'paused' : AGENT_APP.chip[agentApp.kind]}</Chip>
               {i('engine')}
             </Row>
@@ -334,7 +334,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
                 <Chip tone="gold">needs you</Chip>
               </Row>
             ) : (
-              <Row title="No connection is waiting" sub="Start one in The Table; it brings you back here for the four words">
+              <Row title="No connection is waiting" sub="Start one in Signet; it brings you back here for the four words">
                 <Chip tone="line">none</Chip>
               </Row>
             )}

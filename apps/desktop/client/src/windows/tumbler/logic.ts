@@ -196,14 +196,14 @@ export function cardActions(item: AttentionItem, now: number): CardAction[] {
   if (item.kind === 'hold') {
     const out: CardAction[] = [];
     if (has('withdraw')) out.push({ action: 'withdraw', label: 'Withdraw', style: 'danger' });
-    out.push({ action: 'open_in_table', label: 'See why in The Table ↗', style: 'plain' });
+    out.push({ action: 'open_in_table', label: 'See why in Signet ↗', style: 'plain' });
     return out;
   }
-  if (item.kind !== 'gate') return [{ action: 'open_in_table', label: 'Open in The Table ↗', style: 'link' }];
+  if (item.kind !== 'gate') return [{ action: 'open_in_table', label: 'Open in Signet ↗', style: 'link' }];
   const out: CardAction[] = [];
   if (canReview(item)) out.push({ action: 'review', label: 'Review ↗', style: 'gold' });
   if (has('withdraw')) out.push({ action: 'withdraw', label: 'Withdraw', style: 'plain' });
-  out.push({ action: 'open_in_table', label: 'Open in The Table ↗', style: 'link' });
+  out.push({ action: 'open_in_table', label: 'Open in Signet ↗', style: 'link' });
   if (has('let_lapse')) out.push({ action: 'let_lapse', label: 'Let it lapse', style: 'link' });
   if (snoozeEligible(item, now)) out.push({ action: 'snooze30', label: 'Remind me in 30 min', style: 'link' });
   return out;

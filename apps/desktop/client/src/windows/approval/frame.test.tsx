@@ -1,5 +1,5 @@
 // The approval window as a layer of the console (rebuild WP4b): its bar names where it sits, the
-// Approvals strip says what it is, and "Back to The Table" only closes the window: it never calls a
+// Approvals strip says what it is, and "Back to Signet" only closes the window: it never calls a
 // wallet command (nothing is decided, released or withdrawn). The hold keeps its rule with the new face.
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
@@ -31,9 +31,9 @@ describe('the approval window’s bar', () => {
     expect(document.querySelector('.aw-tab')?.textContent).toBe(`${APPROVAL_FRAME.name}: ${APPROVAL_FRAME.strip}`);
   });
 
-  it('Back to The Table in the preview says so and calls no wallet command', async () => {
+  it('Back to Signet in the preview says so and calls no wallet command', async () => {
     render(<ToastProvider><WindowBar mode="sandbox" /></ToastProvider>);
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Back to The Table/ })); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Back to Signet/ })); });
     expect(await screen.findByText(APPROVAL_FRAME.closePreview)).toBeTruthy();
     expect(hoisted.invoke).not.toHaveBeenCalled();
     expect(hoisted.close).not.toHaveBeenCalled();
@@ -88,7 +88,7 @@ describe('the hold’s new face', () => {
 });
 
 describe('one app, one calm choice', () => {
-  it('the approval window reads the key The Table writes', () => {
+  it('the approval window reads the key Signet writes', () => {
     expect(CALM_STORE_KEY).toBe(CALM_KEY);
   });
 });

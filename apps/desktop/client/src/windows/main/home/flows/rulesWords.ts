@@ -33,5 +33,5 @@ export const RULES_FLOW = {
   unread: 'These limits cannot be read into rules. Nothing changed.',
   notSigned: 'Not signed. Your limits stay as they were.',
   changed: (sentence: string): string => `Limits changed: ${sentence}`,
-  locked: 'Your wallet is locked. Unlock it to change your limits.',
+  locked: 'Your wallet is locked. Unlock it with the Locked button in Platform, then ask again.',
 } as const;

@@ -57,7 +57,7 @@ export const CONN_WORDS = {
     practice: 'Practice agent',
     off: 'not available',
     lookingFor: 'Looking for agent apps…',
-    locked: 'The wallet is locked. Unlock it to change the agent app.',
+    locked: 'The wallet is locked. Unlock it with the Locked button in Platform, then ask again.',
     consentQ: (name: string): string => `Switch the agent app to ${name}?`,
     consentNote: 'Nothing is paid by this. You can switch back any time.',
     consent: (name: string): string => `Yes, use ${name}`,

@@ -69,7 +69,7 @@ describe('Check the price now', () => {
     // The remedy is the one for a missing capability (gating.ts privilegedBlock): open the window
     // again. Unlocking is not it, and it happens in this window, never in The Table.
     expect(button.title).toBe(PRICE_CHECK.needsUnlock);
-    expect(button.title).toMatch(/open it again from The Table/i);
+    expect(button.title).toMatch(/open it again from Signet/i);
     expect(button.title).not.toMatch(/unlock/i);
   });
 });

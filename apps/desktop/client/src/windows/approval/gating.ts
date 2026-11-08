@@ -142,7 +142,7 @@ export function deriveGates(ctx: GateContext): Gates {
 
   // The common blocker for everything that needs the capability + unlock, in priority order.
   const privilegedBlock = (): string | null => {
-    if (!ctx.tokenReady) return 'This window can’t approve right now. Open it again from The Table.';
+    if (!ctx.tokenReady) return 'This window can’t approve right now. Open it again from Signet.';
     if (locked) return 'Locked. Unlock with fingerprint, face or PIN first.';
     return null;
   };

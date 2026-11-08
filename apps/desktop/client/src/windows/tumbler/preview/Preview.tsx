@@ -128,7 +128,7 @@ export default function Preview() {
           <div className="body">
             <div className="grp">
               <h4>Windows</h4>
-              {ctl('The Table closed (first time)', 'the wallet shows the welcome form', () => run(pv.tableClosedFirstTime()))}
+              {ctl('Signet closed (first time)', 'the wallet shows the welcome form', () => run(pv.tableClosedFirstTime()))}
               {ctl('Dock to screen edge', 'as a snap to the edge would: tab form', () => run(pv.dock()))}
               {ctl('Undock', 'as a drag back into free space: rest', () => run(pv.undock()))}
               {ctl('PayPal opened in browser', `tumbler:handoff for ${target} (approve window) + hand-off form`, () => run(pv.paypalOpened(target)))}

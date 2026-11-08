@@ -12,6 +12,7 @@
 // Anything else (no sandbox, a timeout, a stranger on the port) reads as recorded, silently.
 // Nothing here can move money: the bridge has no such route.
 import { useEffect, useState } from 'react';
+import { isTauri } from '../lib/tauri';
 
 export type LiveAnswer = { at: string; tool: string; verdict: 'yes' | 'no'; rule: string | null; sentence: string; paypalAsked: number };
 export type LiveState =
@@ -106,6 +107,8 @@ async function journal(after: number): Promise<JournalEntry[] | null> {
 export function useLive(): LiveState {
   const [state, setState] = useState<LiveState>(RECORDED);
   useEffect(() => {
+    // The desktop shell's CSP only allows its own IPC, so the bridge can never answer there: stay recorded.
+    if (isTauri()) return undefined;
     let gone = false;
     let live = false;
     let table: string | null = null;

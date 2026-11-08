@@ -384,7 +384,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
         but you agreed <b className="money">{total}</b>.
       </p>
       <p className="pop-p">
-        So there is no PayPal button, and on purpose no “pay anyway”. If the price should change, it takes a new agreed deal, not a click here. The signed history is your proof: export it from this deal in The Table.
+        So there is no PayPal button, and on purpose no “pay anyway”. If the price should change, it takes a new agreed deal, not a click here. The signed history is your proof: export it from this deal in Signet.
       </p>
     </>
   ) : null;
@@ -519,7 +519,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
         {handoff?.draft?.type === 'lever' && d.kind === 'rescue' && g.rescue.visible ? (
           <div className="dr-mkt">
             <span className="k">Your pick</span>
-            <span className="t">You picked <b>{LEVER_NAME[handoff.draft.lever]}</b> in The Table. Approving it is still your decision, here.</span>
+            <span className="t">You picked <b>{LEVER_NAME[handoff.draft.lever]}</b> in Signet. Approving it is still your decision, here.</span>
           </div>
         ) : null}
 

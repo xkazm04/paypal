@@ -47,7 +47,7 @@ const POP = {
   why: ['Why the words', 'If someone tried to sit between you, your two screens would show different words. Comparing them is how that gets caught: if even one word differs, stop, and nothing is connected.'],
   house: ['The house seller', 'A demo shop built into this app. The wallet already checks it is the real one; compare the words with its page all the same.'],
   lock: ['Why it’s locked', 'After 15 quiet minutes the wallet locks. Connecting a wallet asks for your fingerprint, face or PIN. Stopping never needs it.'],
-  again: ['Why start again', 'Words that differ can mean someone is in the middle. Nothing was connected or saved, and this attempt is over. Start again in The Table, and share the new code another way (a call instead of chat).'],
+  again: ['Why start again', 'Words that differ can mean someone is in the middle. Nothing was connected or saved, and this attempt is over. Start again in Signet, and share the new code another way (a call instead of chat).'],
 } as const;
 type PopKey = keyof typeof POP;
 
@@ -112,7 +112,7 @@ export function PairingConfirm({ pending, readError, onSettled }: Props) {
       <div className="ow-pair done" role="alert">
         <h2><span className="red">✕</span> Not connected</h2>
         <div className="ow-ctx">
-          <span>Nothing was connected and this attempt is over. Start again in The Table with a new code.</span>
+          <span>Nothing was connected and this attempt is over. Start again in Signet with a new code.</span>
           <Info k="again" open={pop} setOpen={setPop} />
         </div>
         {popover}
@@ -125,7 +125,7 @@ export function PairingConfirm({ pending, readError, onSettled }: Props) {
   if (pending === null) {
     return (
       <p className="ow-p">
-        No connection is waiting for you. Connecting starts in The Table: one of you creates a code, the other joins it. The Table then brings you here with four words, and each of you confirms them <b>here</b>. An expired or finished one doesn’t come back.
+        No connection is waiting for you. Connecting starts in Signet: one of you creates a code, the other joins it. Signet then brings you here with four words, and each of you confirms them <b>here</b>. An expired or finished one doesn’t come back.
       </p>
     );
   }

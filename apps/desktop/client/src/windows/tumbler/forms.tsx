@@ -208,12 +208,12 @@ function CardDetails({ item, now, anchor, actions, pending, onAction, onClose }:
       ]} />
       {table || lapse || snooze ? (
         <div className="t-pop-acts">
-          {table ? <Btn sm onClick={act('open_in_table')} title={hold ? "Open this deal's evidence in The Table" : 'Open this deal in The Table'}>{hold ? 'See why in The Table ↗' : 'Open in The Table ↗'}</Btn> : null}
+          {table ? <Btn sm onClick={act('open_in_table')} title={hold ? "Open this deal's evidence in Signet" : 'Open this deal in Signet'}>{hold ? 'See why in Signet ↗' : 'Open in Signet ↗'}</Btn> : null}
           {snooze ? <Btn sm kind="plain" disabled={pending === 'snooze30'} onClick={act('snooze30')} title={ACTION_TITLE.snooze30}>{snooze.label}</Btn> : null}
           {lapse ? <Btn sm kind="plain" onClick={act('let_lapse')} title={ACTION_TITLE.let_lapse}>{lapse.label}</Btn> : null}
         </div>
       ) : null}
-      <Hint className="t-pop-hint">{hold ? 'No pay button exists for a hold. ' : ''}Anything the other side wrote is kept out of this window. You can read it in The Table, marked as unchecked.</Hint>
+      <Hint className="t-pop-hint">{hold ? 'No pay button exists for a hold. ' : ''}Anything the other side wrote is kept out of this window. You can read it in Signet, marked as unchecked.</Hint>
     </Popover>
   );
 }
@@ -287,7 +287,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
             </Btn>
           ),
         )}
-        {hold && table ? <Btn sm onClick={() => p.onAction('open_in_table', item)} title="See why it is paused, in The Table">See why ↗</Btn> : null}
+        {hold && table ? <Btn sm onClick={() => p.onAction('open_in_table', item)} title="See why it is paused, in Signet">See why ↗</Btn> : null}
         {items.length > 1 ? (
           <span className="nav">
             <Btn kind="plain" sm className="arr" onClick={() => p.onNav(-1)} aria-label="Previous item">‹</Btn>
@@ -355,7 +355,7 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
     <div ref={ref} className="f stack" tabIndex={-1} aria-label="Everything open">
       <div className="s-head">
         <h2>Needs you<span className="n">{p.items.length}</span></h2>
-        <Btn kind="plain" sm onClick={p.onTable}>Open The Table ↗</Btn>
+        <Btn kind="plain" sm onClick={p.onTable}>Open Signet ↗</Btn>
         {p.dnd ? <Chip tone="line" title="Do not disturb: no notifications, no breathing; the ring and count stay">Quiet</Chip> : null}
         <span className="s-tools">
           {p.pinned !== null ? (
@@ -472,7 +472,7 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
                 : `${s?.in_motion ?? 0} deal${s?.in_motion === 1 ? ' is' : 's are'} going on inside your rules. Nothing here needs you.`}
             </p>
           )}
-          <Hint className="t-pop-hint">Each one is listed in The Table.</Hint>
+          <Hint className="t-pop-hint">Each one is listed in Signet.</Hint>
         </Popover>
       ) : null}
     </div>
@@ -496,7 +496,7 @@ function WalkSummary({ walk }: { walk: WalkAway }) {
 /** Layer 2: the first few lines (time · what happens · on whose authority). */
 function WalkDetails({ walk }: { walk: WalkAway | null }) {
   if (!walk || !walk.known) {
-    return <p className="t-pop-p">The wallet couldn’t work out what happens next just now, so nothing here is a promise. Open The Table to see each deal.</p>;
+    return <p className="t-pop-p">The wallet couldn’t work out what happens next just now, so nothing here is a promise. Open Signet to see each deal.</p>;
   }
   return (
     <>
@@ -512,7 +512,7 @@ function WalkDetails({ walk }: { walk: WalkAway | null }) {
         </ul>
       ) : <p className="t-pop-p">Nothing is scheduled. Every open deal waits for you.</p>}
       {walk.more ? <p className="t-pop-p w-more">and {walk.more} more</p> : null}
-      <Hint className="t-pop-hint">Your wallet never sends money on its own. Closing the window keeps this running; quitting The Table stops it.</Hint>
+      <Hint className="t-pop-hint">Your wallet never sends money on its own. Closing the window keeps this running; quitting Signet stops it.</Hint>
     </>
   );
 }
@@ -589,7 +589,7 @@ export const HandoffForm = forwardRef(function HandoffForm(p: HandoffProps, ref:
       </div>
       <p className="h-sil nt nb" title={`If you do nothing: ${silence}`}><Hourglass />If you do nothing: <b>{silence}</b></p>
       <div className="h-links nb">
-        <Btn kind="plain" sm onClick={p.onTable}>Open in The Table ↗</Btn>
+        <Btn kind="plain" sm onClick={p.onTable}>Open in Signet ↗</Btn>
         <Btn kind="plain" sm onClick={p.onRest}>Minimise</Btn>
       </div>
     </div>
@@ -618,9 +618,9 @@ export const WelcomeForm = forwardRef(function WelcomeForm(p: {
 }, ref: Ref<HTMLDivElement>) {
   if (p.start) return <FirstRunWelcome ref={ref} {...p} start={p.start} />;
   return (
-    <div ref={ref} className="f welcome" tabIndex={-1} aria-label="The Table is closed">
+    <div ref={ref} className="f welcome" tabIndex={-1} aria-label="Signet is closed">
       <div className="f-head nt"><span className="kick">Your mini window</span><Flags mode={p.mode} locked={p.locked} /></div>
-      <h2 className="w-h nt">The Table is closed.</h2>
+      <h2 className="w-h nt">Signet is closed.</h2>
       <p className="w-p nt" title="Your agents keep working; I show you what needs you.">Your agents keep working; I show you what needs you.</p>
       <ul className="w-legend">
         <li title="A gold ring on the puck: something needs you"><Mini ring="gold"><text className="m-n" x="13" y="16.5" textAnchor="middle">4</text></Mini><span><b>Gold ring</b> · needs you</span></li>

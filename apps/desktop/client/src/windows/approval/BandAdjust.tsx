@@ -84,7 +84,7 @@ export function BandAdjust({ deal, band, gate, onDone, draft }: {
           </Btn>
           {inputProblem ? <p className="ui-hint red" role="note">{inputProblem}</p> : null}
           {missing ? <p className="ui-hint gold" role="note">{missing}</p> : null}
-          <p className="ui-hint">{seed ? 'Filled in from your draft in The Table. Check both amounts: nothing is signed until you sign here. ' : ''}Updates your rules for this deal before it’s agreed. It doesn’t pay anything.</p>
+          <p className="ui-hint">{seed ? 'Filled in from your draft in Signet. Check both amounts: nothing is signed until you sign here. ' : ''}Updates your rules for this deal before it’s agreed. It doesn’t pay anything.</p>
         </div>
       ) : null}
       {done ? <p className="dr-hint" role="status"><span className="ui-chip ok">Signed</span><span className="t" title={done}>{done}</span></p> : null}

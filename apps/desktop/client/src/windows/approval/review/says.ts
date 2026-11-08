@@ -59,7 +59,7 @@ export function stoppedText(d: Deal): string {
     case 'AUTO_VOIDED': return 'The hold ran out after 3 days and released itself. Nothing was paid.';
     case 'FAILED': return d.kind === 'rescue' ? 'The invoice was cancelled at PayPal. Nothing was recovered.' : 'Failed. The wallet stopped this deal; no money moved from this window.';
     case 'REFUNDED': return 'Refunded on PayPal.';
-    case 'DISPUTED': return 'Disputed on PayPal. The proof is in The Table.';
+    case 'DISPUTED': return 'Disputed on PayPal. The proof is in Signet.';
     default: return `${stateWord(d.state, d).text}.`;
   }
 }

@@ -117,7 +117,7 @@ export const PROOF_CHECKER = {
     use: 'Use the practice deal',
     watch: 'Watch it play through',
     stop: 'Stop and try it yourself',
-    back: 'The Table · proof checker',
+    back: 'Signet · proof checker',
   },
 } as const;
 

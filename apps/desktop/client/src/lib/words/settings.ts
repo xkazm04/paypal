@@ -152,7 +152,7 @@ export const SETTINGS_MORE = {
   safetyLine: 'Every money step and who decided it',
   firstRun: 'Show the first visit again',
   firstRunLine: 'The browser preview only: open a brand-new wallet, as a new owner sees it',
-  quit: 'Quit The Table',
+  quit: 'Quit Signet',
   quitLine: 'See what keeps running and what waits before the app closes',
   open: 'Open',
 } as const;
@@ -168,7 +168,7 @@ export const SETTINGS_PROTECT = {
   ],
   onlyYou: 'Only you · in the approval window',
   onlyYouLocked: 'Only you · in the approval window · locked',
-  youHere: 'You · here in The Table',
+  youHere: 'You · here in Signet',
   fixed: 'Fixed',
   movesOn: 'Money moves only on',
   agentsNever: 'agents: never',

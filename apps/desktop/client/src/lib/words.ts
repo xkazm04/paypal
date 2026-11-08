@@ -264,7 +264,7 @@ export const PRICE_CHECK = {
   key: 'Typical price',
   note: 'A check only reads the market. It never pays or signs anything.',
   unbound: 'This item has no market product tied to it in your rules, so there is nothing to check. Add one to your market-watch rule first.',
-  needsUnlock: 'This window can’t check right now. Open it again from The Table.',
+  needsUnlock: 'This window can’t check right now. Open it again from Signet.',
   failed: 'Price not checked',
 } as const;
 /** The result of a check: "$329.00 · usually $300.00–$360.00". */
@@ -721,12 +721,12 @@ export const START_STEP: Record<StartStepKey, { title: string; sub: string; done
     where: 'Opens the approval window: start from a ready-made set of rules, check it, then sign',
   },
   practice: {
-    title: 'Try a practice deal with the house seller', sub: 'A demo shop that is always open · sandbox money', done: 'House seller connected', doneLine: 'Its practice table is ready for you', doneAct: 'Start a practice deal', doneWhere: 'To start a practice deal, open The Table: Connections › House seller', act: 'Try the house seller',
+    title: 'Try a practice deal with the house seller', sub: 'A demo shop that is always open · sandbox money', done: 'House seller connected', doneLine: 'Its practice table is ready for you', doneAct: 'Start a practice deal', doneWhere: 'To start a practice deal, open Signet: Connections › House seller', act: 'Try the house seller',
     where: 'Opens Connections on the house seller, a practice shop built into the app',
   },
   engine: {
     title: 'Choose your agent app', sub: 'Pick the app your agents run in · the practice agent plays until then', done: 'Agent app chosen', doneLine: 'Your agents run in it', act: 'Choose agent app',
-    where: 'Opens Setup in The Table on the agent app your agents run in',
+    where: 'Opens Setup in Signet on the agent app your agents run in',
   },
 };
 /** Step 4 for an owner with no agent app: keeping the practice agent is a choice, and says only that. */
@@ -752,13 +752,13 @@ export const TOUR_STOP: Record<TourStopId, { title: string; text: string }> = {
   'main.steps': { title: 'One click to each step', text: 'Each step opens where it happens. A tick means it is done, and you can do them in any order.' },
   'main.engine': { title: 'Your agent app', text: 'Your agents run in an agent app on this computer. Until you choose one, a practice agent with fixed price rules plays for you.' },
   'main.approval': { title: 'Approvals have their own window', text: 'Paying, saving your PayPal keys and signing rules happen only in the approval window. It locks after 15 quiet minutes.' },
-  'tumbler.what': { title: 'Your mini window', text: 'It stays small at the edge of your screen while The Table is closed. Your agents keep working.' },
+  'tumbler.what': { title: 'Your mini window', text: 'It stays small at the edge of your screen while Signet is closed. Your agents keep working.' },
   'tumbler.needs': { title: 'It shows what needs you', text: 'A gold ring means something needs you. Each step here opens where it happens.' },
-  'tumbler.engine': { title: 'Agent app: in The Table', text: 'You choose your agent app in The Table. This step opens it for you.' },
+  'tumbler.engine': { title: 'Agent app: in Signet', text: 'You choose your agent app in Signet. This step opens it for you.' },
   'tumbler.waiting': { title: 'If you do nothing', text: 'Waiting never sends your money. At a deadline the wallet starts nothing new, and what PayPal shows decides.' },
   'approval.only': { title: 'Money decisions happen here', text: 'This is the only window that can approve a payment, save your PayPal keys or sign rules.' },
-  'approval.steps': { title: 'The same steps as The Table', text: 'The steps for this window are one click here. The others say where they happen.' },
-  'approval.engine': { title: 'Agent app: in The Table', text: 'You choose your agent app in The Table. This window shows which one your agents use.' },
+  'approval.steps': { title: 'The same steps as Signet', text: 'The steps for this window are one click here. The others say where they happen.' },
+  'approval.engine': { title: 'Agent app: in Signet', text: 'You choose your agent app in Signet. This window shows which one your agents use.' },
   'approval.config': { title: 'Your wallet setup', text: 'Unlock, your PayPal keys, market prices and the agent app are kept here. Nothing on this page pays anyone.' },
 };
 /** The tour's own buttons and labels. */
@@ -837,7 +837,7 @@ export type SetupStepKey = 'keys' | 'rules' | 'practice' | 'agent' | 'unlock';
 /** Each Set up step: two short lines, the one button, and what a finished step says. */
 export const SETUP_STEP_COPY: Record<SetupStepKey, { lead: string; text: string; act: string; done: string }> = {
   keys: {
-    lead: 'Add your PayPal sandbox keys', text: 'They let The Table work with PayPal test money. They are saved securely on this computer and never shown again.',
+    lead: 'Add your PayPal sandbox keys', text: 'They let Signet work with PayPal test money. They are saved securely on this computer and never shown again.',
     act: 'Add PayPal keys', done: 'PayPal sandbox keys saved',
   },
   rules: {
@@ -878,7 +878,7 @@ export const SHIELD_VIEW_LABEL: Record<'stopped' | 'through' | 'week' | 'safe', 
   week: 'This week',
   safe: 'Looked safe',
 };
-export const SETUP_OPENS_IN_TABLE = 'Opens The Table on its Set up page';
+export const SETUP_OPENS_IN_TABLE = 'Opens Signet on its Set up page';
 
 // console-rebuild WP1b (data layer and resilience): the words of a part that could not be shown, a
 // read that is not answering, and a list that may be out of date. Never a code, a command or a stack.
@@ -1023,7 +1023,7 @@ export const FIND_KEYS = { move: 'move', open: 'open', close: 'close' } as const
 /** A deal layer's crumb before its name is read, and why a deal cannot show. */
 export const DEAL_CRUMB = 'Deal';
 export const DEAL_UNREAD = 'Your deals couldn’t be loaded right now. Nothing has changed with your money.';
-export const DEAL_GONE = { text: 'This deal isn’t here any more.', back: 'Back to The Table' } as const;
+export const DEAL_GONE = { text: 'This deal isn’t here any more.', back: 'Back to Signet' } as const;
 /** The idle-lock button in the top bar (it only opens the approval window, where Windows Hello unlocks). */
 export const LOCK = {
   locked: 'Locked', unlocked: 'Unlocked',

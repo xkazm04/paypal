@@ -12,13 +12,13 @@ const summary = (o: Partial<QuitSummary> = {}): QuitSummary =>
 describe('quit sheet', () => {
   it('groups what stops and what PayPal still does, with the deal number and amount', () => {
     const v = quitView(summary({
-      while_off: [line({ effect: 'not_collected_if_approved', text: 'If the buyer approves on PayPal, the payment is not collected until you open The Table again.' })],
+      while_off: [line({ effect: 'not_collected_if_approved', text: 'If the buyer approves on PayPal, the payment is not collected until you open Signet again.' })],
       at_paypal: [line({ effect: 'request_runs_out', text: 'If it is not approved on PayPal in time, the payment request runs out there by itself. No money moves.' })],
     }));
     expect(v.lead).toBe('1 deal is still open.');
     expect(v.unknown).toBe(false);
     expect(v.sections.map((s) => [s.key, s.title, s.rows.map((r) => `${r.label} · ${r.amount}`)])).toEqual([
-      ['while_off', 'Won’t happen while The Table is off', ['D-0189 · $90.00']],
+      ['while_off', 'Won’t happen while Signet is off', ['D-0189 · $90.00']],
       ['at_paypal', 'Still happens at PayPal, by itself', ['D-0189 · $90.00']],
     ]);
     expect(v.sections[0]?.rows[0]?.text).toMatch(/^If the buyer approves/);

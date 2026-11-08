@@ -64,7 +64,7 @@ export const BARE_RULES = {
 } as const;
 
 export const BARE_PAIRING = {
-  title: 'Do these four words match The Table?',
+  title: 'Do these four words match Signet?',
   house: 'The practice shop shows the same four words on its side.',
   other: 'Read them to the other owner; their words must match, in order.',
   name: 'Name (only you see it)',
@@ -73,7 +73,7 @@ export const BARE_PAIRING = {
   confirming: 'Connecting…',
   stop: 'They don’t match: stop',
   what: 'Connecting pays nobody and never touches PayPal.',
-  none: 'No connection is waiting. Start it again in The Table.',
+  none: 'No connection is waiting. Start it again in Signet.',
   reading: 'Looking for the waiting connection…',
   connected: (name: string) => `Connected · ${name}`,
   connectedSub: 'Its offers can reach your agents, within your rules.',

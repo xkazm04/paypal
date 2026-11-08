@@ -9,7 +9,7 @@
 // Imports nothing from lib/words.ts.
 
 export const ARENA_TITLE = 'Break The Table';
-export const ARENA_DOC_TITLE = 'The Table · Break The Table (preview)';
+export const ARENA_DOC_TITLE = 'Signet · Break The Table (preview)';
 export const ARENA_LEDE = 'You play the attacker. Maya’s agent haggles for a monitor under rules she signed. Make it spend her money.';
 export const ARENA_HONEST = 'Every attack’s answer on this page is the real wallet’s, recorded by playing it through the wallet’s agent server and money pipeline, and pinned by a test. Nothing here is acted. Maya’s safety record beside it is the preview’s sample week, with your attacks added.';
 
@@ -260,9 +260,9 @@ export const ARENA_NOTE = {
 
 export const ARENA_SAFETY = {
   heading: 'Maya’s safety record',
-  sub: 'Her record in The Table’s preview (sample week), read again after every attack.',
+  sub: 'Her record in Signet’s preview (sample week), read again after every attack.',
   reading: 'Reading her record…',
-  open: 'Open it in The Table ›',
+  open: 'Open it in Signet ›',
   openHere: 'Open the safety record ›',
   session: 'Your attacks on it',
   sessionNone: 'Nothing yet. Every row your attacks write lands here.',

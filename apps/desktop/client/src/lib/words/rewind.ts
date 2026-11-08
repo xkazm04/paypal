@@ -140,7 +140,7 @@ export const REWIND_AHEAD = {
   next: 'Next, if you do nothing:',
   nextIn: (left: string): string => `in ${left}`,
   beyond: 'beyond the forecast',
-  tickNow: 'Runs the next time The Table checks',
+  tickNow: 'Runs the next time Signet checks',
   tickIf: 'Only if the buyer approves on PayPal',
   jumpNow: 'Move the playhead to now',
   /** What the rules the owner said would allow, said under the headline. `until` is when the rules end. */
