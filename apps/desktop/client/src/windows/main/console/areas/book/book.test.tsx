@@ -21,6 +21,14 @@ import { runtimeMock, setHarnessBackend } from '../../testing/runtime';
 
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
 
+// The summary's compact cards show a note only when the card has no 'if you do nothing' line, so a test of
+// the note reads the cards the layer hands the summary, not the drawn text.
+const drawn = vi.hoisted(() => ({ cards: [] as readonly { id: string; note?: unknown }[] }));
+vi.mock('../../ModuleSummary', async (original) => {
+  const real = await original<typeof import('../../ModuleSummary')>();
+  return { ...real, ModuleSummary: (p: Parameters<typeof real.ModuleSummary>[0]) => { drawn.cards = p.cards; return real.ModuleSummary(p); } };
+});
+
 const PINNED_INSTANTS = [
   ['Monday 09:00', new Date(Date.UTC(2026, 9, 19, 9, 0))],
   ['Wednesday 15:00', new Date(Date.UTC(2026, 9, 21, 15, 0))],
@@ -95,7 +103,8 @@ describe('Book outlook (#8)', () => {
     expect(holds.some((d) => d.side === 'seller'), 'the large world holds money coming in').toBe(true);
     const held = sumByCurrency(holds.map((d) => ({ minor: d.terms.unit_price.minor * d.terms.qty, currency: d.terms.currency })))
       .map((m) => formatMinor(m.minor, m.currency)).join(' · ');
-    expect(r.layer.querySelector('[data-card="outlook"]')?.textContent).toContain(BOOK.cards.outlookNote(held));
+    void r;
+    expect(drawn.cards.find((c) => c.id === 'outlook')?.note).toBe(BOOK.cards.outlookNote(held));
   }, 60_000);
 });
 
