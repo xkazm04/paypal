@@ -1205,8 +1205,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "crates/table-attention/src/lib.rs:1 The crate holds deterministic forecast, silence/quit wording, a deadline ladder and window arithmetic with no model call; a search of crates/table-attention for prompt, system_prompt, compaction and max_tokens found nothing, so prompt assembly does not apply.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "test-harness",
@@ -3755,8 +3759,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/windows/main/home/model.ts:2 The Home view model and away summary are pure functions over the wallet's own record that feed cards; a search of windows/main/home for prompt, system_prompt, systemPrompt, compaction and max_tokens found nothing, so no prompt is built here.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "fleet-orchestration",
@@ -6971,8 +6979,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/windows/main/unshown.ts:1 These are pure view-model and display modules for the rewind timeline, charts and the unshown-evidence computation; a search of windows/main and lib/words for system_prompt, systemPrompt, compaction and max_tokens found nothing, so this context builds no LLM prompt.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "audit-logging",

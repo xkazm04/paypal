@@ -9993,6 +9993,36 @@
       "evaluatedTs": "2026-11-08T02:55:01.098Z",
       "worker": "21959bca-364d-4369-a8b4-8006cd96c7af",
       "techniques": []
+    },
+    "78d8302d-ee50-474d-a0aa-494dc519c1af/prompt-assembly": {
+      "context": "rewind-and-displays",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T03:13:20.658Z",
+      "worker": "ebfe76e9-696b-4613-84de-6b411c3279da",
+      "techniques": []
+    },
+    "e48f3567-2c9c-4ab3-9c0b-fe0c962e55bd/prompt-assembly": {
+      "context": "home-overview",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T03:13:20.658Z",
+      "worker": "ebfe76e9-696b-4613-84de-6b411c3279da",
+      "techniques": []
+    },
+    "b093c233-9d42-4fdb-8b3c-b9b5460ac5ad/prompt-assembly": {
+      "context": "attention-forecast-and-window-placement",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T03:13:20.658Z",
+      "worker": "ebfe76e9-696b-4613-84de-6b411c3279da",
+      "techniques": []
     }
   }
 }
