@@ -855,8 +855,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "crates/table-mcp/src/lib.rs:1 This context is the host-side MCP tool server and shield that a CLI child calls into. Searching crates/table-mcp and crates/table-shield for process::Command, env_clear, spawn, stdin, --output-format, kill_on_drop and STRIP_ENV found zero hits: nothing here spawns or wraps an agent CLI, so the transport subject's precondition does not hold.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "test-harness",

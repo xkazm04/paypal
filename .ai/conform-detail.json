@@ -9983,6 +9983,16 @@
       "evaluatedTs": "2026-11-08T02:42:33.085Z",
       "worker": "51be7ccd-051f-4903-8792-61d882c346d6",
       "techniques": []
+    },
+    "4a906b90-6f4d-4f72-92fb-1091ca69ebff/agent-cli-transport": {
+      "context": "agent-tool-surface",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:55:01.098Z",
+      "worker": "21959bca-364d-4369-a8b4-8006cd96c7af",
+      "techniques": []
     }
   }
 }
