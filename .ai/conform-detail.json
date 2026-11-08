@@ -357,7 +357,7 @@
       "bundle": "software-engineering",
       "state": "unknown",
       "evaluatedAt": "2026-11-08",
-      "evaluatedTs": "2026-11-08T01:08:20.228Z",
+      "evaluatedTs": "2026-11-08T02:42:33.085Z",
       "techniques": [
         {
           "technique": "bounded-projection-of-external-work",
@@ -385,10 +385,10 @@
         }
       ],
       "withdrawn": {
-        "worker": "2b92dd87-e663-4424-b8af-7fe417d8466b",
+        "worker": "51be7ccd-051f-4903-8792-61d882c346d6",
         "state": "not-applicable",
-        "at": "2026-11-08T01:09:42.925388+00:00",
-        "reason": "reviewer (sonnet): The cited line (agent.rs:2) is only a doc comment, and the file contradicts 'assembles no run': it defines the AgentTool set (agent.rs:139), AgentProjection (agent.rs:164) and the fixed role system prompts and Playbook (agent.rs:548-575), which are the tool and prompt surface a native run starts fro"
+        "at": "2026-11-08T02:43:42.672583+00:00",
+        "reason": "reviewer (sonnet): The anchor (exposure.rs:2, \"Pure\") describes only the exposure fold, but the context also holds agent.rs, which has session-grant, SessionNotEnabled, RunEnded and per-session tool-call-budget refusals that sit close to agent-run control, and I did not read that file closely enough to rule out the pr"
       }
     },
     "877e3281-ae38-485a-a404-4476986454a5/agent-runtime-assembly": {
@@ -9953,6 +9953,36 @@
           "evidence": "apps/desktop/client/scripts/takes.mjs:6 Only the mock plane is ever on screen, so no demo rows sit beside real ones."
         }
       ]
+    },
+    "2388265b-2923-4e49-b59f-7f4453fa4f88/agent-runtime-assembly": {
+      "context": "runtime-money-controls",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:42:33.085Z",
+      "worker": "51be7ccd-051f-4903-8792-61d882c346d6",
+      "techniques": []
+    },
+    "97ce9cef-2512-4583-a3a5-6ee0b27f287d/agent-runtime-assembly": {
+      "context": "browser-mock-backend",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:42:33.085Z",
+      "worker": "51be7ccd-051f-4903-8792-61d882c346d6",
+      "techniques": []
+    },
+    "78691638-b912-45fd-98f8-083cec08e3a9/agent-runtime-assembly": {
+      "context": "tumbler-window",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T02:42:33.085Z",
+      "worker": "51be7ccd-051f-4903-8792-61d882c346d6",
+      "techniques": []
     }
   }
 }

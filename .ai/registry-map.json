@@ -1688,8 +1688,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1 This is a TypeScript stand-in for the shell that serves sandbox data for design work and Playwright tests. It has no agent loop, hook chain, extension loading or conversation checkpointing; searching apps/desktop/client/src/mock found zero hits for plugin, checkpoint, subagent and interceptor.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "eval-harness",
@@ -7521,8 +7525,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "crates/table-runtime/src/limits.rs:1 These files are owner money controls (limits, policy, rescue, proofs, history, forecasts). They contain no hook chain around model or tool calls, no loading of contributed code and no conversation checkpoint or subagent code; searching crates/table-runtime/src found zero hits for plugin, checkpoint, subagent and interceptor (the agent loop lives in table-engine).",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "data-access",
@@ -9098,8 +9106,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:1 The Tumbler is a UI window that draws what Rust already decided and has no agent runtime assembly; searching apps/desktop/client/src/windows/tumbler found zero hits for plugin, checkpoint, subagent and interceptor (the only 'hook' hits are React hooks).",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "module-design",
