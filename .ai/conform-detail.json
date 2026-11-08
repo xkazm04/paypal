@@ -10023,6 +10023,46 @@
       "evaluatedTs": "2026-11-08T03:13:20.658Z",
       "worker": "ebfe76e9-696b-4613-84de-6b411c3279da",
       "techniques": []
+    },
+    "ed618215-bf0a-4dfc-8c2c-3c3a805321b1/agent-memory": {
+      "context": "prototype-dial-shell-and-design-system",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T03:30:29.640Z",
+      "worker": "743d52ba-7324-4445-9e0d-eb7706c2f7d2",
+      "techniques": []
+    },
+    "bd217e93-0597-4295-bb91-2bc80cc91ab4/agent-memory": {
+      "context": "rescue-spend-shield-modules",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T03:30:29.640Z",
+      "worker": "743d52ba-7324-4445-9e0d-eb7706c2f7d2",
+      "techniques": []
+    },
+    "82440528-c2ad-4c04-b22b-0874f0723589/agent-memory": {
+      "context": "money-guidance-and-onboarding",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T03:30:29.640Z",
+      "worker": "743d52ba-7324-4445-9e0d-eb7706c2f7d2",
+      "techniques": []
+    },
+    "7fde48d9-00af-4ebc-868e-cb93d7cdedfd/agent-memory": {
+      "context": "owner-mandate-config",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T03:30:29.640Z",
+      "worker": "743d52ba-7324-4445-9e0d-eb7706c2f7d2",
+      "techniques": []
     }
   }
 }

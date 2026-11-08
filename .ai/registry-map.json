@@ -5431,8 +5431,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "apps/desktop/client/src/lib/tour.ts:1 These are pure client helpers (fair price, limits, market watch, first run, tour); the only 'memory' is the tour's per-window progress Map mirrored to localStorage, which is UI state rather than an agent's carried-forward beliefs, and a search of lib/ found zero hits for episod, consolidat, distill or embedding.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "mcp-tools",
@@ -6033,8 +6037,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "apps/desktop/client/src/windows/approval/mandateDraft.ts:1 The owner config surface shapes owner-typed mandate drafts, diffs, replay and watch for Rust to validate and sign; it holds no agent memory store (approval-window 'memory' hits refer to an in-memory capability token and to reading the wallet record, not window memory), and a search of windows/approval found zero hits for episod, consolidat, distill or embedding.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "hitl-approval",
@@ -6219,8 +6227,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "prototype/build-index.mjs:1 This context is a static HTML/CSS/JS prototype gallery and design system with no agent and no memory pipeline; a search of prototype/ found zero hits for episod, consolidat, distill or embedding (the only 'recall'/'remember' hits are a brand-palette comment and a localStorage theme toggle), so agent-memory has nothing to govern here.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "prompt-assembly",
@@ -6897,8 +6909,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "apps/desktop/client/src/windows/main/modules/rescue/model.ts:1 The Rescue, Spend and Shield modules are pure UI-side payment-logic models and panels with no agent store; a search of modules/, lib/words and console/areas found zero hits for episod, consolidat, distill, embedding (and none for memory/recall/remember either), so the agent-memory pipeline does not exist in this context.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "module-design",
