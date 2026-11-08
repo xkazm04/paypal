@@ -4,6 +4,7 @@
 // never signs anything: SecureStep hands over to the approval window, and `done` comes from the wallet.
 import { useMemo, useState } from 'react';
 import { useMutation } from '../../../lib/hooks';
+import { useHousePayees } from '../home/guide/useHousePayees';
 import { clockNow } from '../../../lib/clock';
 import { Btn, useToast } from '../../../shared/ui';
 import { RULES_START, proposalOf, rulesCtx, type RulesAsk } from '../home/guide/rules';
@@ -21,10 +22,11 @@ export function StarterRules({ onOpened }: { done?: boolean; onOpened: () => voi
   const [size, setSize] = useState<keyof typeof ASKS>('careful');
   const open = useMutation('approval_open');
   const toast = useToast();
+  const payees = useHousePayees();
   const p = useMemo(() => {
     const t = Math.floor(clockNow() / 60) * 60;
-    return proposalOf(ASKS[size], rulesCtx(t, -new Date(t * 1000).getTimezoneOffset()));
-  }, [size]);
+    return proposalOf(ASKS[size], rulesCtx(t, -new Date(t * 1000).getTimezoneOffset(), payees));
+  }, [size, payees]);
   const go = async () => {
     if (!p) return;
     const r = await open.run({ deal_id: null, target: 'mandate', draft: p.draft });

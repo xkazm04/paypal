@@ -56,9 +56,10 @@ export function BareRules() {
   const [already, setAlready] = useState(false);
   useEffect(() => {
     if (d || !settled) return;
-    if (inForce) setAlready(true);
     const t0 = Math.floor(Date.now() / 1000);
     const seed = handoff.data?.draft?.type === 'rules' ? handoff.data.draft : null;
+    // Rules in force with nothing handed over: the step is done. With a draft handed over (a change from the Chat or the Set up page) the owner is here to sign THOSE rules.
+    if (inForce && !seed) setAlready(true);
     if (seed) { setD(draftFromRules(seed, t0)); return; }
     const key = starterKey();
     setStarter(TEMPLATES.find((t) => t.key === key)?.name ?? null);

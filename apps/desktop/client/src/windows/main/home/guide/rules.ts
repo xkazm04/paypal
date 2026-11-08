@@ -29,12 +29,13 @@ const usd = (minor: number): string => `$${minor % 100 ? (minor / 100).toFixed(2
 
 /** The proposal as one sentence the reader understands. */
 export function sentenceOf(a: RulesAsk): string {
-  return `Buy supplies up to ${usd(a.perDeal)} each, ${usd(a.perDay)} a day, ask me above ${usd(a.askAbove)}, from the house seller, ${a.ends}`;
+  // Haggle, not "buy supplies": only rules with a price band let an agent join the practice shop's table.
+  return `Haggle for a monitor up to ${usd(a.perDeal)} each, ${usd(a.perDay)} a day, ask me above ${usd(a.askAbove)}, from the house seller, ${a.ends}`;
 }
 
-/** The reader's context: the wallet's clock and the practice shop as the one payee. */
-export function rulesCtx(now: number, offsetMin: number): SayCtx {
-  return { now, offsetMin, payees: [HOUSE_PAYEE], housePayees: [HOUSE_PAYEE], items: [] };
+/** The reader's context: the wallet's clock and the practice shop as the one payee. `payees` is the payee the practice shop declared once it is connected (the real house pays a PayPal merchant, not "HOUSE"); before that, the placeholder. */
+export function rulesCtx(now: number, offsetMin: number, payees: readonly string[] = [HOUSE_PAYEE]): SayCtx {
+  return { now, offsetMin, payees: [...payees], housePayees: [...payees], items: [] };
 }
 
 /** What the summary card shows, read back from the clauses the draft carries (never from the template). */

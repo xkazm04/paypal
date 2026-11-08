@@ -1,0 +1,271 @@
+{
+  "at": "2026-11-08T14:16:22.898Z",
+  "cdp": "http://127.0.0.1:9222",
+  "results": [
+    {
+      "area": "header",
+      "name": "brand, slogan, status dot and Find are present",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "header",
+      "name": "status is a dot, no words",
+      "ok": true,
+      "note": "text=\"\""
+    },
+    {
+      "area": "header",
+      "name": "window buttons are present in the desktop shell",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "header",
+      "name": "the header sits above the app bar (no overlap)",
+      "ok": true,
+      "note": "header bottom 35, app top 35"
+    },
+    {
+      "area": "switch",
+      "name": "chat: Chat | Platform switch is at the right edge",
+      "ok": true,
+      "note": "right gap 16px"
+    },
+    {
+      "area": "switch",
+      "name": "chat: the lit side is Chat",
+      "ok": true,
+      "note": "Chat"
+    },
+    {
+      "area": "switch",
+      "name": "chat: the switch is clickable (nothing on top)",
+      "ok": true,
+      "note": "hit button.cs-seg"
+    },
+    {
+      "area": "switch",
+      "name": "platform: Chat | Platform switch is at the right edge",
+      "ok": true,
+      "note": "right gap 20px"
+    },
+    {
+      "area": "switch",
+      "name": "platform: the lit side is Platform",
+      "ok": true,
+      "note": "Platform"
+    },
+    {
+      "area": "switch",
+      "name": "platform: the switch is clickable (nothing on top)",
+      "ok": true,
+      "note": "hit button.cs-seg"
+    },
+    {
+      "area": "switch",
+      "name": "the switch is in the same place in both views",
+      "ok": true,
+      "note": "chat right 1408 top 41; platform right 1404 top 44"
+    },
+    {
+      "area": "platform",
+      "name": "no \"Quiet · Nothing can pay\" presence row",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "platform",
+      "name": "six module tabs",
+      "ok": true,
+      "note": "cs-tab-tables cs-tab-spend cs-tab-counter cs-tab-book cs-tab-shield cs-tab-rescue"
+    },
+    {
+      "area": "platform",
+      "name": "tab Tables opens and renders",
+      "ok": true,
+      "note": "selected=true text=413"
+    },
+    {
+      "area": "platform",
+      "name": "tab Spend opens and renders",
+      "ok": true,
+      "note": "selected=true text=475"
+    },
+    {
+      "area": "platform",
+      "name": "tab Counter opens and renders",
+      "ok": true,
+      "note": "selected=true text=438"
+    },
+    {
+      "area": "platform",
+      "name": "tab Book opens and renders",
+      "ok": true,
+      "note": "selected=true text=569"
+    },
+    {
+      "area": "platform",
+      "name": "tab Shield opens and renders",
+      "ok": true,
+      "note": "selected=true text=382"
+    },
+    {
+      "area": "platform",
+      "name": "tab Rescue opens and renders",
+      "ok": true,
+      "note": "selected=true text=618"
+    },
+    {
+      "area": "setup",
+      "name": "each module page offers \"Finish setup\" before setup is done",
+      "ok": true,
+      "note": "setup already done: no setup nudge expected"
+    },
+    {
+      "area": "setup",
+      "name": "\"Finish setup\" opens the Set up page (at the first step still to do)",
+      "ok": true,
+      "note": "setup already done"
+    },
+    {
+      "area": "setup",
+      "name": "the copy says Signet, not \"The Table\"",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "places",
+      "name": "the Places menu button is clickable (not hidden behind a layer)",
+      "ok": true,
+      "note": "hit button.cs-place"
+    },
+    {
+      "area": "places",
+      "name": "the Places menu opens in front of everything",
+      "ok": true,
+      "note": "hit button.cs-pm-item, 6 items"
+    },
+    {
+      "area": "places",
+      "name": "menu item \"Rewind\" is reachable and opens",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "places",
+      "name": "menu item \"Proof\" is reachable and opens",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "places",
+      "name": "menu item \"Rules\" is reachable and opens",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "places",
+      "name": "menu item \"Connections\" is reachable and opens",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "places",
+      "name": "menu item \"Settings\" is reachable and opens",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "places",
+      "name": "menu item \"Break it\" is reachable and opens",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "places",
+      "name": "Escape closes the menu",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "find",
+      "name": "Find opens from the header and closes on Escape",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "chat",
+      "name": "greeting and ask box render",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "chat",
+      "name": "the ask box is not covered",
+      "ok": true,
+      "note": "hit input.ui-field"
+    },
+    {
+      "area": "chat",
+      "name": "/rules opens the rules step card, Cancel leaves it",
+      "ok": true,
+      "note": "card text 106, body 71"
+    },
+    {
+      "area": "chat",
+      "name": "/settings opens the settings step card, Cancel leaves it",
+      "ok": true,
+      "note": "card text 103, body 70"
+    },
+    {
+      "area": "chat",
+      "name": "/connect opens the connections step card, Cancel leaves it",
+      "ok": true,
+      "note": "card text 124, body 107"
+    },
+    {
+      "area": "chat",
+      "name": "/rewind opens the rewind step card, Cancel leaves it",
+      "ok": true,
+      "note": "card text 120, body 98"
+    },
+    {
+      "area": "chat",
+      "name": "a typed change-request starts a flow (\"change my limits\")",
+      "ok": true,
+      "note": "card"
+    },
+    {
+      "area": "chat",
+      "name": "a question goes to the assistant, not a flow",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "chat",
+      "name": "the Platform switch round-trips back to Chat",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "area": "windows",
+      "name": "the current setup step hands off to the approval window",
+      "ok": true,
+      "note": "setup already done: no handoff to test"
+    },
+    {
+      "area": "windows",
+      "name": "the tumbler (mini window) renders",
+      "ok": true,
+      "note": "0 / SANDBOX"
+    },
+    {
+      "area": "app",
+      "name": "no page errors or console errors during the run",
+      "ok": true,
+      "note": ""
+    }
+  ],
+  "errors": []
+}

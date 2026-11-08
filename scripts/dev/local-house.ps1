@@ -87,7 +87,7 @@ try {
         clauses = @(
             [ordered]@{ type = 'roles'; roles = @('sell') },
             [ordered]@{ type = 'counterparties'; rule = [ordered]@{ type = 'paired' } },
-            [ordered]@{ type = 'per_deal'; kind = 'haggle'; max_amount = (Money $AskMinor); categories = @('parts') },
+            [ordered]@{ type = 'per_deal'; kind = 'haggle'; max_amount = (Money $AskMinor); categories = @('office') },
             [ordered]@{ type = 'band'; item_refs = @($Item); floor = (Money $FloorMinor); ceiling = (Money $AskMinor); max_rounds = 6; deadline = $exp },
             [ordered]@{ type = 'velocity'; max_deals_day = 20; max_total_day = (Money 100000) },
             [ordered]@{ type = 'human_present_over'; amount = (Money $HumanOverMinor) },

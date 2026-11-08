@@ -76,6 +76,10 @@ describe('the Charter', () => {
     fireEvent.click(screen.getByRole('button', { name: new RegExp(STARTER.go) }));
     await waitFor(() => expect(hoisted.opened).toHaveLength(1));
     expect(hoisted.opened[0]).toMatchObject({ target: 'mandate', draft: { type: 'rules' } });
+    // the practice shop's table needs rules that haggle (a price band), or joining it is refused: "No signed rules let an agent buy at a table"
+    const clauses = ((hoisted.opened[0] as { draft: { clauses: { type: string }[] } }).draft.clauses).map((c) => c.type);
+    expect(clauses).toContain('band');
+    expect(clauses).toContain('roles');
   });
 
   it('the keys and unlock lines open the approval window on their own pages', async () => {

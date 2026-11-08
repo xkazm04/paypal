@@ -11,6 +11,7 @@ import { ruleInForce } from '../../../../lib/firstRun';
 import { formatMinor } from '../../../../lib/format';
 import { useNow, useQuery } from '../../../../lib/hooks';
 import { RULES_START, proposalOf, rulesCtx, type RulesAsk } from '../guide/rules';
+import { useHousePayees } from '../guide/useHousePayees';
 import { SecureStep } from '../secure/SecureStep';
 import { useLocked } from '../../world';
 import { FlowCard } from './FlowCard';
@@ -112,13 +113,14 @@ function Live({ turn }: { turn: FlowTurn }) {
   return <FlowCard turn={turn} n={n} of={STEPS.length}>{body}</FlowCard>;
 }
 
-const ctxFor = () => {
+const ctxFor = (payees: readonly string[]) => {
   const t = Math.floor(clockNow() / 60) * 60;
-  return rulesCtx(t, -new Date(t * 1000).getTimezoneOffset());
+  return rulesCtx(t, -new Date(t * 1000).getTimezoneOffset(), payees);
 };
 
 function Review({ ask, known }: { ask: RulesAsk; known: readonly MandateListEntry[] }) {
-  const p = useMemo(() => proposalOf(ask, ctxFor()), [ask]);
+  const payees = useHousePayees();
+  const p = useMemo(() => proposalOf(ask, ctxFor(payees)), [ask, payees]);
   if (!p) return <p>{W.unread}</p>;
   return (
     <>
@@ -133,7 +135,8 @@ function Review({ ask, known }: { ask: RulesAsk; known: readonly MandateListEntr
 }
 
 function Sign({ ask, known, list, now }: { ask: RulesAsk; known: readonly string[]; list: readonly MandateListEntry[]; now: number }) {
-  const p = useMemo(() => proposalOf(ask, ctxFor()), [ask]);
+  const payees = useHousePayees();
+  const p = useMemo(() => proposalOf(ask, ctxFor(payees)), [ask, payees]);
   const draft = useMemo(() => (p ? JSON.stringify(p.draft) : null), [p]);
   // The wallet reports the new rules: a set in force that was not there before and says the same limits.
   const done = !!p && list.some((m) => {
