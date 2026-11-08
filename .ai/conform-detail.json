@@ -9458,6 +9458,26 @@
           "evidence": "apps/desktop/client/src/shared/tour.tsx:218 Same-screen tour: measured on scroll, resize and ResizeObserver, with no route change to bridge. (Side note: the presence MutationObserver at line 183 watches all of document.body with subtree on, which the technique would call over-broad if it applied.)"
         }
       ]
+    },
+    "baff2cf1-655d-4108-aecb-a00eb06bc18b/mcp-tools": {
+      "context": "runtime-market-and-pairing",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:24:18.404Z",
+      "worker": "e243d4e9-40d8-405d-9065-dc2437b78534",
+      "techniques": []
+    },
+    "defa1695-a720-4e76-9d97-b09ece4d4394/mcp-tools": {
+      "context": "main-window-shell",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T00:24:18.404Z",
+      "worker": "e243d4e9-40d8-405d-9065-dc2437b78534",
+      "techniques": []
     }
   }
 }

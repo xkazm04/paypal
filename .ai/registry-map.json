@@ -4991,7 +4991,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/world.tsx:1 The main window frame reads wallet state through the typed IPC query layer and exposes or consumes no tool protocol. A recursive case-insensitive search of apps/desktop/client/src/windows/main for inputSchema, tools/call, tools/list, jsonrpc and McpServer found 0 hits. 'mcp' occurs once in that subtree, in a sibling context, and in none of this context's listed files.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:cb2b1c9f6fef5eb9",
+          "evaluatedRevision": 35
         },
         {
           "subject": "fleet-orchestration",
@@ -7268,7 +7272,11 @@
           "revision": 34,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-runtime/src/market_watch.rs:6 Market fetching, market watch, pairing and relay neither serve nor call a tool protocol, and agents have no input into them. A case-insensitive search of crates/table-runtime/src for inputSchema, tools/call, tools/list and jsonrpc found no hits, and 'mcp' does not occur in market.rs, market_watch.rs, pairing.rs, relay.rs or their tests (it occurs only in sibling files such as policy.rs and actor.rs). The market prices this context stores reach the model only through table-mcp's market_reference tool, which is judged elsewhere.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:cb2b1c9f6fef5eb9",
+          "evaluatedRevision": 35
         },
         {
           "subject": "table",
