@@ -990,8 +990,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:4 This is a React window that only narrows which owner commands are enabled, while Rust re-checks every one. It hosts no agent run, hook chain or extension loading, and a search of apps/desktop/client/src/windows/approval for plugin, checkpoint and subagent found no hits.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "agent-cli-transport",
@@ -3828,8 +3832,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "services/house-seller/src/hosted.rs:827 The house seller decides offers with the deterministic table_core negotiation policy, with no model call or agent loop. A search of services/house-seller for plugin, checkpoint and subagent found nothing, and the .rs files contain no prompt, llm or mcp terms, so no runtime is assembled.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "prompt-assembly",
@@ -7118,8 +7126,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "deviation",
+          "priorNotApplicable": 4,
+          "evidence": "crates/table-runtime/src/engines.rs:306 A run is opened durably with a run.start audit row, but runs live only in the in-memory `runs` map and nothing at startup closes a run.start that has no run.finish, and RunState (Starting/Running/Clean/Failed/Cancelled) has no indeterminate status, so a process death leaves a permanently open run in the record instead of an indeterminate closure.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "authorization",
@@ -8345,8 +8357,8 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "priorNotApplicable": 4,
+          "state": "unknown"
         },
         {
           "subject": "prompt-assembly",

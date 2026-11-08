@@ -306,27 +306,24 @@
       "context": "house-seller-service",
       "subject": "agent-runtime-assembly",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T00:23:16.419Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T01:08:20.228Z",
+      "worker": "2b92dd87-e663-4424-b8af-7fe417d8466b",
       "techniques": [
         {
           "technique": "host-routes-win",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/hosted.rs:1073 The process merges its own relay router with its own routes; no contributed router is mounted."
+          "evidence": "services/house-seller/src/hosted.rs:1073 The process merges its own relay router with its own routes; no contributed router is mounted.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "indeterminate-closure-on-interruption",
           "verdict": "not-applicable",
-          "evidence": "services/house-seller/src/hosted.rs:225 Owner park of an unsettled PayPal call, not a tool-call status in an agent transcript."
+          "evidence": "services/house-seller/src/hosted.rs:225 Owner park of an unsettled PayPal call, not a tool-call status in an agent transcript.",
+          "carriedFrom": "2026-10-15"
         }
-      ],
-      "withdrawn": {
-        "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
-        "state": "not-applicable",
-        "at": "2026-10-15T00:23:50.370557+00:00",
-        "reason": "reviewer (sonnet): The anchor hosted.rs:218 is the PendingOperation doc comment and does not show that agent-runtime pieces are absent; hosted.rs imports AgentService/AgentRole/AgentScope/Authority, which the evidence never examines, and its 'agent is an ed25519 key plus an offer call' claim is not confirmed."
-      }
+      ]
     },
     "9a4f1dcb-2f71-4b8d-835c-a38862a5c22a/agent-runtime-assembly": {
       "context": "client-runtime-foundation",
@@ -359,35 +356,39 @@
       "subject": "agent-runtime-assembly",
       "bundle": "software-engineering",
       "state": "unknown",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T00:23:16.419Z",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T01:08:20.228Z",
       "techniques": [
         {
           "technique": "bounded-projection-of-external-work",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:158 Caps transcript steps in the deal view. No remote handle, lease, or poll from a model loop."
+          "evidence": "crates/table-core/src/agent.rs:158 Caps transcript steps in the deal view. No remote handle, lease, or poll from a model loop.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "guard-input-custody",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/exposure.rs:300 Pure check of a caller-supplied owner ceiling. These files do not read a policy file from an agent working tree, and they do not verify owner_sig."
+          "evidence": "crates/table-core/src/exposure.rs:300 Pure check of a caller-supplied owner ceiling. These files do not read a policy file from an agent working tree, and they do not verify owner_sig.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "operator-tier-code-loading",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:563 Compiles role prompt text. The standard assigns that text to prompt assembly, and this is not a code entry point."
+          "evidence": "crates/table-core/src/agent.rs:563 Compiles role prompt text. The standard assigns that text to prompt assembly, and this is not a code entry point.",
+          "carriedFrom": "2026-10-15"
         },
         {
           "technique": "session-scoped-capability",
           "verdict": "not-applicable",
-          "evidence": "crates/table-core/src/agent.rs:318 Deal-table roster and refusal are one function. Nothing here is a client-surface capability or a process environment slot. MCP names are the wire vocabulary the standard excludes."
+          "evidence": "crates/table-core/src/agent.rs:318 Deal-table roster and refusal are one function. Nothing here is a client-surface capability or a process environment slot. MCP names are the wire vocabulary the standard excludes.",
+          "carriedFrom": "2026-10-15"
         }
       ],
       "withdrawn": {
-        "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
+        "worker": "2b92dd87-e663-4424-b8af-7fe417d8466b",
         "state": "not-applicable",
-        "at": "2026-10-15T00:23:50.393225+00:00",
-        "reason": "reviewer (sonnet): The anchor agent.rs:2 is a module doc header that does not show the precondition is absent, and the context contains an AgentTool roster filtered by refusal (agent.rs:136, ~318) plus compiled Playbook prompts, which the evidence concedes are present."
+        "at": "2026-11-08T01:09:42.925388+00:00",
+        "reason": "reviewer (sonnet): The cited line (agent.rs:2) is only a doc comment, and the file contradicts 'assembles no run': it defines the AgentTool set (agent.rs:139), AgentProjection (agent.rs:164) and the fixed role system prompts and Playbook (agent.rs:548-575), which are the tool and prompt surface a native run starts fro"
       }
     },
     "877e3281-ae38-485a-a404-4476986454a5/agent-runtime-assembly": {
@@ -9598,6 +9599,63 @@
       "evaluatedAt": "2026-11-08",
       "evaluatedTs": "2026-11-08T00:49:53.862Z",
       "worker": "beed319d-d188-4ae1-8c7c-a4c893d3185e",
+      "techniques": []
+    },
+    "065d4555-d9ad-478c-b637-3d8eb494f76c/agent-runtime-assembly": {
+      "context": "runtime-actor-and-engines",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T01:08:20.228Z",
+      "worker": "2b92dd87-e663-4424-b8af-7fe417d8466b",
+      "techniques": [
+        {
+          "technique": "indeterminate-closure-on-interruption",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/engines.rs:306 The only writer of run.finish is finish_run_because (engines.rs:481), and it is reached only from live actor messages or cancel_runs. A search of crates/ found no recovery sweep that closes an unmatched run.start after a crash, and the RunState enum has no unknown or indeterminate value."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/dispatcher.rs:598 Through IPC, the service-writable tier can only select a closed EngineId that was already attached at startup. Executables are resolved only from the process PATH in attach_native_engines. One engine whose workspace fails is skipped in its own lane (engines.rs:132) and does not stop the host."
+        },
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:292 The MCP capability is minted per run from that run's scope (deal, role, category), not from an environment variable. agent_gate then re-checks the same scope and the mandate on every intent at engines.rs:429-444."
+        },
+        {
+          "technique": "semantic-hook-placement",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:400 There is no hook chain or extension surface here, which is the technique's below-threshold case, and the code keeps the sentence the technique asks for. The gate audits its own refusals before returning, so refused calls are not missing from the ledger."
+        },
+        {
+          "technique": "nested-run-is-not-its-parent",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/engines.rs:271 Every run gets its own id at creation, and no run launches another; a search for subagent found nothing."
+        },
+        {
+          "technique": "additive-input-at-the-call-boundary",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/engines.rs:256 A run's whole input is computed once at start_agent. There is no channel for a person's follow-up to reach a live run."
+        },
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/engines.rs:1 No long-running remote operation is exposed to the agent loop. Unknown PayPal outcomes are resolved by the money pipeline (table-app), outside any run."
+        }
+      ],
+      "registryProposal": "indeterminate-closure-on-interruption assumes a recovery sweep that writes the wrong status. It does not name the case where no sweep exists at all: an in-memory-only run registry whose durable start row is never closed. That case is common in desktop hosts and is worth stating as its own failure mode."
+    },
+    "60b8c7a9-421c-43fa-aff2-d1ede8cf38d9/agent-runtime-assembly": {
+      "context": "approval-window-shell",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T01:08:20.228Z",
+      "worker": "2b92dd87-e663-4424-b8af-7fe417d8466b",
       "techniques": []
     }
   }
