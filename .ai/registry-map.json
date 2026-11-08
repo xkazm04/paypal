@@ -6845,8 +6845,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "apps/desktop/client/src/windows/main/modules/shield/matrix.ts:38 These are client UI models and panels. They only label the model-backed check as not active. A search of the context files and their parent dirs (modules/, console/areas/, lib/words/) for child_process, spawn, argv, output-format and stream-json found nothing, and the only claude/codex hits are tests asserting those names never appear in copy.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "agent-memory",
@@ -7235,8 +7239,12 @@
           "revision": 10,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "deviation",
+          "priorNotApplicable": 3,
+          "evidence": "crates/table-runtime/src/actor.rs:629 An Ok(TerminalVerdict::ErrorReported{subtype}) from the engine (e.g. a budget or turn cap) becomes a bare RunState::Failed with no cause, because cause is taken only from Err. The tool's own classification never reaches the audit row or the owner, and a grep of crates/ outside table-engine finds no reader of ErrorReported.",
+          "evaluatedAt": "2026-11-08",
+          "evaluatedAgainst": "sha256-b2:75415727a875a42a",
+          "evaluatedRevision": 10
         },
         {
           "subject": "serving-process-topology",

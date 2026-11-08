@@ -9727,6 +9727,52 @@
       "evaluatedTs": "2026-11-08T01:29:46.455Z",
       "worker": "c6d39c58-2788-4029-a5d9-b28783406335",
       "techniques": []
+    },
+    "065d4555-d9ad-478c-b637-3d8eb494f76c/agent-cli-transport": {
+      "context": "runtime-actor-and-engines",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T01:55:09.001Z",
+      "worker": "b0fe5cb9-2e28-4c08-94e7-3141e84e1027",
+      "techniques": [
+        {
+          "technique": "output-normalization",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/actor.rs:629 The envelope subtype is flattened to Failed, so the caller cannot branch on it."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:281 A run on the deterministic rung carries its own mode label into the snapshot and the run.start audit row. A native start is refused with a named reason when the engine is unavailable (line 216)."
+        },
+        {
+          "technique": "child-observed-posture",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:372 The run's MCP grant is enabled only after the child-attested Init event, never on host intent alone."
+        },
+        {
+          "technique": "thread-custody-across-resume",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/engines.rs:271 Each start mints a fresh run, and no child thread id is stored or passed back."
+        },
+        {
+          "technique": "host-routed-approval-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/engines.rs:390 The child acts only through the host's own gated MCP tools, so there is no native approval request to route."
+        }
+      ]
+    },
+    "bd217e93-0597-4295-bb91-2bc80cc91ab4/agent-cli-transport": {
+      "context": "rescue-spend-shield-modules",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-08",
+      "evaluatedTs": "2026-11-08T01:55:09.001Z",
+      "worker": "b0fe5cb9-2e28-4c08-94e7-3141e84e1027",
+      "techniques": []
     }
   }
 }
