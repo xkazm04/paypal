@@ -1,5 +1,6 @@
 // The host's resolution of proposals, as a pure function: hand-offs as before, and the three safe
-// acts armed only from the wallet's own facts, with a consent box made of fixed words.
+// acts armed only from the wallet's own facts, with a consent box made of fixed words. (The hand-off
+// cases moved here from fit.test.ts when the board's cells stopped drawing keys, spark the-proof-table.)
 import { describe, expect, it } from 'vitest';
 import { AUTHORITY } from '@bindings/authority';
 import type { ActionRef } from '../../../lib/assistant';
@@ -118,5 +119,26 @@ describe('the undo, from the wallet facts', () => {
     const r = resolveAction({ action: 'open_decision', deal_id: 'D-1' }, byId(key()), facts());
     expect(r.armed && r.act).toBe(false);
     expect(resolveAction({ action: 'deal_capture' } as unknown as ActionRef, none, facts()).armed).toBe(false);
+  });
+});
+
+describe('resolveAction: the host decides what can be armed', () => {
+  const k = (over: Partial<BoardKey>): BoardKey => ({ id: 'd1', module: 'tables', fate: 'needs', label: 'D-1', title: 'A monitor', state_word: 'Needs you', amount_minor: 100, currency: 'USD', deadline_ms: null, on_silence: 'x', deadline_s: null, stamp_s: null, side: 'buyer', why: 'y', review: true, ...over });
+  const byId = new Map([['d1', k({})], ['d2', k({ id: 'd2', fate: 'moving', review: false })], ['d3', k({ id: 'd3', review: false })]]);
+  it('a decision for a deal that needs the owner and can be reviewed is armed, and named by the deal', () => {
+    const r = resolveAction({ action: 'open_decision', deal_id: 'd1' }, byId);
+    expect(r.armed).toBe(true);
+    if (r.armed) { expect(r.run).toEqual({ kind: 'approval', deal_id: 'd1', target: null }); expect(r.label).toContain('A monitor'); }
+  });
+  it.each([['unknown deal', 'nope'], ['a deal that is not waiting', 'd2'], ['a closed mismatch with no review', 'd3']])('%s is disarmed', (_n, id) => {
+    expect(resolveAction({ action: 'open_decision', deal_id: id }, byId).armed).toBe(false);
+  });
+  it('setup targets are allowlisted', () => {
+    expect(resolveAction({ action: 'open_setup', target: 'mandate' }, byId)).toMatchObject({ armed: true, run: { kind: 'approval', deal_id: null, target: 'mandate' } });
+    expect(resolveAction({ action: 'open_setup', target: 'deal' as never }, byId).armed).toBe(false);
+  });
+  it('a console route is armed only if it is a plain route the console knows', () => {
+    expect(resolveAction({ action: 'open_console', hash: '#m=spend' }, byId)).toMatchObject({ armed: true, run: { kind: 'console', hash: '#m=spend' } });
+    for (const bad of ['javascript:alert(1)', '#m=spend<script>', 'https://x.test', '#' + 'a=b&'.repeat(12), '']) expect(resolveAction({ action: 'open_console', hash: bad }, byId).armed, bad).toBe(false);
   });
 });

@@ -191,7 +191,8 @@ describe('the film ending', () => {
 
   it('Maya’s story with film_ending=today renders the Rewind without the Say box or the forecast past now', async () => {
     expect(storyFor('').filmEnding).toBe('today');
-    for (const q of ['', '?story=maya', '?film_ending=today']) expect(frameSearch(q), q).toBe('film_ending=today');
+    // the main frame also pins the console (the films were recorded there; the board is the app's default home)
+    for (const q of ['', '?story=maya', '?film_ending=today']) expect(frameSearch(q), q).toBe('view=console&film_ending=today');
     const layer = await drawn(frameSearch(''));
     // the week's figures are there, the Say box is not
     await waitFor(() => expect(layer.querySelector('[data-layer-title]')?.textContent).not.toBe(REWIND_ANSWER.reading));
@@ -206,7 +207,7 @@ describe('the film ending', () => {
   }, 60_000);
 
   it('under film_ending=say, and in the app itself, the Say box and the timeline past now show', async () => {
-    expect(frameSearch('?film_ending=say')).toBe('film_ending=say');
+    expect(frameSearch('?film_ending=say')).toBe('view=console&film_ending=say');
     for (const search of [frameSearch('?film_ending=say'), '']) {
       const layer = await drawn(search);
       await waitFor(() => expect(layer.querySelector('.rw-now')).not.toBeNull());

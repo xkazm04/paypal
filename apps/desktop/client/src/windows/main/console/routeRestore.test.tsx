@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock('../../../lib/runtime', () => ({ backend: () => h.current }));
 
 import { App } from '../App';
+import { openOnConsole } from './testing/home';
 
 beforeAll(() => {
   if (!window.matchMedia) {
@@ -30,6 +31,7 @@ const settled = () => waitFor(() => {
 /** Mounts the console; the same mock world and the same URL as before when `fresh` is false. */
 function mount(fresh: boolean) {
   if (fresh) { history.replaceState(null, '', '/index.html'); resetMockState(); }
+  openOnConsole();
   h.current = mockBackend('main');
   return render(<App />);
 }

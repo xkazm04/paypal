@@ -4,6 +4,7 @@
 // welcome buttons open The Table: Main takes it once and goes to the Set up step it names.
 import { useCallback, useEffect, useMemo } from 'react';
 import { connectionFacts, gettingStarted, rulesInForce, settingsFacts, takeSetupIntent, type GettingStarted } from '../../../lib/firstRun';
+import { agentAppAvailable, useAgentApp } from '../../../lib/engine';
 import { useEvent, useNow, useQuery } from '../../../lib/hooks';
 import type { SetupStepKey } from '../../../lib/words';
 import { useSettings } from '../world';
@@ -16,10 +17,8 @@ export function useStart(): GettingStarted {
   const cps = useQuery('counterparty_list', null, { refreshOn: ['pairing:pinned', 'settings:changed'] });
   const inForce = rulesInForce(mandates.data, now);
   const conn = cps.data;
-  // The Table can also ask whether the chosen agent app is installed and ready (engine_status).
-  const engines = useQuery('engine_status', null, { refreshOn: ['settings:changed'] });
-  const engine = s?.selected_engine ?? null;
-  const engineAvailable = engine && engines.data ? engines.data.find((e) => e.id === engine)?.available ?? false : null;
+  // Whether the chosen agent app is installed and ready: engine_brief, the same answer every window reads.
+  const engineAvailable = agentAppAvailable(useAgentApp(s?.selected_engine).state);
   return useMemo(() => gettingStarted({
     ...settingsFacts(s), rulesInForce: inForce, ...connectionFacts(conn), engineAvailable,
   }), [s, inForce, conn, engineAvailable]);

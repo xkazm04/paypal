@@ -608,6 +608,12 @@ impl Runtime {
                 json(())
             }
             Action::Engines => json(self.engine_info()?),
+            Action::EngineBrief => json(
+                self.engine_info()?
+                    .iter()
+                    .map(table_engine::EngineBrief::from)
+                    .collect::<Vec<_>>(),
+            ),
             Action::Start(id) => json(self.start_agent(id)?),
             Action::Runs => json(self.run_snapshots()),
             // Read before the write; starts nothing (acts.rs).

@@ -36,7 +36,7 @@ describe('what the window says after a capture', () => {
 describe('what the window says when a decision is refused', () => {
   const codes = ['LOCKED', 'PERMISSION', 'REFUSED', 'INVALID', 'NOT_FOUND', 'UNAVAILABLE', 'LEDGER_TRUST', 'UNSUPPORTED'] as const;
   const raw: Array<[string, string, string]> = [
-    ['LOCKED', 'LOCKED', 'Windows Hello'],
+    ['LOCKED', 'LOCKED', 'fingerprint, face or PIN'],
     ['PERMISSION', 'permission denied', 'isn’t allowed'],
     ['INVALID', 'Invalid or stale wallet command', 'out of date'],
     ['UNSUPPORTED', 'OS authentication is unsupported on this platform', 'isn’t set up'],

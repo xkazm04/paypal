@@ -1,0 +1,60 @@
+{
+ "schema": "conform-run/1",
+ "worker": "9023e771-5147-47b9-b57b-fc0afbe7715a",
+ "subject": "mcp-tools",
+ "evaluatedAt": "2026-11-07T23:00:36.382228+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "house-seller-service",
+   "subject": "mcp-tools",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "services/house-seller/src/hosted.rs:1174 The house seller's whole axum route table (hosted.rs:1173-1181) serves health, table, head/prefix/ledger and scoreboard assets; no tool protocol is exposed or consumed. A case-insensitive grep of services/house-seller for mcp, jsonrpc, tools/list and inputSchema found no hits (the only 'tools' is a code comment at hosted.rs:1117).",
+   "techniques": [],
+   "absenceTerms": [
+    "mcp",
+    "jsonrpc",
+    "tools/list",
+    "inputSchema"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "mcp-tools",
+   "context": "runtime-money-controls",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "mcp-tools",
+   "context": "native-shell",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "mcp-tools",
+   "context": "runtime-market-and-pairing",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "mcp-tools",
+   "context": "main-window-shell",
+   "reason": "evidence leans on console/areas/deal/outOfFence.test.tsx, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T23:00:36.382228+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "mcp-tools"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "house-seller-service",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

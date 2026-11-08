@@ -1,0 +1,114 @@
+{
+  "schema": "conform-run/1",
+  "worker": "51be7ccd-051f-4903-8792-61d882c346d6",
+  "subject": "agent-runtime-assembly",
+  "evaluatedAt": "2026-11-08T02:42:33.085812+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "runtime-money-controls",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "crates/table-runtime/src/limits.rs:1 These files are owner money controls (limits, policy, rescue, proofs, history, forecasts). They contain no hook chain around model or tool calls, no loading of contributed code and no conversation checkpoint or subagent code; searching crates/table-runtime/src found zero hits for plugin, checkpoint, subagent and interceptor (the agent loop lives in table-engine).",
+      "techniques": [],
+      "absenceTerms": [
+        "plugin",
+        "checkpoint",
+        "subagent",
+        "interceptor"
+      ]
+    },
+    {
+      "context": "browser-mock-backend",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "apps/desktop/client/src/mock/backend.ts:1 This is a TypeScript stand-in for the shell that serves sandbox data for design work and Playwright tests. It has no agent loop, hook chain, extension loading or conversation checkpointing; searching apps/desktop/client/src/mock found zero hits for plugin, checkpoint, subagent and interceptor.",
+      "techniques": [],
+      "absenceTerms": [
+        "plugin",
+        "checkpoint",
+        "subagent",
+        "interceptor"
+      ]
+    },
+    {
+      "context": "tumbler-window",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:1 The Tumbler is a UI window that draws what Rust already decided and has no agent runtime assembly; searching apps/desktop/client/src/windows/tumbler found zero hits for plugin, checkpoint, subagent and interceptor (the only 'hook' hits are React hooks).",
+      "techniques": [],
+      "absenceTerms": [
+        "plugin",
+        "checkpoint",
+        "subagent",
+        "interceptor"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "agent-runtime-assembly",
+      "context": "wallet-app-services",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "agent-runtime-assembly",
+      "context": "spend-firewall-and-agent-policy",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor (exposure.rs:2, \"Pure\") describes only the exposure fold, but the context also holds agent.rs, which has session-grant, SessionNotEnabled, RunEnded and per-session tool-call-budget refusals that sit close to agent-run control, and I did not read that file closely enough to rule out the pr"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-08T02:42:33.085812+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "runtime-money-controls",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-08T02:42:33.085812+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "spend-firewall-and-agent-policy",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-08T02:42:33.085812+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "browser-mock-backend",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-08T02:42:33.085812+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "tumbler-window",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

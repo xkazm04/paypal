@@ -11,7 +11,8 @@ import type { Deal } from '@bindings/Deal';
 import type { MoneyCheck } from '@bindings/MoneyCheck';
 import { clockLabel } from '../../../../../lib/format';
 import { useMutation } from '../../../../../lib/hooks';
-import { APPROVAL_LOCKED_TITLE, DEAL_DECIDE, DEAL_FIGS, moneyCheckNow, moneyCheckPill, silenceWords } from '../../../../../lib/words';
+import { ifNothingOf } from '../../../modules/rescue/model';
+import { APPROVAL_LOCKED_TITLE, DEAL_DECIDE, DEAL_FIGS, moneyCheckNow, moneyCheckPill } from '../../../../../lib/words';
 import { Countdown, MinorMoney, ModeBadge, WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, DecisionCard, Icon, Sheet, Silence, type DecisionOption } from '../../../../../shared/ui';
 import { milestones, stateTone, withdrawWhat, type ClauseReading, type MirrorStrip } from '../../../deal/model';
@@ -111,7 +112,7 @@ export function DealDecision({ deal, need, canWithdraw, theirName, them, reading
   // A mismatch is closed and has no pay action, whatever the attention item offers.
   const review = !!need?.actions.includes('review') && deal.state !== 'MISMATCH';
   const mayLapse = !!need?.actions.includes('let_lapse') && deal.state !== 'MISMATCH';
-  const silence = need?.on_silence ?? null;
+  const silence = ifNothingOf(deal, need?.on_silence, null);
   const wText = withdrawWhat(deal, theirName);
   const lock = locked ? <Icon name="hold" size={13} /> : null;
 
@@ -143,9 +144,9 @@ export function DealDecision({ deal, need, canWithdraw, theirName, them, reading
       {need && options.length ? (
         <DecisionCard className="dv-decision" context={<><Icon name="you" size={14} />{DEAL_DECIDE.context}</>}
           question={decisionQuestion(deal, need, them)} why={decisionWhy(deal, need, readings, deal.mandate_id)}
-          options={options} silence={silence ? silenceWords(silence) : undefined} deadline={deadline} />
+          options={options} silence={silence ?? undefined} deadline={deadline} />
       ) : need && silence ? (
-        <p className="dv-need-sil"><span className="dv-need-k"><Icon name="you" size={14} />{DEAL_DECIDE.context}</span> <Silence text={silenceWords(silence)} deadline={deadline} /></p>
+        <p className="dv-need-sil"><span className="dv-need-k"><Icon name="you" size={14} />{DEAL_DECIDE.context}</span> <Silence text={silence} deadline={deadline} /></p>
       ) : null}
       {!need && canWithdraw ? (
         <p className="dv-quiet"><Btn sm kind="danger" onClick={() => setAsking(true)} title={wText}>{DEAL_DECIDE.withdraw}</Btn></p>

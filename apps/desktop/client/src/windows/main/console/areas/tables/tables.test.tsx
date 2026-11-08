@@ -19,7 +19,7 @@ vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/r
 afterEach(() => { cleanup(); history.replaceState(null, '', '/'); });
 
 const reads = (r: LayerRun, cmd: string) => r.calls.filter((c) => c.cmd === cmd).length;
-const acts = (r: LayerRun) => r.calls.filter((c) => !/^(list_|get_|deal_display|deal_transcript|deal_evidence|deal_groups|attention_list|agent_runs|counterparty_|mandate_list|engine_status|safety_record|deal_history|approval_open)/.test(c.cmd));
+const acts = (r: LayerRun) => r.calls.filter((c) => !/^(list_|get_|deal_display|deal_transcript|deal_evidence|deal_groups|attention_list|agent_runs|counterparty_|mandate_list|engine_status|engine_brief|safety_record|deal_history|approval_open)/.test(c.cmd));
 
 describe('Tables at scale', () => {
   it.each(['small', 'large'] as const)('summary on the %s world', async (scale) => {

@@ -6,7 +6,9 @@
 
 import { ruleInWindow } from '../../../lib/firstRun';
 import type { EngineId } from '@bindings/EngineId';
-import type { EngineInfo } from '@bindings/EngineInfo';
+import type { EngineBrief } from '@bindings/EngineBrief';
+import { agentAppState } from '../../../lib/engine';
+import { AGENT_APP } from '../../../lib/words';
 import type { HouseState } from '@bindings/HouseState';
 
 export type PartId = 'agents' | 'engine' | 'lock' | 'mandate' | 'keychain' | 'paypal' | 'house';
@@ -56,7 +58,7 @@ export type CircuitInput = {
   /** null: get_settings not read yet (or failed). */
   settings: CircuitSettings | null;
   /** null: engine_status not read yet (or failed): the engine is unknown, never broken. */
-  engines: readonly EngineInfo[] | null;
+  engines: readonly EngineBrief[] | null;
   /** null: mandate_list not read yet (or failed). */
   mandates: readonly MandateLite[] | null;
   /** Running agent runs, or null when agent_runs is not read. */
@@ -86,13 +88,13 @@ export function mandatesInForce(list: readonly MandateLite[], now: number): Mand
   return list.filter((m) => ruleInWindow({ not_before: m.notBefore, expires: m.expires }, now));
 }
 
-function enginePart(s: CircuitSettings | null, engines: readonly EngineInfo[] | null): Part {
-  if (!s || !engines) return { id: 'engine', state: 'unknown', value: 'not checked yet', chip: { tone: 'dashed', text: 'unknown' } };
+function enginePart(s: CircuitSettings | null, engines: readonly EngineBrief[] | null): Part {
+  // agentAppState is the one reading of "connected" (lib/engine.ts); an app missing from the answer is unknown, never broken.
+  const st = agentAppState(engines, s?.selected_engine);
+  if (!s || st.kind === 'unknown') return { id: 'engine', state: 'unknown', value: 'not checked yet', chip: { tone: 'dashed', text: AGENT_APP.chip.unknown } };
   const sel = s.selected_engine;
-  const info = engines.find((e) => e.id === sel);
-  if (!info) return { id: 'engine', state: 'break', value: `${ENGINE_LABEL(sel)} not found`, chip: { tone: 'red', text: 'not connected' } };
-  if (!info.available) return { id: 'engine', state: 'break', value: `${ENGINE_LABEL(sel)}`, chip: { tone: 'red', text: 'not connected' } };
-  return { id: 'engine', state: 'ok', value: ENGINE_LABEL(sel), chip: { tone: 'ok', text: 'ready' } };
+  if (st.kind === 'not-connected') return { id: 'engine', state: 'break', value: `${ENGINE_LABEL(sel)}`, chip: { tone: 'red', text: AGENT_APP.chip['not-connected'] } };
+  return { id: 'engine', state: 'ok', value: ENGINE_LABEL(sel), chip: { tone: 'ok', text: AGENT_APP.chip.connected } };
 }
 
 function mandatePart(list: readonly MandateLite[] | null, inForce: MandateLite[]): Part {
@@ -174,7 +176,7 @@ export function deriveCircuit(input: CircuitInput): Circuit {
   const breaks: Break[] = [];
   if (engine.state === 'break') {
     const scripted = engines?.find((e) => e.id === 'scripted');
-    breaks.push({ key: 'engine', part: 'engine', title: 'Agent app not connected', silence: 'agents can’t start', then: 'no money moves', who: 'you',
+    breaks.push({ key: 'engine', part: 'engine', title: AGENT_APP.label['not-connected'], silence: 'agents can’t start', then: 'no money moves', who: 'you',
       scriptedFix: !!scripted?.available && s?.selected_engine !== 'scripted' });
   }
   if (keychain.state === 'break') breaks.push({ key: 'credentials', part: 'keychain', title: 'PayPal key not saved', silence: 'nothing is saved', then: 'PayPal is never called', who: 'only-you', scriptedFix: false });

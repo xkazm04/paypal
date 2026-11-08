@@ -81,7 +81,10 @@ export const ASSISTANT_SAY = {
   moneyNone: 'Your limits are not available yet.',
   moneyRoom: (room: string, cap: string | null): string => (cap ? `Room left today is ${room} of ${cap}.` : `Room left today is ${room}.`),
   moneyRoomUnknown: 'Room left today is not available yet.',
-  moneyHeld: (held: string): string => `${held} is held at PayPal.`,
+  // The digest's held figure is held at PayPal PLUS agreed and not yet at PayPal (BoardMoney.held_minor,
+  // useBoardModel: held + committed), so the sentence names both halves; the board's own words
+  // (BOARD_FIGURE.fact.held, BOARD_MONEY.held). The split is not in the digest (contract.ts BoardMoney).
+  moneyHeld: (held: string): string => `${held} is held at PayPal or agreed and waiting to be paid.`,
   moneyHeldUnknown: 'What is held is not available yet.',
   moneyPaid: (paid: string): string => `Paid today: ${paid}.`,
   moneyDeals: (n: number, cap: number | null): string => (cap === null ? `${plural(n, 'deal', 'deals')} today.` : `${n} of ${cap} deals today.`),

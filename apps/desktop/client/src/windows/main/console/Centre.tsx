@@ -31,6 +31,7 @@ import { useDeals, useDisplayOf, useLocked, useWorldHealth, useWorldReady, useWo
 import { BeadStrip } from './BeadStrip';
 import { centreFacts, deadlineProgress, stackRows, stackSlots, type Presence } from './centreModel';
 import { useWatching } from './ledger';
+import { Reveal as Rise } from '../../../design/Reveal';
 import { Reveal, Skeleton } from './stagger';
 
 export type CentreProps = {
@@ -199,7 +200,8 @@ function Decision({ item, index, count, onLater, onDeal, onWatch }: { item: Atte
         </div>
         {open.error ? <WalletNotice error={open.error} what={NOTICE_WHAT.approval} /> : null}
       </div>
-      <Facts items={facts} className="cs-facts" />
+      {/* Only the quiet facts rise; the question, "If you do nothing" and the action are on screen at once. */}
+      <Rise><Facts items={facts} className="cs-facts" /></Rise>
     </div>
   );
 }

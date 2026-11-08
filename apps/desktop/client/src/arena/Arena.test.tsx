@@ -88,7 +88,7 @@ describe('Break The Table', () => {
     await screen.findByText('Kept for Maya, never shown to her agent', undefined, { timeout: 2000 });
     expect(screen.queryByText(words)).toBeNull();
     expect((await backend.invoke('counterparty_note', { deal_id: id }))?.text).toBe(words);
-    const asks = screen.getByText('Even if an agent did what your note says').parentElement as HTMLElement;
+    const asks = screen.getByText('Recorded attacks your words match').parentElement as HTMLElement;
     expect(within(asks).getByText(ATTACK_WORDS['past-the-limit']!.title)).toBeTruthy();
     expect(within(asks).getByText(ATTACK_WORDS['accept-over-her-line']!.title)).toBeTruthy();
     expect(screen.getByText('No note in it. Only prices, turns and her rules.')).toBeTruthy();

@@ -50,6 +50,9 @@ export type BoardAssistant = {
   /** The engine the next question goes to. */
   engine: EngineInfo;
   busy: boolean;
+  /** While a question is in flight: the engine answering it, and whether it is the scripted fallback
+   *  after the live engine failed (the board narrates exactly this while it waits). Null when idle. */
+  answering: { engine: EngineInfo; fellBack: boolean } | null;
   ask: (question: string, input: DigestInput) => Promise<AskOutcome>;
   cancel: () => void;
 };
@@ -61,6 +64,7 @@ export function useBoardAssistant(injected?: AssistantEngine, deps: AssistantDep
   const getScripted = (): AssistantEngine => (scripted.current ??= depsRef.current.scripted ?? createScriptedEngine());
   const [live, setLive] = useState<AssistantEngine | null>(null);
   const [busy, setBusy] = useState(false);
+  const [answering, setAnswering] = useState<BoardAssistant['answering']>(null);
   const abort = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -85,6 +89,7 @@ export function useBoardAssistant(injected?: AssistantEngine, deps: AssistantDep
       let used: AssistantEngine = injected ?? live ?? getScripted();
       let fellBack = false;
       let raw: unknown;
+      setAnswering({ engine: used.info, fellBack: false });
       try {
         raw = await used.ask(question, input, ctl.signal);
       } catch (e) {
@@ -92,6 +97,7 @@ export function useBoardAssistant(injected?: AssistantEngine, deps: AssistantDep
         if (used.info.id === 'scripted') throw e;
         used = getScripted();
         fellBack = true;
+        if (abort.current === ctl) setAnswering({ engine: used.info, fellBack: true });
         raw = await used.ask(question, input, ctl.signal);
       }
       if (ctl.signal.aborted) return { kind: 'cancelled' };
@@ -101,11 +107,11 @@ export function useBoardAssistant(injected?: AssistantEngine, deps: AssistantDep
       // The scripted engine itself failed: an empty, validated reply, so the board says it had nothing.
       return { kind: 'reply', reply: { say: '', ops: [], dropped: { count: 0, reasons: [] }, repaired: false }, engine: getScripted().info, fellBack: true };
     } finally {
-      if (abort.current === ctl) { abort.current = null; setBusy(false); }
+      if (abort.current === ctl) { abort.current = null; setBusy(false); setAnswering(null); }
     }
   }, [injected, live]);
 
   const cancel = useCallback(() => { abort.current?.abort(); }, []);
 
-  return { engine: engine.info, busy, ask, cancel };
+  return { engine: engine.info, busy, answering, ask, cancel };
 }

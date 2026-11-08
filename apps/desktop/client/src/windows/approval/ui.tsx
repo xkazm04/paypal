@@ -13,7 +13,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Mode } from '@bindings/Mode';
 import { leaveDemoApproval } from '../../lib/preview';
 import { backend } from '../../lib/runtime';
-import { APPROVAL_FRAME, BRAND_NAME } from '../../lib/words';
+import { APPROVAL_FRAME, HELLO_NEXT_STEP, BRAND_NAME } from '../../lib/words';
 import { Mark } from '../../shared/brand';
 import { MockBadge, ModeBadge, WalletNotice } from '../../shared/honesty';
 import { Btn, Crumbs, Spacer, useToast } from '../../shared/ui';
@@ -91,7 +91,7 @@ export function LockCard({ compact }: { compact?: boolean }) {
       <div className="hello" role="status">
         <HelloGlyph />
         <span>
-          <b>Windows Hello</b> is checking it’s you…
+          <b>Your computer</b> is checking it’s you…
         </span>
       </div>
     );
@@ -108,11 +108,11 @@ export function LockCard({ compact }: { compact?: boolean }) {
       {unsupported ? (
         <div className="notice unsupported" role="status">
           <span className="n-code">Not supported</span>
-          <span>Windows Hello isn’t set up on this computer, so this window can’t unlock. Nothing was unlocked.</span>
+          <span>Sign-in by fingerprint, face or PIN isn’t set up on this computer, so this window can’t unlock. Nothing was unlocked. {HELLO_NEXT_STEP}</span>
         </div>
       ) : (
         <button type="button" className="tbtn gold" onClick={() => void s.unlock()} disabled={!s.tokenReady}>
-          Unlock with Windows Hello
+          Unlock with fingerprint, face or PIN
         </button>
       )}
       {s.unlockError ? <WalletNotice error={s.unlockError} what={UNLOCK_HEADING} message={footerNoticeText('unlock', s.unlockError)} /> : null}

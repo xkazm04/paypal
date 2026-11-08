@@ -12,9 +12,33 @@ and provable by both sides. The LLM engine is the user's own `claude-code` or `c
 --all-targets -- -D warnings` and `cargo test --workspace`, plus `cargo-deny` (licences, bans, RustSec advisories),
 the acceptance matrix and an offline `table-verify` check of the safety dossier.
 
-Status (2026-10-08): **backend B0–B8 and plumbing P1, P2, P4, P5 are built and offline-tested**
-(money pipeline, ledger, PayPal clients, MCP tools, two-wallet relay pairing, the hosted house seller)
-and the **React client** (main, Tumbler, approval) runs on the real IPC contract, with a mock backend
+## Evaluate in 20 minutes
+
+Nothing is hosted and there is no prebuilt binary: every step below runs from a clone, needs Node and
+pnpm (CI uses Node 24 and pnpm 11; the repo pins neither), and runs on sample data. Do these in order.
+
+1. **Director (about 5 min).** `pnpm --dir apps/desktop/client install`, then `pnpm --dir apps/desktop/client dev`,
+   then open `http://localhost:1430/director.html`. "Maya's week" plays the three windows on sample data.
+2. **Watch the haggle (about 3 min).** In the preview's main window open Tables, then **Watch the haggle**
+   (`index.html#m=tables&v=watch`). Two pucks close on a price; a gold gate drops at her "ask me" line.
+3. **Arena (about 5 min).** `http://localhost:1430/arena.html`: play the attacker. The answers are the
+   Rust wallet's, recorded ahead of time into `arena.json` (a recording, not a live run).
+4. **Proof (about 3 min).** `http://localhost:1430/proof.html`: check a signed proof file in the browser,
+   then break it and watch the right checks turn red.
+5. **Optional, needs the Rust toolchain (first build is slow, so not 2 minutes):** `cargo run -p table-sandbox`
+   and hand your own agent app the wallet (section below). `-- --rehearse` needs no agent app.
+6. **What is real and what is mocked:** the section "What is real and what is mocked" below.
+7. **Feedback and credentials.** No step above needs a PayPal account or any credential. The live PayPal
+   sandbox checks use the owner's own sandbox credentials and are the owner's to run
+   ([`docs/build/SPIKE-RUNBOOK.md`](docs/build/SPIKE-RUNBOOK.md)); credentials never go in this repo. The
+   design planned to give evaluation credentials only in the Devpost form's "credentials needed for
+   evaluation" field (`docs/design/the-table.extract.txt`, path 3). This repo documents no other feedback
+   channel; use the Devpost entry or the repository's issues.
+
+## Status (2026-11-06)
+
+**Built and offline-tested:** backend B0-B8 and plumbing P1, P2, P4, P5 (money pipeline, ledger, PayPal
+clients, seven MCP tools, two-wallet relay pairing, the hosted house seller's code) and the **React client** (main, Tumbler, approval) runs on the real IPC contract, with a mock backend
 for browser preview. On top of that, these moonshot themes are built:
 
 - **Provable:** signed offline proof bundles checked by `table-verify` (T1); an approval checklist
@@ -25,10 +49,11 @@ for browser preview. On top of that, these moonshot themes are built:
 - **Safe by default:** the walk-away forecast in the Tumbler and an honest quit confirm (T4); a
   read-back resolver that settles PayPal calls whose answer was lost, never under a second request id
   (T10); owner-signed wallet-wide limits above every agent's rules (T14).
-- **Useful:** a deterministic negotiator that haggles with no LLM (T2); "shop around" with several
+- **Useful (rescue is partial, see below):** a deterministic negotiator that haggles with no LLM (T2); "shop around" with several
   sellers where the first signed agreement wins (T8); a what-if of new rules against last week before
-  signing (T12); market prices kept fresh under a signed rule (T15); subscription rescue with one
-  owner-approved discount invoice, counted only when PayPal confirms it paid; plain-language questions
+  signing (T12); market prices kept fresh under a signed rule (T15); subscription rescue, of which only the discount lever
+  executes (one owner-approved discount invoice, counted only when PayPal confirms it paid; offline-tested,
+  no live PayPal run); plain-language questions
   to the Book, answered by the wallet's own reading (no AI).
 - **Say it, then see it:** the owner types or says one sentence ("Haggle for a monitor, up to $340, ask me above $320, six
   offers, until Friday") and a fixed word list (no AI) shows how it read it as editable chips and a typed draft for the approval
@@ -42,6 +67,15 @@ for browser preview. On top of that, these moonshot themes are built:
   where anyone plays the attacker against the owner's agent and every answer is the real wallet's,
   recorded through its agent server and money pipeline and pinned by a test (below).
 
+**Deferred (per [`docs/build/STATUS.md`](docs/build/STATUS.md), "Exactly deferred by phase"):** rescue levers other
+than the discount (pause, retry after fix, smaller plan) and rescue detection from live PayPal data; catalog
+tools (`shop_search`, quote, checkout; only seven MCP tools are advertised); repair of a missing SETTLE or
+RECEIPT after a confirmed financial write and recovery for unknown operations and crash gaps; native
+engines (`claude-code`, `codex-cli`); the hosted HOUSE and any deployment.
+
+**Planned, not built:** release binaries (the Tauri bundle is off), a "Scripted engine" banner (the shipped
+equivalent is the Practice agent, with no such banner), and pairing with the code `HOUSE` against a deployed seller.
+
 Not yet verified: an interactive run inside the native Windows shell (several shell edits are
 compiled only on Windows), live PayPal sandbox checks and engine spikes (native engines stay gated
 until spike 2 proves isolation; spike 8 for invoices waits for the owner), and deployment. See
@@ -52,7 +86,7 @@ warnings denied, and the complete offline test suite, keeping caches and tempora
 repository. On Linux the equivalent checks are `cargo fmt --all --check`,
 `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`.
 
-### Hand your own agent a wallet it can't misuse (2 minutes)
+### Hand your own agent a wallet it can't misuse (a few minutes after the first Rust build)
 
 Everywhere else in this repository no model runs inside the wallet. This is the one place a real AI
 touches it: from the outside, over the wallet's own MCP server, under rules it cannot change.
@@ -71,13 +105,17 @@ No agent app at hand? `cargo run -p table-sandbox -- --rehearse` runs a scripted
 and labelled so on the page) through the same door, along the same path.
 
 The page is the record: record your own session with any screen recorder (the page and the
-terminal print every call and the rule that answered it), or watch the recorded film under
-`film/`. No recording ships in the crate.
+terminal print every call and the rule that answered it), or render the film yourself
+from the scripts under `film/` (see `film/haggle/README.md`; the renders are git-ignored). No recording is
+tracked in this repository, and none ships in the crate.
 
 Your agent reads the table, haggles with the house seller over signed offers, and the page shows
 each call with the rule that answered it. When the house seller says yes, your agent still cannot
 close the deal: the rule you signed says agreeing over $200 needs you in person, and no owner is
-present in the sandbox. Then try to break it:
+present in the sandbox. ($200 is this sandbox's mandate, `RULE_IN_PERSON` in
+`crates/table-sandbox/src/lib.rs`. The in-person line is a clause of each mandate, not a constant: the
+recorded Maya mandate behind the director, the haggle and the arena asks above $250
+(`apps/desktop/client/src/mock/haggle.json`, `ask_above`), so those pages say $250.) Then try to break it:
 
 | Ask your agent | What answers |
 |---|---|
@@ -99,7 +137,7 @@ the signed rule 9). Your agent's calls reach the wallet's own MCP server
 unchanged; the sandbox only carries them under the wallet's grant for the current turn and writes
 down what answered. Details: [`crates/table-sandbox`](crates/table-sandbox/src/lib.rs).
 
-### Watch it work without installing anything
+### Watch it work (no wallet install; needs Node and pnpm)
 
 1. Install the client dependencies: `pnpm --dir apps/desktop/client install`
 2. Start the preview server: `pnpm --dir apps/desktop/client dev`
@@ -123,7 +161,8 @@ practice agent through the wallet's own MCP door and mandate check, and writes
 films' narration are all checked against that file, and the test fails if the file and the engine
 ever drift.
 
-This needs Node and pnpm and nothing else. The repo pins neither version.
+This needs Node and pnpm and a running dev server (or a local static build). CI uses Node 24 and pnpm 11
+(`.github/workflows/ci.yml`); the repo pins neither version. Nothing is hosted, so there is no link to open.
 
 ### Try to break it
 
@@ -152,8 +191,7 @@ cargo test -p table-app --test gauntlet arena
 
 Open `http://localhost:1430/proof.html` (the same dev server): a deal's signed proof file is checked
 right in the browser, line by line, and then you break it yourself (a button, or by typing over the
-price in the file's text) and watch exactly the right checks turn red. Nothing is installed and the
-file is not sent anywhere. It also takes any `.tableproof` file dropped on it, and a deal's other
+price in the file's text) and watch exactly the right checks turn red. The file is not sent anywhere. It also takes any `.tableproof` file dropped on it, and a deal's other
 side's file to compare ("provable by both sides"). In the preview app the same checker is on the recorded
 house haggle's deal page (D-0205, Proof) and in the Book's "Check a proof file". The checker is a TypeScript
 twin of `table-verify`, held equal to it by a test; see

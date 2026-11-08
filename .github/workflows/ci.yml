@@ -39,6 +39,10 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      # Every run starts from an empty target/, so incremental state is written and never read.
+      # Measured (cold table-runtime test build, 2 runs each): 49-57 s -> 46-48 s, 1398 -> 754 MB.
+      CARGO_INCREMENTAL: 0
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # The Tauri shell embeds apps/desktop/client/dist at compile time, so build the client first.
@@ -56,6 +60,13 @@ jobs:
         with:
           toolchain: '1.97'
           components: rustfmt, clippy
+      # Caches ~/.cargo and the dependency part of target/ (workspace crates are pruned before
+      # save), keyed on OS, rustc and the lockfile. Only main saves: a branch or PR run restores
+      # main's cache but can never write one main later reads (ci-execution-trust).
+      # Baseline before the cache (run 42077790978): windows 791 s, ubuntu 381 s.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       # With TABLE_EVIDENCE_DIR set, the H6 golden run writes its signed proof file and the

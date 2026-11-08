@@ -31,7 +31,8 @@ describe('mock approval checklist (parity with the wallet)', () => {
     expect(line(s, 'amount')).toMatchObject({ status: 'pass', text: 'Their latest offer is $329.00, the price you’re approving.' });
     expect(line(s, 'payee').status).toBe('pass');
     expect(line(s, 'host').status).toBe('not_applicable');
-    expect(line(s, 'mandate')).toMatchObject({ status: 'pass', text: 'Above your ask-me limit of $250.00, so it’s your call.' });
+    // Maya's $1,000 wallet limit leaves less today than her $900 sourcing rules do (C2).
+    expect(line(s, 'mandate')).toMatchObject({ status: 'pass', text: 'Above your ask-me limit of $250.00, so it’s your call. After this, $531.00 of your wallet’s $1,000.00 daily limit is left today.' });
     expect(s.checks.every((c) => c.status !== 'fail')).toBe(true);
     for (const c of s.checks) {
       expect(c.text).not.toMatch(/clause|SETTLE|MISMATCH|paypal\.com/);
@@ -137,6 +138,55 @@ describe('mock approval checklist (parity with the wallet)', () => {
     localStorage.setItem(STORE_KEY, JSON.stringify(busy));
     expect(await mandateLine('D-0193')).toMatchObject({ status: 'fail', text: 'Outside your rules: the daily limit.' });
     expect((await approvalFor('D-0193').invoke('approval_summary', { deal_id: id })).can_owner_accept).toBe(false);
+  });
+
+  /** Rust limits_tests' C2 fixture on D-0193 ($329, asked above $250): its rules at $500 a day,
+   *  no other deal today, and `walletOutDay` as the wallet limit (null: none signed). */
+  function dailyFiveHundred(walletOutDay: number | null) {
+    const world = buildMockState(NOW);
+    const d = world.deals.find((x) => x.display.label === 'D-0193')!;
+    // Every other deal agreed two days ago: none spends today's budget.
+    for (const o of world.deals) {
+      if (o === d) continue;
+      o.deal.updated_at = NOW - 2 * 86400;
+      world.history = (world.history ?? []).map((h) => h.deal_id === o.deal.id && h.kind === 'agreed' ? { ...h, at: NOW - 2 * 86400 } : h);
+    }
+    world.mandates = world.mandates.map((m) => m.payload.id !== d.deal.mandate_id ? m : {
+      ...m, payload: { ...m.payload, clauses: m.payload.clauses.map((c) => c.type === 'velocity' ? { ...c, max_total_day: { minor: 50000, currency: 'USD' as const } } : c) },
+    });
+    world.envelope = walletOutDay === null || !world.envelope ? null : { ...world.envelope, payload: { ...world.envelope.payload, max_out_day: { minor: walletOutDay, currency: 'USD' } } };
+    return { world, d };
+  }
+
+  it('C2: the rules line says what today’s budget leaves after this deal, word for word as the wallet does', async () => {
+    const id = fakeUlid('D-0193');
+    const { world, d } = dailyFiveHundred(null);
+    localStorage.setItem(STORE_KEY, JSON.stringify(world));
+    const a = approvalFor('D-0193');
+    const token = await a.invoke('approval_token', null);
+    const s = await a.invoke('approval_summary', { deal_id: id });
+    expect(line(s, 'mandate')).toMatchObject({ status: 'pass', text: 'Above your ask-me limit of $250.00, so it’s your call. After this, $171.00 of today’s $500.00 is left.' });
+    expect(line(s, 'mandate').detail).toContain('clause 5 max_total_day 500.00 USD − (used today 0.00 USD + this 329.00 USD) = 171.00 USD left');
+    expect(line(s, 'mandate').detail).toContain('the day resets at 00:00 UTC');
+
+    // A second $100 deal agrees today under the same rules: $71 left, and the old hash is stale.
+    const later = JSON.parse(localStorage.getItem(STORE_KEY)!) as typeof world;
+    later.deals.push({ ...d, deal: { ...d.deal, id: 'X-100', state: 'AGREED', updated_at: NOW - 60, terms: { ...d.deal.terms, unit_price: { minor: 10000, currency: 'USD' } } } });
+    (later.history ??= []).push({ at: NOW - 60, deal_id: 'X-100', seq: later.history.length + 1, kind: 'agreed', state_after: 'AGREED', authority: { type: 'none' }, paypal: { type: 'none' } } as never);
+    localStorage.setItem(STORE_KEY, JSON.stringify(later));
+    const b = approvalFor('D-0193');
+    const now = await b.invoke('approval_summary', { deal_id: id });
+    expect(line(now, 'mandate').text).toBe('Above your ask-me limit of $250.00, so it’s your call. After this, $71.00 of today’s $500.00 is left.');
+    await expect(b.invoke('deal_owner_accept', { ...args(s), counter_hash: s.counter_hash }, { token })).rejects.toMatchObject({ code: 'INVALID', message: SUMMARY_CHANGED });
+  });
+
+  it('C2: a tighter $400 wallet limit is the one the rules line names', async () => {
+    const { world } = dailyFiveHundred(40000);
+    localStorage.setItem(STORE_KEY, JSON.stringify(world));
+    const m = await mandateLine('D-0193');
+    expect(m.text).toBe('Above your ask-me limit of $250.00, so it’s your call. After this, $71.00 of your wallet’s $400.00 daily limit is left today.');
+    expect(m.detail).toContain('wallet limit max_out_day 400.00 USD − (used today 0.00 USD + this 329.00 USD) = 71.00 USD left');
+    expect(m.detail).toContain('tighter: the wallet limit');
   });
 
   it('void is the safe direction and needs no checklist hash', async () => {

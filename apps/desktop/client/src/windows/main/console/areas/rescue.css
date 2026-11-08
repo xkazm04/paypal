@@ -42,14 +42,17 @@
 
 /* ---- one failed renewal, beside the list ------------------------------------------------------------- */
 .ar-rescue .rs-panel { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
-.ar-rescue .rs-panel > .kicker { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); margin: 0; }
+.ar-rescue .rs-panel > .kicker, .ar-rescue .rs-panel .rs-sec > .kicker { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); margin: 0; }
 .ar-rescue .rs-ctx { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ar-rescue .rs-q { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); }
 .ar-rescue .rs-q .rs-amt { font: var(--fw-light) var(--fs-title1)/1.1 var(--num); }
 .ar-rescue .rs-why-l { margin: 0; color: var(--muted); }
 .ar-rescue .rs-acts { align-items: center; }
-.ar-rescue .rs-panel > .ui-hint { margin: 0; }
+.ar-rescue .rs-panel > .ui-hint, .ar-rescue .rs-panel .rs-sec > .ui-hint { margin: 0; }
+/* Reveal sections (design/Reveal): a block that keeps the panel's own column gap inside it. */
+.ar-rescue .rs-sec { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
 .ar-rescue .rs-sil { display: flex; align-items: center; gap: var(--sp-2); margin: 0; color: var(--muted); }
+.ar-rescue .rs-refusal { color: var(--muted); margin: 0; }
 .ar-rescue .rs-sil b { color: var(--text); font-weight: var(--fw-medium); }
 .ar-rescue .rs-chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .ar-rescue .rs-fixdetail { display: flex; flex-direction: column; gap: var(--sp-2); }

@@ -8,7 +8,7 @@ export type AuthorityEnforcer = "runtime" | "shell";
 export type CommandAuthority = { labels: Array<AuthorityLabel>, token: boolean, unlock: boolean, selection: AuthoritySelection, tier: AuthorityTier, release: boolean, enforcer: AuthorityEnforcer, };
 
 /** Lowercase hex SHA-256 of the canonical table; get_settings reports the same value. */
-export const AUTHORITY_MANIFEST = "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd";
+export const AUTHORITY_MANIFEST = "33b4e591ab30b89d9f9e920ba869de343e089b26338d9c1026aa62f3695f00fd";
 
 export const AUTHORITY = {
   deal_snooze: { labels: ["tumbler"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
@@ -90,6 +90,7 @@ export const AUTHORITY = {
   agent_pause: { labels: ["main"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
   agent_resume: { labels: ["main"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
   assistant_act: { labels: ["main"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
+  engine_brief: { labels: ["main", "tumbler", "approval"], token: false, unlock: false, selection: "none", tier: "read", release: false, enforcer: "runtime" },
 } satisfies Record<string, CommandAuthority>;
 
 /** Who is told each window event, keyed by event name: the shell sends to exactly these. */
@@ -109,4 +110,5 @@ export const EVENT_AUDIENCE = {
   "approval:summary": ["approval"],
   "main:route": ["main"],
   "pairing:pinned": ["main"],
+  "approval:sheet": ["main"],
 } satisfies Record<string, Array<AuthorityLabel>>;

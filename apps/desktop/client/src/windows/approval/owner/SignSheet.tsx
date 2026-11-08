@@ -8,7 +8,7 @@ import type { MandateSignArgs } from '@bindings/MandateSignArgs';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import type { WalletError } from '../../../lib/contract';
 import { shortHash } from '../../../lib/format';
-import { rulesName } from '../../../lib/words';
+import { rulesName, WHATIF_FIRST_RULE, WHATIF_NO_CHANGE } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
 import { Btn, Hourglass, Kv, Section, Sheet } from '../../../shared/ui';
 import { refusalWords, type RuleProblem } from '../mandateDraft';
@@ -60,7 +60,7 @@ export function SignSheet({ base, args, changes, whatIf, problems, onClose, onSi
       <Btn className="left" onClick={onClose}>Keep editing</Btn>
       {locked ? (
         <Btn kind="gold" locked disabled={!s.tokenReady || busy} onClick={() => void s.unlock()}>
-          {s.unlocking ? 'Waiting for Windows Hello…' : 'Unlock with Windows Hello'}
+          {s.unlocking ? 'Waiting for your fingerprint, face or PIN…' : 'Unlock with your fingerprint, face or PIN'}
         </Btn>
       ) : (
         <Btn kind="gold" disabled={!s.tokenReady || busy || problems.length > 0} onClick={() => void sign()}>
@@ -88,7 +88,7 @@ export function SignSheet({ base, args, changes, whatIf, problems, onClose, onSi
                 <tr key={i}>
                   <td>{termWord(c.term)}</td>
                   <td className="num dim"><s>{c.from}</s></td>
-                  <td className="num"><b>{c.to}</b></td>
+                  <td className="num"><b>{c.value ? `${c.to} · ${c.value}` : c.to}</b></td>
                   <td><DirChip dir={c.dir} /></td>
                 </tr>
               ))}
@@ -108,7 +108,7 @@ export function SignSheet({ base, args, changes, whatIf, problems, onClose, onSi
           ))}
           <li className="live">
             {whatIf
-              ? `${whatIf.summary}${whatIf.hits ? ` Against the rules now, it would have ${whatIf.hits}.` : ' No deal this week would have gone differently.'}`
+              ? `${whatIf.summary}${whatIf.hits ? ` Against the rules now, it would have ${whatIf.hits}.` : ` ${base ? WHATIF_NO_CHANGE : WHATIF_FIRST_RULE}`}`
               : 'This week’s deals haven’t been tried against this version yet.'}
           </li>
           <li className="live">New rules apply to new requests only. Anything already on hold, invoiced or approved stays as it is.</li>
@@ -123,12 +123,13 @@ export function SignSheet({ base, args, changes, whatIf, problems, onClose, onSi
             ['For', `your ${args.agent} agent`],
             ['In force', `${new Date(args.not_before * 1000).toLocaleString('en-GB')} → ${new Date(args.expires * 1000).toLocaleString('en-GB')} · then its agent stops · no money moves`],
             ['Applies to', 'every new request from that agent'],
-            ['Signed with', 'your owner key, after Windows Hello'],
-            ['Reference', <span key="r" className="mono">{base ? `${base.payload.id} · version ${v} · agent key ${shortHash(base.payload.agent_key)}` : 'given when you sign · version 1'}</span>],
+            ['Signed with', 'your owner key, after you confirm it is you (fingerprint, face or PIN)'],
+            ['Reference', <span key="r" className="mono">{base ? `version ${v}` : 'given when you sign · version 1'}</span>],
           ]}
         />
         <details className="ow-bytes">
           <summary>Exactly what this window sends ({size} bytes), for the technically curious</summary>
+          {base ? <p className="ui-hint mono">Rule set {base.payload.id} · agent key {shortHash(base.payload.agent_key)}</p> : null}
           <pre tabIndex={0} aria-label="Exactly what is sent">{JSON.stringify(args, null, 2)}</pre>
         </details>
       </Section>

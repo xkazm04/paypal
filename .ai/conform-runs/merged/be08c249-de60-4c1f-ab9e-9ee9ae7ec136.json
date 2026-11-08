@@ -1,0 +1,118 @@
+{
+ "schema": "conform-run/1",
+ "worker": "be08c249-de60-4c1f-ab9e-9ee9ae7ec136",
+ "subject": "browser-credential-boundary",
+ "evaluatedAt": "2026-11-08T02:07:55.175703+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "ipc-contract-and-authority-table",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "crates/table-client/src/lib.rs:139 The webview-facing contract puts the PayPal and Channel3 secrets in regime two: the webview can only name a credential kind, the Rust runtime holds and attaches the secret, and callers are gated by a window label the shell assigns plus an approval token.",
+   "techniques": [
+    {
+     "technique": "broker-proxy-attaches-secret",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/authority_table.rs:16 The runtime is the broker. Callers are identified by a label the shell assigns, and the set of commands is an enumerated authority table (label/token/unlock/selection), so it is an allowlist, not a relay."
+    },
+    {
+     "technique": "omit-the-column-not-the-value",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/lib.rs:139 Structural exclusion applied to the IPC shape: CredentialArgs is a bare enum with no field that could carry a secret, so no edit to a handler can put one on the wire."
+    },
+    {
+     "technique": "opaque-upstream-errors",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/lib.rs:66 Errors go out as a closed ErrorCode vocabulary. PayPal failures collapse to Error::Unavailable ('operation unavailable') in table-app resolve.rs defer(), so no upstream body crosses. Caveat: line 78 relays error.to_string(), which for transparent rusqlite and serde errors is local-store text, not upstream topology."
+    },
+    {
+     "technique": "server-sealed-client-roundtrip",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/lib.rs:98 The checks_hash the client brings back is never trusted: Rust re-derives the checklist and refuses a hash that is missing or different. This is the technique's own 're-derive instead of seal' branch, so the claimant does not adjudicate."
+    },
+    {
+     "technique": "allowlisted-operator-stream",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/lib.rs:107 Debug for DecisionArgs keeps only deal_id (finish_non_exhaustive), and IpcHeaders and UnlockArgs print [REDACTED] (line 136), so the log surface fails closed when a field is added."
+    }
+   ],
+   "registryProposal": "The subject frames regime two as a same-origin HTTP broker route. A desktop webview whose broker is an IPC dispatcher, with callers authenticated by a window label the shell assigns plus a capability token, is the same boundary with no HTTP route. A short technique note on 'native-shell IPC as the broker' would stop reviewers marking the broker technique not-applicable just because there is no route."
+  },
+  {
+   "context": "browser-mock-backend",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "apps/desktop/client/src/mock/backend.ts:1269 The browser-only mock holds no credential at all: set_credentials records only that a kind was stored, the gates mirror the generated authority table, and a decision re-derives the checks hash rather than trusting the client's, so the UI is built against the same boundary the real shell enforces.",
+   "techniques": [
+    {
+     "technique": "broker-proxy-attaches-secret",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:1269 The mock reproduces regime two: the browser submits only a kind and never a secret, behind the privileged() gate (approval label + token + unlock)."
+    },
+    {
+     "technique": "server-sealed-client-roundtrip",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:640 The checks result the client carries back is recomputed (checksFor) and compared. A client cannot submit a pass that no check produced."
+    },
+    {
+     "technique": "omit-the-column-not-the-value",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:957 The credentials facts shape is {kind, stored, stored_at}, with no field for the secret value."
+    },
+    {
+     "technique": "opaque-upstream-errors",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:178 A PayPal-side failure is reported as the closed UNAVAILABLE code, never as upstream detail, mirroring Rust."
+    },
+    {
+     "technique": "default-deny-plus-defaulted-owner",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:548 Enforcement is a code gate over the authority table (the authorization subject), not a row policy on a store the browser reaches, so the row-policy technique's precondition does not hold."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-08T02:07:55.175703+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [
+    "allowlisted-operator-stream",
+    "broker-proxy-attaches-secret",
+    "omit-the-column-not-the-value",
+    "opaque-upstream-errors",
+    "server-sealed-client-roundtrip"
+   ],
+   "deviations": 0,
+   "context": "ipc-contract-and-authority-table",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T02:07:55.175703+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [
+    "broker-proxy-attaches-secret",
+    "default-deny-plus-defaulted-owner",
+    "omit-the-column-not-the-value",
+    "opaque-upstream-errors",
+    "server-sealed-client-roundtrip"
+   ],
+   "deviations": 0,
+   "context": "browser-mock-backend",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -12,6 +12,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { formatCount } from '../../../../../lib/data/counts';
+import { Reveal as Sweep } from '../../../../../design/Reveal';
 import { usePrefersReducedMotion } from '../../../../../lib/hooks';
 import { reachOf } from '../../../../../lib/say/draft';
 import { useSayReading } from '../../../setup/useSay';
@@ -104,8 +105,9 @@ export function RewindLayer({ nav, state }: LayerProps) {
         <Reveal wave={3} sizeKey="rewind:hub" skeleton={<Skeleton className="rw-host" h="23rem" />}>
           <div className="rw-host" ref={picture}>
             <Suspense fallback={<p className="layer-loading" role="status">{LAYER_LOADING}</p>}>
-              <div className="rw-stage"><RewindHub r={r} labelOf={labelOf} onOpenDeal={nav.deal} ahead={ahead} /></div>
-              <RewindBar r={r} labelOf={labelOf} onOpenDeal={nav.deal} onExit={nav.back} ahead={ahead} />
+              {/* A one-time sweep-in when the picture mounts; the Reveals animate on mount only, so scrubbing never replays it. */}
+              <Sweep><div className="rw-stage"><RewindHub r={r} labelOf={labelOf} onOpenDeal={nav.deal} ahead={ahead} /></div></Sweep>
+              <Sweep><RewindBar r={r} labelOf={labelOf} onOpenDeal={nav.deal} onExit={nav.back} ahead={ahead} /></Sweep>
             </Suspense>
           </div>
         </Reveal>

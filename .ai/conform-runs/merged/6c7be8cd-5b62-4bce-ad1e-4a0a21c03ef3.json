@@ -1,0 +1,95 @@
+{
+ "schema": "conform-run/1",
+ "worker": "6c7be8cd-5b62-4bce-ad1e-4a0a21c03ef3",
+ "subject": "guided-tours",
+ "evaluatedAt": "2026-11-07T23:55:59.548611+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "shared-surfaces-onboarding-honesty",
+   "subject": "guided-tours",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/shared/tour.tsx:177 The component treats a missing anchor as 'drop the stop' with no per-step policy and no degradation record. Combined with Next-only advancement and a skip that forgets its step, three techniques fall short even though anchors, overlay conduct and focus are handled well.",
+   "techniques": [
+    {
+     "technique": "missing-anchor-degradation",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/shared/tour.tsx:177 Absent anchors are filtered out under one global skip with no trace. The never-strand rule holds (no dimming; the mark and its Skip render whenever a view exists)."
+    },
+    {
+     "technique": "action-driven-advancement",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/shared/tour.tsx:292 Every stop moves only on Next/Finish or the arrow keys, and no product signal is observed. Skip is always present."
+    },
+    {
+     "technique": "tour-lifecycle",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/shared/tour.tsx:197 Skip persists and stays closed (good), but it does not record which stop was abandoned. Reopen (line 135) is saved and survives reload."
+    },
+    {
+     "technique": "anchor-contracts",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/tourAnchors.test.tsx:33 Drift gate: renders the real windows and resolves every stop with the same findAnchor the tour uses, with a reverse check at line 77. Geometry is re-resolved on resize, scroll, ResizeObserver and anchor-set changes (tour.tsx:206-225), and the anchor is scrolled into view (line 229)."
+    },
+    {
+     "technique": "overlay-precedence",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/tour.tsx:188 Hides while any sheet, popover or confirm is open on the layer stack. Uses the shared --z-popover token (tour.css:8) rather than its own number. The mark is a non-modal dialog with no focus trap, Esc skips (line 266), and focus goes back where it was (line 246)."
+    },
+    {
+     "technique": "narration-and-pacing",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/tour.css:24 No audio. The only motion is a brief entrance plus position transitions, applied only when the owner has not asked for reduced motion. Nothing advances on animation end."
+    },
+    {
+     "technique": "product-performed-effects",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/shared/tour.tsx:6 No performable motion to teach. The tour never presses product controls."
+    },
+    {
+     "technique": "tour-path-curriculum",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/shared/tour.tsx:159 Each window's short first-run tour, not a whole-product path over grouped navigation."
+    },
+    {
+     "technique": "spotlight-continuity",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/shared/tour.tsx:218 Same-screen tour: measured on scroll, resize and ResizeObserver, with no route change to bridge. (Side note: the presence MutationObserver at line 183 watches all of document.body with subtree on, which the technique would call over-broad if it applied.)"
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "guided-tours",
+   "context": "money-guidance-and-onboarding",
+   "reason": "evidence leans on lib/tour.test.ts, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T23:55:59.548611+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "guided-tours"
+   ],
+   "techniques": [
+    "action-driven-advancement",
+    "anchor-contracts",
+    "missing-anchor-degradation",
+    "narration-and-pacing",
+    "overlay-precedence",
+    "product-performed-effects",
+    "spotlight-continuity",
+    "tour-lifecycle",
+    "tour-path-curriculum"
+   ],
+   "deviations": 1,
+   "context": "shared-surfaces-onboarding-honesty",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

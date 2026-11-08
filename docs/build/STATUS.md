@@ -1,6 +1,14 @@
 # Backend status
 
-Updated 2026-10-06: **wave 0 port gaps** are built end to end (see "Wave 0 port gaps" below; seven
+Status date: 2026-11-06 (README and this file share it). Sections below keep their own dated entries, the
+newest at the end of the file. Built vs deferred, in one line: B0-B8 and P1, P2, P4, P5 are built and
+offline-tested; **rescue is partial** (only the discount lever executes, offline; the other levers and
+rescue detection from live PayPal data are deferred), and the catalog tools and financial crash-gap
+recovery are deferred; native engines, live PayPal spikes and deployment are unverified. The in-person
+approval line is a per-mandate clause: the sandbox mandate uses $200 (`crates/table-sandbox/src/lib.rs`
+`RULE_IN_PERSON`), the recorded Maya mandate $250 (`apps/desktop/client/src/mock/haggle.json`).
+
+Wave 0 entry, 2026-10-06: **wave 0 port gaps** are built end to end (see "Wave 0 port gaps" below; seven
 new read/restrict commands, one event, four contract fields, no migration, no dependency).
 Earlier (2026-10-03): **all seven client backend requests are implemented and offline-tested.**
 Owner ACCEPT, pairing handoff, safe display reads, browser handoff events, timestamp/
@@ -2964,3 +2972,93 @@ recording, `apps/desktop/client/src/mock/haggle.json` (table-runtime's haggle re
   reader also fills in a day's limit that the signed rules do not have (marked as filled in).
 - **Wall clock.** e5's two clock-bound tests are pinned to a Wednesday 10:00 (`sayit.test.tsx`, the whole
   "Say it on the Charter" block; `rewind.layer.test.tsx`, "says what happens first").
+
+## The board composes, and every change it makes can be undone (spark ai-driven-ux-golden-standard, P1, 2026-11-03)
+
+Built against the registry's new `model-composed-workspace` standard (composition-region, arrangement-memory,
+reversible-screen-ops). Client only; no Rust, IPC or bindings change.
+- **A composition region** (`switchboard/region.ts`, pure, tested) replaces the one answer panel: up to
+  `REGION_MAX = 3` answers; a `show` adds; an answer already on screen is focused, never duplicated or moved;
+  when full, the oldest unpinned answer leaves. Only the focused answer carries the gold hand-off.
+- **Pins** (at most `REGION_MAX - 1`) survive every reply for the board session; Esc clears the region and pins.
+- **What changed**: each reply that changed the screen says so in one plain line under its answer.
+- **Undo last change** restores the region, filter and light to what they were before the board's last reply;
+  any owner move supersedes it. Stop applies nothing.
+- **Her move wins**: if Maya moves the board while a reply is in flight, its layout is held, not applied; the
+  line says so and "Show what it suggested" applies it as an undoable step.
+- **Deferred to after 2026-11-12**: the prompt still says `show` replaces, because the prompt and op wording are
+  pinned in `crates/table-client/src/assistant_contract.json` (embedded in the shell). Proposed wording is in
+  `docs/features/conversational-home.md`.
+- **View-choice evaluation (P2)**: `lib/assistant/eval` - 40 labelled owner questions over three boards (12
+  negatives), scored through the real `validateReply` door for schema validity, exact panel choice, false and
+  missed triggers; the scripted arm runs in `pnpm test`, the live arm is `pnpm eval:board` (results to the OS temp
+  folder, never committed). First figures, 2026-11-03: scripted 52.5% pass; live (the installed CLI default model)
+  70.0% pass, 100% schema-valid, 20% false trigger (all eight: a sentence-shaped question given a panel), 12.9%
+  missed (all four: a two-panel question given one). Both live failure classes come from the pinned prompt (see
+  "Known gaps" in `docs/features/conversational-home.md`).
+
+## The home: status first, setup led by the conversation (spark abstract-first-home, 2026-11-06)
+
+Five prototype rounds of three variants each, chosen by the owner; design and verdicts in
+`docs/design/abstract-first-home.md`, behaviour in `docs/features/conversational-home.md`. Client only; no Rust,
+IPC, bindings or reply-contract change.
+- **The home replaces the counts board** as the main window's default view (`windows/main/home/`, view name still
+  `board`). It opens with one status line and the first need; a module list on the side (one row per item, each
+  module's own columns) opens item pages in main; replies stay in the conversation and only scope the list.
+- **Setup is led by the conversation** (`home/guide/`): keys, rules (proposed in plain words with the practice
+  shop as payee, so they can be signed before the shop is connected), practice (agent app, then the practice
+  shop), one step per turn, at most one spotlight after each.
+- **Secure steps stay in the window** (`home/secure/`, `windows/approval/bare/`): in the browser a sheet framing
+  the approval side's one-form surface (same token and gates; keys never reach an app page); in the desktop app
+  the approval window itself.
+- **Removed:** `Switchboard.tsx` and its board-only parts (slots, board column, standing strip, ask bar, earlier,
+  says, figures, lit, region, keymap) and their tests; the board model, standing answers, panels, proposals,
+  resolver and assistant hook stay in `switchboard/`. `EASE` moved into `design/motion.ts` with a CSS parity test.
+- **Open:** desktop has no framed bare surface (needs a CSP/Rust change); the sample-data demo still opens a
+  decision's approval page in place of the main tab; the console's setup and the Tumbler still follow
+  `START_ORDER`; Book repeats other modules' deals; `switchboard.css` still carries the board's layout rules.
+
+## Desktop secure sheet (spark desktop-secure-sheet, 2026-11-06)
+
+The desktop app's setup secure steps (keys, rules, the practice shop's words) open as a sheet: the approval
+window, frameless and fixed-size per step, docked over The Table on `approval.html?bare=<kind>`, while the home
+dims. `ApprovalOpenArgs.presentation` (`sheet` only from main, only for credentials, mandate or pairing; the
+runtime and the mock refuse anything else) and the main-only event `approval:sheet` are new. The permissions
+fingerprint moved (`PINNED_MANIFEST`) and the recorded samples were re-recorded. CSP, capabilities, labels and
+tokens are unchanged (`frame-src 'none'` still pinned). Design: `docs/design/desktop-secure-sheet.md`. Not yet
+clicked through in the real window.
+
+## What today's budget leaves, on the rules line (tiger gated-spend C2, 2026-11-07)
+
+The approval checklist's rules line ends with "After this, $171.00 of today’s $500.00 is left.", or names
+the wallet limit when it leaves less ("…of your wallet’s $400.00 daily limit is left today."). Closes
+the T14 "Left" item "after this: $X of $Y today" and approval L2. Rust: `Wallet::left_today`
+(`table-app/src/agent.rs`) reads the ledger's usage window (`usage_today_without`, one counting rule
+with `usage_for`) and the exposure fold (`exposure_today_without`, one rule with `exposure_for_deal`)
+seen from now, adds the deal's amount once, and compares with `table_core::day_left`, which the
+velocity clause and `WalletEnvelope::check` now share. The line is in the hashed checklist, so another
+deal agreeing changes it and an old hash returns "The summary changed". The mock mirrors it
+(`mock/checks.ts`, `mockWalletDayUsed`).
+- **Deviation:** the figure is the day seen from now (every other deal agreed today), not the deal's
+  place in its agreement order the gate judges an agreed deal by: the gate's own figure would not change
+  when a later deal agrees, and "today’s" would then overstate what is left. For a deal not agreed yet
+  the two are the same. A deal agreed on an earlier UTC day gets no sentence.
+
+## The approval window reads the wallet's record (tiger gated-spend C3, 2026-11-07)
+
+`ApprovalSummary` gains `handed_off` (the ledger's hand-off flag) and `decided` (the newest
+`owner.decision` row for the deal and attempt: decision, step, time, the recorded lines and their hash,
+`same_now` against the list now, `signed` by the pinned owner key); `can_release` is false while
+`evidence.money_check` is set. No new command, no authority row, no fingerprint change. The window's
+bound line, a read-only "When you approved · 14:02" fold and the PayPal hand-off phase come from these,
+so they survive a reopen; while a money step is open the money buttons give way to one line from it.
+After a failed decision the window reads the summary again before it speaks (`review/decided.ts`
+`afterFailure`): a newer row with a step opened since, a newer row with nothing sent, no newer row
+("Nothing was done"), or a failed read (unconfirmed). History emits an `owner_decided` step per
+decision row (`HistoryStep.decision`: step, lines, lines checked later and whether they passed before
+payment), shown on the deal page's "Who decided" as "Approved 14:02 · 6 checks · 3 checked later, all
+passed before payment". The mock mirrors all three (`MockOptions.failDecision` injects the lost reply).
+- **Deviation:** the summary reads the decision rows without verifying the whole audit chain on each
+  poll (display only; nothing gates on it). The history step carries the step decided, not a separate
+  decision word (the step names it). A newer row is told from the one the click was made on (time,
+  step, decision, checklist hash, attempt), not from the client clock.

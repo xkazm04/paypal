@@ -104,7 +104,18 @@ pub fn manifest_hex() -> Option<&'static str> {
 /// Tauri core permissions each window needs besides its commands (events, its own window).
 fn core_permissions(label: WindowLabel) -> &'static [&'static str] {
     match label {
-        WindowLabel::Main => &["core:event:allow-listen", "core:event:allow-unlisten"],
+        // The Main window draws its own title bar (no native frame): it drags, minimises,
+        // maximises and asks to close itself. Close only raises the close request, which the
+        // shell's quit sheet still answers.
+        WindowLabel::Main => &[
+            "core:event:allow-listen",
+            "core:event:allow-unlisten",
+            "core:window:allow-start-dragging",
+            "core:window:allow-minimize",
+            "core:window:allow-toggle-maximize",
+            "core:window:allow-is-maximized",
+            "core:window:allow-close",
+        ],
         // The Tumbler is dragged by `tumbler_drag` (Rust starts the move), not by the webview.
         WindowLabel::Tumbler => &["core:event:allow-listen", "core:event:allow-unlisten"],
         WindowLabel::Approval => &[
@@ -241,7 +252,7 @@ mod tests {
     /// up in review as an edit to this line (and to `bindings/authority.ts`). Update it only when
     /// the table change is intended.
     const PINNED_MANIFEST: &str =
-        "6f9a2ffacdd3bc7276d4774f0773a173ffea45df51765f07660801b8670e27dd";
+        "33b4e591ab30b89d9f9e920ba869de343e089b26338d9c1026aa62f3695f00fd";
 
     /// Written out by hand: the board assistant's two commands are reads the main window alone
     /// may call, answered by the shell, with no token, unlock or selection. Its reply is text the
@@ -260,6 +271,25 @@ mod tests {
                 "{name}"
             );
         }
+    }
+
+    /// The agent-app brief is a plain read for every window; it must not drag anything into the
+    /// release set (written out by hand, independent of the table).
+    #[test]
+    fn the_engine_brief_is_an_open_read_for_every_window_and_not_a_release_command() {
+        let a = authority("engine_brief").unwrap();
+        assert_eq!(a.labels, &WindowLabel::ALL[..]);
+        assert_eq!(a.tier, Tier::Read);
+        assert_eq!(a.enforcer, Enforcer::Runtime);
+        assert_eq!(a.selection, Selection::None);
+        assert!(!a.token && !a.unlock && !a.release());
+        assert!(!RELEASE_COMMANDS.contains(&"engine_brief"));
+        for label in ["main", "tumbler", "approval"] {
+            assert!(admits("engine_brief", label), "{label}");
+        }
+        assert!(!admits("engine_brief", "devtools"));
+        // The detailed status stays main only.
+        assert!(!admits("engine_status", "tumbler") && !admits("engine_status", "approval"));
     }
 
     #[test]
@@ -462,7 +492,16 @@ mod tests {
         use WindowLabel::{Approval, Main, Tumbler};
         let pinned = |label| -> BTreeSet<&str> {
             match label {
-                Main => ["core:event:allow-listen", "core:event:allow-unlisten"].into(),
+                Main => [
+                    "core:event:allow-listen",
+                    "core:event:allow-unlisten",
+                    "core:window:allow-start-dragging",
+                    "core:window:allow-minimize",
+                    "core:window:allow-toggle-maximize",
+                    "core:window:allow-is-maximized",
+                    "core:window:allow-close",
+                ]
+                .into(),
                 Tumbler => ["core:event:allow-listen", "core:event:allow-unlisten"].into(),
                 Approval => [
                     "core:window:allow-close",

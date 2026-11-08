@@ -1,0 +1,148 @@
+{
+ "schema": "conform-run/1",
+ "worker": "beed319d-d188-4ae1-8c7c-a4c893d3185e",
+ "subject": "agent-memory",
+ "evaluatedAt": "2026-11-08T00:49:53.862560+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "rendezvous-relay",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "services/rendezvous/src/lib.rs:1 The crate is a bounded mailbox relay whose only 'memory' is the in-process MemoryStore of queued messages; a search of services/rendezvous for episodic, consolidat, recall, embedding and half-life found no hits, so no agent working, episodic or consolidated memory exists here to judge.",
+   "techniques": [],
+   "absenceTerms": [
+    "episodic",
+    "consolidat",
+    "recall",
+    "embedding",
+    "half-life"
+   ]
+  },
+  {
+   "context": "shared-ui-primitives",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/shared/ui/index.ts:1 The context only exports React UI primitives (sheets, popovers, focus, toasts); a search of shared/ui and shared/boundary for episodic, consolidat, recall, embedding and half-life found no hits (the one 'remember' is focus.ts remembering keyboard focus), so it has no agent memory pipeline.",
+   "techniques": [],
+   "absenceTerms": [
+    "episodic",
+    "consolidat",
+    "recall",
+    "embedding",
+    "half-life"
+   ]
+  },
+  {
+   "context": "attention-forecast-and-window-placement",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-attention/src/lib.rs:1 The crate holds pure, read-only forecast, ladder and window-geometry functions with no stored beliefs or recall; a search of crates/table-attention for episodic, consolidat, recall, embedding and half-life found no hits.",
+   "techniques": [],
+   "absenceTerms": [
+    "episodic",
+    "consolidat",
+    "recall",
+    "embedding",
+    "half-life"
+   ]
+  },
+  {
+   "context": "browser-mock-backend",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/mock/backend.ts:1 The mock serves fixture wallet state in Rust binding shapes and mocks no agent memory commands (the 'memory' hits are product descriptions in scale.ts and one in-memory save comment); a search of src/mock for episodic, consolidat, recall, embedding and half-life found no hits.",
+   "techniques": [],
+   "absenceTerms": [
+    "episodic",
+    "consolidat",
+    "recall",
+    "embedding",
+    "half-life"
+   ]
+  },
+  {
+   "context": "console-framework",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/console/memory.ts:6 The context's only 'memory' module stores UI layer scroll and focus keys for back-navigation, not agent beliefs or episodes; a search of the console directory for episodic, consolidat, recall, embedding and half-life found no hits, so the agent-memory subject does not govern it.",
+   "techniques": [],
+   "absenceTerms": [
+    "episodic",
+    "consolidat",
+    "recall",
+    "embedding",
+    "half-life"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-08T00:49:53.862560+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "rendezvous-relay",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T00:49:53.862560+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shared-ui-primitives",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T00:49:53.862560+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "attention-forecast-and-window-placement",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T00:49:53.862560+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "browser-mock-backend",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T00:49:53.862560+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "console-framework",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

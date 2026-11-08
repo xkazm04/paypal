@@ -1,0 +1,11 @@
+/* Rewind chat flow (RewindFlow.tsx). Tokens only; nothing below --fs-small. */
+.rwf-q { margin: 0; }
+.rwf-step { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.rwf-day { font-size: var(--fs-small); }
+.rwf-quiet { margin: 0; color: var(--dim); font-size: var(--fs-small); }
+.rwf-figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); margin: 0; }
+.rwf-figures div { display: grid; gap: var(--sp-1); }
+.rwf-figures dt { color: var(--dim); font-size: var(--fs-small); }
+.rwf-figures dd { margin: 0; font-weight: 600; }
+.rwf-events { margin: 0; padding-left: var(--sp-4); display: grid; gap: var(--sp-1); font-size: var(--fs-small); }
+.rwf-time { color: var(--dim); }

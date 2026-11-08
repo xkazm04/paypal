@@ -19,11 +19,12 @@ import type { Module } from '@bindings/Module';
 import { useEvent, useMutation } from '../../../lib/hooks';
 import { isLazyPart, lazyPart, preloadOnIntent, preloadWhenIdle, whenPartsReady } from '../../../lib/lazy';
 import {
-  A_DEAL, BACK_TITLE, BOARD_TO_BOARD, BOARD_TO_BOARD_TITLE, BRAND_NAME, WALLET_FAULT_TOAST, CHARTER_TITLE, BRAND_TITLE, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, NOTICE_WHAT, PLACE, PLACE_TITLE, PLACES_LABEL,
+  A_DEAL, BACK_TITLE, BOARD_TO_BOARD, BOARD_TO_BOARD_TITLE, VIEW_SWITCH, WALLET_FAULT_TOAST, CHARTER_TITLE, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, NOTICE_WHAT, PLACE, PLACE_TITLE,
   SEAL_RING, sealLabel, silenceWords, tabTitle, tabWaiting, TABS_LABEL,
 } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
-import { Mark, Seal } from '../../../shared/brand';
+import { Seal } from '../../../shared/brand';
+import { APP_BRAND_EVENT, APP_FIND_EVENT, APP_STATUS_EVENT, useAppHeaderEvent } from '../AppHeader';
 import { Glyph, MODULE, MODULES } from '../../../shared/modules';
 import { Btn, InspectorHostProvider, layerCount, ModuleTab, Stack, TabStrip, TOAST_MS, useInspectorHost, useToast } from '../../../shared/ui';
 import { shortTitle } from '../home/model';
@@ -37,6 +38,7 @@ import { useDealLabels, useDeals, useLocked, useNeeds, useWorldSelector, type Wo
 import type { CentreProps } from './Centre';
 import { currentIndex, cycle, orderQueue, presenceOf, putOff } from './centreModel';
 import { Find } from './Find';
+import { PlacesMenu, type PlaceGroup, type PlaceItem } from './PlacesMenu';
 import { switchDemo } from './DemoSwitch';
 import { Footer } from './Footer';
 import type { FindTarget } from './findIndex';
@@ -244,6 +246,8 @@ export function Console() {
   const [find, setFind] = useState(false);
   const [help, setHelp] = useState(false);
   const [quit, setQuit] = useState(false);
+  // The app header's brand, status and Find (AppHeader.tsx) announce themselves; this view answers.
+  useAppHeaderEvent(APP_FIND_EVENT, useCallback(() => setFind(true), []));
   const [rewindAt, setRewindAt] = useState<number | null>(null);
   const [paidFlash, setPaidFlash] = useState(false);
   useEffect(() => preloadWhenIdle(LATER_PARTS), []);
@@ -251,6 +255,8 @@ export function Console() {
 
   // ---- navigation helpers ---------------------------------------------------------------------
   const goHome = useCallback(() => { if (navRef.current.route.level !== 'home') go({ level: 'home' }); }, [go]);
+  useAppHeaderEvent(APP_BRAND_EVENT, goHome);
+  useAppHeaderEvent(APP_STATUS_EVENT, useCallback(() => (queue.length ? go({ level: 'waiting' }) : goHome()), [queue.length, go, goHome]));
   const goModule = useCallback((m: Module) => go({ level: 'module', module: m }), [go]);
   const goDeal = useCallback((id: string) => {
     const r = navRef.current.route;
@@ -383,27 +389,43 @@ export function Console() {
   const here = chain.length ? chain[chain.length - 1] : null;
   const litRoute = pending ?? route;
   const placeLit = litRoute.level === 'place' ? litRoute.place : null;
+  const placeItem = (p: BarPlace): PlaceItem => ({ id: `cs-place-${p.place}`, label: p.label, title: p.title, lit: !!placeLit && p.lit.includes(placeLit), onPick: () => barPlace(p.place) });
+  const placeBy = (k: Place) => BAR_PLACES.filter((b) => b.place === k).map(placeItem);
+  const placeGroups: PlaceGroup[] = [
+    { key: 'watch', items: [{ id: 'cs-place-rewind', label: PLACE.rewind, title: PLACE_TITLE.rewind, lit: route.level === 'rewind', onPick: () => goRewind() }, ...placeBy('proof')] },
+    { key: 'configure', items: [...placeBy('rules'), ...placeBy('connections'), ...placeBy('settings')] },
+    { key: 'lab', items: [...placeBy('try'), ...placeBy('director')] },
+  ];
 
   return (
-    <div className={`cs-app${depth > 1 ? ' deep' : ''}`} inert={find || undefined} onPointerOver={warmOnIntent} onFocus={warmOnIntent} style={{ '--seal': `var(--${SEAL_TONE[presence.state]})` } as CSSProperties}>
+    <div className={`cs-app ui-ground${depth > 1 ? ' deep' : ''}`} inert={find || undefined} onPointerOver={warmOnIntent} onFocus={warmOnIntent} style={{ '--seal': `var(--${SEAL_TONE[presence.state]})` } as CSSProperties}>
       <header className="cs-bar">
         <div className="cs-barl">
-          <button type="button" className="cs-brand" onClick={goHome} title={BRAND_TITLE} aria-label={BRAND_TITLE}><Mark /><span>{BRAND_NAME}</span></button>
           {depth > 1 ? <button type="button" className="cs-back" onClick={back} title={BACK_TITLE}><span aria-hidden="true">‹</span> {DETAIL_BACK}</button> : null}
           {here ? <span className="cs-here" data-testid="cs-here" title={def.title(route)}><CrumbLabel r={here} firstRun={firstRun} /></span> : null}
         </div>
-        <nav className="cs-places" aria-label={PLACES_LABEL}>
-          <button type="button" id="cs-needpill" className={`cs-needpill${queue.length ? '' : ' zero'}`} aria-label={needPillLabel(queue.length)}
-            onClick={() => (queue.length ? go({ level: 'waiting' }) : goHome())}>{needPill(queue.length)}</button>
-          <button type="button" id="cs-place-rewind" className={`cs-place${route.level === 'rewind' ? ' on' : ''}`} onClick={() => goRewind()} title={PLACE_TITLE.rewind}>{PLACE.rewind}</button>
-          {BAR_PLACES.map((b) => (
-            <button key={b.place} type="button" id={`cs-place-${b.place}`} className={`cs-place${placeLit && b.lit.includes(placeLit) ? ' on' : ''}`}
-              aria-current={placeLit && b.lit.includes(placeLit) ? 'page' : undefined} onClick={() => barPlace(b.place)} title={b.title}>{b.label}</button>
-          ))}
-          <button type="button" id="cs-place-board" className="cs-place" onClick={() => setHomeView('board')} title={BOARD_TO_BOARD_TITLE}>{BOARD_TO_BOARD}</button>
-          <button type="button" className="cs-place" onClick={() => setFind(true)} title={PLACE_TITLE.find}>{PLACE.find} <kbd>/</kbd></button>
+        <div className="cs-view" role="group" aria-label={VIEW_SWITCH.label}>
+          <button type="button" id="cs-place-board" className="cs-seg" onClick={() => setHomeView('board')} title={BOARD_TO_BOARD_TITLE}>{BOARD_TO_BOARD}</button>
+          <button type="button" className="cs-seg on" aria-current="page" title={VIEW_SWITCH.everythingTitle}>{VIEW_SWITCH.everything}</button>
+        </div>
+        <div className="cs-tabrow" ref={tabRow}>
+          <TabStrip label={TABS_LABEL}>
+            {MODULES.map((m, i) => {
+              const waiting = queue.filter((n) => n.module === m.key).length;
+              const count = !deals ? null : m.key === 'book' ? deals.length : deals.filter((d) => moduleOfDeal(d) === m.key).length;
+              return (
+                <ModuleTab key={m.key} id={`cs-tab-${m.key}`} active={lit === m.key} onSelect={() => goModule(m.key)} color={m.cssVar} icon={<Glyph module={m.key} />} controls={PANEL_ID}
+                  title={tabTitle(m.name, m.long, i + 1)}
+                  label={<>{m.name}<span className={`tt${count === null ? ' unknown' : ''}`}>{formatCount(count)}</span>
+                    {waiting ? <span className="cnt"><span aria-hidden="true">{formatCount(waiting)}</span><span className="sr-only">{tabWaiting(waiting)}</span></span> : null}</>} />
+              );
+            })}
+          </TabStrip>
+        </div>
+        <div className="cs-places">
+          <PlacesMenu groups={placeGroups} />
           <LockButton />
-        </nav>
+        </div>
       </header>
       <StaleBanner />
       <InspectorHostProvider value={insp.value}>
@@ -411,23 +433,7 @@ export function Console() {
           <main className={`cs-stage${insp.open ? ' has-insp' : ''}`} ref={stageRef}>
             <Stack label={route.level === 'home' && firstRun ? CHARTER_TITLE : def.title(route)} depth={pile} tone={toneOf(route, lit)} gold={centreRoute && queue.length > 1}
               corner={depth > 1 && !def.ownSeal ? <Seal size="corner" state={presence.state} label={sealLabel(presence.word, presence.line)} ring={SEAL_RING} /> : undefined}
-              tabs={(
-                <div className="cs-tabrow" ref={tabRow}>
-                  <TabStrip label={TABS_LABEL}>
-                    {MODULES.map((m, i) => {
-                      const waiting = queue.filter((n) => n.module === m.key).length;
-                      const count = !deals ? null : m.key === 'book' ? deals.length : deals.filter((d) => moduleOfDeal(d) === m.key).length;
-                      return (
-                        <ModuleTab key={m.key} id={`cs-tab-${m.key}`} active={lit === m.key} onSelect={() => goModule(m.key)} color={m.cssVar} icon={<Glyph module={m.key} />} controls={PANEL_ID}
-                          title={tabTitle(m.name, m.long, i + 1)}
-                          label={<>{m.name}<span className={`tt${count === null ? ' unknown' : ''}`}>{formatCount(count)}</span>
-                            {waiting ? <span className="cnt"><span aria-hidden="true">{formatCount(waiting)}</span><span className="sr-only">{tabWaiting(waiting)}</span></span> : null}</>} />
-                      );
-                    })}
-                  </TabStrip>
-                  <p className="cs-presence" aria-live="polite"><b>{presence.word}</b> · {presence.line}</p>
-                </div>
-              )}>
+              tabs={<p className="cs-presence" aria-live="polite"><b>{presence.word}</b> · {presence.line}</p>}>
               {def.keepAlive ? null : (
                 <div ref={layerRef} key={sheetKey} id={PANEL_ID} role={lit ? 'tabpanel' : undefined} aria-labelledby={lit ? `cs-tab-${lit}` : undefined} className="cs-layer" data-dir={nav.dir} data-level={route.level} data-layer={layerIdOf(route)} data-fit={def.fit ? '' : undefined}>
                   <CentreHost.Provider value={host}>

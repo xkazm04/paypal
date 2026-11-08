@@ -1,5 +1,5 @@
 // Named motion for the Calibre design layer. CSS reads the same values from tokens.css
-// (--hold-ms, --dur-*); design/tokens.test.ts keeps the two in step. Use these instead of magic
+// (--hold-ms, --dur-*, --ease*); design/tokens.test.ts keeps the two in step. Use these instead of magic
 // delays: the prototype's 80/120/380/460/900 ms timeouts each map to one name here.
 import { useEffect, useState } from 'react';
 
@@ -10,6 +10,14 @@ export const HOLD_DRAIN_MS = 280;
 /** Durations, in milliseconds, matching --dur-* in tokens.css. */
 export const DUR = { instant: 80, fast: 120, med: 200, slow: 380, sheet: 460 } as const;
 export type DurName = keyof typeof DUR;
+/** Easing curves (cubic-bezier control points) matching --ease (settle), --ease-out (arriving) and
+ *  --ease-in (leaving) in tokens.css, for motion driven from code (framer-motion). */
+export const EASE = {
+  settle: [0.2, 0.8, 0.2, 1],
+  out: [0.16, 1, 0.3, 1],
+  in: [0.6, 0, 0.8, 0.2],
+} as const satisfies Record<string, readonly [number, number, number, number]>;
+export type EaseName = keyof typeof EASE;
 
 /** The in-app calm class. Set on <html>; base.css stops decorative motion under it. */
 export const CALM_CLASS = 'calm';

@@ -176,8 +176,8 @@ describe('headline and receipt text', () => {
   it('receipts are green, refusals stop, mismatches hold', () => {
     const ev = { deal_id: '01JDABCDEFGHJKMNPQRSTVWX7Q', evidence: { deal_id: '01JDABCDEFGHJKMNPQRSTVWX7Q', receipt: 'NONE' as const, reconciliation: 'not_applicable' as const }, mode: 'sandbox' as const, on_silence: 'no money moved' };
     // a deal the Tumbler never saw: only what happened, never a raw id
-    expect(receiptTicker({ ...ev, state: 'WITHDRAWN' })).toMatchObject({ kind: 'receipt', ms: 2500, l1: ['Withdrawn', '', ''] });
-    expect(receiptTicker({ ...ev, state: 'REFUSED' })).toMatchObject({ kind: 'stop', ms: 6000 });
+    expect(receiptTicker({ ...ev, state: 'WITHDRAWN' })).toMatchObject({ kind: 'receipt', ms: 5000, l1: ['Withdrawn', '', ''] });
+    expect(receiptTicker({ ...ev, state: 'REFUSED' })).toMatchObject({ kind: 'stop', ms: 8000 });
     expect(receiptTicker({ ...ev, state: 'MISMATCH' }).kind).toBe('hold');
     const known = item({ deal_id: ev.deal_id, label: 'D-0190', amount_minor: 6400, counterparty: 'partsco' });
     expect(receiptTicker({ ...ev, state: 'CAPTURED' }, known).l1).toEqual(['Paid ', '$64.00', ' · partsco']);
@@ -212,7 +212,7 @@ describe('headline and receipt text', () => {
       on_silence: "This wallet did not check PayPal's statement for the seller's payment; it moved no money",
     }, known);
     expect(unread.l2).toBe('your wallet did not check PayPal’s statement · it moved nothing');
-    expect(ended.ms).toBe(6000);
+    expect(ended.ms).toBe(8000);
   });
   it('tickers name the deal by who it is with, never by its id', () => {
     const it1 = item({ deal_id: 'a', label: 'D-0207', headline: 'Countersign $48.00', amount_minor: 4800, counterparty: 'lark’s agent', deadline: NOW + 3 * H });

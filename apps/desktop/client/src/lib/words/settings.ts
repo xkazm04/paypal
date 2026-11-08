@@ -38,7 +38,7 @@ export const SETTINGS_CARD = {
 export const SETTINGS_LOCK = {
   locked: 'Locked',
   unlocked: 'Unlocked',
-  lockedNote: 'Windows Hello unlocks it',
+  lockedNote: 'Your fingerprint, face or PIN unlocks it',
   unlockedNote: 'It locks after 15 quiet minutes.',
   locksIn: (min: number): string => `locks in ${min} min`,
   view: 'Approving money',
@@ -53,14 +53,14 @@ export const SETTINGS_LOCK = {
   reading: 'loading…',
   who: 'Who',
   whoFixed: '15 min · PayPal’s rule',
-  hello: 'Windows Hello',
+  hello: 'Fingerprint, face or PIN',
   helloYes: 'available on this computer',
   helloNo: 'not available on this computer',
   locks: 'Locks',
   locksWhat: 'saved keys · rules · connections · approvals · releases · paying on PayPal',
   never: 'Never locks',
   neverWhat: 'looking around · pausing agents · choosing the agent app · the house seller',
-  unlock: 'Unlock with Windows Hello',
+  unlock: 'Unlock with fingerprint, face or PIN',
 } as const;
 
 export const SETTINGS_AGENTS = {
@@ -178,7 +178,7 @@ export const SETTINGS_PROTECT = {
     ['Market prices key', 'typed into a Windows dialog'],
     ['Agent rules', 'sign, change, cancel'],
     ['Connection words', 'confirms who you deal with'],
-    ['Unlock after 15 quiet min', 'Windows Hello'],
+    ['Unlock after 15 quiet min', 'Fingerprint, face or PIN'],
   ],
   rowsYou: [
     ['Agent app', 'Connections'],

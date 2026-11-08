@@ -28,6 +28,7 @@ const h = vi.hoisted(() => ({
 vi.mock('../../../lib/runtime', () => ({ backend: () => h.current }));
 
 import { App } from '../App';
+import { openOnConsole } from './testing/home';
 
 function wrap(real: Backend): Backend {
   return {
@@ -67,6 +68,7 @@ async function quiet(): Promise<void> {
 /** Opens the main window at a URL (search + hash) on a fresh mock world. */
 async function open(url: string): Promise<Backend> {
   history.replaceState(null, '', url);
+  openOnConsole();
   resetMockState();
   const real = mockBackend('main');
   h.current = wrap(real);
@@ -411,13 +413,30 @@ describe('old links and the Tumbler', () => {
   }, 30_000);
 });
 
+describe('the console has one navigation row', () => {
+  it('holds the view switch, the six module tabs and the Places menu; the sheet carries no tab strip', async () => {
+    await open('/index.html#m=spend');
+    await waitFor(() => expect(document.getElementById('cs-tab-spend')).not.toBeNull());
+    const bar = document.querySelector('header.cs-bar') as HTMLElement;
+    expect(bar.querySelector('#cs-place-board')?.textContent).toBe('Chat');
+    expect(bar.querySelector('.cs-view [aria-current="page"]')?.textContent).toBe('Everything');
+    expect(bar.querySelectorAll('[role="tablist"] [role="tab"]')).toHaveLength(6);
+    expect(bar.querySelector('#cs-place-menu')?.getAttribute('aria-haspopup')).toBe('menu');
+    expect(bar.querySelector('.lockbtn')).not.toBeNull();
+    expect(document.querySelectorAll('[role="tablist"]')).toHaveLength(1);
+    expect(document.querySelector('.ui-stack-tabs [role="tablist"]')).toBeNull();
+    expect(document.querySelector('.ui-stack-tabs .cs-presence')).not.toBeNull();
+  }, 30_000);
+});
+
 describe('the owner places are layers (WP2.5)', () => {
   it('Rules from the top bar is a layer; the wallet limits are one below; Escape walks back with focus', async () => {
     await open('/index.html');
     await heading();
-    const rules = screen.getByRole('button', { name: PLACE.rules });
-    rules.focus();
-    fireEvent.click(rules);
+    const menuBtn = document.getElementById('cs-place-menu') as HTMLElement;
+    menuBtn.focus();
+    fireEvent.click(menuBtn);
+    fireEvent.click(await screen.findByRole('menuitem', { name: PLACE.rules }));
     await waitFor(() => expect(layer()?.dataset.layer).toBe('rules'));
     expect(location.hash).toBe('#p=rules');
     expect(document.querySelector('.ui-sheet')).toBeNull();
@@ -436,7 +455,7 @@ describe('the owner places are layers (WP2.5)', () => {
     await waitFor(() => expect((document.activeElement as HTMLElement | null)?.dataset.fk).toBe('to-limits'));
     fireEvent.keyDown(window, { key: 'Escape' });
     await waitFor(() => expect(layer()?.dataset.level).toBe('home'));
-    await waitFor(() => expect(document.activeElement?.id).toBe('cs-place-rules'));
+    await waitFor(() => expect(document.activeElement?.id).toBe('cs-place-menu'));
   }, 30_000);
 
   it('the pairing desk opens on the way it was asked for, once: a later plain open starts at its default', async () => {
@@ -494,13 +513,17 @@ describe('the preview tabs stay mounted once opened', () => {
     await open('/index.html#p=proof');
     await waitFor(() => expect(layer()?.dataset.layer).toBe('proof'), { timeout: 8000 });
     const proof = layer() as HTMLElement;
+    const pick = async (name: string) => { fireEvent.click(document.getElementById('cs-place-menu') as HTMLElement); fireEvent.click(await screen.findByRole('menuitem', { name })); };
+    fireEvent.click(document.getElementById('cs-place-menu') as HTMLElement);
     expect(document.getElementById('cs-place-proof')?.getAttribute('aria-current')).toBe('page');
     expect(document.getElementById('cs-place-director')).not.toBeNull();
-    fireEvent.click(document.getElementById('cs-place-settings') as HTMLElement);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(document.getElementById('cs-place-proof')).toBeNull());
+    await pick(PLACE.settings);
     await waitFor(() => expect(layer()?.dataset.layer).toBe('settings'), { timeout: 8000 });
     expect(proof.isConnected).toBe(true);
     expect(proof.hidden).toBe(true);
-    fireEvent.click(document.getElementById('cs-place-proof') as HTMLElement);
+    await pick(PLACE.proof);
     await waitFor(() => expect(proof.hidden).toBe(false), { timeout: 8000 });
     expect(layer()).toBe(proof);
   }, 30_000);

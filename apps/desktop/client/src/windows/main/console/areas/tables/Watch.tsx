@@ -3,6 +3,7 @@
 // the page: the signed transcript, the deal's Rewind steps (where the wallet refused the agent and
 // where the owner said yes), the signed band, the deal's market record, the rules' ask-me line and,
 // on a live table, the gate waiting for the owner. Nothing here moves money or opens anything.
+import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { useMemo, useState } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
@@ -77,15 +78,15 @@ function WatchPane({ deal, display, need, who, stage, onStage }: { deal: Deal; d
   if (!haggle || reading) return <p className="le-empty">{W.reading}</p>;
   if (!watchable(haggle)) return <p className="le-empty">{W.empty}</p>;
   return (
-    <div className="tb-pane">
-      <header className="tr-phead">
+    <RevealGroup className="tb-pane">
+      <Reveal><header className="tr-phead">
         <h2 title={display(deal).title}>{display(deal).title}</h2>
         <span className="tr-with">{who}</span>
         <span className="ui-spacer" />
         <Btn sm kind="plain" onClick={() => onStage(!stage)} title={stage ? W.listTitle : W.stageTitle}>{stage ? W.list : W.stage}</Btn>
-      </header>
-      <Corridor haggle={haggle} who={who} big={stage} />
-    </div>
+      </header></Reveal>
+      <Reveal><Corridor haggle={haggle} who={who} big={stage} /></Reveal>
+    </RevealGroup>
   );
 }
 

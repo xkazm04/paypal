@@ -1,0 +1,3 @@
+/* Rules flow card (RulesFlow.tsx). Tokens only. */
+.fc-quote { margin: 0; padding: var(--sp-2) var(--sp-3); border-left: 2px solid var(--line2); color: var(--text); font-size: var(--fs-small); }
+.fc-quiet { margin: 0; color: var(--dim); font-size: var(--fs-small); }

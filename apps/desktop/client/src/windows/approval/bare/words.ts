@@ -1,0 +1,98 @@
+// spark abstract-first-home round 4: the bare secure forms' words (keys, rules, pairing).
+export const BARE_KEYS = {
+  title: 'PayPal sandbox keys',
+  what: 'Test keys from PayPal’s developer site. They move test money only, never real money.',
+  get: 'Get them at developer.paypal.com',
+  getHref: 'https://developer.paypal.com/dashboard/applications/sandbox',
+  getWhere: 'Apps & Credentials › your sandbox app',
+  id: 'Client ID',
+  secret: 'Secret',
+  show: 'Show',
+  hide: 'Hide',
+  showLabel: 'Show the secret',
+  hideLabel: 'Hide the secret',
+  idHint: 'Starts with A, about 80 letters and digits',
+  secretHint: 'Starts with E, about 80 letters and digits',
+  pasteBoth: 'Tip: paste both at once into Client ID; they are split for you.',
+  save: 'Save securely',
+  saving: 'Saving…',
+  kept: 'Kept in your computer’s credential store (Windows Credential Manager), never in the app’s pages.',
+  preview: 'Preview: in the app, Windows asks for these in its own dialog, so no page ever sees them. Here they are checked, then thrown away.',
+  // The desktop app: the keys never pass through a page. The form is the way into the Windows dialog.
+  dialogLead: 'Windows asks for them in its own secure dialog:',
+  dialogId: 'Client ID goes in User name',
+  dialogSecret: 'Secret goes in Password',
+  dialogOpen: 'Open the secure dialog…',
+  dialogWaiting: 'Finish in the Windows dialog…',
+  saved: 'Keys saved',
+  savedSub: 'Your agents can now use PayPal’s test money.',
+  replace: 'Replace…',
+  notSaved: 'Keys not saved',
+} as const;
+
+/** Why a pasted key cannot be a PayPal sandbox key (shape only; the wallet checks again). */
+export const KEY_PROBLEM = {
+  inner: 'has a space or line break inside · paste just the key',
+  chars: 'has characters PayPal keys don’t use',
+  short: 'looks too short for a PayPal key',
+  long: 'is far too long for a PayPal key',
+  same: 'Client ID and Secret are the same · copy the Secret from its own field',
+} as const;
+
+export const BARE_RULES = {
+  title: 'Your agents’ first rules',
+  starter: 'Starter',
+  until: (date: string) => `In force until ${date} · then your agents stop; no money moves`,
+  noEnd: 'No end date yet · choose one in Edit',
+  sign: 'Sign with your owner key',
+  signing: 'Signing…',
+  edit: 'Edit',
+  editDone: 'Done editing',
+  how: 'Signing uses your owner key after Windows Hello. It moves no money.',
+  payeesAsk: 'Who may they pay?',
+  payeesHint: 'Payee names, separated by commas',
+  perDeal: 'Most per deal',
+  perDay: 'Most per day',
+  dealsDay: 'Deals per day',
+  askOver: 'Ask me above',
+  ceiling: 'Most you’ll pay',
+  ends: 'In force until',
+  signed: 'Rules signed',
+  signedSub: 'Your agents follow them from their next request.',
+  notSigned: 'Not signed',
+  fix: (n: number, first: string) => `Fix ${n} ${n === 1 ? 'thing' : 'things'} before signing: ${first}`,
+} as const;
+
+export const BARE_PAIRING = {
+  title: 'Do these four words match The Table?',
+  house: 'The practice shop shows the same four words on its side.',
+  other: 'Read them to the other owner; their words must match, in order.',
+  name: 'Name (only you see it)',
+  useHouse: 'House seller',
+  confirm: 'They match: connect',
+  confirming: 'Connecting…',
+  stop: 'They don’t match: stop',
+  what: 'Connecting pays nobody and never touches PayPal.',
+  none: 'No connection is waiting. Start it again in The Table.',
+  reading: 'Looking for the waiting connection…',
+  connected: (name: string) => `Connected · ${name}`,
+  connectedSub: 'Its offers can reach your agents, within your rules.',
+  stopped: 'Not connected',
+  stoppedSub: 'Nothing was connected and this attempt is over.',
+  notConnected: 'Not connected',
+} as const;
+
+export const BARE_GATE = {
+  unlock: 'Unlock with Windows Hello',
+  unlocking: 'Waiting for Windows Hello…',
+  locked: 'Locked after 15 quiet minutes · unlock to go on',
+  token: 'This window can’t approve right now',
+} as const;
+
+/** The desktop sheet window's own thin bar (it has no title bar of its own). */
+export const BARE_SHEET = {
+  lock: 'Secure step',
+  where: 'only this window can save keys or sign',
+  close: 'Close',
+  closeEsc: 'Close (Esc)',
+} as const;

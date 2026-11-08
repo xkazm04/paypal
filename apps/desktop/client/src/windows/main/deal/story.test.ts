@@ -99,8 +99,8 @@ describe('the decision card words', () => {
       expect(m).toContain('approval window');
       expect(m).toContain('Nothing moves until you confirm there.');
     }
-    expect(reviewMeans(deal('D-0193'), true)).toContain('Windows Hello');
-    expect(reviewMeans(deal('D-0193'), false)).not.toContain('Windows Hello');
+    expect(reviewMeans(deal('D-0193'), true)).toContain('fingerprint, face or PIN');
+    expect(reviewMeans(deal('D-0193'), false)).not.toContain('fingerprint, face or PIN');
   });
 });
 

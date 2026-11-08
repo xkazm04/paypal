@@ -1,0 +1,134 @@
+{
+ "schema": "conform-run/1",
+ "worker": "93f27b7b-6a37-4ed5-a57c-ca22ca983681",
+ "subject": "mcp-tools",
+ "evaluatedAt": "2026-11-05T22:00:11.720007+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "spend-firewall-and-agent-policy",
+   "subject": "mcp-tools",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-core/src/agent.rs:136 AgentTool is identified only by its addressable MCP name (name() and serde snake_case give the same string), and the wallet's audit trail persists that name per refusal and withheld call, so renaming a tool would split its recorded history into a death and a birth.",
+   "techniques": [
+    {
+     "technique": "tool-identity-vs-tool-name",
+     "verdict": "deviation",
+     "evidence": "crates/table-core/src/agent.rs:136 No rename-stable id beside the name. The technique's 'single server, handful of tools' carve-out does not apply, because table-app's audit (intent.refused / mcp.withheld) stores the tool name over time."
+    },
+    {
+     "technique": "untrusted-result-handling",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/agent.rs:6 The agent projection is closed by type: no free String, so counterparty text cannot reach the model through table_view."
+    },
+    {
+     "technique": "caller-differentiated-capability",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/agent.rs:406 The agent surface is a strict subset held by subtraction: money tools such as capture do not exist for agent roles, while the owner keeps them."
+    },
+    {
+     "technique": "tool-schema-design",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/agent.rs:507 Refusals are a closed code set, each with a fixed in-band sentence the model can act on. Tool names are verb_object."
+    },
+    {
+     "technique": "server-composition",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/agent.rs:323 The per-turn allowed list and the dispatch refusal come from one function, so listed and callable cannot drift."
+    },
+    {
+     "technique": "ambient-selection-is-not-an-argument",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/agent.rs:410 Tools act on the deal the run was minted for (OutOfScope otherwise), not on whatever the desktop UI has selected."
+    }
+   ]
+  },
+  {
+   "context": "client-runtime-foundation",
+   "subject": "mcp-tools",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/lib/tauri.ts:1 The foundation's bridge is Tauri IPC (invoke/emit_to with an X-Wallet-Ipc token), not a tool protocol. A search of apps/desktop/client found no JSON-RPC, inputSchema, McpServer or tools/list. MCP mentions under client/src sit in sibling contexts (arena records, the assistant bridge's --strict-mcp-config), not in this context's files.",
+   "techniques": [],
+   "absenceTerms": [
+    "jsonrpc",
+    "inputSchema",
+    "McpServer",
+    "tools/list"
+   ]
+  },
+  {
+   "context": "table-wire-protocol",
+   "subject": "mcp-tools",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-proto/src/lib.rs:1 table-proto is a signed peer-to-peer deal protocol (JWS envelopes between wallets and HOUSE), not a model tool protocol. A search of crates/table-proto for mcp, jsonrpc, tools/call and inputSchema returned no hits.",
+   "techniques": [],
+   "absenceTerms": [
+    "mcp",
+    "jsonrpc",
+    "tools/call",
+    "inputSchema"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "mcp-tools",
+   "context": "runtime-money-controls",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "mcp-tools",
+   "context": "book-module",
+   "reason": "evidence leans on lib/words/book.ts, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-05T22:00:11.720007+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "mcp-tools"
+   ],
+   "techniques": [
+    "ambient-selection-is-not-an-argument",
+    "caller-differentiated-capability",
+    "server-composition",
+    "tool-identity-vs-tool-name",
+    "tool-schema-design",
+    "untrusted-result-handling"
+   ],
+   "deviations": 1,
+   "context": "spend-firewall-and-agent-policy",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-05T22:00:11.720007+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "mcp-tools"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "client-runtime-foundation",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-05T22:00:11.720007+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "mcp-tools"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "table-wire-protocol",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

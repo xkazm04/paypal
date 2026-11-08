@@ -137,7 +137,7 @@ export function Totals({ deals, checking }: { deals: readonly Deal[]; checking: 
                 </span>
               )) : <span className="fig none">{BOOK.dash}</span>}
             </div>
-            <div className="tn">{BOOK.payments(t.n)} · {t.note}</div>
+            <div className="tn">{t.k === 'stopped' ? BOOK.tiles.deals(t.n) : BOOK.payments(t.n)} · {t.note}</div>
           </div>
         );
       })}

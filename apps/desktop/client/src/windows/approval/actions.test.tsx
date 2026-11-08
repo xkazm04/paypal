@@ -10,12 +10,12 @@ const gates = (o: Partial<Gates> = {}): Gates => ({
   ownerAccept: off, countersign: off, openPaypal: off, capture: off, void: off, releaseHold: off, rescue: off, withdraw: off, bandSet: off, ...o,
 });
 
-function setup(g: Gates, seller = false) {
+function setup(g: Gates, seller = false, moneyOpen = false) {
   const onDecide = vi.fn();
   const onOpen = vi.fn();
   const utils = render(
     <Actions
-      phase="ready" gates={g} locked={false} busy={false} pending={null} total="$64.00" who="Dan" seller={seller}
+      phase="ready" gates={g} moneyOpen={moneyOpen} locked={false} busy={false} pending={null} total="$64.00" who="Dan" seller={seller}
       unlocking={false} canUnlock onUnlock={() => {}} onDecide={onDecide} onOpen={onOpen} onWithdraw={() => {}} onClose={() => {}}
       guardEnter={() => {}} guardEnterHold={() => {}}
     />,
@@ -45,6 +45,18 @@ describe('the approval actions', () => {
     // A click on any hold button decides nothing.
     for (const b of container.querySelectorAll('.ui-hold')) fireEvent.click(b);
     expect(onDecide).not.toHaveBeenCalled();
+  });
+
+  it('while a money step is open with PayPal, no release or money button shows; the read of a lost hold and Withdraw stay', () => {
+    const all = gates({ ownerAccept: on, capture: on, rescue: on, releaseHold: on, openPaypal: on, void: on, withdraw: on });
+    const { holds, container } = setup(all, false, true);
+    expect(holds()).toHaveLength(0);
+    expect(container.querySelector('[data-money]')).toBeNull();
+    expect(container.textContent).not.toMatch(/Cancel and release hold|Open PayPal/);
+    expect(container.textContent).toContain('Withdraw');
+    cleanup();
+    const read = setup(gates({ countersign: on, countersignIsRead: true }), false, true);
+    expect(read.container.textContent).toContain('Check with PayPal again');
   });
 
   it('a seller’s capture is a hold to collect', () => {
