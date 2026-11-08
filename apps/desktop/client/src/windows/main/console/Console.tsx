@@ -19,7 +19,7 @@ import type { Module } from '@bindings/Module';
 import { useEvent, useMutation } from '../../../lib/hooks';
 import { isLazyPart, lazyPart, preloadOnIntent, preloadWhenIdle, whenPartsReady } from '../../../lib/lazy';
 import {
-  A_DEAL, BACK_TITLE, BOARD_TO_BOARD, BOARD_TO_BOARD_TITLE, VIEW_SWITCH, WALLET_FAULT_TOAST, CHARTER_TITLE, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, NOTICE_WHAT, PLACE, PLACE_TITLE,
+  A_DEAL, BACK_TITLE, WALLET_FAULT_TOAST, CHARTER_TITLE, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, NOTICE_WHAT, PLACE, PLACE_TITLE,
   SEAL_RING, sealLabel, silenceWords, tabTitle, tabWaiting, TABS_LABEL,
 } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
@@ -38,6 +38,7 @@ import { useDealLabels, useDeals, useLocked, useNeeds, useWorldSelector, type Wo
 import type { CentreProps } from './Centre';
 import { currentIndex, cycle, orderQueue, presenceOf, putOff } from './centreModel';
 import { Find } from './Find';
+import { ViewSwitch } from '../ViewSwitch';
 import { PlacesMenu, type PlaceGroup, type PlaceItem } from './PlacesMenu';
 import { switchDemo } from './DemoSwitch';
 import { Footer } from './Footer';
@@ -51,7 +52,6 @@ import { useWatching } from './ledger';
 import { focusKeyOf, restoreLayer, type LayerMemory } from './memory';
 import { chainOf, isAncestor, moduleOfRoute, mountKey, parentOf, routeKey, sameLayer, type ChainCtx } from './route';
 import { StaleBanner } from './StaleBanner';
-import { setHomeView } from '../switchboard/view';
 import { StaggerProvider } from './stagger';
 import { watchTable } from '../modules/tables/watchPick';
 // Every tab's stylesheet is part of the window's one eager stylesheet (never fetched with a tab's code),
@@ -404,10 +404,6 @@ export function Console() {
           {depth > 1 ? <button type="button" className="cs-back" onClick={back} title={BACK_TITLE}><span aria-hidden="true">‹</span> {DETAIL_BACK}</button> : null}
           {here ? <span className="cs-here" data-testid="cs-here" title={def.title(route)}><CrumbLabel r={here} firstRun={firstRun} /></span> : null}
         </div>
-        <div className="cs-view" role="group" aria-label={VIEW_SWITCH.label}>
-          <button type="button" id="cs-place-board" className="cs-seg" onClick={() => setHomeView('board')} title={BOARD_TO_BOARD_TITLE}>{BOARD_TO_BOARD}</button>
-          <button type="button" className="cs-seg on" aria-current="page" title={VIEW_SWITCH.everythingTitle}>{VIEW_SWITCH.everything}</button>
-        </div>
         <div className="cs-tabrow" ref={tabRow}>
           <TabStrip label={TABS_LABEL}>
             {MODULES.map((m, i) => {
@@ -425,6 +421,7 @@ export function Console() {
         <div className="cs-places">
           <PlacesMenu groups={placeGroups} />
           <LockButton />
+          <ViewSwitch view="console" />
         </div>
       </header>
       <StaleBanner />
@@ -432,8 +429,7 @@ export function Console() {
         <StaggerProvider>
           <main className={`cs-stage${insp.open ? ' has-insp' : ''}`} ref={stageRef}>
             <Stack label={route.level === 'home' && firstRun ? CHARTER_TITLE : def.title(route)} depth={pile} tone={toneOf(route, lit)} gold={centreRoute && queue.length > 1}
-              corner={depth > 1 && !def.ownSeal ? <Seal size="corner" state={presence.state} label={sealLabel(presence.word, presence.line)} ring={SEAL_RING} /> : undefined}
-              tabs={<p className="cs-presence" aria-live="polite"><b>{presence.word}</b> · {presence.line}</p>}>
+              corner={depth > 1 && !def.ownSeal ? <Seal size="corner" state={presence.state} label={sealLabel(presence.word, presence.line)} ring={SEAL_RING} /> : undefined}>
               {def.keepAlive ? null : (
                 <div ref={layerRef} key={sheetKey} id={PANEL_ID} role={lit ? 'tabpanel' : undefined} aria-labelledby={lit ? `cs-tab-${lit}` : undefined} className="cs-layer" data-dir={nav.dir} data-level={route.level} data-layer={layerIdOf(route)} data-fit={def.fit ? '' : undefined}>
                   <CentreHost.Provider value={host}>

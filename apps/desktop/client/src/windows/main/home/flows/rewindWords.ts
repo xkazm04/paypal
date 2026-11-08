@@ -17,7 +17,7 @@ export const REWIND_FLOW_WORDS = {
   recapLabel: 'Recap of the day',
   eventsLabel: 'Notable moments',
   deal: 'a deal',
-  replay: 'Replay in Everything',
+  replay: 'Replay in Platform',
   replayTitle: 'Open the Rewind page in Everything',
   done: 'Done',
   replayed: (day: string): string => `Replayed ${day}`,

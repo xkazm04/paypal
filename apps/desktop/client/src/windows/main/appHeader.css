@@ -7,12 +7,11 @@ body.w-main { --app-header: 2.5rem; }
 .ah-brand b { font: var(--fw-semibold) var(--fs-body)/1 var(--label, var(--font)); letter-spacing: var(--track-label, .12em); text-transform: uppercase; }
 .ah-slogan { color: var(--muted); font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; padding-left: var(--sp-3); border-left: 1px solid var(--line2); }
 .ah-fill { flex: 1 1 auto; align-self: stretch; min-width: var(--sp-4); }
-.ah-status { display: inline-flex; align-items: center; gap: var(--sp-2); height: 1.75rem; padding: 0 var(--sp-3); cursor: pointer; white-space: nowrap; flex: none;
-  border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent); border-radius: var(--r-pill); background: color-mix(in srgb, var(--gold) 10%, transparent);
-  color: var(--gold-l); font: var(--fw-semibold) var(--fs-small)/1 var(--font); }
-.ah-status::before { content: ''; width: .45rem; height: .45rem; border-radius: 1px; background: var(--gold); box-shadow: var(--glow-gold); }
-.ah-status.zero { color: var(--muted); border-color: var(--line2); background: none; }
-.ah-status.zero::before { background: var(--teal, var(--muted)); box-shadow: none; }
+.ah-status { display: inline-grid; place-items: center; width: 1.75rem; height: 1.75rem; padding: 0; cursor: pointer; flex: none; border: 0; border-radius: var(--r-pill); background: none; }
+.ah-status:hover { background: var(--panel2); }
+.ah-status:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ah-status i { width: .6rem; height: .6rem; border-radius: 50%; background: var(--gold); box-shadow: var(--glow-gold); }
+.ah-status.zero i { background: var(--teal, var(--muted)); box-shadow: none; }
 .ah-find { display: inline-flex; align-items: center; gap: var(--sp-2); height: 1.75rem; padding: 0 var(--sp-3); cursor: pointer; flex: none; min-width: 11rem;
   border: 1px solid var(--line2); border-radius: var(--r-pill); background: color-mix(in srgb, var(--panel2) 60%, transparent); color: var(--muted); font: inherit; font-size: var(--fs-small); }
 .ah-find span { flex: 1 1 auto; text-align: left; }
@@ -26,4 +25,4 @@ body.w-main { --app-header: 2.5rem; }
 @media (max-width: 900px) { .ah-slogan { display: none; } .ah-find { min-width: 0; } .ah-find kbd { display: none; } }
 
 /* both views start below the header */
-.cs-app, .fs-app { top: var(--app-header, 0); }
+body.w-main .cs-app, body.w-main .fs-app { top: var(--app-header, 0); }

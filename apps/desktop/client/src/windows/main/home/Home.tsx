@@ -39,6 +39,7 @@ import { standingAnswers } from '../switchboard/standing';
 import { useBoardAssistant } from '../switchboard/useBoardAssistant';
 import { useBoardModel, type BoardKey } from '../switchboard/useBoardModel';
 import { setHomeView } from '../switchboard/view';
+import { ViewSwitch } from '../ViewSwitch';
 import { useDeals, useLocked, useNeeds, useRuns, useSettings } from '../world';
 import type { ModuleRow } from './rows/rows';
 import { useModuleLists } from './rows/useModuleLists';
@@ -522,7 +523,7 @@ function Greet({ back }: { back: boolean }) {
       <header className="ui-toolbar fs-bar">
         <MockBadge />
         <span className="ui-spacer" />
-        <Btn sm kind="plain" onClick={() => setHomeView('console')} title={GREET.toConsoleTitle}>{GREET.toConsole}</Btn>
+        <ViewSwitch view="board" />
       </header>
       <main className="fs-stage" aria-label={GREET.mainLabel}>
         <section className={`fs-talk${staged ? ' is-staged' : ''}`}>

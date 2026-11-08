@@ -471,8 +471,8 @@ export const BOARD_FIGURE = {
   rules: BOARD_RULES.count,
 } as const;
 
-/** The console's one navigation row (console/Console.tsx, console/PlacesMenu.tsx): the Chat | Everything switch and the Places menu. */
-export const VIEW_SWITCH = { label: 'View', everything: 'Everything', everythingTitle: 'You are in the console: every deal, rule and place' } as const;
+/** The console's one navigation row (console/Console.tsx, console/PlacesMenu.tsx): the Chat | Platform switch and the Places menu. */
+export const VIEW_SWITCH = { label: 'View', platform: 'Platform', platformTitle: 'You are on the platform: every deal, rule and place', platformGo: 'Open the platform: every module, every deal', chatTitle: 'You are in the chat' } as const;
 export const PLACES_MENU = {
   button: 'Places',
   title: 'Rewind, proof, rules, connections, settings and the rest',

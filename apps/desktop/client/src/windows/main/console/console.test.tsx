@@ -419,13 +419,14 @@ describe('the console has one navigation row', () => {
     await waitFor(() => expect(document.getElementById('cs-tab-spend')).not.toBeNull());
     const bar = document.querySelector('header.cs-bar') as HTMLElement;
     expect(bar.querySelector('#cs-place-board')?.textContent).toBe('Chat');
-    expect(bar.querySelector('.cs-view [aria-current="page"]')?.textContent).toBe('Everything');
+    expect(bar.querySelector('.cs-view [aria-current="page"]')?.textContent).toBe('Platform');
     expect(bar.querySelectorAll('[role="tablist"] [role="tab"]')).toHaveLength(6);
     expect(bar.querySelector('#cs-place-menu')?.getAttribute('aria-haspopup')).toBe('menu');
     expect(bar.querySelector('.lockbtn')).not.toBeNull();
     expect(document.querySelectorAll('[role="tablist"]')).toHaveLength(1);
     expect(document.querySelector('.ui-stack-tabs [role="tablist"]')).toBeNull();
-    expect(document.querySelector('.ui-stack-tabs .cs-presence')).not.toBeNull();
+    expect(document.querySelector('.cs-presence')).toBeNull();
+    expect(bar.querySelector('.cs-places .cs-view')).not.toBeNull();
   }, 30_000);
 });
 

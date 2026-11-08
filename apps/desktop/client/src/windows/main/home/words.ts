@@ -4,7 +4,7 @@
 
 export const GREET = {
   mainLabel: 'Your assistant',
-  toConsole: 'Everything',
+  toConsole: 'Platform',
   toConsoleTitle: 'Open the full console: every module, every deal',
   // ---- the opening message
   hello: (part: 'morning' | 'afternoon' | 'evening'): string => `Good ${part}.`,

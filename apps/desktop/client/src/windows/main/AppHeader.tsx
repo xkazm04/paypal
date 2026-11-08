@@ -1,6 +1,6 @@
 // The app's own header (the desktop window has no native frame): who this is (mark, name, slogan),
 // whether anything needs the owner, Find, and the window's buttons. No navigation lives here: the
-// places and the module tabs stay in the views below. It is the same in the Chat and the Everything
+// places and the module tabs stay in the views below. It is the same in the Chat and the Platform
 // view, so it sits above both in App.tsx. The status and Find only announce themselves
 // (APP_STATUS_EVENT, APP_FIND_EVENT, APP_BRAND_EVENT); the view that is showing answers: the console
 // opens its waiting list, Find or the centre, the chat filters its list to what needs her or focuses
@@ -60,7 +60,7 @@ export function AppHeader() {
       </button>
       <span className="ah-slogan" data-tauri-drag-region>{BRAND_SLOGAN}</span>
       <span className="ah-fill" data-tauri-drag-region />
-      <button type="button" id="ah-status" className={`ah-status${needs ? '' : ' zero'}`} aria-label={needPillLabel(needs)} onClick={() => fire(APP_STATUS_EVENT)}>{needPill(needs)}</button>
+      <button type="button" id="ah-status" className={`ah-status${needs ? '' : ' zero'}`} aria-label={needPillLabel(needs)} title={needPill(needs)} onClick={() => fire(APP_STATUS_EVENT)}><i aria-hidden="true" /></button>
       <button type="button" className="ah-find" onClick={() => fire(APP_FIND_EVENT)} title={APP_HEADER.findTitle} aria-label={APP_HEADER.findTitle}>
         <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="m10.5 10.5 3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
         <span>{APP_HEADER.find}</span><kbd>/</kbd>
