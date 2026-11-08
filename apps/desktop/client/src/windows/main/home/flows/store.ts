@@ -39,8 +39,12 @@ export function useFlows(): FlowState {
   return useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f); }; }, flowState, flowState);
 }
 
-/** Starts a flow at `step`: any open turn folds as left (summary ''). Returns the new turn's serial. */
+/** The first card of the flows whose steps are not named 'start' (Rules and Settings begin at their first question). */
+const ENTRY: Partial<Record<FlowKind, string>> = { rules: 'perDeal', settings: 'topic' };
+
+/** Starts a flow at `step` ('start' = the flow's own first card): any open turn folds as left (summary ''). Returns the new turn's serial. */
 export function startFlow(kind: FlowKind, step: string, data: FlowTurn['data'] = {}): number {
+  if (step === 'start') step = ENTRY[kind] ?? 'start';
   const turns = state.turns.map((t) => (t.summary === null ? { ...t, summary: '' } : t));
   const n = ++serial;
   emit({ turns: [...turns, { serial: n, kind, step, summary: null, data }], live: kind });

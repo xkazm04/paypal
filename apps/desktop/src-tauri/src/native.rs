@@ -321,7 +321,7 @@ pub fn run() -> Result<(), tauri::Error> {
             let mut runtime = table_runtime::Runtime::new(
                 table_ledger::Ledger::open(&data.join("wallet.sqlite"))?,
                 vault,
-                Arc::new(table_os::WindowsHello),
+                table_runtime::reauth::shell_reauth(Arc::new(table_os::WindowsHello)),
                 api.clone(),
                 clock,
             )

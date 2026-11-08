@@ -111,10 +111,10 @@ await check('setup', 'each module page offers "Finish setup" before setup is don
   for (const t of tabs) { await page.click(`#${t.id}`); await sleep(500); if (!(await page.$('.ml-setup-btn'))) missing.push(t.text?.replace(/\d+$/, '').trim()); }
   return { ok: missing.length === 0, note: missing.length ? 'missing on ' + missing.join(', ') : '' };
 });
-await check('setup', '"Finish setup" opens the Set up page with the keys step', async () => {
+await check('setup', '"Finish setup" opens the Set up page (at the first step still to do)', async () => {
   await page.click('.ml-setup-btn'); await sleep(900); await snap('setup-page');
   const t = await page.evaluate(() => document.querySelector('.cs-layer')?.textContent ?? '');
-  return { ok: /PayPal sandbox keys|PayPal keys/i.test(t) && !!(await page.$('text=/Add PayPal keys/')), note: t.slice(0, 60) };
+  return { ok: /charter/i.test(t) && /Line [IV]+ of V/i.test(t), note: t.slice(0, 60) };
 });
 await check('setup', 'the copy says Signet, not "The Table"', async () => {
   const t = await page.evaluate(() => document.body.innerText);
@@ -173,7 +173,8 @@ for (const [cmd, kind] of flows) {
     const text = (await page.textContent(`.fc[data-flow="${kind}"]`))?.length ?? 0;
     const cancel = await page.$(`.fc[data-flow="${kind}"] .fc-cancel`);
     if (cancel) { await cancel.click(); await sleep(300); }
-    return { ok: text > 20 && !!cancel, note: `card text ${text}` };
+    const body = await page.evaluate((k) => document.querySelector(`.fc[data-flow="${k}"] .fc-body`)?.textContent?.trim().length ?? 0, kind);
+    return { ok: text > 20 && body > 10 && !!cancel, note: `card text ${text}, body ${body}` };
   });
 }
 await check('chat', 'a typed change-request starts a flow ("change my limits")', async () => {
@@ -192,9 +193,9 @@ await check('chat', 'the Platform switch round-trips back to Chat', async () => 
 
 // ---------------------------------------------------------------- the other windows (opened, looked at, never clicked inside)
 await goView('platform');
-await check('windows', 'Add PayPal keys hands off to the approval window', async () => {
+await check('windows', 'the current setup step hands off to the approval window', async () => {
   await page.click(`#${tabs[0].id}`); await sleep(400); await page.click('.ml-setup-btn'); await sleep(800);
-  await page.click('button:has-text("Add PayPal keys")');
+  await page.click('text=/↗/');
   const ap = await ctx.waitForEvent('page', { timeout: 10000 }).catch(() => null) ?? ctx.pages().find((p) => /approval/.test(p.url()));
   if (!ap) return { ok: false, note: 'no approval window page' };
   await ap.waitForLoadState('domcontentloaded').catch(() => {}); await sleep(1500);
