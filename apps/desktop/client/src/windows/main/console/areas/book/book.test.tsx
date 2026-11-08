@@ -82,6 +82,21 @@ describe('Book outlook (#8)', () => {
     expect(line?.textContent).toContain(BOOK.soonest);
     expect(line?.textContent).toContain(IF_NOTHING);
   }, 60_000);
+
+  // The summary's Outlook card counts every deal that waits (any week, money out or in) and opens the
+  // outlook view; the held money beside that count is the holds line of that same view. Before, it
+  // was this week's money-out holds only: the large world's incoming hold was left out of the card.
+  it('the Outlook card says the held money of the holds the outlook counts', async () => {
+    const r = await renderLayerAtScale('#m=book', 'large');
+    const w = mockBackend('main');
+    const [deals, att] = await Promise.all([w.invoke('list_deals', null), w.invoke('attention_list', null)]);
+    const checking = new Set(att.items.filter((n) => n.money_check).map((n) => n.deal_id));
+    const holds = deals.filter((d) => d.state === 'AUTHORIZED' && !checking.has(d.id));
+    expect(holds.some((d) => d.side === 'seller'), 'the large world holds money coming in').toBe(true);
+    const held = sumByCurrency(holds.map((d) => ({ minor: d.terms.unit_price.minor * d.terms.qty, currency: d.terms.currency })))
+      .map((m) => formatMinor(m.minor, m.currency)).join(' · ');
+    expect(r.layer.querySelector('[data-card="outlook"]')?.textContent).toContain(BOOK.cards.outlookNote(held));
+  }, 60_000);
 });
 
 describe('Book ledger', () => {
