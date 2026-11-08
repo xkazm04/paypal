@@ -286,8 +286,10 @@ IPC commands (from `crates/table-client/src/authority_table.rs`):
     against the file's owner key ("not signed by the owner key" is red). This proves which key
     signed, not that a person was present: the owner key sits in the OS vault the wallet reads. A
     row written while the owner key could not be read, and every older row, carries no signature
-    and reads "not signed" or "hash only", never red, so stripping every signature from a file is a
-    downgrade the checker shows in words but does not refuse. Owner ACCEPT proofs are signatures
+    and reads "not signed" or "hash only". Once any decision in a file is signed, an unsigned one
+    is red, so a signature cannot be taken off one decision and a row cannot be added unsigned.
+    Stripping every signature from a file is still a downgrade the checker shows in words but does
+    not refuse, because a file with no signature looks like one written with the key unreadable. Owner ACCEPT proofs are signatures
     and are checked.
   - Removal of the newest rows from the end of the wallet's audit log cannot be seen from the
     file alone (`KNOWN_LIMIT`). External anchoring is deferred.

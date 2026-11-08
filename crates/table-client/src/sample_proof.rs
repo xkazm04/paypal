@@ -1310,6 +1310,16 @@ pub fn variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
             red: &["audit", "owner_saw", "evidence"],
         },
         Variant {
+            name: "decision-unsigned",
+            edits: vec![decision_edit(bundle, 1, |d| {
+                let row = d.as_object_mut().ok_or("not an object")?;
+                row.remove("signature").ok_or("no signature")?;
+                row.remove("owner_key").ok_or("no owner key")?;
+                Ok(())
+            })?],
+            red: &["audit", "owner_saw", "evidence"],
+        },
+        Variant {
             name: "decision-step",
             edits: vec![decision_edit(bundle, 0, |d| {
                 d["operation"] = json!("capture");

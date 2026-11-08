@@ -93,6 +93,8 @@ export function caption(tid: TamperId, doc: unknown, edits: ReturnType<typeof ed
       return 'one approval added, then the file sealed again with the agent’s key';
     case 'decision-signature':
       return 'the owner key’s signature on an approval, one byte';
+    case 'decision-unsigned':
+      return 'the owner key’s signature on one approval: there → gone';
     case 'decision-step':
       return 'the first approval: for the order → for the capture';
     case 'request-id':

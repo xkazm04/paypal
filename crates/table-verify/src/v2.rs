@@ -200,7 +200,8 @@ fn tally<'a>(seen: impl Iterator<Item = &'a Seen>) -> String {
 /// shield line excepted on a release) and the step the row names (`operation`) must be the step
 /// that follows. Rows that carry only the hash (older files) read "hash only". A row the owner key
 /// signed must verify against the owner key the file names: "signed by the owner key after
-/// unlock" says which key signed, never that a person was present.
+/// unlock" says which key signed, never that a person was present. When any decision in the file
+/// is signed, every decision must be.
 pub(crate) fn owner_saw(bundle: &ProofBundle) -> Result<String, Miss> {
     if let Some(miss) = older(bundle) {
         return Err(miss);
@@ -214,6 +215,17 @@ pub(crate) fn owner_saw(bundle: &ProofBundle) -> Result<String, Miss> {
             lines: lines_of(row, d)?,
             signed: signed_by_owner(bundle, row, d)?,
         });
+    }
+    // One file, one owner key: once any decision is signed, an unsigned one is a stripped or an
+    // added row, not an older one.
+    if seen.iter().any(|s| s.signed)
+        && let Some(((row, _), _)) = decisions.iter().zip(&seen).find(|(_, s)| !s.signed)
+    {
+        return Err(format!(
+            "the owner's decision (record #{}) is not signed by the owner key, though other decisions in this file are",
+            row.seq
+        )
+        .into());
     }
     let owner = |by: &DecidedBy| matches!(by, DecidedBy::Human { .. });
     let steps: Vec<(&ProofAuditRow, String, DecidedBy)> = rows(bundle, &["money.authorized"])

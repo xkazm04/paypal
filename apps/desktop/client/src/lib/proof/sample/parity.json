@@ -3533,6 +3533,145 @@
           "edits": [
             {
               "op": "set",
+              "path": "/audit/27/detail_json",
+              "value": "{\"attempt\":1,\"checks\":[{\"detail\":\"SETTLE amount 212.00 USD (attempt 1, intent AUTHORIZE) = signed terms 1 × 212.00 USD = 212.00 USD (terms 1bebe28c…d01b)\",\"id\":\"amount\",\"status\":\"pass\",\"text\":\"The payment request is for $212.00, the amount you agreed.\"},{\"detail\":\"order payee maya-monitors = the single payee on clause 7 approved payees [maya-monitors]\",\"id\":\"payee\",\"status\":\"pass\",\"text\":\"Paid to your own payee from your rules.\"},{\"detail\":\"approve link host www.sandbox.paypal.com over https; allowlist www.sandbox.paypal.com\",\"id\":\"host\",\"status\":\"pass\",\"text\":\"The PayPal link goes to PayPal’s own sandbox site.\"},{\"detail\":\"invoice_id 01K8W2R6Q4N5M9T3VXZ7B1CD0E-1 = deal id + attempt 1\",\"id\":\"invoice\",\"status\":\"pass\",\"text\":\"The order number is new for this try (1 of 3), so an old order can’t be reused.\"},{\"detail\":\"shield verdict CLEAR (rules re-run now, combined with any stored verdict)\",\"id\":\"shield\",\"status\":\"pass\",\"text\":\"Scam check: looks safe.\"},{\"detail\":\"mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2: clause 6 asks the owner above 150.00 USD; the owner decision satisfies it\",\"id\":\"mandate\",\"status\":\"pass\",\"text\":\"Above your ask-me limit of $150.00, so it’s your call.\"}],\"checks_hash\":[167,5,119,223,146,186,6,68,148,76,237,206,48,90,91,46,63,35,91,211,110,238,67,92,78,43,47,182,12,46,144,94],\"decided_by\":{\"at\":1793104400,\"type\":\"human\"},\"decision\":\"deal_capture\",\"operation\":\"capture\",\"terms_hash\":[27,235,226,140,38,191,122,211,166,242,110,192,10,9,110,242,83,58,25,3,175,26,191,3,234,86,130,3,115,44,208,27]}"
+            }
+          ],
+          "name": "decision-unsigned",
+          "outcome": {
+            "report": {
+              "authority_manifest": "33b4e591ab30b89d9f9e920ba869de343e089b26338d9c1026aa62f3695f00fd",
+              "checks": [
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "table.proof.v2",
+                  "id": "format",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2",
+                  "id": "mandate",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "agent signed 6 outbound, peer signed 3 inbound; head 65aa03c863c2",
+                  "id": "transcript",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 countersign(s) bind terms 1bebe28c26bf and 212.00 USD; payee is in the owner-signed payee list",
+                  "id": "countersign",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "create: owner decision in the approval window (recorded by the wallet); authorize: owner-signed seller mandate (buyer approved on PayPal); capture: owner decision in the approval window (recorded by the wallet)",
+                  "id": "authority",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "3 PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching",
+                  "id": "paypal_order",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "row 328: hash does not match its contents",
+                  "id": "audit",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "1 receipt(s) inside the signed transcript, for the agreed amount",
+                  "id": "receipt",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "the owner's decision (record #328) is not signed by the owner key, though other decisions in this file are",
+                  "id": "owner_saw",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: no money step in this deal needed a second look at PayPal",
+                  "id": "one_request",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal was not one table of a shop-around group",
+                  "id": "group",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the safety check never held or refused a step in this deal",
+                  "id": "shield",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: this deal kept no copy of the house seller's signed record",
+                  "id": "house_record",
+                  "ok": false
+                },
+                {
+                  "applies": false,
+                  "checked": false,
+                  "detail": "not checked: the deal had no market price when it was agreed",
+                  "id": "market",
+                  "ok": false
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "permissions fingerprint 33b4e591ab30b89d9f9e920ba869de343e089b26338d9c1026aa62f3695f00fd",
+                  "id": "permissions",
+                  "ok": true
+                },
+                {
+                  "applies": true,
+                  "checked": true,
+                  "detail": "bundle contents differ from the signed evidence head",
+                  "id": "evidence",
+                  "ok": false
+                }
+              ],
+              "deal_id": "01K8W2R6Q4N5M9T3VXZ7B1CD0E",
+              "mode": "sandbox",
+              "owner_key_id": "1061ecb45fee1a5a4b7db2aeec2078e0bc572aba63b54da5b04816b4c29a1a87",
+              "same_version": true,
+              "verified": false
+            }
+          },
+          "red": [
+            "audit",
+            "owner_saw",
+            "evidence"
+          ]
+        },
+        {
+          "edits": [
+            {
+              "op": "set",
               "path": "/audit/12/detail_json",
               "value": "{\"attempt\":1,\"checks\":[{\"detail\":\"no payment request yet; making the order verifies its amount against the signed terms 1 × 212.00 USD = 212.00 USD (terms 1bebe28c…d01b) and stops the deal as MISMATCH otherwise\",\"id\":\"amount\",\"status\":\"wait\",\"text\":\"Checked when the PayPal order is made, before any money moves.\"},{\"detail\":\"order payee maya-monitors = the single payee on clause 7 approved payees [maya-monitors]\",\"id\":\"payee\",\"status\":\"pass\",\"text\":\"Paid to your own payee from your rules.\"},{\"detail\":\"no approval link yet; making the order verifies the link is on the allowlist (www.sandbox.paypal.com)\",\"id\":\"host\",\"status\":\"wait\",\"text\":\"The PayPal link is checked when the order is made.\"},{\"detail\":\"invoice_id 01K8W2R6Q4N5M9T3VXZ7B1CD0E-1 is bound into the order and the countersign when the order is made\",\"id\":\"invoice\",\"status\":\"wait\",\"text\":\"The order number is set when the order is made.\"},{\"detail\":\"shield verdict CLEAR (rules re-run now, combined with any stored verdict)\",\"id\":\"shield\",\"status\":\"pass\",\"text\":\"Scam check: looks safe.\"},{\"detail\":\"mandate 01K8W2R6Q0F4H8J2KMNPQRSTVW v2: clause 6 asks the owner above 150.00 USD; the owner decision satisfies it\",\"id\":\"mandate\",\"status\":\"pass\",\"text\":\"Above your ask-me limit of $150.00, so it’s your call.\"}],\"checks_hash\":[131,229,6,177,93,26,245,7,12,52,200,187,23,212,15,186,167,176,181,34,203,15,204,155,38,254,216,69,108,122,92,133],\"decided_by\":{\"at\":1793001800,\"type\":\"human\"},\"decision\":\"deal_countersign\",\"operation\":\"capture\",\"owner_key\":[253,161,73,31,1,106,148,172,9,188,104,62,176,180,29,65,78,127,221,0,20,80,25,17,90,164,176,109,80,182,25,27],\"signature\":[176,188,242,215,15,19,5,243,140,67,255,192,69,37,206,178,179,239,199,148,47,196,206,123,189,247,24,0,227,179,193,41,62,114,245,102,8,177,228,62,124,36,59,161,198,145,147,192,255,229,182,172,24,248,4,197,41,48,59,174,116,183,205,11],\"terms_hash\":[27,235,226,140,38,191,122,211,166,242,110,192,10,9,110,242,83,58,25,3,175,26,191,3,234,86,130,3,115,44,208,27]}"
             }

@@ -400,6 +400,11 @@ async function ownerSaw(run: Run): Promise<string> {
   const decisions = rowsOf(b, 'owner.decision').map((row) => ({ row, d: detailOf(row) }));
   const seen: Seen[] = [];
   for (const { row, d } of decisions) seen.push({ lines: await linesOf(row, d), signed: await signedByOwner(run, row, d) });
+  // One file, one owner key: once any decision is signed, an unsigned one is a stripped or an added row (v2.rs).
+  if (seen.some((x) => x.signed)) {
+    const at = seen.findIndex((x) => !x.signed);
+    if (at >= 0) throw new Why(`the owner's decision (record #${decisions[at]!.row.seq}) is not signed by the owner key, though other decisions in this file are`);
+  }
   const owner = (by: DecidedBy): boolean => by.type === 'human';
   const steps: Array<{ row: AuditRow; op: string; by: DecidedBy }> = [];
   for (const row of rowsOf(b, 'money.authorized')) {

@@ -210,6 +210,7 @@ export const TAMPER_WORDS: Readonly<Record<TamperId, { label: string; what: stri
   checklist: { label: 'Change what the owner saw', what: 'one line of the checklist the owner saw before deciding' },
   'forged-decision': { label: 'Add an approval the owner never gave', what: 'an owner approval, added and sealed again with the agent’s own key' },
   'decision-signature': { label: 'Damage the owner key’s signature', what: 'one byte of the owner key’s signature on an approval' },
+  'decision-unsigned': { label: 'Take the signature off one approval', what: 'the owner key’s signature on one approval, while the others keep theirs' },
   'decision-step': { label: 'Point an approval at another step', what: 'which payment step an owner approval was for' },
 };
 /** The Proof page's "Owner's checklist": each owner decision in the file, read as a receipt. */

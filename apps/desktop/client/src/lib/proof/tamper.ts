@@ -29,7 +29,7 @@ const decisionEdit = (doc: Doc, n: number, edit: (d: Record<string, unknown>) =>
 export type TamperId =
   | 'price' | 'paypal-amount' | 'payee' | 'receipt' | 'audit-line' | 'audit-gap' | 'signature' | 'refund' | 'rules' | 'relabel' | 'owner-key'
   | 'shield-release' | 'market-price' | 'group-winner' | 'group-agreed' | 'request-id' | 'transcript-head' | 'checklist'
-  | 'forged-decision' | 'decision-signature' | 'decision-step';
+  | 'forged-decision' | 'decision-signature' | 'decision-unsigned' | 'decision-step';
 
 type Doc = unknown;
 const rows = (doc: Doc): Array<{ action: string; at: number }> => {
@@ -174,6 +174,8 @@ export const TAMPERS: ReadonlyArray<{ id: TamperId; edits: (doc: Doc) => Edit[] 
       signature[0] = signature[0] ^ 1;
     }),
   },
+  // The owner key's signature taken off the second decision, while the first keeps its own.
+  { id: 'decision-unsigned', edits: (d) => decisionEdit(d, 1, (detail) => { delete detail.signature; delete detail.owner_key; }) },
   // The first decision said to start the capture.
   { id: 'decision-step', edits: (d) => decisionEdit(d, 0, (detail) => { detail.operation = 'capture'; }) },
 ];

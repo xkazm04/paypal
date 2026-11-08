@@ -229,6 +229,7 @@ async fn a_flipped_line_a_failed_line_and_another_step_each_fail() {
 
     // A failed line, its hash made again to match: the owner never approves on a failed line.
     let mut failed = bundle.clone();
+    rewrite_row(&mut failed, create, unsigned);
     rewrite_row(&mut failed, capture, |d| {
         unsigned(d);
         d["checks"][0]["status"] = "fail".into();
@@ -244,6 +245,7 @@ async fn a_flipped_line_a_failed_line_and_another_step_each_fail() {
 
     // The capture's decision said it started another step.
     let mut moved = bundle.clone();
+    rewrite_row(&mut moved, create, unsigned);
     rewrite_row(&mut moved, capture, |d| {
         unsigned(d);
         d["operation"] = "authorize".into();
@@ -384,6 +386,37 @@ async fn a_forged_a_damaged_and_a_repointed_decision_are_not_signed_by_the_owner
     let mut moved = bundle.clone();
     rewrite_row(&mut moved, create, |d| d["operation"] = "capture".into());
     not_signed(&only_this_fails(&r, &moved, "owner_saw"));
+}
+
+/// Taking the signature off one decision while another keeps its own is red: only `owner_saw`
+/// catches it. Taking every signature off stays a downgrade the line states in words.
+#[tokio::test]
+async fn an_unsigned_decision_beside_a_signed_one_is_red_and_all_unsigned_reads_not_signed() {
+    let (r, deal) = captured().await;
+    let bundle = assert_proof_verifies(&r, deal.id);
+    let [create, capture] = decisions(&bundle)[..] else {
+        panic!("two decisions")
+    };
+    let strip = |d: &mut serde_json::Value| {
+        let row = d.as_object_mut().unwrap();
+        row.remove("signature").unwrap();
+        row.remove("owner_key").unwrap();
+    };
+
+    let mut one = bundle.clone();
+    rewrite_row(&mut one, capture, strip);
+    let line = only_this_fails(&r, &one, "owner_saw");
+    assert!(
+        line.detail
+            .ends_with("is not signed by the owner key, though other decisions in this file are"),
+        "{line:?}"
+    );
+
+    let mut all = one.clone();
+    rewrite_row(&mut all, create, strip);
+    r.sign_proof(&mut all).unwrap();
+    let saw = proof_line(&all, "owner_saw");
+    assert!(saw.ok && saw.detail.ends_with("2 not signed"), "{saw:?}");
 }
 
 /// When the owner key cannot be read after unlock, the decision goes ahead exactly as before (the
