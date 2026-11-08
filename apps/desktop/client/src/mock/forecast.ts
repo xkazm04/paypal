@@ -1,8 +1,8 @@
 // Browser mock of the walk-away forecast and the quit confirm's lines. Mirrors
 // crates/table-attention/src/forecast.rs (`forecast`) and quit.rs (`quit_lines`, the same
 // sentences) over the mock deals, so the Tumbler and the quit sheet draw what Rust would send.
-// The pipeline's own gates (shield, mandate window) are not modelled: every seller deal is
-// treated as allowed, which is what the sample data shows.
+// The pipeline's own gates (shield, mandate window) are not modelled: every seller deal but a
+// rescue is treated as allowed, which is what the sample data shows.
 import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
 import { PRE_CAPTURE, QUIT_PENDING, TERMINAL } from '@bindings/dealStates';
@@ -59,7 +59,9 @@ export function mockForecast(deals: readonly ForecastDeal[], ctx: ForecastCtx): 
     const due = deadline !== null && deadline <= ctx.now;
     const digital = deal.terms.delivery.type === 'digital_now';
     const sellerMay = ctx.executorConfigured;
-    if (!due && deal.side === 'seller') {
+    // A rescue invoice goes out only on the owner's decision (Rust Pipeline::authority refuses
+    // every other authority), so no rule ever sends, authorizes or collects one.
+    if (!due && deal.side === 'seller' && deal.kind !== 'rescue') {
       if (state === 'AGREED' && !ctx.paused && ctx.executorConfigured) {
         out.push(line({ trigger: 'next_tick', at: null, action: 'create_order', authority: 'mandate_rule', direction: 'none', end_state: 'AWAITING_APPROVAL' }));
         state = 'AWAITING_APPROVAL';
