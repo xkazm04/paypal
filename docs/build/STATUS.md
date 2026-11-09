@@ -3093,3 +3093,9 @@ passed before payment". The mock mirrors all three (`MockOptions.failDecision` i
   poll (display only; nothing gates on it). The history step carries the step decided, not a separate
   decision word (the step names it). A newer row is told from the one the click was made on (time,
   step, decision, checklist hash, attempt), not from the client clock.
+
+## Clean screens and a stabilize sweep (spark stabilize-and-declutter, 2026-11-09)
+
+Long explanations moved behind one info button (`shared/ui/Hint.tsx`, `ExplainHint`, on the shared Popover). What happens if the owner does nothing, approval lines, refusals, errors and sample-data labels stay on the page. Each of the six modules has one permanent purpose line (`ModuleLayerProps.purpose`). Rewind opens on its replay with Say it behind one button. List rows on Rescue, Waiting, Shield and the Book outlook are columns and one short note; the full sentence is the row's accessible name. Silence is said once per decision. Client only for the screens; no IPC or money change.
+A scoped sweep of the money pipeline and client data layer landed ten proved fixes, among them a rescue send confirmed by read-back that never receipted, and Book metrics counting a deal once per PayPal call. Its unfixed findings are in `.claude/scan-sweep/findings/stabilize-2026-11-09-money.jsonl`.
+- **Deviation:** on the Book outlook a group of several decisions shows only its soonest decision's silence line; every deal keeps it in its accessible name and on its page.

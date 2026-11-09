@@ -132,7 +132,7 @@ describe('each beat’s end state', () => {
       `the Tumbler shows no “${MOCK_BADGE}” badge`,
     ]);
     // a closed window needs no badge, an open one does
-    const closed = checkBeat('closed-table', seen({ open: { main: false, approval: false }, text: { main: '', tumbler: `The Table is closed ${MOCK_BADGE}`, approval: '' } }));
+    const closed = checkBeat('closed-table', seen({ open: { main: false, approval: false }, text: { main: '', tumbler: `Signet is closed ${MOCK_BADGE}`, approval: '' } }));
     expect(closed).toEqual([]);
   });
 

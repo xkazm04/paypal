@@ -250,7 +250,7 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   'closed-table': [
     { window: 'main', open: false },
     { window: 'approval', open: false },
-    { in: 'tumbler', text: 'The Table is closed' },
+    { in: 'tumbler', text: 'Signet is closed' },
   ],
   'closed-hold': [
     { window: 'main', open: false },

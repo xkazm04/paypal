@@ -32,7 +32,7 @@ export const CHAPTERS: readonly Chapter[] = [
   { id: 'haggle', title: 'The haggle' },
   { id: 'silence', title: 'She never answers' },
   { id: 'mismatch', title: 'A request that does not match' },
-  { id: 'closed', title: 'The Table is closed' },
+  { id: 'closed', title: 'Signet is closed' },
   { id: 'end', title: 'What silence did' },
 ];
 
