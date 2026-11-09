@@ -10829,6 +10829,42 @@
           "evidence": "apps/desktop/client/src/windows/approval/gating.ts:109 Applied by analogy to this runtime gate: an absent checklist allows nothing, guarding the vacuous truth of every() on an empty list."
         }
       ]
+    },
+    "3be5eb78-fe5d-4f61-ae53-ffceafebc9a6/agent-instruction-files": {
+      "context": "offline-proof-verifier",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:27:23.496Z",
+      "worker": "f4c14ca4-21b0-4546-876b-e444e9ac0e4c",
+      "techniques": [
+        {
+          "technique": "enforcement-demotion",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-verify/src/authority.rs:1 This code is the deterministic gate a prose rule could be demoted to; the sort itself is performed on the instruction file, which is not in this context."
+        }
+      ]
+    },
+    "dca763f0-8645-4f2a-a617-a0be91dfdff7/agent-instruction-files": {
+      "context": "wallet-app-tests",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:27:23.496Z",
+      "worker": "f4c14ca4-21b0-4546-876b-e444e9ac0e4c",
+      "techniques": []
+    },
+    "b093c233-9d42-4fdb-8b3c-b9b5460ac5ad/agent-instruction-files": {
+      "context": "attention-forecast-and-window-placement",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:27:23.496Z",
+      "worker": "f4c14ca4-21b0-4546-876b-e444e9ac0e4c",
+      "techniques": []
     }
   }
 }

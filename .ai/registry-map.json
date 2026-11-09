@@ -1270,7 +1270,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-attention/src/silence.rs:4 This crate only cites AGENTS.md as the reason for a wording rule and neither carries nor loads an instruction file: a case-insensitive search of crates/table-attention for the terms below found nothing, and this comment is the only AGENTS.md hit.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9b02cf004a7ce444",
+          "evaluatedRevision": 32
         },
         {
           "subject": "agent-runtime-assembly",
@@ -5796,7 +5800,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-verify/Cargo.toml:8 This crate is an offline proof checker that launches no agent and holds no instruction file: a case-insensitive search of crates/table-verify for the terms below found nothing, and the only related hits are four comment lines citing AGENTS.md as the source of the money-authority rule (authority.rs:1, authority.rs:160, lib.rs:8, safety.rs:8).",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9b02cf004a7ce444",
+          "evaluatedRevision": 32
         },
         {
           "subject": "prompt-assembly",
@@ -9597,7 +9605,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-app/tests/gauntlet.rs:3 The agents in these tests are a seeded generator, so no coding harness session loads any brief: a case-insensitive search of crates/table-app/tests for the terms below found nothing, and the only related hit is one comment citing AGENTS.md at gauntlet.rs:17.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9b02cf004a7ce444",
+          "evaluatedRevision": 32
         },
         {
           "subject": "agent-memory",
