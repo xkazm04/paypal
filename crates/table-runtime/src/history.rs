@@ -145,7 +145,8 @@ pub(crate) fn project(
                     // The group rule's withdrawal is sent as the agent's signed WITHDRAW.
                     let group =
                         p.kind == HistoryKind::GroupWithdrawn && kind == HistoryKind::WithdrawSent;
-                    if owner_accept || group || p.kind == kind {
+                    // The same fact written twice folds; a refusal under another clause is its own fact.
+                    if owner_accept || group || (p.kind == kind && p.authority == authority) {
                         continue;
                     }
                 }
@@ -972,6 +973,12 @@ mod tests {
             Vec::new()
         });
         assert_eq!(steps, Vec::new());
+    }
+    #[test]
+    fn two_refusals_in_one_second_stay_two_steps() {
+        let refused = |seq, clause| row(seq, 100, "intent.refused", json!({"clause":clause}));
+        let steps = project(&[refused(1, 3), refused(2, 5)], |_, _| Vec::new());
+        assert_eq!(steps.len(), 2, "{steps:?}");
     }
     #[test]
     fn a_money_operation_folds_its_transitions_and_an_unconfirmed_call_says_failed_or_unknown() {
