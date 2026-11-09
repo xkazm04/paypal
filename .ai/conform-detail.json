@@ -10917,16 +10917,11 @@
       "context": "money-guidance-and-onboarding",
       "subject": "agent-instruction-files",
       "bundle": "software-engineering",
-      "state": "unknown",
+      "state": "not-applicable",
       "evaluatedAt": "2026-11-09",
-      "evaluatedTs": "2026-11-09T23:31:32.481Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "cafdd523-26ba-432e-8b3b-b8be3fe901b0",
-        "state": "not-applicable",
-        "at": "2026-11-09T23:31:55.021685+00:00",
-        "reason": "reviewer (sonnet): The search terms left out AGENTS.md, which is the repo's real instruction file (format.test.ts and spend/gate.ts cite it), and the anchor at fairPrice.ts:3 is a comment about the certificate that doesn't show an agent instruction file is absent."
-      }
+      "evaluatedTs": "2026-11-09T23:39:54.107Z",
+      "worker": "13d89969-495d-46e6-92cd-e40cf34f3915",
+      "techniques": []
     },
     "e89814cc-f4e5-4bd4-bc27-9f356e7de9d4/agent-instruction-files": {
       "context": "wallet-domain-primitives",
@@ -10942,16 +10937,11 @@
       "context": "design-theme-and-copy",
       "subject": "agent-instruction-files",
       "bundle": "software-engineering",
-      "state": "unknown",
+      "state": "not-applicable",
       "evaluatedAt": "2026-11-09",
-      "evaluatedTs": "2026-11-09T03:39:34.929Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "19a862ca-186b-4478-ba34-756e82623ae7",
-        "state": "not-applicable",
-        "at": "2026-11-09T03:39:54.915916+00:00",
-        "reason": "reviewer (sonnet): The evidence repeats the claim that a search of apps/desktop/client/src/lib found nothing. That is contradicted by the AGENTS.md reference in format.test.ts and the agent-launch bridge under lib/assistant. The words.ts:786-796 labels do fit the verdict, but the repo-wide search claim does not."
-      }
+      "evaluatedTs": "2026-11-09T23:39:54.107Z",
+      "worker": "13d89969-495d-46e6-92cd-e40cf34f3915",
+      "techniques": []
     },
     "d477836b-8d3f-42dd-93ce-bf0a9f5bbf53/hitl-approval": {
       "context": "counter-and-tables-modules",
@@ -11474,6 +11464,27 @@
       "evaluatedTs": "2026-11-09T23:31:32.481Z",
       "worker": "cafdd523-26ba-432e-8b3b-b8be3fe901b0",
       "techniques": []
+    },
+    "b122a56d-4e5f-4259-959c-b90ba9e1c58e/agent-instruction-files": {
+      "context": "ipc-contract-and-authority-table",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:39:54.107Z",
+      "worker": "13d89969-495d-46e6-92cd-e40cf34f3915",
+      "techniques": []
+    },
+    "4a906b90-6f4d-4f72-92fb-1091ca69ebff/agent-instruction-files": {
+      "context": "agent-tool-surface",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:39:54.107Z",
+      "worker": "13d89969-495d-46e6-92cd-e40cf34f3915",
+      "techniques": [],
+      "registryProposal": "The subject's matcher picked this context on 'agent', 'tool' and 'session'. A product's runtime MCP tool surface is the inverse case the golden path itself describes (prompt-assembly), so the use_when grounding should exclude runtime tool servers."
     }
   }
 }

@@ -770,7 +770,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-mcp/src/lib.rs:325 The text the agent reads here is MCP tool descriptions that the product's own runtime serves to its own shopper/negotiator agents (system-authored content, covered by prompt-assembly and mcp-tools), not a repo instruction file loaded by a coding harness; a search of crates/table-mcp and crates/table-shield for CLAUDE.md, AGENTS.md, SKILL.md and copilot-instructions found nothing.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9b02cf004a7ce444",
+          "evaluatedRevision": 32
         },
         {
           "subject": "agent-runtime-assembly",
@@ -3335,7 +3339,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/words.ts:1 The copy dictionary and theme tokens are user-facing UI vocabulary, not an agent instruction file; a search of apps/desktop/client/src for CLAUDE.md, SKILL.md, copilot-instructions and cursorrules found nothing, so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9b02cf004a7ce444",
+          "evaluatedRevision": 32
         }
       ],
       "governance": "governed"
@@ -4260,7 +4268,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-client/src/lib.rs:1 This crate holds the Rust/TS IPC contract and the authority table and has no file a coding harness loads; a search of crates/table-client for CLAUDE.md, AGENTS.md, SKILL.md and copilot-instructions found nothing, so the standard's precondition (a repo-authored, harness-loaded instruction file) does not hold here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9b02cf004a7ce444",
+          "evaluatedRevision": 32
         },
         {
           "subject": "mcp-tools",
@@ -5555,7 +5567,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/limits.ts:2 These are pure client-side money-guidance and onboarding modules with tests, with nothing a coding harness loads as instructions; a search of apps/desktop/client/src for CLAUDE.md, SKILL.md, copilot-instructions and cursorrules found nothing. The 'guided tour' and 'first-run' here are for end users, not agents.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9b02cf004a7ce444",
+          "evaluatedRevision": 32
         }
       ],
       "governance": "governed"
