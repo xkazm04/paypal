@@ -6475,39 +6475,52 @@
       "subject": "workflow-property-contracts",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-22",
-      "evaluatedTs": "2026-10-22T21:31:42.242Z",
-      "worker": "e7c570d9-5458-43de-9871-1fdbad58158d",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:09:44.970Z",
+      "worker": "b3a37268-301c-4b87-9f2f-7a0061deb0b6",
       "techniques": [
         {
           "technique": "attribute-protocol-over-accessors",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/lib/contract.ts:28 The public operation invokes typed wallet commands; callers do not read or assign workflow components."
+          "evidence": "apps/desktop/client/src/lib/contract.ts:24 The two implementations are IPC transports, not workflows whose components a host reads by name."
         },
         {
           "technique": "contract-driven-adapters",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:1519 The mock dispatches locally authored wallet handlers, without loading or adapting externally authored workflows."
+          "evidence": "apps/desktop/client/src/lib/tauri.ts:22 The client sends commands to its own shell and hosts no workflows written by other authors."
         },
         {
           "technique": "dual-implementation-parity",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/lib/runtime.ts:55 Native/mock selection concerns IPC transports, without config-backed and code-backed workflow property providers or resolution tiers."
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:55 Native/mock selection concerns IPC transports, without config-backed and code-backed workflow property providers or resolution tiers.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "mid-iteration-event-seams",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/lib/hooks.ts:21 These are wallet event subscriptions for React components; no training iteration or tensor stages are hosted here."
+          "evidence": "apps/desktop/client/src/lib/hooks.ts:21 These are wallet event subscriptions for React components; no training iteration or tensor stages are hosted here.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "required-and-optional-property-sets",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:605 The mapped table covers command handlers, without an unseen workflow's required and optional component providers to preflight."
+          "evidence": "apps/desktop/client/src/mock/backend.ts:605 The mapped table covers command handlers, without an unseen workflow's required and optional component providers to preflight.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "wiring-location-checks",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/mock/backend.ts:478 The mock checks command authority for a window; no optional workflow component has a provider location and consumer reference location to compare."
+          "evidence": "apps/desktop/client/src/mock/backend.ts:478 The mock checks command authority for a window; no optional workflow component has a provider location and consumer reference location to compare.",
+          "carriedFrom": "2026-10-22"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/tauri.ts:22 Context and repository searches found no trainer, inferer, max_epochs or reference_location matches, and the inspected client forwards wallet commands without hosting third-party workflows through component properties.",
+          "evaluatedAt": "2026-10-22T21:31:42.242Z",
+          "worker": "e7c570d9-5458-43de-9871-1fdbad58158d",
+          "reason": "replaced by b3a37268-301c-4b87-9f2f-7a0061deb0b6"
         }
       ]
     },

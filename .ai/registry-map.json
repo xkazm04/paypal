@@ -1929,12 +1929,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "apps/desktop/client/src/lib/tauri.ts:22 Context and repository searches found no trainer, inferer, max_epochs or reference_location matches, and the inspected client forwards wallet commands without hosting third-party workflows through component properties.",
-          "evaluatedAt": "2026-10-22",
-          "evaluatedAgainst": "sha256-b2:c9f25f65f6b94068",
-          "evaluatedRevision": 2,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "apps/desktop/client/src/lib/contract.ts:24 The only contract this context defines is a typed IPC Backend (Tauri shell or browser mock) for wallet commands, with no third-party training or inference workflow driven by named properties; git grep over apps/desktop/client/src and vite.config.ts for trainer, inferer, max_epochs, reference_location and 'training loop' found nothing, and repo-wide the only hits are in .ai/ registry metadata.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:38637ef07d82fb29",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 1
         },
         {
           "subject": "mcp-tools",
