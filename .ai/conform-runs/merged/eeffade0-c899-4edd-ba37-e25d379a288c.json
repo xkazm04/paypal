@@ -1,0 +1,129 @@
+{
+ "schema": "conform-run/1",
+ "worker": "eeffade0-c899-4edd-ba37-e25d379a288c",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-09T22:40:43.829343+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "console-framework",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/console/perf.test.tsx:51 The perf, scale and resilience smoke lanes (500-deal world, every layer rendered cold) run inside the single jsdom unit config with per-test 90 s / 60 s timeout overrides. A slow lane quietly stretches the commit-tier budget instead of having its own suite configuration.",
+   "techniques": [
+    {
+     "technique": "suite-partitioning",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/console/perf.test.tsx:51 A per-test timeout override inside the shared vitest config is the drift machine the technique names. The smoke lanes have no config of their own."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/console/perf.test.tsx:48 Coalescing is proved by counting reads, not by wall time. A per-event variant (20 reads) would still fail the bound."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/console/scaleSmoke.test.tsx:33 The harness's error counter is shown to catch an injected late error, so a clean result is not an unvalidated instrument."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/console/scaleSmoke.test.tsx:17 The it.each population, derived from layerRoutes(), is checked against the layer registry, so a selection that shrank would go red."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/console/guard.test.ts:28 The source walk declares a floor and requires Centre.tsx to be present. The needle at line 21 is a call shape (invoke/useMutation followed by a quoted name), not a bare identifier."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/console/perf.test.tsx:19 A defined reset runs between tests. renderLayerAtScale also clears storage and the mock state before each render."
+    }
+   ]
+  },
+  {
+   "context": "director-takes-rig",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/scripts/takes.mjs:125 `takes --check` counts broken beats over whatever plan the director returns. A story whose plan has zero beats prints 'all 0 beats show their end state.' and exits 0, so an empty selection reads as a green rehearsal.",
+   "techniques": [
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/scripts/takes.mjs:125 There is no floor on p.beats.length. film-capture.mjs does declare one ('the film has no capture beats'); the check lane does not."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/scripts/lib/rig.mjs:68 The shared ensureServer adopts any server already answering on the port, which could be a previous run's leftover or another checkout's server. film-capture's own server start refuses an already-serving port instead."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/scripts/lib/rig.mjs:175 The verdict is the beat's verified end state. SETTLE_TIMEOUT_MS only guards against hangs."
+    },
+    {
+     "technique": "platform-quirk-absorption",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/scripts/lib/rig.mjs:47 The Playwright lookup lives once in the shared rig and turns a missing runtime into a named diagnosis listing every path it tried. The pnpm npm_* environment quirk is handled with its reason attached (lines 29-30)."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/scripts/export-scale-fixtures.mjs:13 The exported fixture names its generator and its fixed clock, so it can be rebuilt deterministically."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "owner-mandate-config",
+   "reason": "evidence leans on mock/rustConstants.test.ts, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T22:40:43.829343+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "derived-selection-must-be-measured",
+    "isolation-lanes",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "suite-partitioning"
+   ],
+   "deviations": 1,
+   "context": "console-framework",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T22:40:43.829343+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "derived-selection-must-be-measured",
+    "fixture-economics",
+    "isolation-lanes",
+    "platform-quirk-absorption"
+   ],
+   "deviations": 1,
+   "context": "director-takes-rig",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

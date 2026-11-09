@@ -3671,7 +3671,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/scripts/takes.mjs:125 `takes --check` counts broken beats over whatever plan the director returns. A story whose plan has zero beats prints 'all 0 beats show their end state.' and exits 0, so an empty selection reads as a green rehearsal.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",
@@ -10015,7 +10019,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/perf.test.tsx:51 The perf, scale and resilience smoke lanes (500-deal world, every layer rendered cold) run inside the single jsdom unit config with per-test 90 s / 60 s timeout overrides. A slow lane quietly stretches the commit-tier budget instead of having its own suite configuration.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "page-load-pipeline",
