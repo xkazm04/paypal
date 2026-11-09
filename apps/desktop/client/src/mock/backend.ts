@@ -814,9 +814,6 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     },
     pause_all_agents: () => {
       state.settings = { ...state.settings, agents_paused: true };
-      // As Runtime::pause_all: the runs in progress are cancelled, not left running.
-      state.runs = state.runs.map((r) => (r.state === 'running' || r.state === 'starting' ? { ...r, state: 'cancelled' as const } : r));
-      for (const r of state.runs) emit('agent:changed', r);
       save();
       publishSettings();
       return null;

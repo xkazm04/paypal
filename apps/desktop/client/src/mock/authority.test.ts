@@ -204,15 +204,6 @@ describe('authority table (browser mock)', () => {
     expect(main.world.deal('D-0194')!.deal.state).toBe('AUTHORIZED');
   });
 
-  it('pause-all cancels the runs in progress, as the runtime does', async () => {
-    const main = mockBackend('main');
-    const id = main.world.deal('D-0193')!.deal.id;
-    const run = await main.invoke('agent_start', { deal_id: id });
-    await main.invoke('pause_all_agents', null);
-    const after = (await main.invoke('agent_runs', null)).find((r) => r.run === run.run);
-    expect(after?.state).toBe('cancelled');
-  });
-
   it('refuses an agent start while agents are paused', async () => {
     const main = mockBackend('main');
     const id = main.world.deal('D-0193')!.deal.id;
