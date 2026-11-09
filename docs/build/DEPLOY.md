@@ -28,7 +28,9 @@ financial ledger would lose durable operation reservations. See Render's
 | RELAY_TRUSTED_PROXY_HOPS | Server runtime; plain value `1` in the root Blueprint | Reverse proxies in front of the server. Unset or `0`: each relay caller is keyed on the TCP peer and `X-Forwarded-For` is ignored. `n`: keyed on the `n`th `X-Forwarded-For` entry from the right. With `n` of 1 or more, a create whose `n`th entry is missing or unparsable is refused (400), so a wrong hop count fails closed instead of putting every wallet on the proxy address. Anything but a whole number from 0 to 8 stops startup. The key counts each caller's mailbox creates (128 live per IPv4 address or IPv6 /64; 64 of the 256 slots are kept for the HOUSE). UNVERIFIED: that Render runs one proxy hop that appends the client address as the rightmost entry. |
 | TABLE_RELAY_URL | Desktop process runtime | Deployment HTTPS origin, without a path, credentials, query or fragment. |
 
-No values belong in source control, `.env` files, fixtures or console transcripts.
+No values belong in source control, `.env` files, fixtures or console transcripts. One exception, for
+anyone testing the desktop app with their own Channel3 key: a gitignored `.env` holding
+`CHANNEL3_API_KEY`, used only when the OS vault holds no key.
 Import private seeds and credentials from the owner's secret manager directly into
 the environment; do not pass them as Docker build arguments. The Dockerfile declares
 only the public release argument. Render supplies declared arguments from service

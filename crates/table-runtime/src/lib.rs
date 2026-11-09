@@ -13,7 +13,7 @@ mod limits;
 #[cfg(test)]
 mod live_readers_tests;
 mod market;
-pub use market::VaultMarketKey;
+pub use market::{VaultMarketKey, market_key_from_environment};
 mod market_watch;
 mod pairing;
 mod pairing_relay;

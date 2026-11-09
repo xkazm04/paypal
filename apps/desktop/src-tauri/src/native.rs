@@ -307,9 +307,12 @@ pub fn run() -> Result<(), tauri::Error> {
             let vault: Arc<dyn table_runtime::vault::Vault> =
                 Arc::new(table_runtime::vault::KeyringVault);
             let clock: Arc<dyn table_core::Clock> = Arc::new(table_runtime::SystemClock);
+            let market_env_key = std::env::current_dir()
+                .ok()
+                .and_then(|dir| table_runtime::market_key_from_environment(&dir));
             let market = Arc::new(table_market::Client::new(
                 Arc::new(table_paypal::http::ReqwestTransport::new()?),
-                Arc::new(table_runtime::VaultMarketKey(vault.clone())),
+                Arc::new(table_runtime::VaultMarketKey(vault.clone(), market_env_key.clone())),
                 clock.clone(),
             ));
             let api = Arc::new(table_paypal::Client::sandbox(
@@ -334,6 +337,9 @@ pub fn run() -> Result<(), tauri::Error> {
                     )?));
             }
             runtime.attach_market(market);
+            if market_env_key.is_some() {
+                runtime.note_market_key_from_environment();
+            }
             tauri::async_runtime::block_on(runtime.attach_native_engines(data.join("agents")))
                 .map_err(|_| std::io::Error::other("Engine attachment failed"))?;
             let settings = runtime

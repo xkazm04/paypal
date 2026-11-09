@@ -15,3 +15,6 @@ Never paste credentials, tokens, raw model output, merchant notes or approval UR
 | --- | --- | --- | --- | --- |
 | 2026-10-02T18:44:31.3396439+00:00 | 6 | 101 | `.build/spike-results/spike-6-20261002-184438-2005791.json` | claude-code direct version passed; Node rejected the canonical verbatim script argument (EISDIR). Fixed before the next invocation. No model started. |
 | 2026-10-02T18:49:23.5336439+00:00 | 6 | 0 | `.build/spike-results/spike-6-20261002-184927-7016758.json` | claude-code direct 2.1.287 and codex-cli node_script 0.160.0 both pass. No model started. Interactive window visibility still needs owner observation. |
+| 2026-11-09T13:06:11.4841538+00:00 | 7 | 101 | `.build/spike-results/spike-7-20261109-130647-2346290.json` | Owner observations still to record |
+| 2026-11-09T13:07:25.8220234+00:00 | 7 | 101 | `.build/spike-results/spike-7-20261109-130726-7059369.json` | Owner observations still to record |
+| 2026-11-09T13:08:23.5883219+00:00 | 7 | 0 | `.build/spike-results/spike-7-20261109-130826-3695814.json` | Owner observations still to record |

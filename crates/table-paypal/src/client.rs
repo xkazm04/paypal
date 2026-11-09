@@ -390,8 +390,9 @@ impl PayPalApi for Client {
         r: &RequestId,
     ) -> Result<ApiResponse<Payment>, Error> {
         paypal_currency(amount)?;
-        // UNVERIFIED: that Payments v2 capture and void keep `PayPal-Request-Id` like Orders v2
-        // (the research sources the 6 h store for Orders only). Both are retried after a lost
+        // DOCUMENTED, NOT OBSERVED: PayPal's generated Server SDK reference (doc/controllers/
+        // payments.md, read 2026-11-09) lists `PayPal-Request-Id` on capture and void, with keys
+        // stored 45 days; no sandbox replay has shown it yet. Both are retried after a lost
         // answer under the same id (`execute`); `final_capture: true` is what bounds a capture
         // replayed without that store to one. Sandbox spike 3/4 (STATUS, Payments v2 resolver).
         self.decoded(
@@ -403,7 +404,7 @@ impl PayPalApi for Client {
         .await
     }
     async fn void(&self, id: &ResourceId, r: &RequestId) -> Result<ApiResponse<()>, Error> {
-        // UNVERIFIED: the `PayPal-Request-Id` store for this retried void (see `capture`).
+        // DOCUMENTED, NOT OBSERVED: the `PayPal-Request-Id` store for this retried void (see `capture`).
         let response = self
             .execute(
                 "POST",

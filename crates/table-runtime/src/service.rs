@@ -143,6 +143,7 @@ pub struct Runtime {
     pub(crate) mcp: Option<(Arc<table_mcp::Server>, String)>,
     pub(crate) actor_sender: Option<tokio::sync::mpsc::WeakSender<crate::actor::Message>>,
     pub(crate) market: Option<Arc<dyn table_market::MarketApi>>,
+    pub(crate) market_key_from_environment: bool,
     pub(crate) relay: Option<Arc<dyn table_relay::RelayApi>>,
     pub(crate) relay_busy: bool,
     pub(crate) relay_retry_at: i64,
@@ -298,6 +299,7 @@ impl Runtime {
             mcp: None,
             actor_sender: None,
             market: None,
+            market_key_from_environment: false,
             relay: None,
             relay_busy: false,
             relay_retry_at: 0,
@@ -410,7 +412,8 @@ impl Runtime {
                 .vault
                 .read("channel3")
                 .map_err(|_| unavailable("OS secret store unavailable"))?
-                .is_some(),
+                .is_some()
+                || self.market_key_from_environment,
             first_run: app(self
                 .pipeline
                 .wallet
