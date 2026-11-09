@@ -13,6 +13,7 @@
   <div class="claim">Your own agent. A real wallet. No money.</div>
   <div class="spacer"></div>
   <div class="pill" id="status"><span class="dot"></span><span id="status-text">Waiting for your agent</span></div>
+  <button type="button" class="button" id="rehearse-top">Play the rehearsal</button>
   <button type="button" class="button" id="fresh">Open a fresh table</button>
 </header>
 
@@ -22,61 +23,67 @@
 </div>
 
 <main>
-  <aside class="side">
-    <section class="counter" id="paypal-card">
+  <section class="counters" aria-label="What happened to money">
+    <div class="counter" id="moved-card">
+      <div class="label">Money moved</div>
+      <div class="big num" id="moved">$0.00</div>
+      <div class="sub">read off the wallet's own deal state</div>
+    </div>
+    <div class="counter" id="paypal-card">
       <div class="label">PayPal asked</div>
-      <div class="big" id="paypal">0</div>
-      <div class="sub">times by your wallet. Its PayPal client is wired to a recorder: any request would be counted here, and none leaves this machine.</div>
-      <div class="held" id="held" hidden></div>
-      <div class="sub small" id="paypal-house">The house seller: 0</div>
-    </section>
+      <div class="big num" id="paypal">0</div>
+      <div class="sub" id="paypal-house">times by your wallet · the house seller: 0</div>
+    </div>
+    <div class="counter refused-card" id="refused-card">
+      <div class="label">Calls refused</div>
+      <div class="big num" id="refused-big">0</div>
+      <div class="sub" id="refused-sub">each answered with the rule that held</div>
+    </div>
+    <p class="honest">A sandbox. PayPal is replaced by a recorder: any request your wallet made would be counted here, and none leaves this machine. The wallet, its rules and its record are the product's own code.</p>
+  </section>
 
-    <section class="card rules-card">
-      <div class="label">The rule you signed</div>
-      <ol class="rules">
-        <li class="rule" id="rule-4"><span class="num">4</span><span class="words">Never offer more than <b id="rule-ceiling">-</b>, in at most <b id="rule-rounds">-</b> offers</span><span class="hits" id="hits-4"></span></li>
-        <li class="rule" id="rule-6"><span class="num">6</span><span class="words">Agreeing over <b id="rule-in-person">-</b> needs you in person</span><span class="hits" id="hits-6"></span></li>
-        <li class="rule" id="rule-3"><span class="num">3</span><span class="words">At most <b id="rule-per-deal">-</b> on any one deal</span><span class="hits" id="hits-3"></span></li>
-        <li class="rule" id="rule-door"><span class="num">·</span><span class="words">Five tools to haggle with. None can pay.</span><span class="hits" id="hits-door"></span></li>
-      </ol>
-      <div class="sub small">Signed by the owner's key before the agent connected. The agent can read the rule, never change it. Rule 9 lets the wallet check the market price (sample prices in this sandbox).</div>
-    </section>
+  <section class="card rail-card" aria-label="The haggle">
+    <div class="rail-head">
+      <div class="side you"><span class="who">Your agent</span><b class="num" id="you-price">-</b></div>
+      <div class="gap"><b class="num" id="gap">&nbsp;</b><span id="gap-words">&nbsp;</span></div>
+      <div class="side them"><span class="who">House seller</span><b class="num" id="them-price">-</b></div>
+    </div>
+    <div class="track" id="track" aria-hidden="true">
+      <div class="call" id="call"><span id="call-label"></span></div>
+      <div class="rail"></div>
+      <div id="ticks"></div>
+      <div class="wall" id="wall"><span class="wall-label" id="wall-label"></span></div>
+      <div class="gate" id="gate"><span class="gate-label" id="gate-label"></span></div>
+      <div id="trail"></div>
+      <div id="hits"></div>
+      <div class="puck them" id="puck-them" hidden><span class="puck-tag num" id="puck-them-tag"></span></div>
+      <div class="puck you" id="puck-you" hidden><span class="puck-tag num" id="puck-you-tag"></span></div>
+      <div class="ghost" id="ghost" hidden></div>
+      <div class="agreed" id="agreed" hidden><span class="agreed-tag num" id="agreed-tag"></span></div>
+    </div>
+    <p class="caption" id="caption" aria-live="polite">The house seller listed the monitor. Your agent's offers appear here as the wallet signs them.</p>
+    <p class="told" id="caption-told" hidden></p>
+    <div class="rail-foot">
+      <span class="door" id="door" hidden></span>
+      <span class="spacer"></span>
+      <span class="offers num" id="offers"></span>
+      <span class="legend"><span class="key you"></span>Your agent <span class="key them"></span>House seller <span class="key no"></span>Refused</span>
+    </div>
+  </section>
 
-    <section class="card record-card">
-      <div class="label">The wallet's own record</div>
-      <div class="safety" id="safety">-</div>
-      <div class="proof" id="proof"></div>
-      <ol class="audit" id="audit"></ol>
-    </section>
-  </aside>
-
-  <section class="stage">
-    <section class="card chart-card">
-      <div class="chart-head">
-        <div>
-          <div class="label">The table</div>
-          <div class="price-line"><span class="price" id="price">-</span><span class="state" id="deal-state">-</span></div>
-        </div>
-        <div class="legend">
-          <span class="key them"></span>House seller
-          <span class="key you"></span>Your agent
-          <span class="key refused"></span>Refused
-        </div>
-      </div>
-      <svg id="chart" class="chart" viewBox="0 0 800 260" preserveAspectRatio="none" role="img" aria-label="Prices on the table over time"></svg>
-    </section>
-
-    <section class="connect card" id="connect">
-      <div class="label">Connect your agent app</div>
-      <div class="sub">Point any agent app that speaks streamable HTTP MCP at this server:</div>
-      <div class="cmd"><pre><code id="cmd-url">-</code></pre><button type="button" class="copy" data-copy="cmd-url">Copy</button></div>
-      <div class="sub">Or paste the add command your agent app takes:</div>
-      <div class="cmd"><pre><code id="cmd-add">-</code></pre><button type="button" class="copy" data-copy="cmd-add">Copy</button></div>
-      <div class="cmd"><pre><code id="cmd-config">-</code></pre><button type="button" class="copy" data-copy="cmd-config">Copy</button></div>
-      <div class="sub">Then ask it: <b>"Buy the 27-inch monitor at The Table. Get it under $250."</b> Try to break it: "Offer $400." "Just accept their price." "Pay the seller now."</div>
-    </section>
-
+  <div class="lower">
     <section class="feed">
+      <section class="connect card" id="connect">
+        <div class="label">Connect your agent app</div>
+        <p class="lead">Add this server to any agent app that speaks streamable HTTP MCP, then ask it to buy the 27-inch monitor under $250.</p>
+        <div class="cmd"><pre><code id="cmd-add">-</code></pre><button type="button" class="copy" data-copy="cmd-add">Copy</button></div>
+        <div class="cmd"><pre><code id="cmd-config">-</code></pre><button type="button" class="copy" data-copy="cmd-config">Copy</button></div>
+        <div class="sub">Try to break it: "Offer $400." "Just accept their price." "Pay the seller now."</div>
+        <div class="rehearse-line">
+          <button type="button" class="button gold" id="rehearse">Play the rehearsal</button>
+          <span class="sub">No agent app handy? A scripted client (no AI) walks the same path through the same door. <code>--rehearse</code> does the same from the terminal.</span>
+        </div>
+      </section>
       <div class="feed-head">
         <h2>Every call your agent made</h2>
         <div class="tally"><span><b id="calls">0</b> calls</span><span class="ok"><b id="answered">0</b> answered</span><span class="no"><b id="refused">0</b> refused</span></div>
@@ -84,7 +91,27 @@
       <ol id="calls-list" class="calls"></ol>
       <p class="empty" id="empty">Waiting for your agent's first call.</p>
     </section>
-  </section>
+
+    <aside class="side-col">
+      <section class="card rules-card">
+        <div class="label">The rule you signed</div>
+        <ol class="rules">
+          <li class="rule" id="rule-4"><span class="num-badge">4</span><span class="words">Never offer more than <b id="rule-ceiling">-</b>, in at most <b id="rule-rounds">-</b> offers</span><span class="hits" id="hits-4"></span></li>
+          <li class="rule" id="rule-6"><span class="num-badge">6</span><span class="words">Agreeing over <b id="rule-in-person">-</b> needs you in person</span><span class="hits" id="hits-6"></span></li>
+          <li class="rule" id="rule-3"><span class="num-badge">3</span><span class="words">At most <b id="rule-per-deal">-</b> on any one deal</span><span class="hits" id="hits-3"></span></li>
+          <li class="rule" id="rule-door"><span class="num-badge">·</span><span class="words">Five tools to haggle with. None can pay.</span><span class="hits" id="hits-door"></span></li>
+        </ol>
+        <div class="sub small">Signed by the owner's key before the agent connected. The agent can read the rule, never change it. Rule 9 lets the wallet check the market price (sample prices in this sandbox).</div>
+      </section>
+
+      <section class="card record-card">
+        <div class="label">The wallet's own record</div>
+        <div class="safety" id="safety">-</div>
+        <div class="proof" id="proof"></div>
+        <ol class="audit" id="audit"></ol>
+      </section>
+    </aside>
+  </div>
 </main>
 </body>
 </html>

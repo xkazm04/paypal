@@ -11,6 +11,21 @@ Connect any agent app that speaks streamable HTTP MCP to `http://127.0.0.1:1443/
 buy the 27-inch monitor at The Table. It haggles with the house seller over signed offers; every
 call is answered by a rule the owner signed, and the page shows which one.
 
+The page puts the haggle on one price rail, the desktop's "Corridor" picture rebuilt in plain
+HTML: your agent's marker and the house seller's close on each other, a wall stands at rule 4's
+"never offer over" line and a gold gate at rule 6's "needs you in person" line, and each refused
+call lands as an X where it hit, with the rule's words under the rail. A marker moves only when the
+wallet signed a price; a refused offer never moves it. Every position comes from `src/rail.rs`,
+computed on the server from the journal and the table the agent last read (unit-tested there); the
+page does no arithmetic of its own. Three counters stay on screen: money moved (read off the
+wallet's own deal state), PayPal asked (the recorder) and calls refused (the journal). Under
+`prefers-reduced-motion` the markers jump instead of sliding. `?theme=light` or `?theme=dark` pins
+the theme; otherwise it follows the system.
+
+"Play the rehearsal" on the page runs the same scripted client as `--rehearse`, as a task inside
+the sandbox process (no new process): it opens a fresh table first when an agent already used this
+one, and plays one at a time.
+
 No screenshot ships here: run it and record your own session (the live page and the terminal
 show every call and the rule that answered it), or see the recorded film under `film/`.
 
@@ -70,7 +85,9 @@ assembles it (`apps/desktop/src-tauri/src/native.rs`), with these edges held in 
 
 `/mcp` and the page answer only a loopback `Host` for their port (`127.0.0.1`, `localhost`,
 `[::1]`), and `/mcp` refuses any request carrying an `Origin` (a browser page). "Open a fresh table"
-needs the page's own origin and a header a cross-site form cannot set. Agent arguments reach the
+(`POST /api/fresh`, `x-sandbox: fresh`) and "Play the rehearsal" (`POST /api/rehearse`,
+`x-sandbox: rehearse`; 409 while one plays) need the page's own origin and a header a cross-site
+form cannot set. Agent arguments reach the
 page only as text and the terminal only without control characters.
 
 ## The arena bridge
@@ -104,6 +121,8 @@ against this sandbox through three routes on the same loopback server:
 - `src/front.rs`: the door, run rotation, the page's facts, fresh tables, the proof download.
 - `src/engine.rs`: the outside agent's engine slot.
 - `src/journal.rs`: each JSON-RPC exchange as a verdict and the rule that answered it.
+- `src/rail.rs`: the haggle rail's positions, read off the journal (what the page draws).
+- `src/page/`: the live page (plain HTML, CSS and JS, served by the crate; no build step).
 - `src/relay.rs`, `src/paypal.rs`, `src/market.rs`: the in-memory edges.
-- `src/rehearsal.rs`: the scripted client behind `--rehearse`.
+- `src/rehearsal.rs`: the scripted client behind `--rehearse` and "Play the rehearsal".
 - `tests/smoke.rs`: the judge's path over loopback HTTP.

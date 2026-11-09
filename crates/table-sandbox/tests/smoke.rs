@@ -330,6 +330,75 @@ async fn a_fresh_table_is_a_new_house_and_wallet_under_the_same_rule() {
     assert_eq!(h.app.recorders.buyer.asked(), 0);
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_page_plays_the_rehearsal_and_its_rail_lands_on_the_wall_and_the_gate() {
+    let h = Harness::boot().await;
+    h.app
+        .pace_ms
+        .store(20, std::sync::atomic::Ordering::Relaxed);
+    let rehearse = |header: Option<&'static str>| {
+        let mut request = h.http.post(format!("{}/api/rehearse", h.url));
+        if let Some(value) = header {
+            request = request.header("x-sandbox", value);
+        }
+        request.send()
+    };
+    // The same door as a fresh table: the page's header, or nothing.
+    assert_eq!(rehearse(None).await.unwrap().status(), 403);
+    assert_eq!(rehearse(Some("fresh")).await.unwrap().status(), 403);
+    let foreign = h
+        .http
+        .post(format!("{}/api/rehearse", h.url))
+        .header("origin", "https://example.test")
+        .header("x-sandbox", "rehearse")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(foreign.status(), 403);
+    assert_eq!(rehearse(Some("rehearse")).await.unwrap().status(), 200);
+    // One at a time.
+    assert_eq!(rehearse(Some("rehearse")).await.unwrap().status(), 409);
+    let state = tokio::time::timeout(Duration::from_secs(120), async {
+        loop {
+            let state = h.app.snapshot().await;
+            if state["rehearsing"] == false {
+                return state;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    })
+    .await
+    .expect("the rehearsal finished");
+    assert_eq!(state["rehearsal"], true);
+    let rail = &state["rail"];
+    let at: Vec<&str> = rail["hits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|hit| hit["at"].as_str().unwrap())
+        .collect();
+    assert!(at.contains(&"wall"), "{rail}");
+    assert!(at.contains(&"gate"), "{rail}");
+    assert!(at.contains(&"door"), "{rail}");
+    let wall = rail["hits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|hit| hit["at"] == "wall")
+        .unwrap();
+    assert_eq!(wall["cents"], 40_000);
+    assert_eq!(wall["rule"], "Rule 4 held: never offer over $340.00");
+    // The agent's marker sits on a price the wallet signed, never on a refused one.
+    let you = rail["you"]["cents"].as_i64().unwrap();
+    assert!(you <= table_sandbox::RULE_CEILING, "{rail}");
+    assert!(rail["offers"].as_u64().unwrap() >= 2, "{rail}");
+    // The three counters: no money moved, PayPal never asked, the refusals the journal counted.
+    assert_eq!(state["money"]["moved_cents"], 0);
+    assert_eq!(state["paypal"]["buyer"], 0);
+    assert_eq!(state["paypal"]["house"], 0);
+    assert!(state["refused"].as_u64().unwrap() >= 3, "{state}");
+}
+
 // The arena bridge: the client's live mode on its dev port reads the table and hands the house
 // seller a note. Every socket is still 127.0.0.1.
 const ARENA: &str = "http://localhost:1430";

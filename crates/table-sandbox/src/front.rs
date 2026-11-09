@@ -21,7 +21,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::{
     Arc, RwLock,
-    atomic::{AtomicBool, AtomicU64, Ordering},
+    atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering},
 };
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use table_client::{AuditPage, AuditPageArgs, RunSnapshot, RunState, SafetyRecord};
@@ -38,6 +38,26 @@ const SCRIPT: &str = include_str!("page/app.js");
 const STYLE: &str = include_str!("page/app.css");
 /// How long a read of the wallet's own safety record and audit tail is reused by the page.
 const FACTS_TTL: Duration = Duration::from_millis(1500);
+/// The rehearsal's default pause between moves: slow enough to follow on the page.
+pub const REHEARSAL_PACE_MS: u64 = 2500;
+
+/// Money a deal moved, in cents, read off the wallet's own state for it: only a payment PayPal
+/// captured moves money. In this sandbox PayPal is a recorder that refuses every request, so no
+/// deal gets there; the figure is read, never assumed.
+fn moved(deal: &table_core::Deal) -> i64 {
+    use table_core::DealState::{Captured, Disputed, Receipted, Reconciled, Refunded};
+    if matches!(
+        deal.state,
+        Captured | Receipted | Reconciled | Refunded | Disputed
+    ) {
+        deal.terms
+            .unit_price
+            .minor()
+            .saturating_mul(i64::from(deal.terms.qty))
+    } else {
+        0
+    }
+}
 
 /// The wallet's own record, as last read: its whole-ledger safety check and its newest audit rows.
 #[derive(Debug, Clone, Default)]
@@ -74,8 +94,14 @@ pub struct App {
     pub echo: AtomicBool,
     /// Colour the terminal lines (a terminal that renders ANSI, and no `NO_COLOR`).
     pub color: AtomicBool,
-    /// A scripted rehearsal (no AI) is driving `/mcp`; the page says so.
+    /// A scripted rehearsal (no AI) drove `/mcp` on this table; the page says so.
     pub rehearsal: AtomicBool,
+    /// A scripted rehearsal is playing now (one at a time).
+    rehearsing: Arc<AtomicBool>,
+    /// The pause between the rehearsal's moves, in milliseconds.
+    pub pace_ms: AtomicU64,
+    /// Money the wallet moved on tables already closed, in cents, read off each deal's own state.
+    moved_before: AtomicI64,
 }
 impl std::fmt::Debug for App {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -170,7 +196,44 @@ impl App {
             echo: AtomicBool::new(false),
             color: AtomicBool::new(false),
             rehearsal: AtomicBool::new(false),
+            rehearsing: Arc::new(AtomicBool::new(false)),
+            pace_ms: AtomicU64::new(REHEARSAL_PACE_MS),
+            moved_before: AtomicI64::new(0),
         }))
+    }
+    /// Starts the scripted rehearsal (no AI) in this process: a task that drives the front's own
+    /// `/mcp` door over loopback exactly as an outside agent app would. It launches no process and
+    /// holds no authority of its own. A table an agent already used is replaced by a fresh one
+    /// first. `false` when a rehearsal is already playing.
+    pub async fn start_rehearsal(self: &Arc<Self>) -> Result<bool, BootError> {
+        if self.rehearsing.swap(true, Ordering::SeqCst) {
+            return Ok(false);
+        }
+        if let Some(world) = self.world() {
+            let used = self
+                .journal
+                .all()
+                .iter()
+                .any(|e| e.table == world.number && e.tool.is_some());
+            if used && let Err(error) = self.fresh(world.number, "for the scripted rehearsal").await
+            {
+                self.rehearsing.store(false, Ordering::SeqCst);
+                return Err(error);
+            }
+        }
+        self.rehearsal.store(true, Ordering::SeqCst);
+        let url = format!("http://127.0.0.1:{}/mcp", self.port);
+        let pace = Duration::from_millis(self.pace_ms.load(Ordering::Relaxed));
+        let playing = self.rehearsing.clone();
+        tokio::spawn(async move {
+            crate::rehearsal::rehearse(url, pace).await;
+            playing.store(false, Ordering::SeqCst);
+        });
+        Ok(true)
+    }
+    /// Whether the scripted rehearsal is playing now.
+    pub fn rehearsing(&self) -> bool {
+        self.rehearsing.load(Ordering::SeqCst)
     }
     /// The live world (the table now open).
     pub fn world(&self) -> Option<Arc<World>> {
@@ -186,6 +249,7 @@ impl App {
             .route("/api/state", get(state))
             .route("/api/journal", get(journal).options(arena_preflight))
             .route("/api/fresh", post(fresh))
+            .route("/api/rehearse", post(rehearse))
             .route("/api/proof", get(proof))
             // The arena's bridge: a browser page on the client's dev port may read the table and
             // hand the house seller a note. Nothing here reaches a tool or money.
@@ -476,6 +540,9 @@ impl App {
             .map(|mut held| std::mem::replace(&mut *held, next))
             .map_err(|_| BootError::Step("fresh table"))?;
         old.close().await;
+        if let Some(deal) = old.deal() {
+            self.moved_before.fetch_add(moved(&deal), Ordering::SeqCst);
+        }
         if let Ok(mut turn) = self.turn.lock() {
             *turn = None;
         }
@@ -638,11 +705,35 @@ impl App {
             Some(world) => world.house_deal().await,
             None => None,
         };
+        let number = world.as_ref().map_or(0, |w| w.number);
+        let view = self.journal.table();
+        // The table the agent last read, only when it is this table's.
+        let this_view = view.as_ref().filter(|v| {
+            world
+                .as_ref()
+                .is_some_and(|w| v.get("deal_id") == Some(&json!(w.deal_id)))
+        });
+        let entries = self.journal.all();
+        let rail = crate::rail::rail(&crate::rail::Input {
+            table: number,
+            entries: &entries,
+            view: this_view,
+            ceiling: crate::RULE_CEILING,
+            in_person: crate::RULE_IN_PERSON,
+            listing: crate::HOUSE_ASK,
+        });
+        let moved_cents = self
+            .moved_before
+            .load(Ordering::SeqCst)
+            .saturating_add(deal.as_ref().map_or(0, moved));
         json!({
             "port": self.port,
             "rehearsal": self.rehearsal.load(Ordering::Relaxed),
+            "rehearsing": self.rehearsing(),
+            "rail": rail,
+            "money": {"moved_cents": moved_cents, "moved": dollars(moved_cents)},
             "item": crate::ITEM,
-            "table_number": world.as_ref().map_or(0, |w| w.number),
+            "table_number": number,
             "rule": {
                 "floor": dollars(crate::RULE_FLOOR),
                 "ceiling": dollars(crate::RULE_CEILING),
@@ -667,7 +758,7 @@ impl App {
             "answered": answered,
             "refused": refused,
             "runs": self.runs.load(Ordering::SeqCst),
-            "table": self.journal.table(),
+            "table": view,
             "safety": facts.safety,
             "audit": facts.audit,
             "proof": facts.proof,
@@ -790,7 +881,31 @@ async fn fresh(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
     }
     let seen = app.world().map_or(0, |w| w.number);
     match app.fresh(seen, "opened from the live page").await {
-        Ok(number) => Json(json!({"table_number": number})).into_response(),
+        Ok(number) => {
+            // A table opened by hand is no longer the rehearsal's, unless one is still playing.
+            if !app.rehearsing() {
+                app.rehearsal.store(false, Ordering::SeqCst);
+            }
+            Json(json!({"table_number": number})).into_response()
+        }
+        Err(error) => (StatusCode::SERVICE_UNAVAILABLE, error.to_string()).into_response(),
+    }
+}
+/// The page's "Play the rehearsal": the same door rule as a fresh table. 409 while one plays.
+async fn rehearse(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
+    if !app.door(&headers)
+        || (headers.contains_key(header::ORIGIN) && !app.own_origin(&headers))
+        || headers.get("x-sandbox").and_then(|v| v.to_str().ok()) != Some("rehearse")
+    {
+        return refused_door();
+    }
+    match app.start_rehearsal().await {
+        Ok(true) => Json(json!({"playing": true})).into_response(),
+        Ok(false) => (
+            StatusCode::CONFLICT,
+            Json(json!({"playing": true, "why": "a rehearsal is already playing"})),
+        )
+            .into_response(),
         Err(error) => (StatusCode::SERVICE_UNAVAILABLE, error.to_string()).into_response(),
     }
 }

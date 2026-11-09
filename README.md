@@ -139,8 +139,10 @@ For Codex, add `[mcp_servers.table-wallet]` with `url = "http://127.0.0.1:1443/m
 | "Just accept their price." | Refused: agreeing over $200 needs you in person |
 | "Pay the seller now." | Nothing can: it has no tool that pays |
 
-The page shows each call and the rule that answered it. Its **PayPal asked** counter stays at 0. No
-agent app handy? `cargo run -p table-sandbox -- --rehearse` runs a scripted client through the same door.
+The page draws the haggle live on one price rail, with a wall at the signed limit, and lists each call
+with the rule that answered it. Its **Money moved** and **PayPal asked** counters stay at 0. No agent
+app handy? Press **Play the rehearsal** on the page, or run `cargo run -p table-sandbox -- --rehearse`:
+a scripted client (no AI) goes through the same door.
 
 ## Run the desktop app
 

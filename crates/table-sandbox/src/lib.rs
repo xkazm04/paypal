@@ -19,6 +19,7 @@ pub mod front;
 pub mod journal;
 pub mod market;
 pub mod paypal;
+pub mod rail;
 pub mod rehearsal;
 pub mod relay;
 

@@ -99,15 +99,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     println!();
     if rehearse {
-        app.rehearsal.store(true, Ordering::Relaxed);
+        app.start_rehearsal().await?;
         println!(
             "  Rehearsal: a scripted client (no AI) walks the judge's path now. Connect your own"
         );
         println!("  agent app any time; it meets the same rule.");
-        tokio::spawn(table_sandbox::rehearsal::rehearse(
-            format!("{url}/mcp"),
-            std::time::Duration::from_millis(2500),
-        ));
+        println!();
+    } else {
+        println!(
+            "  No agent app handy? Press \"Play the rehearsal\" on the live page, or pass --rehearse."
+        );
         println!();
     }
     println!("  time   call                          verdict and the rule that answered it");
