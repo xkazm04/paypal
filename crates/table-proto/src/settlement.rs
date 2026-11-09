@@ -48,9 +48,10 @@ pub fn order_approval_url(
     mode: Mode,
 ) -> Result<VerifiedApprovalUrl, SettlementError> {
     let verified = approval_url(raw, mode)?;
-    // UNVERIFIED: the Orders v2 approve link shape `/checkoutnow?token=<order id>` is recalled,
-    // not sourced (.research/paypal-platform.md does not document it); confirm against a real
-    // sandbox link and record it in docs/build/STATUS.md.
+    // OBSERVED on the sandbox, not documented (2026-11-09, scripts/sandbox/sdk-conformance): the
+    // `approve` link of a created order is `https://www.sandbox.paypal.com/checkoutnow?token=<order id>`,
+    // path `/checkoutnow`, exactly one query pair. The SDK 2.5.0 docs only say "use the approve
+    // link" (doc/models/order.md), not its shape. The production host's link has not been seen.
     let mut pairs = verified.0.query_pairs();
     let bound = verified.0.path() == "/checkoutnow"
         && matches!(

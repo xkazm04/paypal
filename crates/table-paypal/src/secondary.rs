@@ -1,6 +1,7 @@
 //! Narrow secondary sandbox APIs. No Plans pricing method exists here.
 //! Endpoints follow the research's invoicing_v2 / billing_subscriptions_v1 lists; several body
-//! and response fields are not sourced and carry `// UNVERIFIED:` below (listed in STATUS.md).
+//! and response fields were not in the research; each now says OBSERVED, DOCUMENTED, NOT OBSERVED
+//! or UNVERIFIED with its source (the audit table is in STATUS.md, "Sponsor round 2, WP2").
 use crate::*;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -10,9 +11,11 @@ use table_core::{DealId, InvoiceText, Money, Timestamp};
 /// The invoice number a rescue invoice carries for `(deal, attempt)`: "R", the deal ULID's last
 /// 16 characters (its random part) and the attempt. Deterministic, so a lost create can be looked
 /// up by it and never needs a second invoice; short, because PayPal caps the field.
-// UNVERIFIED: the research names Invoicing v2 but not `detail.invoice_number`, its length cap
-// (25 characters assumed) or its per-merchant uniqueness; spike 8 records whether the search
-// finds the invoice by it.
+// OBSERVED (sandbox, 2026-11-09, scripts/sandbox/sdk-conformance): `detail.invoice_number` is
+// accepted and echoed; 25 characters are accepted and 26 refused (HTTP 400); a second invoice
+// with the same number is refused (HTTP 422); search finds the invoice by it. The Server SDK 2.5.0
+// has no Invoicing controller, so there is no SDK doc for it: this is observation, not
+// documentation.
 pub fn rescue_invoice_number(deal: DealId, attempt: u8) -> Result<String, Error> {
     if !(1..=3).contains(&attempt) {
         return Err(Error::Invalid);
@@ -55,8 +58,10 @@ impl InvoiceRequest {
         {
             return Err(Error::Invalid);
         }
-        // UNVERIFIED: `detail.invoice_number` and `detail.note` (field names from the public
-        // invoicing_v2 spec as recalled; the research lists the endpoints only).
+        // OBSERVED (sandbox, 2026-11-09): `detail.invoice_number`, `detail.note` and
+        // `detail.reference` are accepted and echoed by a draft create (with `Prefer:
+        // return=representation`, which returns `id`, `status` DRAFT and `amount`). Not in the SDK
+        // docs (no Invoicing controller in 2.5.0).
         Ok(
             json!({"detail":{"currency_code":self.amount.currency(),"reference":self.deal.to_string(),"invoice_number":self.invoice_number,"note":self.text.note},"primary_recipients":[{"billing_info":{"email_address":self.recipient_email}}],"items":[{"name":self.text.item,"quantity":"1","unit_amount":amount_wire(self.amount)}]}),
         )
@@ -78,7 +83,8 @@ pub struct Invoice {
     pub detail: Option<InvoiceDetail>,
 }
 /// A page of `search-invoices` results.
-// UNVERIFIED: the response's `items` array (research lists the endpoint, not its body).
+// OBSERVED (sandbox, 2026-11-09): the response carries `items` (and `links`); a search with no
+// match has NO `items` key at all, which `#[serde(default)]` below is for.
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct InvoiceList {
     #[serde(default)]
@@ -89,14 +95,17 @@ pub struct InvoiceList {
 /// [S-spec]); the other two are not.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SubscriptionBilling {
-    // UNVERIFIED: the field name `billing_info.outstanding_balance` (the research sources an
-    // outstanding balance only through `capture_type: "OUTSTANDING_BALANCE"`). Optional, so a read
-    // without it is still a read: detection then opens no fix (it has no amount).
+    // DOCUMENTED, NOT OBSERVED: the field name `billing_info.outstanding_balance` (SDK 2.5.0
+    // doc/models/subscription-billing-information.md, tag 2.5.0: `outstandingBalance`, Money,
+    // Required). No sandbox subscription has had a payment, so no value has been seen. Optional
+    // here, so a read without it is still a read: detection then opens no fix (it has no amount).
     #[serde(default)]
     pub outstanding_balance: Option<WireAmount>,
     pub failed_payments_count: u32,
-    // UNVERIFIED: the path `billing_info.last_failed_payment` (the research names
-    // `failed_payment_details.next_payment_retry_time` [S-spec], not where it sits).
+    // DOCUMENTED, NOT OBSERVED: the path `billing_info.last_failed_payment` with
+    // `next_payment_retry_time` inside it (SDK 2.5.0 doc/models/subscription-billing-information.md
+    // `lastFailedPayment` and doc/models/failed-payment-details.md `nextPaymentRetryTime`, both
+    // optional). A real failed renewal has not been seen.
     #[serde(default)]
     pub last_failed_payment: Option<FailedPaymentDetails>,
 }
@@ -317,7 +326,9 @@ impl SecondaryApi for Client {
     }
     async fn get_subscription(&self, id: &ResourceId) -> Result<ApiResponse<Subscription>, Error> {
         // `GET /v1/billing/subscriptions/{id}` is sourced (research §1.5 [S-spec]).
-        // UNVERIFIED: the `fields=last_failed_payment` query parameter.
+        // The `fields=last_failed_payment` query parameter: DOCUMENTED (SDK 2.5.0
+        // doc/controllers/subscriptions.md, Get Subscription: "Possible value for fields are
+        // last_failed_payment and plan") and OBSERVED accepted (sandbox 2026-11-09, HTTP 200).
         self.decoded(
             "GET",
             format!(
@@ -421,9 +432,10 @@ impl SecondaryApi for Client {
         )
         .await
     }
-    // UNVERIFIED: the search body field `invoice_number`. The research lists
-    // POST /v2/invoicing/search-invoices [S-spec] but not its filters; a filter PayPal ignores can
-    // only return invoices the caller then fails to match, so the read-back stays parked.
+    // OBSERVED (sandbox, 2026-11-09): the search body field `invoice_number` is applied as a
+    // filter (two drafts exist, the search returns only the one named; an unused number returns no
+    // `items`). Not in the SDK docs (no Invoicing controller in 2.5.0). A filter PayPal ignored
+    // could only return invoices the caller then fails to match, so the read-back stays parked.
     async fn search_invoices(
         &self,
         invoice_number: &str,

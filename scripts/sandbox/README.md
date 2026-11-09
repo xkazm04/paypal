@@ -20,3 +20,10 @@ but the OAuth token's scopes still lacked invoicing and `POST /v2/invoicing/gene
 still returned NOT_AUTHORIZED. Next: retry after propagation, else create a fresh app with Invoicing
 enabled at creation, or check the business account's invoicing eligibility. Paying the invoice then needs
 the buyer (owner step).
+
+## SDK conformance and spike 9
+
+`scripts/sandbox/sdk-conformance/` (its own package, `npm install && npm run check`) checks the fields
+the Rust client reads against the sandbox through the generated Server SDK; see its README. Spike 9
+(`scripts/spike.ps1 -Spike 9`, refund of a capture made for another payee) also needs
+`PAYPAL_SANDBOX_OTHER_MERCHANT_ID`, the merchant id of a second sandbox business account.

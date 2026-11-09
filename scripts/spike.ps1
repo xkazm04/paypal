@@ -1,5 +1,5 @@
 param(
-    [Parameter(Mandatory=$true)][ValidateRange(1,8)][int]$Spike,
+    [Parameter(Mandatory=$true)][ValidateRange(1,9)][int]$Spike,
     [switch]$DryRun
 )
 $ErrorActionPreference = 'Stop'
@@ -13,6 +13,7 @@ $spikeDefinitions = @{
     6 = @{ Package='table-engine'; Test='spike_6_windows_binary_resolution'; Gate='TABLE_CLI_PROBE'; Required=@() }
     7 = @{ Package='table-market'; Test='spike_7_channel3_demo_monitor_tracking'; Gate='TABLE_LIVE_MARKET'; Required=@('CHANNEL3_API_KEY','CHANNEL3_DEMO_PRODUCT_ID') }
     8 = @{ Package='table-paypal'; Test='spike_8_invoice_create_send_paid'; Gate='TABLE_LIVE_SANDBOX'; Required=@('PAYPAL_SANDBOX_CLIENT_ID','PAYPAL_SANDBOX_SECRET','PAYPAL_SANDBOX_MERCHANT_ID','PAYPAL_SANDBOX_INVOICE_EMAIL') }
+    9 = @{ Package='table-paypal'; Test='spike_9_refund_of_another_payees_capture'; Gate='TABLE_LIVE_SANDBOX'; Required=@('PAYPAL_SANDBOX_CLIENT_ID','PAYPAL_SANDBOX_SECRET','PAYPAL_SANDBOX_MERCHANT_ID','PAYPAL_SANDBOX_OTHER_MERCHANT_ID') }
 }
 $spikeDefinition = $spikeDefinitions[$Spike]
 $spikeCargoArgs = @('test','-p',$spikeDefinition.Package,'--test','spikes',$spikeDefinition.Test,'--','--ignored','--exact','--nocapture','--test-threads=1')

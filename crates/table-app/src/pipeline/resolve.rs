@@ -638,9 +638,12 @@ impl Pipeline {
         Ok(())
     }
     /// capture and void: read the authorization back.
-    // UNVERIFIED: the authorization status values CREATED, CAPTURED and VOIDED and their
-    // meaning are recalled from the Payments v2 spec, not quoted in .research; any other
-    // status is parked for the owner.
+    // DOCUMENTED and OBSERVED: the authorization status values CREATED, CAPTURED and VOIDED.
+    // Documented in SDK 2.5.0 doc/models/authorization-status.md (the full set is CREATED,
+    // CAPTURED, DENIED, PARTIALLY_CAPTURED, VOIDED, PENDING); observed in the sandbox on
+    // 2026-11-09 (CREATED after authorize, CAPTURED after a `final_capture: true` capture, VOIDED
+    // after void; scripts/sandbox/sdk-conformance, card-authorized orders). Any other status is
+    // parked for the owner.
     async fn resolve_payment(
         &mut self,
         deal: &Deal,
@@ -796,8 +799,11 @@ impl Pipeline {
     }
     /// A capture the authorization shows CAPTURED: its id comes from the order's captures,
     /// held to the same checks as a capture answer.
-    // UNVERIFIED: that GET /v2/checkout/orders/{id} of an AUTHORIZE order lists the capture
-    // under purchase_units[].payments.captures once the authorization is captured.
+    // DOCUMENTED and OBSERVED: that GET /v2/checkout/orders/{id} of an AUTHORIZE order lists the
+    // capture under purchase_units[].payments.captures once the authorization is captured. The
+    // field is in SDK 2.5.0 doc/models/payment-collection.md (`captures`); the listing itself was
+    // observed in the sandbox on 2026-11-09 (one capture with its `id`, `amount` and COMPLETED
+    // `status`; scripts/sandbox/sdk-conformance, card-authorized order, not a wallet approval).
     async fn confirm_capture(
         &mut self,
         deal: &Deal,

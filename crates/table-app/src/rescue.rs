@@ -290,8 +290,11 @@ impl Pipeline {
     /// Detection from PayPal itself: read one of the owner's subscriptions and open a rescue only
     /// when PayPal shows exactly one failed payment and an outstanding balance (that cycle). The
     /// rescue mandate is checked before the read; the read is recorded under the new deal's id.
-    // UNVERIFIED: that `billing_info.outstanding_balance` after one failed payment is exactly that
-    // cycle's price, and the `subscriber` email is not read (the owner supplies the recipient).
+    // UNVERIFIED (still unknown, 2026-11-09): that `billing_info.outstanding_balance` after one
+    // failed payment is exactly that cycle's price. The field exists (SDK 2.5.0
+    // doc/models/subscription-billing-information.md, a required Money) but no doc says what it
+    // holds after one failure, and a sandbox cannot be asked to fail a renewal. The `subscriber`
+    // email is not read (the owner supplies the recipient).
     pub async fn rescue_detect(
         &mut self,
         id: DealId,

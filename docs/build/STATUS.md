@@ -3100,3 +3100,61 @@ passed before payment". The mock mirrors all three (`MockOptions.failDecision` i
 Long explanations moved behind one info button (`shared/ui/Hint.tsx`, `ExplainHint`, on the shared Popover). What happens if the owner does nothing, approval lines, refusals, errors and sample-data labels stay on the page. Each of the six modules has one permanent purpose line (`ModuleLayerProps.purpose`). Rewind opens on its replay with Say it behind one button. List rows on Rescue, Waiting, Shield and the Book outlook are columns and one short note; the full sentence is the row's accessible name. Silence is said once per decision. Client only for the screens; no IPC or money change.
 A scoped sweep of the money pipeline and client data layer landed ten proved fixes, among them a rescue send confirmed by read-back that never receipted, and Book metrics counting a deal once per PayPal call. Its unfixed findings are in `.claude/scan-sweep/findings/stabilize-2026-11-09-money.jsonl`.
 - **Deviation:** on the Book outlook a group of several decisions shows only its soonest decision's silence line; every deal keeps it in its accessible name and on its page.
+
+## Sponsor round 2, WP2: the PayPal UNVERIFIED audit (2026-11-09)
+
+Sources: the generated Server SDK reference (`paypal/PayPal-TypeScript-Server-SDK`, tag 2.5.0,
+`doc/controllers/*.md`, `doc/models/*.md`), read through the APIMatic Context Plugin's PayPal skills,
+and the sandbox, through `scripts/sandbox/sdk-conformance/` (96 pass, 0 fail, 4 skip on 2026-11-09;
+authorized with the sandbox test card, not a wallet approval, see its README). SDK 2.5.0 has Orders,
+Payments, Subscriptions, Transaction Search and Vault controllers and **no Invoicing controller**, so
+the invoice rows rest on observation alone. No money-pipeline behaviour changed; no defect was proved.
+Only comments changed (plus a test-only spike 9, below).
+
+| Where | Claim | Verdict | Source |
+|---|---|---|---|
+| `secondary.rs:13` | `detail.invoice_number`, cap of 25, per-merchant uniqueness | **Confirmed, OBSERVED** | sandbox: 25 characters accepted, 26 refused (400); a duplicate number refused (422); echoed on create and read. No SDK doc (no Invoicing controller) |
+| `secondary.rs:58` | `detail.invoice_number` and `detail.note` request fields | **Confirmed, OBSERVED** | sandbox draft create (`Prefer: return=representation`) returns `id`, `status` DRAFT, `detail.{invoice_number,reference,note}`, `amount`. Draft only, never sent, deleted |
+| `secondary.rs:81` | search response `items` array | **Confirmed, OBSERVED** | sandbox: `items` present on a hit; on no match the key is absent (the struct's `#[serde(default)]` is needed and present) |
+| `secondary.rs:92` | `billing_info.outstanding_balance` field name | **DOCUMENTED, NOT OBSERVED** | `doc/models/subscription-billing-information.md`: `outstandingBalance`, Money, Required. Never seen with a value (no payment has run on a sandbox subscription) |
+| `secondary.rs:98` | `billing_info.last_failed_payment` path, with `next_payment_retry_time` | **DOCUMENTED, NOT OBSERVED** | same model (`lastFailedPayment`) and `doc/models/failed-payment-details.md` (`nextPaymentRetryTime`, optional) |
+| `secondary.rs:320` | `fields=last_failed_payment` query | **Confirmed (documented and observed accepted)** | `doc/controllers/subscriptions.md` Get Subscription: "Possible value for fields are last_failed_payment and plan"; sandbox GET answered 200 |
+| `secondary.rs:424` | search body field `invoice_number` | **Confirmed, OBSERVED** | sandbox: two drafts, the search returned only the named one; an unused number returned none |
+| `client.rs:68` | loopback and custom-scheme return destinations; field location | **Confirmed** (acceptance at create observed; field location documented) | sandbox: both orders created with one approve link each; spike 5 passed 2026-11-05 (`scripts/sandbox/README.md`); `doc/models/paypal-wallet-experience-context.md` (`returnUrl`, `cancelUrl`). What the browser does after approval stays spike 5's owner observation |
+| `tests/spikes.rs:293` | search field read-back evidence | **Confirmed, OBSERVED** | as `secondary.rs:424`; comment reworded, the test is unchanged |
+| `resolve.rs:641` | authorization statuses CREATED, CAPTURED, VOIDED | **Confirmed (documented and observed)** | `doc/models/authorization-status.md` (full set: CREATED, CAPTURED, DENIED, PARTIALLY_CAPTURED, VOIDED, PENDING); sandbox: CREATED after authorize, CAPTURED after a `final_capture` capture, VOIDED after void. Anything else is parked, as before |
+| `resolve.rs:799` | order GET lists the capture under `purchase_units[].payments.captures` | **Confirmed (field documented, listing observed)** | `doc/models/payment-collection.md` (`captures`); sandbox: one capture with `id`, `amount`, COMPLETED after the capture, on a card-authorized order |
+| `reconciliation.rs:63` | buyer reporting uses a negative debit, seller capture id as `transaction_id` | **Still unknown** | not in `doc/models/transaction-information.md`; the sandbox app's reporting read is refused (403 NOT_AUTHORIZED, Transaction Search is off on the app), and the buyer side needs the buyer account's own app. To close: enable the feature, wait up to 3 hours after a capture, rerun the conformance script, and read a buyer-app token |
+| `rescue.rs:293` | `outstanding_balance` after one failed payment equals that cycle's price | **Still unknown** | the field exists (above) but no doc says what it holds after one failure, and a sandbox cannot be asked to fail a renewal |
+| `settlement.rs:51` | approve link shape `/checkoutnow?token=<order id>` | **Confirmed, OBSERVED (sandbox host only)** | sandbox create: `rel: approve`, `https://www.sandbox.paypal.com/checkoutnow?token=<order id>`, exactly one query pair. The SDK docs only say "use the approve link". The production host's link has not been seen |
+
+Also settled while here (comment only, in `client.rs`): the `PayPal-Request-Id` replay on Payments v2
+capture and void was DOCUMENTED, NOT OBSERVED; it is now observed (a capture replay returned the same
+capture id, a void replay answered 204 again). The conformance run also showed, without a buyer:
+authorizing an unapproved order is 422 `ORDER_NOT_APPROVED`; void and read of an unknown authorization are
+404 `INVALID_RESOURCE_ID`; capture of a VOIDED authorization is 422 `AUTHORIZATION_VOIDED`;
+a create replayed under one `PayPal-Request-Id` returns the same order; creating an order with a made-up
+payee is 422 `PAYEE_ACCOUNT_INVALID`.
+
+Not exercised: the order reaching `APPROVED` through the real buyer page (the default run authorizes
+with the sandbox test card; `--approve` does the wallet route and needs a buyer in a browser), the
+subscription failure path, and reporting.
+
+**Spike 9 (refund of a capture the app made for another payee): written, not run.** `scripts/spike.ps1
+-Spike 9`, `spike_9_refund_of_another_payees_capture` in `crates/table-paypal/tests/spikes.rs`,
+runbook section in `SPIKE-RUNBOOK.md`. It needs `PAYPAL_SANDBOX_OTHER_MERCHANT_ID` (a second sandbox
+business account) and a buyer in a browser; the account on hand has one merchant id, and the runner
+stopped at "Missing environment names: PAYPAL_SANDBOX_OTHER_MERCHANT_ID". Baseline measured instead: the
+app can refund a capture for its OWN payee (201 COMPLETED, same refund id on replay, capture then
+REFUNDED), and its token carries the `payments/refund` scope. No refund product code exists; the refund
+call lives only in the test file.
+
+## Sponsor round 2, WP4: the grids hold 5,000 deals (2026-11-09)
+
+Quick search (cacheQuickFilter), saved column layout per list and a stable sort tie-break on every grid; pinned
+totals, grouping and a spending chart on the Book ledger, Spend and Counter; the Record is the Community infinite
+row model over `audit_page` (filter and sort in the database; the table/client-server-split deviation is closed).
+New dependencies: `ag-grid-enterprise` 34.3.1 (row grouping, loaded by dynamic import only with a trial key and
+before 2026-12-09 UTC, `shared/gridLicence.ts`; a key-less build has no such chunk) and `ag-charts-community`
+12.3.1 (MIT, the standalone spending chart, a lazy chunk). Risk: a build made with `.env.local` present inlines the
+trial key (`VITE_AG_LICENSE_KEY`): such a dist must not be published. Money rule: `areas/book/totalsLine.ts`.

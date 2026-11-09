@@ -126,7 +126,7 @@ async fn authorize(client: &Client, expected: &CreateOrder, approved: Order) -> 
     emit(json!({"authorization_id":authorization.id,"stage":"authorized"}));
     ResourceId::new(authorization.id.clone()).unwrap()
 }
-async fn capture(client: &Client, expected: &CreateOrder, id: &ResourceId) {
+async fn capture(client: &Client, expected: &CreateOrder, id: &ResourceId) -> String {
     let response = client
         .capture(id, expected.amount, &request(expected, "capture"))
         .await
@@ -136,6 +136,7 @@ async fn capture(client: &Client, expected: &CreateOrder, id: &ResourceId) {
     emit(
         json!({"capture_id":response.value.id,"amount_minor":expected.amount.minor(),"status":"COMPLETED","stage":"captured"}),
     );
+    response.value.id
 }
 #[tokio::test]
 #[ignore = "owner-run live sandbox; scripts/spike.ps1 -Spike 3"]
@@ -290,7 +291,9 @@ async fn spike_8_invoice_create_send_paid() {
     emit(
         json!({"invoice_id":id.as_str(),"reference":expected.deal,"invoice_number":invoice_number,"status":created.status,"stage":"invoice_created"}),
     );
-    // Evidence for the read-back a lost create relies on (UNVERIFIED search field).
+    // Evidence for the read-back a lost create relies on. The search field `invoice_number` is
+    // OBSERVED on a sandbox draft (2026-11-09, scripts/sandbox/sdk-conformance); this records it
+    // again for the full create, send and paid path.
     let search = client.search_invoices(&invoice_number).await;
     emit(json!({
         "stage":"invoice_searched",
@@ -328,4 +331,113 @@ async fn spike_8_invoice_create_send_paid() {
     panic!(
         "Invoice not paid within polling limit; preserve invoice id and check recipient access/email delivery"
     )
+}
+
+/// Test-local, never product code: a refund is not a wallet capability. The spike only asks
+/// PayPal whether the call is allowed, with the app's own token and one PayPal-Request-Id.
+async fn sandbox_call(
+    method: &'static str,
+    path: &str,
+    body: Option<serde_json::Value>,
+    request_id: Option<&str>,
+) -> (u16, serde_json::Value) {
+    use base64::{Engine, engine::general_purpose::STANDARD};
+    let transport = ReqwestTransport::new().unwrap();
+    let (id, secret) = EnvCredentials.load().await.unwrap();
+    let basic = STANDARD.encode(format!("{}:{}", id.expose(), secret.expose()));
+    let token = transport
+        .send(Request {
+            method: "POST",
+            url: "https://api-m.sandbox.paypal.com/v1/oauth2/token".into(),
+            headers: vec![(
+                "Authorization".into(),
+                Secret::new(format!("Basic {basic}")),
+            )],
+            body: None,
+            form: Some("grant_type=client_credentials"),
+        })
+        .await
+        .expect("token request failed");
+    let bearer = token.body["access_token"]
+        .as_str()
+        .expect("no token")
+        .to_owned();
+    let mut headers = vec![
+        (
+            "Authorization".into(),
+            Secret::new(format!("Bearer {bearer}")),
+        ),
+        ("Prefer".into(), Secret::new("return=representation".into())),
+    ];
+    if let Some(request_id) = request_id {
+        headers.push(("PayPal-Request-Id".into(), Secret::new(request_id.into())));
+    }
+    let response = transport
+        .send(Request {
+            method,
+            url: format!("https://api-m.sandbox.paypal.com{path}"),
+            headers,
+            body,
+            form: None,
+        })
+        .await
+        .expect("unknown outcome: check the capture in PayPal before rerunning");
+    (response.status, response.body)
+}
+#[tokio::test]
+#[ignore = "owner-run live sandbox; scripts/spike.ps1 -Spike 9"]
+async fn spike_9_refund_of_another_payees_capture() {
+    let client = client();
+    let own = std::env::var("PAYPAL_SANDBOX_MERCHANT_ID").expect("own merchant id");
+    let mut expected = order();
+    expected.merchant_id = ResourceId::new(
+        std::env::var("PAYPAL_SANDBOX_OTHER_MERCHANT_ID")
+            .expect("Set the merchant id of a DIFFERENT sandbox business account"),
+    )
+    .unwrap();
+    assert_ne!(
+        expected.merchant_id.as_str(),
+        own,
+        "the payee must not be the app's own account"
+    );
+    println!(
+        "Use the OWNER app credentials, PAYPAL_SANDBOX_OTHER_MERCHANT_ID as the payee, and a sandbox buyer in the browser. Approve ONE order."
+    );
+    let created = client
+        .create_order(&expected, &request(&expected, "create"))
+        .await
+        .unwrap()
+        .value;
+    let approved = approved(&client, &expected, created).await;
+    let authorization = authorize(&client, &expected, approved).await;
+    let capture_id = capture(&client, &expected, &authorization).await;
+    emit(json!({"spike":9,"stage":"captured_for_other_payee","payee_is_own_account":false}));
+    // The one question: may OUR app refund a capture it made for another payee?
+    let key = format!("spike9-refund-{}", expected.deal);
+    let path = format!("/v2/payments/captures/{capture_id}/refund");
+    let body = json!({"amount": amount_wire(expected.amount)});
+    let (status, answer) = sandbox_call("POST", &path, Some(body.clone()), Some(&key)).await;
+    if (200..300).contains(&status) {
+        let refund_id = answer["id"].as_str().unwrap_or_default().to_owned();
+        let (replay_status, replay) = sandbox_call("POST", &path, Some(body), Some(&key)).await;
+        let (_, after) = sandbox_call(
+            "GET",
+            &format!("/v2/payments/captures/{capture_id}"),
+            None,
+            None,
+        )
+        .await;
+        emit(json!({
+            "spike":9,"verdict":"refund_accepted","status":status,
+            "refund_status":answer["status"],"refund_id_present":!refund_id.is_empty(),
+            "replay_status":replay_status,
+            "replay_same_refund_id":replay["id"].as_str() == Some(refund_id.as_str()),
+            "capture_status_after":after["status"],
+        }));
+    } else {
+        emit(json!({
+            "spike":9,"verdict":"refund_refused","status":status,
+            "error":{"name":answer["name"],"issue":answer["details"][0]["issue"]},
+        }));
+    }
 }

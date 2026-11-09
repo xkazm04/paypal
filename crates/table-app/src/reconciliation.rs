@@ -60,8 +60,12 @@ impl Pipeline {
                         return self.refuse_reporting(id, window, capture, "not_settled", now);
                     }
                     let lexical = &info.transaction_amount.value;
-                    // UNVERIFIED: buyer account reporting uses a negative debit and the seller's
-                    // capture id as transaction_id. Absent/different mappings fail closed (spike 3).
+                    // UNVERIFIED (still unknown, 2026-11-09): buyer account reporting uses a negative
+                    // debit and the seller's capture id as transaction_id. Neither the SDK 2.5.0
+                    // docs (doc/models/transaction-information.md) nor a sandbox read settles it:
+                    // the sandbox app's reporting read is refused (HTTP 403 NOT_AUTHORIZED, the
+                    // Transaction Search feature is off) and the buyer side needs the buyer
+                    // account's own app. Absent/different mappings fail closed (spike 3).
                     let value = if deal.side == Side::Buyer {
                         let Some(debit) = lexical.strip_prefix('-') else {
                             return self.refuse_reporting(id, window, capture, "not_a_debit", now);

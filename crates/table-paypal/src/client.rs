@@ -65,8 +65,13 @@ impl fmt::Debug for Client {
     }
 }
 impl Client {
-    /// UNVERIFIED: PayPal acceptance of loopback/custom-scheme destinations; spike 5.
-    /// Wire field location is sourced from checkout_orders_v2 experience_context.
+    /// PayPal accepts loopback and custom-scheme destinations at create: OBSERVED (sandbox,
+    /// 2026-11-09, scripts/sandbox/sdk-conformance: both orders created, one approve link each;
+    /// spike 5 passed 2026-11-05, scripts/sandbox/README.md). What the browser then does with them
+    /// (the loopback callback, the OS prompt for the scheme) is spike 5's owner observation, not
+    /// seen here. The field location is DOCUMENTED: SDK 2.5.0
+    /// doc/models/paypal-wallet-experience-context.md (`returnUrl`, `cancelUrl`) under
+    /// `payment_source.paypal.experience_context`.
     pub async fn create_order_returning(
         &self,
         order: &CreateOrder,
@@ -390,11 +395,12 @@ impl PayPalApi for Client {
         r: &RequestId,
     ) -> Result<ApiResponse<Payment>, Error> {
         paypal_currency(amount)?;
-        // DOCUMENTED, NOT OBSERVED: PayPal's generated Server SDK reference (doc/controllers/
-        // payments.md, read 2026-11-09) lists `PayPal-Request-Id` on capture and void, with keys
-        // stored 45 days; no sandbox replay has shown it yet. Both are retried after a lost
-        // answer under the same id (`execute`); `final_capture: true` is what bounds a capture
-        // replayed without that store to one. Sandbox spike 3/4 (STATUS, Payments v2 resolver).
+        // DOCUMENTED and OBSERVED: PayPal's generated Server SDK reference (doc/controllers/
+        // payments.md, tag 2.5.0) lists `PayPal-Request-Id` on capture and void, with keys stored
+        // 45 days; a sandbox replay under one key returned the SAME capture id (2026-11-09,
+        // scripts/sandbox/sdk-conformance, card-authorized order). Both are retried after a lost
+        // answer under the same id (`execute`); `final_capture: true` still bounds a capture
+        // replayed without that store to one.
         self.decoded(
             "POST",
             format!("/v2/payments/authorizations/{}/capture", id.as_str()),
@@ -404,7 +410,8 @@ impl PayPalApi for Client {
         .await
     }
     async fn void(&self, id: &ResourceId, r: &RequestId) -> Result<ApiResponse<()>, Error> {
-        // DOCUMENTED, NOT OBSERVED: the `PayPal-Request-Id` store for this retried void (see `capture`).
+        // DOCUMENTED and OBSERVED: the `PayPal-Request-Id` store for this retried void (see
+        // `capture`); a sandbox void replayed under one key answered 204 again (2026-11-09).
         let response = self
             .execute(
                 "POST",

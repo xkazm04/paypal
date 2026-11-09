@@ -1,4 +1,4 @@
-# Owner spike runbook (spikes 1, 2, 3, 4, 5, 7, 8)
+# Owner spike runbook (spikes 1, 2, 3, 4, 5, 7, 8, 9)
 
 The owner's step-by-step script for the live sandbox spikes. Approved by the operator on
 2026-10-16 (DECISIONS §44) **for the owner to run, with his own sandbox credentials, when he
@@ -152,6 +152,38 @@ questions".
   `detail.invoice_number` and its length cap, `detail.note`, the search body field and `items`,
   and `billing_info.outstanding_balance`.
 - **Row:** `created y/n; found_by_number y/n; sent y/n; PAID USD 1.00 y/n; email arrived y/n via which route`
+
+## Spike 9: can our app refund a capture it made for another payee?
+
+- **Question:** the app creates an order whose payee is a DIFFERENT merchant, the buyer approves, the app
+  authorizes and captures it (as in spike 4). May the app then `POST /v2/payments/captures/{id}/refund`
+  with a `PayPal-Request-Id`? Nothing in the wallet refunds today; this only decides whether a refund
+  feature could ever work from the app's own credentials. The SDK reference
+  (`doc/controllers/payments.md`, Refund Captured Payment) takes an optional `PayPal-Auth-Assertion`
+  for "the merchant", which suggests a refund for another merchant's capture may need it. The spike
+  sends none, on purpose.
+- **Prerequisites:** the owner app credentials, the three names of spike 4, and one more:
+  `PAYPAL_SANDBOX_OTHER_MERCHANT_ID`, the merchant id of a second sandbox **business** account
+  (developer.paypal.com > Testing Tools > Sandbox Accounts > Create account > Business; the id is on
+  the account's profile). PayPal answers a made-up payee with 422 `PAYEE_ACCOUNT_INVALID`, so this
+  must be a real account. A buyer account in a browser.
+- **Command:** `./scripts/spike.ps1 -Spike 9` (`TABLE_LIVE_SANDBOX`;
+  `spike_9_refund_of_another_payees_capture`). It stops with "Missing environment names" until the
+  extra name is set.
+- **By hand:** approve ONE USD 1.00 order in the browser (the test polls up to ten minutes).
+- **Pass (it is a diagnostic; exit 0 means it finished):** evidence `captured_for_other_payee`, then
+  exactly one of `refund_accepted` (status, `refund_status`, whether a replay under the same
+  `PayPal-Request-Id` returned the same refund id, and the capture's status after) or
+  `refund_refused` (HTTP status and PayPal's `name` and `issue`, nothing else). A refused capture or
+  authorize ahead of it is itself the finding: record where it stopped.
+- **Baseline (no second merchant needed):**
+  `cd scripts/sandbox/sdk-conformance && npm run check -- --refund-control` refunds a capture for the
+  app's OWN payee. 2026-11-09 it was accepted (201 COMPLETED, replay returned the same refund id,
+  capture then REFUNDED), so a refusal in spike 9 is about the other payee, not about the app's
+  refund permission. The app's token carries the `payments/refund` scope.
+- **Not run (2026-11-09):** the sandbox account on hand has one merchant id. Spike 9 could not
+  start: `Missing environment names: PAYPAL_SANDBOX_OTHER_MERCHANT_ID`. No order was created for it.
+- **Row:** `payee distinct from the app's own account y/n; captured for the other payee y/n; refund accepted y/n (HTTP status; PayPal error name and issue if refused); replay same refund id y/n`
 
 ## Open questions (SPIKES.md is silent or ambiguous)
 

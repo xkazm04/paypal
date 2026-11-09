@@ -1,0 +1,19 @@
+{
+  "name": "table-sdk-conformance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sandbox-only conformance check of the PayPal fields the Rust client reads, through the generated Server SDK. Not part of the pnpm client.",
+  "scripts": {
+    "check": "tsx src/conformance.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@paypal/paypal-server-sdk": "2.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2"
+  }
+}
