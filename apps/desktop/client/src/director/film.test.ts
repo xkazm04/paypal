@@ -15,10 +15,16 @@ import { buildMockState } from '../mock/fixtures';
 import { laneSteps, weekBounds } from '../windows/main/logic';
 import { runActions, type Stage } from './actions';
 import { BEATS } from './beats';
+import { STORIES } from './stories';
 import { HAGGLE, HOLD } from './helpers';
 import { centre, deadlinesRecord, decisionsRecord, deskTransform, FILM_PRESS, filmTarget, haggleRecord, HOUSE_TABLE, pressFor, readChapterRecord, recordShown, recordShownOnStage, shopRecord, stageRect, storyStartOn, syncShade, usdText } from './takes';
 import { HAGGLE_FIGS as F } from './recorded';
 import { pricesOf, RECORDED } from '../mock/haggle';
+
+// The Signet film is cut from several sources (film/signet/capture.mjs): director stories, and adapters
+// of its own that drive the real app, the sandbox and recorded pages, which no story knows.
+const SIGNET_ADAPTER_BEATS = ['live-home', 'live-say', 'live-sign', 'live-pair', 'sandbox-order', 'sandbox-refused', 'arena-note', 'proof-tamper', 'montage-modules'];
+const SIGNET_BEATS = [...[STORIES.watch, STORIES.say, STORIES.maya].flatMap((s) => s.beats.map((b) => b.id)), ...SIGNET_ADAPTER_BEATS];
 
 const DAN = pricesOf(RECORDED.dan);
 const dollars = (minor: number): number => minor / 100;
@@ -69,7 +75,8 @@ describe('film rectangles', () => {
     const ids = BEATS.map((b) => b.id);
     for (const film of films) {
       const script = JSON.parse(readFileSync(join(root, film, 'film.json'), 'utf8')) as { beats: Array<{ id: string; capture?: { beat: string } }> };
-      for (const b of script.beats) if (b.capture) expect(ids, `${film}/${b.id} → ${b.capture.beat}`).toContain(b.capture.beat);
+      const known = film === 'signet' ? SIGNET_BEATS : ids;
+      for (const b of script.beats) if (b.capture) expect(known, `${film}/${b.id} → ${b.capture.beat}`).toContain(b.capture.beat);
     }
   });
 });

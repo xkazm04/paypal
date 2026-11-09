@@ -37,7 +37,11 @@ describe('the Rewind', () => {
 
   // The busy merchant's week holds more steps than one read returns (the oldest are left out): its
   // counts are a floor, and the answer says so where it gives them, not only in the bar's note.
+  // The large world's steps are dated back from now and only a late-enough week holds more than one read
+  // returns (on a Monday morning it has a few dozen): pin a Wednesday afternoon (local time, Date only).
   it('says its counts are at least, and why, when the week was cut to its latest steps', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 21, 15, 0));
     const big = await renderLayerAtScale({ level: 'rewind' }, 'large');
     const head = () => big.layer.querySelector('[data-layer-title]')?.textContent ?? '';
     await waitFor(() => expect(head()).not.toBe(REWIND_ANSWER.reading));
