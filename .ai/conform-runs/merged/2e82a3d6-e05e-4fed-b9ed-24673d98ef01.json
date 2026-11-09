@@ -1,0 +1,161 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2e82a3d6-e05e-4fed-b9ed-24673d98ef01",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-09T01:00:23.898000+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "client-runtime-foundation",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/lib/clientRequests.test.ts:82 The 'owner ACCEPT cannot override %s' cases omit checks_hash, so the mock's outer check at backend.ts:640 can refuse them before the deadline, ceiling, rounds, revoke or hold decision runs, and `.rejects.toBeDefined()` accepts that refusal as a pass.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/clientRequests.test.ts:82 The success path at line 53 sends checks_hash and this call does not; boundToChecks runs before the owner-accept decision, and the assertion names no refusal code or producer."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/lazy.test.tsx:133 The fixture never resolves, so resolving can only come from the cap, and no elapsed time is measured."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/demo.test.ts:139 The test drives the same initBackend entry that mount.tsx:23 calls in production."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/demo.test.ts:123 Network globals are replaced by spies that the tests assert stayed silent, and they are unstubbed in afterEach."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/clientRequests.test.ts:28 Each test discards the whole store instead of hand-listing what to clean."
+    }
+   ]
+  },
+  {
+   "context": "money-guidance-and-onboarding",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/lib/firstRun.test.ts:246 The source-text pin searches for a bare identifier that RulesLayer.tsx:23 also holds in its import line, so 'Agent rules has no private copy of the predicate' stays green with every call removed.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/firstRun.test.ts:246 The needle has no call token, and the companion needle at line 245 catches only the local name `inForce`, so a renamed private copy also passes."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/readEach.test.ts:20 The concurrency cap is proved by counting reads in flight and asserting the peak, not by timing."
+    },
+    {
+     "technique": "gate-scope-is-not-report-scope",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/marketWatch.test.ts:124 The state population comes from the generated sets and its size is asserted before the loop runs over it."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/marketWatch.test.ts:54 Each bad input must produce its own named reason, so another refusal cannot answer for it."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/tour.test.ts:89 Saved tour progress is cleared before each test, together with the in-memory copy at line 90."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/moneyCheck.test.ts:12 The world is built once per file and only read or spread by the tests in this file that use it."
+    }
+   ]
+  },
+  {
+   "context": "prototype-dial-shell-and-design-system",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "prototype/build-index.mjs:3 The prototype is a static design gallery the owner picks from; a search of prototype/ for the five test terms found no hits, no CI job or package config references it, and the app only names it in comments with no import from it.",
+   "techniques": [],
+   "absenceTerms": [
+    "vitest",
+    "playwright",
+    "describe(",
+    "expect(",
+    "node:test"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "shared-ui-primitives",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T01:00:23.898000+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "fixture-economics",
+    "isolation-lanes",
+    "proved-off-the-path",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "client-runtime-foundation",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T01:00:23.898000+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "fixture-economics",
+    "gate-scope-is-not-report-scope",
+    "isolation-lanes",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "money-guidance-and-onboarding",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T01:00:23.898000+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "prototype-dial-shell-and-design-system",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

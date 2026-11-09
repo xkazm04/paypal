@@ -2128,7 +2128,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/lib/clientRequests.test.ts:82 The 'owner ACCEPT cannot override %s' cases omit checks_hash, so the mock's outer check at backend.ts:640 can refuse them before the deadline, ceiling, rounds, revoke or hold decision runs, and `.rejects.toBeDefined()` accepts that refusal as a pass.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "mcp-tools",
@@ -5402,7 +5406,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/lib/firstRun.test.ts:246 The source-text pin searches for a bare identifier that RulesLayer.tsx:23 also holds in its import line, so 'Agent rules has no private copy of the predicate' stays green with every call removed.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "docs-sync",
@@ -6223,7 +6231,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "prototype/build-index.mjs:3 The prototype is a static design gallery the owner picks from; a search of prototype/ for the five test terms found no hits, no CI job or package config references it, and the app only names it in comments with no import from it.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "agent-memory",

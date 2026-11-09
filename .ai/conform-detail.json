@@ -10188,6 +10188,93 @@
           "evidence": "crates/table-app/tests/support/mod.rs:106 The fixture uses the constructor production uses (table-runtime service.rs:268), and Ledger::in_memory goes through the same from_connection setup as Ledger::open (table-ledger lib.rs:71)."
         }
       ]
+    },
+    "9a4f1dcb-2f71-4b8d-835c-a38862a5c22a/test-harness": {
+      "context": "client-runtime-foundation",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:00:23.898Z",
+      "worker": "2e82a3d6-e05e-4fed-b9ed-24673d98ef01",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/clientRequests.test.ts:82 The success path at line 53 sends checks_hash and this call does not; boundToChecks runs before the owner-accept decision, and the assertion names no refusal code or producer."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/lazy.test.tsx:133 The fixture never resolves, so resolving can only come from the cap, and no elapsed time is measured."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/demo.test.ts:139 The test drives the same initBackend entry that mount.tsx:23 calls in production."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/demo.test.ts:123 Network globals are replaced by spies that the tests assert stayed silent, and they are unstubbed in afterEach."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/clientRequests.test.ts:28 Each test discards the whole store instead of hand-listing what to clean."
+        }
+      ]
+    },
+    "82440528-c2ad-4c04-b22b-0874f0723589/test-harness": {
+      "context": "money-guidance-and-onboarding",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:00:23.898Z",
+      "worker": "2e82a3d6-e05e-4fed-b9ed-24673d98ef01",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/firstRun.test.ts:246 The needle has no call token, and the companion needle at line 245 catches only the local name `inForce`, so a renamed private copy also passes."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/readEach.test.ts:20 The concurrency cap is proved by counting reads in flight and asserting the peak, not by timing."
+        },
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/marketWatch.test.ts:124 The state population comes from the generated sets and its size is asserted before the loop runs over it."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/marketWatch.test.ts:54 Each bad input must produce its own named reason, so another refusal cannot answer for it."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/tour.test.ts:89 Saved tour progress is cleared before each test, together with the in-memory copy at line 90."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/moneyCheck.test.ts:12 The world is built once per file and only read or spread by the tests in this file that use it."
+        }
+      ]
+    },
+    "ed618215-bf0a-4dfc-8c2c-3c3a805321b1/test-harness": {
+      "context": "prototype-dial-shell-and-design-system",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:00:23.898Z",
+      "worker": "2e82a3d6-e05e-4fed-b9ed-24673d98ef01",
+      "techniques": []
     }
   }
 }
