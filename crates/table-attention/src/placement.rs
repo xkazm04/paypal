@@ -120,6 +120,12 @@ pub struct Placement {
 pub struct PlacementError;
 
 /// Main starts centered, with its outer bounds capped to 90% of the work area.
+/// `f64::clamp` panics when min > max, and a size that fills the work area can leave
+/// `lo + extent - extent` a rounding step below `lo` at a fractional display scale.
+fn clamp_into(value: f64, lo: f64, hi: f64) -> f64 {
+    value.clamp(lo, hi.max(lo))
+}
+
 pub fn main_start_rect(work: Rect) -> Result<Rect, PlacementError> {
     if !work.valid() {
         return Err(PlacementError);
@@ -161,11 +167,11 @@ pub fn approval_rect_sized(
     } else if left >= work.x {
         left
     } else {
-        right.clamp(work.x, work.x + work.width - width)
+        clamp_into(right, work.x, work.x + work.width - width)
     };
     Ok(Rect {
         x,
-        y: opener.y.clamp(work.y, work.y + work.height - height),
+        y: clamp_into(opener.y, work.y, work.y + work.height - height),
         width,
         height,
     })
@@ -189,8 +195,16 @@ pub fn approval_docked_rect_sized(
     let width = size.0.min(work.width);
     let height = size.1.min(work.height);
     Ok(Rect {
-        x: (opener.x + (opener.width - width) / 2.0).clamp(work.x, work.x + work.width - width),
-        y: (opener.y + (opener.height - height) / 2.0).clamp(work.y, work.y + work.height - height),
+        x: clamp_into(
+            opener.x + (opener.width - width) / 2.0,
+            work.x,
+            work.x + work.width - width,
+        ),
+        y: clamp_into(
+            opener.y + (opener.height - height) / 2.0,
+            work.y,
+            work.y + work.height - height,
+        ),
         width,
         height,
     })
@@ -226,16 +240,22 @@ pub fn place(anchor: Rect, work: Rect, form: Form) -> Result<Placement, Placemen
     } else {
         VAlign::Up
     };
-    let x = match side {
-        Side::Right => right,
-        Side::Left => left,
-    }
-    .clamp(work.x, work.x + work.width - width);
-    let y = match valign {
-        VAlign::Down => down,
-        VAlign::Up => up,
-    }
-    .clamp(work.y, work.y + work.height - height);
+    let x = clamp_into(
+        match side {
+            Side::Right => right,
+            Side::Left => left,
+        },
+        work.x,
+        work.x + work.width - width,
+    );
+    let y = clamp_into(
+        match valign {
+            VAlign::Down => down,
+            VAlign::Up => up,
+        },
+        work.y,
+        work.y + work.height - height,
+    );
     Ok(Placement {
         rect: Rect {
             x,
@@ -531,6 +551,17 @@ mod tests {
                 assert_eq!(touching, edge, "{class:?} at {scale}: {tab:?}");
             }
         }
+    }
+    #[test]
+    fn a_fractional_scale_work_area_that_rounds_short_never_panics() {
+        // 1080 / 1.75 and 720 / 1.75: y + h - h lands a rounding step below y.
+        let (y, h) = (1080.0_f64 / 1.75, 720.0_f64 / 1.75);
+        assert!(y + h - h < y);
+        let work = rect(0.0, y, 400.0, h);
+        let opener = rect(10.0, y, 88.0, 88.0);
+        assert!(place(opener, work, Form::Card).is_ok());
+        assert!(approval_rect_sized(opener, work, (100.0, 2.0 * h)).is_ok());
+        assert!(approval_docked_rect_sized(opener, work, (100.0, 2.0 * h)).is_ok());
     }
     #[test]
     fn invalid_geometry_never_panics_and_small_work_area_clamps() {
