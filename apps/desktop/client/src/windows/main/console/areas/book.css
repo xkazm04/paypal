@@ -77,6 +77,11 @@
 
 /* ---- the record ------------------------------------------------------------------------------------- */
 .ar-book .bk-rtools { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); }
+.ar-book .bk-rsearch { flex: 1 1 16rem; min-width: 12rem; max-width: 24rem; }
+.ar-book .bk-chart { display: flex; flex-direction: column; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-2, 6px); }
+.ar-book .bk-chart-head { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-small); }
+.ar-book .bk-chart-canvas { height: 9.5rem; min-width: 0; }
+.ar-book .bk-chart-none { margin: 0; color: var(--muted); font-size: var(--fs-small); }
 .ar-book .bk-jump { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--muted); font-size: var(--fs-small); }
 .ar-book .bk-record > .ui-hint { margin: 0; }
 .ar-book .bk-broken { display: flex; flex-direction: column; gap: var(--sp-2); max-width: 48rem; }

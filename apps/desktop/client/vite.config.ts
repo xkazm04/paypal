@@ -23,6 +23,8 @@ export default defineConfig(({ command }) => ({
   // VITE_PREVIEW_PAGES: the main window shows the browser-preview places (the scenario director) only where
   // director.html is served: vite dev (and tests) or the director build, never the desktop bundle.
   define: {
+    // The grid's trial key is evaluation-only: a build inlines it, so a build carries it only when asked to.
+    ...(command === 'build' && process.env.THE_TABLE_ENTERPRISE !== '1' ? { 'import.meta.env.VITE_AG_LICENSE_KEY': JSON.stringify('') } : {}),
     'import.meta.env.VITE_INSPECTOR': JSON.stringify(process.env.THE_TABLE_INSPECTOR === '1' ? '1' : ''),
     'import.meta.env.VITE_PREVIEW_PAGES': JSON.stringify(command === 'serve' || DIRECTOR_BUILD ? '1' : ''),
   },
@@ -52,5 +54,6 @@ export default defineConfig(({ command }) => ({
       },
     },
   },
-  test: { environment: 'jsdom', include: ['src/**/*.test.ts', 'src/**/*.test.tsx'] },
+  // Tests stay Community whatever is in .env.local: the licence gate has tests of its own.
+  test: { environment: 'jsdom', include: ['src/**/*.test.ts', 'src/**/*.test.tsx'], env: { VITE_AG_LICENSE_KEY: '' } },
 }));

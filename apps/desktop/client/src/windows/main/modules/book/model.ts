@@ -129,7 +129,7 @@ export type BookQuery = { view: 'deals' | 'reconciliation'; filters?: Filter[]; 
 
 export type Lens = { id: string; short: string; question: string; query: BookQuery; unavailable?: string };
 
-const ALL_STATES: readonly DealState[] = ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED', 'WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED'];
+export const ALL_STATES: readonly DealState[] = ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED', 'WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED'];
 /** The states the Stopped tile counts, read from bucketOf so the tile, the answer line, the typed
  *  "stopped" filter and the "What was stopped" question are one set ("never paid, or paid back"). */
 export const STOPPED_STATES: readonly DealState[] = ALL_STATES.filter((state) => bucketOf({ state, kind: 'purchase', shield: null }) === 'stopped');

@@ -30,6 +30,7 @@ import { amountMajor, amountValue } from '../tables/Watch';
 import { GateView } from './Gate';
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { ClauseList, PurchaseDecision, PurchasePane, PurchasePath, type Lane } from './Purchase';
+import { totalsLine } from '../book/totalsLine';
 
 const selModuleOf = (w: World) => w.moduleOfDeal;
 const selDisplay = (w: World) => w.display;
@@ -61,9 +62,10 @@ function laneColumns(display: World['display'], needOf: World['needOf'], who: (l
           <span className="cs-who-chip" title={who(l)}>{who(l)}</span>
         </span>
       ) },
-    { id: 'outcome', header: SPEND.col.outcome, width: 170, value: (l) => outcomeOf(l.deal).label,
+    { id: 'outcome', header: SPEND.col.outcome, width: 170, group: !waiting, value: (l) => outcomeOf(l.deal).label,
       cell: (l) => { const out = outcomeOf(l.deal); return <span className="c-state" title={noteOf(l)}><Chip tone={out.tone}>{out.label}</Chip></span>; } },
-    { id: 'amount', header: SPEND.col.amount, width: 130, end: true, filter: 'number', value: (l) => amountValue(dealTotal(l.deal)), filterValue: (l) => amountMajor(dealTotal(l.deal)),
+    ...(waiting ? [] : [{ id: 'who', header: SPEND.col.who, groupOnly: true, group: true, filter: false as const, sortable: false, value: who }]),
+    { id: 'amount', header: SPEND.col.amount, width: 130, end: true, aggregate: !waiting, filter: 'number', value: (l) => amountValue(dealTotal(l.deal)), filterValue: (l) => amountMajor(dealTotal(l.deal)),
       cell: (l) => <Amount money={dealTotal(l.deal)} tone={amountTone(l.deal)} /> },
     { id: 'when', header: waiting ? SPEND.col.left : SPEND.col.when, width: 130, filter: false, sort: waiting ? undefined : 'desc',
       value: (l) => (waiting ? needOf(l.deal.id)?.deadline ?? null : l.deal.created_at ?? null),
@@ -152,6 +154,7 @@ export function SpendLayer({ nav }: LayerProps) {
   const whoOf = useCallback((l: Lane) => cp(l.deal.counterparty).name, [cp]);
   const needCols = useMemo(() => laneColumns(display, needOf, whoOf, true), [display, needOf, whoOf]);
   const allCols = useMemo(() => laneColumns(display, needOf, whoOf, false), [display, needOf, whoOf]);
+  const laneTotals = useCallback((ls: readonly Lane[]) => totalsLine(ls.map((l) => l.deal), (d) => !!needOf(d.id)?.money_check), [needOf]);
 
   const firstNeed = needs[0]?.need;
   const ifNothing = firstNeed ? silenceParts(firstNeed.on_silence).head : null;
@@ -198,7 +201,8 @@ export function SpendLayer({ nav }: LayerProps) {
     );
   };
   const list = (rows: readonly Lane[], label: string, picked: Lane | undefined, pick: (k: string) => void, empty: string, filters?: readonly ListFilter<Lane>[]) => (
-    <ListEngine<Lane> label={label} rows={rows} getKey={(l) => l.deal.id} filters={filters} columns={filters ? allCols : needCols} estimateSize={36}
+    <ListEngine<Lane> label={label} rows={rows} getKey={(l) => l.deal.id} filters={filters} columns={filters ? allCols : needCols} totals={filters ? laneTotals : undefined} estimateSize={36}
+      searchText={(l) => `${display(l.deal).title} ${whoOf(l)} ${l.slot ?? ''} ${outcomeOf(l.deal).label}`}
       renderRow={(l) => row1(l, picked?.deal.id === l.deal.id)}
       rowLabel={(l) => `${display(l.deal).title}, ${outcomeOf(l.deal).label}, ${noteOf(l)}`} onPick={(l) => pick(l.deal.id)} onOpen={(l) => nav.deal(l.deal.id)} empty={empty} />
   );

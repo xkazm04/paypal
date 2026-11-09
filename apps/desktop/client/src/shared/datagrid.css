@@ -31,3 +31,10 @@
 .sg-grid .ag-cell.sg-strong { font-weight: var(--fw-semibold); }
 .sg-grid .ag-cell.sg-dim { color: var(--dim); font-variant-numeric: tabular-nums; }
 .sg-grid .ag-cell.sg-who { color: var(--coral-l); }
+/* Group rows and the row of totals. Icons as plain glyphs, as above. */
+.sg-grid.ag-theme-quartz { --ag-icon-font-code-tree-closed: "\25B8"; --ag-icon-font-code-tree-open: "\25BE"; --ag-icon-font-code-tree-indeterminate: "\2013"; --ag-icon-font-code-group: "\2261"; --ag-icon-font-code-aggregation: "\03A3"; }
+.sg-grid .ag-row-group { font-weight: var(--fw-semibold); }
+.sg-grid .sg-group-money { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.sg-grid .ag-floating-bottom { border-top: 1px solid var(--line2); }
+.sg-grid .ag-floating-bottom .ag-row { background: var(--toolbar); }
+.sg-grid .sg-total { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--fw-semibold); }

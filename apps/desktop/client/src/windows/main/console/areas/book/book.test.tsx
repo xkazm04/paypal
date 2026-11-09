@@ -119,13 +119,13 @@ describe('Book ledger', () => {
     expect(r.budget.byCommand.get('deal_evidence')?.total ?? 0).toBeLessThanOrEqual(rows);
   }, 60_000);
 
-  it('draws the ledger as a grid: column headers and filters, no pager, no search box', async () => {
+  it('draws the ledger as a grid: column headers and filters, no pager, the quick search box', async () => {
     const r = await renderLayerAtScale('#m=book&v=ledger', 'large');
     await waitFor(() => expect(r.layer.querySelector('.sg-grid .ag-header')).not.toBeNull());
     const headers = [...r.layer.querySelectorAll('.sg-grid .ag-header-cell-text')].map((e) => e.textContent);
     expect(headers).toEqual(expect.arrayContaining([BOOK.col.when, BOOK.col.what, BOOK.col.status, BOOK.col.amount]));
     expect(r.layer.querySelector('.pg-range')).toBeNull();
-    expect(within(r.layer).queryByRole('searchbox')).toBeNull();
+    expect(within(r.layer).getByRole('searchbox')).toBeTruthy();
   }, 60_000);
 
   // "PayPal agrees" counts the week's payments that need a place on the statement. A deal whose
@@ -162,28 +162,41 @@ describe('Book ledger', () => {
 });
 
 describe('Book record (#16)', () => {
-  it('reads 200 steps at a time, keeps the page bounded, and reads on', async () => {
+  const pagesOf = (r: Awaited<ReturnType<typeof renderLayerAtScale>>) => r.calls.filter((c) => c.cmd === 'audit_page');
+  it('reads 200 steps at a time, in the database order, and reads on toward an older day', async () => {
     const r = await renderLayerAtScale('#m=book&v=record', 'large');
     expectLayerHealthy(r);
-    const pages = () => r.calls.filter((c) => c.cmd === 'audit_page');
-    expect(pages()[0]?.args).toMatchObject({ limit: 200 });
-    await act(async () => { fireEvent.click(within(r.layer).getByRole('button', { name: BOOK.record.older })); });
+    await waitFor(() => expect(r.layer.querySelectorAll('.sg-grid .ag-center-cols-container .ag-row').length).toBeGreaterThan(0));
+    expect(pagesOf(r)).toHaveLength(1);
+    expect(pagesOf(r)[0]?.args).toMatchObject({ limit: 200, sort: 'newest', filter: null });
+    await act(async () => { fireEvent.change(within(r.layer).getByLabelText(BOOK.record.goDay), { target: { value: '2000-01-01' } }); });
     await settle();
-    expect(pages()).toHaveLength(2);
-    expect((pages()[1]?.args as { before: number }).before).toBeGreaterThan(0);
+    await waitFor(() => expect(pagesOf(r).length).toBeGreaterThan(1));
+    expect(pagesOf(r).every((p) => (p.args as { limit: number }).limit === 200)).toBe(true);
+    expect((pagesOf(r)[1]?.args as { before: number }).before).toBeGreaterThan(0);
     expect(r.rows()).toBeLessThanOrEqual(250);
+  }, 60_000);
+
+  it('searches the whole chain on the server: owner words become stored words, and the count is the true one', async () => {
+    const r = await renderLayerAtScale('#m=book&v=record', 'large');
+    await waitFor(() => expect(within(r.layer).getByRole('searchbox', { name: BOOK.record.search })).toBeTruthy());
+    const w = mockBackend('main');
+    const all = await w.invoke('audit_page', { limit: 1 });
+    const paid = await w.invoke('audit_page', { limit: 1, filter: 'CAPTURED' });
+    await act(async () => { fireEvent.change(within(r.layer).getByRole('searchbox', { name: BOOK.record.search }), { target: { value: 'Paid' } }); });
+    await settle();
+    await waitFor(() => expect(pagesOf(r).some((p) => (p.args as { filter?: string | null }).filter === 'CAPTURED')).toBe(true));
+    await waitFor(() => expect(r.layer.querySelector('.bk-rtools [role="status"]')?.textContent).toBe(BOOK.record.matchingOf(paid.total_matching)));
+    // The filter and sort went to the wallet, not over what the page holds.
+    expect(paid.total_matching).toBeLessThan(all.total_matching);
   }, 60_000);
 });
 
 describe('Book record as a grid', () => {
-  it('draws the steps as grid rows and reads the next page when the grid is scrolled near its end', async () => {
+  it('draws the steps as grid rows on the infinite model', async () => {
     const r = await renderLayerAtScale('#m=book&v=record', 'large');
     await waitFor(() => expect(r.layer.querySelectorAll('.sg-grid .ag-center-cols-container .ag-row').length).toBeGreaterThan(0));
-    const pages = () => r.calls.filter((c) => c.cmd === 'audit_page');
-    expect(pages()).toHaveLength(1);
-    await act(async () => { fireEvent.scroll(r.layer.querySelector('.sg-grid .ag-body-viewport') as HTMLElement); });
-    await settle();
-    expect(pages()).toHaveLength(2);
+    expect(r.calls.filter((c) => c.cmd === 'audit_page')).toHaveLength(1);
     expect(r.rows()).toBeLessThanOrEqual(250);
   }, 60_000);
 });
@@ -205,9 +218,9 @@ describe('Book record: Go to a day while a scroll page is out', () => {
     });
     const pages = () => r.calls.filter((c) => c.cmd === 'audit_page');
     const before = pages().length;
-    await act(async () => { fireEvent.click(within(r.layer).getByRole('button', { name: BOOK.record.older })); });
-    // The page is out (held). Pick an older day now: the jump must not give up.
+    // Two jumps: the first's page is out (held) when the second asks; the second must wait, not give up.
     const field = within(r.layer).getByLabelText(BOOK.record.goDay);
+    await act(async () => { fireEvent.change(field, { target: { value: '2000-01-02' } }); });
     await act(async () => { fireEvent.change(field, { target: { value: '2000-01-01' } }); });
     await act(async () => { held?.(); });
     await settle();

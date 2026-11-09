@@ -22,8 +22,10 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react';
 import { formatCount, formatTally } from '../../../lib/data/counts';
 import { useWindowedRows } from '../../../lib/data/useWindowedRows';
-import { LIST_ALL, LIST_CLEAR, LIST_DETAIL_EMPTY, LIST_FILTER, LIST_NO_MATCH, LIST_SEARCH, LIST_SEARCH_PLACEHOLDER, LIST_SORT, LIST_TWO_STEP, listShowing } from '../../../lib/words';
+import { LIST_ALL, LIST_CLEAR, LIST_DETAIL_EMPTY, LIST_FILTER, LIST_GROUP, LIST_GROUP_NONE, LIST_NO_MATCH, LIST_SEARCH, LIST_SEARCH_PLACEHOLDER, LIST_SORT, LIST_TWO_STEP, listShowing } from '../../../lib/words';
 import { DataGrid, type DataGridHandle, type GridColumn } from '../../../shared/DataGrid';
+import { loadGroup, saveGroup } from '../../../shared/gridState';
+import { useGridTier } from '../../../shared/gridLicence';
 import { Btn, Field } from '../../../shared/ui';
 import { pageCount, Pager } from './Pager';
 import { Reveal, Skeleton } from './stagger';
@@ -61,9 +63,14 @@ export type ListEngineProps<T> = {
   measure?: boolean;
   /** The row's content (inside the row button). Unused when `columns` is given. */
   renderRow: (row: T, s: RowState) => ReactNode;
-  /** Draws the list as the data grid: the grid's own column sort and filters replace the search box,
-   *  the sort choice and the pager. Filter chips, pick and detail work as on any list. */
+  /** Draws the list as the data grid: the grid's own column sort and filters replace the sort choice
+   *  and the pager; the search box drives the grid's quick filter. Filter chips, pick and detail work
+   *  as on any list. */
   columns?: readonly GridColumn<T>[];
+  /** The row of totals over the rows the grid shows (and a group's money), in one line of words. */
+  totals?: (rows: readonly T[]) => string;
+  /** The rows the grid shows after every filter, for what follows them (a chart). */
+  onFilteredRows?: (rows: readonly T[]) => void;
   /** The row's accessible name, when its content says too much or too little. */
   rowLabel?: (row: T) => string;
   /** Opening a row: Enter, and a click too when the list has no pane (`onPick` / `detail`).
@@ -98,7 +105,7 @@ export function useWide(px: number): boolean {
 }
 
 /** A value that follows `v` after `ms` without a change. */
-function useDebounced<V>(v: V, ms: number): V {
+export function useDebounced<V>(v: V, ms: number): V {
   const [d, setD] = useState(v);
   useEffect(() => {
     if (Object.is(d, v)) return;
@@ -157,6 +164,14 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
   const shown = useMemo(() => shownRows(rows, isGrid ? null : hay, isGrid ? '' : q, filter, isGrid ? null : sort), [rows, hay, q, filter, sort, isGrid]);
   const gridRef = useRef<DataGridHandle>(null);
   const [gridShown, setGridShown] = useState<number | null>(null);
+  // Group options: offered only when the Enterprise grid has loaded (../../../shared/gridLicence); a saved
+  // choice for a column that is not offered here is ignored, not guessed at.
+  const groupable = useMemo(() => grid?.filter((c) => c.group) ?? [], [grid]);
+  const tier = useGridTier(groupable.length > 0);
+  const [groupBy, setGroupBy] = useState<string | null>(() => loadGroup(p.label));
+  const groupChoice = tier === 'enterprise' ? groupable : [];
+  const groupNow = groupChoice.some((c) => c.id === groupBy) ? groupBy : null;
+  const pickGroup = (v: string) => { const next = v || null; setGroupBy(next); saveGroup(p.label, next); };
 
   // The page: 1-based, kept with the filter / search / sort it was chosen under, so changing any of
   // them is back to page 1 without an effect; clamped when the data shrinks.
@@ -177,7 +192,7 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
   const detailRef = useRef<HTMLElement>(null);
 
   const list = useWindowedRows({ rows: isGrid ? NO_ROWS as readonly T[] : pageRows, getKey, estimateSize: p.estimateSize, measure: p.measure });
-  const toolbar = rows.length > (p.toolbarMin ?? TOOLBAR_MIN) && (!isGrid || !!filters?.length);
+  const toolbar = rows.length > (p.toolbarMin ?? TOOLBAR_MIN) && (!isGrid || hasSearch || !!filters?.length);
 
   /** A click or Space: pick when there is a pane, else open. */
   const activate = useCallback((row: T) => {
@@ -232,7 +247,7 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
       {twoStep ? <p className="sr-only" id={hintId}>{LIST_TWO_STEP}</p> : null}
       {toolbar ? (
         <div className="le-tools">
-          {hasSearch && !isGrid ? (
+          {hasSearch ? (
             <span className="le-search">
               <Field search type="search" value={query} placeholder={LIST_SEARCH_PLACEHOLDER} aria-label={LIST_SEARCH} onChange={(e) => setQuery(e.currentTarget.value)} />
             </span>
@@ -251,6 +266,15 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
             </div>
           ) : null}
           <span className="ui-spacer" />
+          {groupChoice.length ? (
+            <label className="le-sort">
+              <span>{LIST_GROUP}</span>
+              <select className="ui-field" value={groupNow ?? ''} onChange={(e) => pickGroup(e.currentTarget.value)}>
+                <option value="">{LIST_GROUP_NONE}</option>
+                {groupChoice.map((c) => <option key={c.id} value={c.id}>{c.header}</option>)}
+              </select>
+            </label>
+          ) : null}
           <span className="le-summary" role="status">{summary}</span>
           {sorts && sorts.length > 1 && !isGrid ? (
             <label className="le-sort">
@@ -268,7 +292,8 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
             : grid ? (
               <div className="le-col">
                 <DataGrid<T> label={p.label} rows={shown} getKey={getKey} columns={grid} rowLabel={p.rowLabel} onActivate={activate} onEnter={enter}
-                  onDisplayed={setGridShown} noMatch={typeof p.noMatch === 'string' ? p.noMatch : LIST_NO_MATCH} autoHeight={rows.length <= FEW_ROWS} handle={gridRef} />
+                  onDisplayed={setGridShown} noMatch={typeof p.noMatch === 'string' ? p.noMatch : LIST_NO_MATCH} autoHeight={rows.length <= FEW_ROWS} handle={gridRef}
+                  quickFilter={q} quickText={p.searchText} totals={p.totals} onFilteredRows={p.onFilteredRows} groupBy={groupNow} />
               </div>
             ) : (
               <div className="le-col">

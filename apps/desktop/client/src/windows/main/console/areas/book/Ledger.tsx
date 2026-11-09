@@ -4,17 +4,17 @@
 // read only for the rows in view (scale finding #17). On a wide window the picked row's PayPal proof
 // sits beside the list; otherwise a row opens its deal. Where the money went and "PayPal agrees" are
 // one disclosure down. Read-only: nothing here can move money.
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useMemo, useState, type CSSProperties } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { DealEvidence } from '@bindings/DealEvidence';
 import { useDataClient } from '../../../../../lib/data/provider';
-import { clockLabel } from '../../../../../lib/format';
+import { clockLabel, formatMinor } from '../../../../../lib/format';
 import { useNow, useQuery } from '../../../../../lib/hooks';
-import { BOOK, stateWord } from '../../../../../lib/words';
+import { BOOK, moneyCheckPill, stateWord } from '../../../../../lib/words';
 import { ModeBadge } from '../../../../../shared/honesty';
 import type { GridColumn } from '../../../../../shared/DataGrid';
 import { Btn, Seg, useToast } from '../../../../../shared/ui';
-import { amountTone, dealTotal } from '../../../logic';
+import { amountTone, dealTotal, isTerminal } from '../../../logic';
 import { MoneyWent } from '../../../modules/book/MoneyWent';
 import { bucketOf, dirOf, toCSV, type Bucket } from '../../../modules/book/model';
 import { useLayerNav } from '../../layers';
@@ -24,6 +24,8 @@ import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { evidenceForExport, useEvidenceOf } from './evidence';
 import { stampOf } from './model';
 import { RowDetail, RowStatement, StatusChip, Totals, type BookWorld } from './parts';
+import { SpendingChart } from './SpendingChart';
+import { totalsLine } from './totalsLine';
 
 export type LedgerScope = 'week' | 'all';
 
@@ -88,12 +90,14 @@ function ledgerColumns(b: BookWorld): GridColumn<Deal>[] {
   return [
     { id: 'when', header: BOOK.col.when, width: 104, sort: 'desc', filter: false, className: 'sg-dim', value: (d) => stampOf(d) ?? null, cell: (d) => { const at = stampOf(d); return at ? clockLabel(at) : BOOK.dash; } },
     { id: 'what', header: BOOK.col.what, flex: 2, minWidth: 160, className: 'sg-strong', value: (d) => b.title(d) },
-    { id: 'status', header: BOOK.col.status, width: 215, value: (d) => stateWord(d.state, { side: d.side, kind: d.kind }).text,
+    { id: 'status', header: BOOK.col.status, width: 215, group: true,
+      // A payment being checked sorts, filters and groups as it reads: "Checking with PayPal", never as paid.
+      value: (d) => { const check = b.needOf.get(d.id)?.money_check; return check ? moneyCheckPill(check, isTerminal(d)).text : stateWord(d.state, { side: d.side, kind: d.kind }).text; },
       cell: (d) => <><StatusChip deal={d} check={b.needOf.get(d.id)?.money_check} />{d.mode !== 'sandbox' ? <ModeBadge mode={d.mode} /> : null}</> },
     { id: 'statement', header: BOOK.col.statement, width: 135, sortable: false, filter: false, value: () => null, cell: (d) => <RowStatement deal={d} /> },
-    { id: 'amount', header: BOOK.col.amount, width: 130, end: true, filter: 'number', value: (d) => dealTotal(d).minor, filterValue: (d) => dealTotal(d).minor / 100,
+    { id: 'amount', header: BOOK.col.amount, width: 130, end: true, aggregate: true, filter: 'number', value: (d) => dealTotal(d).minor, filterValue: (d) => dealTotal(d).minor / 100,
       cell: (d) => <><Amount money={dealTotal(d)} tone={amountTone(d)} />{dirOf(d) === 'in' ? <span className="bk-in">{BOOK.in}</span> : null}</> },
-    { id: 'who', header: BOOK.col.who, flex: 1, minWidth: 130, className: 'sg-who', value: (d) => b.who(d) },
+    { id: 'who', header: BOOK.col.who, flex: 1, minWidth: 130, className: 'sg-who', group: true, value: (d) => b.who(d) },
   ];
 }
 
@@ -114,6 +118,10 @@ export function Ledger({ b, scope }: { b: BookWorld; scope: LedgerScope }) {
   const paidIds = useMemo(() => b.weekDeals.filter((d) => !!d.paypal.capture).map((d) => d.id), [b.weekDeals]);
   const [agreeOpen, setAgreeOpen] = useState(false);
   const columns = useMemo(() => ledgerColumns(b), [b]);
+  const totals = useCallback((ds: readonly Deal[]) => totalsLine(ds, checking), [checking]);
+  // What the grid shows after every filter (the chips, the search, the column filters): the chart follows it.
+  const [filtered, setFiltered] = useState<readonly Deal[] | null>(null);
+  const shownByGrid = filtered ?? rows;
   return (
     <RevealGroup className="bk-ledger">
       <Reveal><Totals deals={rows} checking={checking} /></Reveal>
@@ -122,9 +130,10 @@ export function Ledger({ b, scope }: { b: BookWorld; scope: LedgerScope }) {
         <summary>{BOOK.went}</summary>
         <div className="ui-disclosure-body">{agreeOpen ? <Went b={b} ids={paidIds} /> : null}</div>
       </details></Reveal>
+      <Reveal><SpendingChart rows={shownByGrid} checking={checking} /></Reveal>
       <Reveal style={FILL}><ListEngine<Deal> className={fewRows(rows.length)} label={scope === 'week' ? BOOK.list.week : BOOK.list.all} rows={rows} getKey={(d) => d.id}
-        searchText={(d) => `${b.title(d)} ${b.who(d)} ${b.label(d)} ${stateWord(d.state, { side: d.side, kind: d.kind }).text}`}
-        filters={filters} filterLabel={BOOK.filter.label} columns={columns} estimateSize={36} wideAt={1200}
+        searchText={(d) => `${b.title(d)} ${b.who(d)} ${b.label(d)} ${stateWord(d.state, { side: d.side, kind: d.kind }).text} ${formatMinor(dealTotal(d).minor, dealTotal(d).currency)}`}
+        filters={filters} filterLabel={BOOK.filter.label} columns={columns} totals={totals} onFilteredRows={setFiltered} estimateSize={36} wideAt={1200}
         renderRow={(d) => <LedgerRow deal={d} b={b} />}
         rowLabel={(d) => `${b.title(d)}, ${b.who(d)}`}
         onOpen={(d) => nav.deal(d.id)}

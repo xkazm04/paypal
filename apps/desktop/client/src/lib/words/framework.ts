@@ -67,6 +67,10 @@ export const MODULE_SUMMARY_LABEL = 'At a glance';
 /** The list engine. */
 export const LIST_SEARCH = 'Search';
 export const LIST_SEARCH_PLACEHOLDER = 'Search this list';
+export const LIST_LOADING = 'Getting the list ready…';
+export const LIST_TOTAL = (n: number): string => `Total of ${n.toLocaleString('en-GB')}`;
+export const LIST_GROUP = 'Group by';
+export const LIST_GROUP_NONE = 'No grouping';
 export const LIST_SORT = 'Sort';
 export const LIST_FILTER = 'Show';
 export const LIST_ALL = 'All';

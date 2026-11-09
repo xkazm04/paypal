@@ -4,7 +4,7 @@
 // rule set: a price change is a draft here whose only way out is the approval window (`approval_open`);
 // main never signs. Escape with an unsigned change warns once; Ctrl+Enter reviews it. The order
 // history is read only for the picked order. Pure logic: modules/counter/model.ts.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { clockLabel, formatMinor, formatMoney } from '../../../../../lib/format';
@@ -31,6 +31,7 @@ import { SplitView, usePick } from '../tables/parts';
 import { MiniBar, OrderPane } from './Order';
 import { DraftBar, ItemPane } from './Prices';
 import { Reveal } from '../../../../../design/Reveal';
+import { totalsLine } from '../book/totalsLine';
 
 const selModuleOf = (w: World) => w.moduleOfDeal;
 const selDisplay = (w: World) => w.display;
@@ -63,10 +64,10 @@ function orderColumns(c: OrderCtx, open: boolean): GridColumn<Deal>[] {
         const title = c.display(d).title;
         return <span className={`ctr-cw${need(d) ? ' needs' : ''}`}><span className="dot" aria-hidden="true" /><b title={title}>{title}</b><WhoChip name={name(d)} /></span>;
       } },
-    { id: 'state', header: COUNTER.col.status, width: 170, value: (d) => (withdrawn(d) ? COUNTER.withdrawsChip : need(d) ? COUNTER.needsChip : stateWord(d.state, { side: d.side, kind: d.kind }).text),
+    { id: 'state', header: COUNTER.col.status, width: 170, group: true, value: (d) => (withdrawn(d) ? COUNTER.withdrawsChip : need(d) ? COUNTER.needsChip : stateWord(d.state, { side: d.side, kind: d.kind }).text),
       cell: (d) => (withdrawn(d) ? <Chip tone="coral" title={COUNTER.withdrawsTitle}>{COUNTER.withdrawsChip}</Chip>
         : need(d) ? <Chip tone="gold">{COUNTER.needsChip}</Chip> : <StateChip deal={d} />) },
-    { id: 'amount', header: COUNTER.col.amount, width: 120, end: true, filter: 'number', value: (d) => dealTotal(d).minor, filterValue: (d) => dealTotal(d).minor / 100,
+    { id: 'amount', header: COUNTER.col.amount, width: 120, end: true, aggregate: true, filter: 'number', value: (d) => dealTotal(d).minor, filterValue: (d) => dealTotal(d).minor / 100,
       cell: (d) => <Amount money={dealTotal(d)} tone={isLive(d) ? undefined : chipClass(d) === 'done' ? 'moved' : 'struck'} /> },
     { id: 'time', header: open ? COUNTER.col.left : COUNTER.col.closed, width: 125, filter: false, sort: open ? 'asc' : 'desc',
       value: (d) => (open ? deadline(d) ?? Infinity : at(d) ?? 0),
@@ -126,6 +127,7 @@ export function CounterLayer({ nav }: LayerProps) {
   const liveColumns = useMemo(() => orderColumns({ display, needOf, cp, rowOf, draft }, true), [display, needOf, cp, rowOf, draft]);
   const pastColumns = useMemo(() => orderColumns({ display, needOf, cp, rowOf, draft }, false), [display, needOf, cp, rowOf, draft]);
   const itemCols = useMemo(() => itemColumns(draft), [draft]);
+  const orderTotals = useCallback((ds: readonly Deal[]) => totalsLine(ds, (d) => !!needOf(d.id)?.money_check), [needOf]);
   const itemFilters = useMemo<readonly ListFilter<CatalogRow>[]>(() => [
     { value: 'live', label: COUNTER.fWithOrders, test: (r) => matchesFilter(r, 'live', draft) },
     { value: 'over', label: COUNTER.fAbove, test: (r) => matchesFilter(r, 'over', draft) },
@@ -224,7 +226,7 @@ export function CounterLayer({ nav }: LayerProps) {
     );
   };
   const orderList = (rowsOf: readonly Deal[], label: string, picked: Deal | undefined, pick: (k: string) => void, empty: string, filters: readonly ListFilter<Deal>[], columns: readonly GridColumn<Deal>[]) => (
-    <ListEngine<Deal> label={label} rows={rowsOf} getKey={(d) => d.id} filters={filters} columns={columns} estimateSize={36}
+    <ListEngine<Deal> label={label} rows={rowsOf} getKey={(d) => d.id} filters={filters} columns={columns} totals={orderTotals} estimateSize={36}
       searchText={(d) => `${display(d).title} ${cp(d.counterparty).name}`}
       renderRow={(d) => orderRow1(d, picked?.id === d.id)}
       rowLabel={(d) => `${display(d).title}, ${cp(d.counterparty).name}`} onPick={(d) => pick(d.id)} onOpen={(d) => nav.deal(d.id)} empty={empty} />
