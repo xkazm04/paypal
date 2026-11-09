@@ -5814,44 +5814,58 @@
       "subject": "trust-base",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-22",
-      "evaluatedTs": "2026-10-22T00:03:21.441Z",
-      "worker": "a6e7d550-59d9-4479-a3b1-e01386a14c67",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T22:57:48.541Z",
+      "worker": "4ca98475-2e44-4e38-b7f0-5b1f58d9445e",
       "techniques": [
         {
           "technique": "assumptions-are-build-errors",
           "verdict": "not-applicable",
-          "evidence": "crates/table-proto/src/pairing.rs:295 Byte order is explicit through a language-defined conversion; no proof or type-level argument assuming a platform width or endianness was found."
+          "evidence": "crates/table-proto/src/house.rs:9 This is the crate's only compile-time assertion. It makes release builds fail when the public HOUSE trust anchor (TABLE_HOUSE_RELEASE_JSON) is missing. That is a deployment input. It is not a platform fact that any proof relies on, and the crate has no proofs."
         },
         {
           "technique": "census-counts-unmarked-members",
           "verdict": "not-applicable",
-          "evidence": "crates/table-proto/Cargo.toml:4 The inherited edition is 2024, which already marks the relevant environment mutations unsafe; searches also found no set_var, remove_var or pre_exec calls in this crate."
-        },
-        {
-          "technique": "leaf-spec-states-what-callers-read",
-          "verdict": "not-applicable",
-          "evidence": "crates/table-proto/src/envelope.rs:439 This documents an ordinary executable validation function; no trusted leaf contract consumed by a prover was found."
-        },
-        {
-          "technique": "marker-impl-names-its-exclusion",
-          "verdict": "not-applicable",
-          "evidence": "crates/table-proto/src/envelope.rs:4 Replay storage uses the standard collection implementation; inspection and searches across the crate found no manual Send or Sync assertions, UnsafeCell or raw-pointer access protocols."
-        },
-        {
-          "technique": "soundness-argument-names-its-dependencies",
-          "verdict": "not-applicable",
-          "evidence": "crates/table-proto/src/envelope.rs:462 Wire decoding uses a typed, fallible safe API; no checker escape hatch requiring a remote layout, constructor or allocation argument was found."
-        },
-        {
-          "technique": "trusted-leaf-gets-an-outside-test",
-          "verdict": "not-applicable",
-          "evidence": "crates/table-proto/tests/protocol.rs:79 These are executable protocol rejection tests, rather than outside witnesses for prover-skipped bodies; no such trusted bodies were found."
+          "evidence": "crates/table-proto/Cargo.toml:4 The crate takes edition 2024 from the workspace, not an older revision. In edition 2024, env writes have to be marked unsafe, and unsafe_code is forbidden. A search for set_var/remove_var found 0 hits, so no unmarked members exist."
         },
         {
           "technique": "verifier-footprint-stays-contained",
           "verdict": "not-applicable",
-          "evidence": "crates/table-proto/Cargo.toml:7 The inherited publish setting is false, and the complete crate dependency list contains no prover or specification library."
+          "evidence": "crates/table-proto/Cargo.toml:10 The [dependencies] list (lines 10-17) has table-core, serde, serde_json, thiserror, base64, ed25519-dalek, url and ts-rs. None of them is a prover or specification library."
+        },
+        {
+          "technique": "marker-impl-names-its-exclusion",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/Cargo.toml:23 The crate inherits forbid(unsafe_code), so a hand-written unsafe impl Send/Sync cannot compile. A grep for `unsafe impl` found 0 hits."
+        },
+        {
+          "technique": "soundness-argument-names-its-dependencies",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/Cargo.toml:23 Searches for unsafe, transmute, from_raw and get_unchecked found 0 hits, so there are no escape hatches whose soundness argument needs writing down."
+        },
+        {
+          "technique": "trusted-leaf-gets-an-outside-test",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/Cargo.toml:23 There are no external_body or trusted function bodies and no prover, so there is no trusted leaf that needs a witness from outside."
+        },
+        {
+          "technique": "leaf-spec-states-what-callers-read",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/Cargo.toml:23 No function is marked trusted, so no trusted contract has to be sized to what its callers read."
+        },
+        {
+          "technique": "verdict-pins-its-checker",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/src/house_ledger.rs:117 HeadVerdict is the result of a domain-level comparison of signed HOUSE heads made by compare_heads. It is not the verdict of a prover, linter or type checker. The witness that stores it lives in table-ledger, outside this context."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "crates/table-proto/Cargo.toml:23 The crate inherits the workspace's unsafe-code prohibition, and searches found no unsafe sites, trusted-body annotations or prover dependencies in this context, so the standard's checker-override precondition does not hold.",
+          "evaluatedAt": "2026-10-22T00:03:21.441Z",
+          "worker": "a6e7d550-59d9-4479-a3b1-e01386a14c67",
+          "reason": "replaced by 4ca98475-2e44-4e38-b7f0-5b1f58d9445e"
         }
       ]
     },

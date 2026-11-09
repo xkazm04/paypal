@@ -8905,12 +8905,11 @@
           "changedAt": "2026-10-27",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "crates/table-proto/Cargo.toml:23 The crate inherits the workspace's unsafe-code prohibition, and searches found no unsafe sites, trusted-body annotations or prover dependencies in this context, so the standard's checker-override precondition does not hold.",
-          "evaluatedAt": "2026-10-22",
-          "evaluatedAgainst": "sha256-b2:3ad9d5604e9627ce",
-          "evaluatedRevision": 5,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "crates/table-proto/Cargo.toml:23 table-proto picks up the workspace lints, including `unsafe_code = \"forbid\"` at root Cargo.toml:50, and is built on edition 2024. I searched crates/table-proto for unsafe, unsafe impl, external_body, set_var, assume, verus and kani, and none of them appear. The crate also has no prover dependency. So there are no trusted bodies, marker impls or escape sites, and no proofs whose checker-override perimeter this subject governs.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:0fd52192b37a88e4",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 1
         },
         {
           "subject": "decentralized-artifact-distribution",

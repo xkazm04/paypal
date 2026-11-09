@@ -1,0 +1,90 @@
+{
+ "schema": "conform-run/1",
+ "worker": "4ca98475-2e44-4e38-b7f0-5b1f58d9445e",
+ "subject": "trust-base",
+ "evaluatedAt": "2026-11-09T22:57:48.541907+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "table-wire-protocol",
+   "subject": "trust-base",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-proto/Cargo.toml:23 table-proto picks up the workspace lints, including `unsafe_code = \"forbid\"` at root Cargo.toml:50, and is built on edition 2024. I searched crates/table-proto for unsafe, unsafe impl, external_body, set_var, assume, verus and kani, and none of them appear. The crate also has no prover dependency. So there are no trusted bodies, marker impls or escape sites, and no proofs whose checker-override perimeter this subject governs.",
+   "techniques": [
+    {
+     "technique": "assumptions-are-build-errors",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/src/house.rs:9 This is the crate's only compile-time assertion. It makes release builds fail when the public HOUSE trust anchor (TABLE_HOUSE_RELEASE_JSON) is missing. That is a deployment input. It is not a platform fact that any proof relies on, and the crate has no proofs."
+    },
+    {
+     "technique": "census-counts-unmarked-members",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/Cargo.toml:4 The crate takes edition 2024 from the workspace, not an older revision. In edition 2024, env writes have to be marked unsafe, and unsafe_code is forbidden. A search for set_var/remove_var found 0 hits, so no unmarked members exist."
+    },
+    {
+     "technique": "verifier-footprint-stays-contained",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/Cargo.toml:10 The [dependencies] list (lines 10-17) has table-core, serde, serde_json, thiserror, base64, ed25519-dalek, url and ts-rs. None of them is a prover or specification library."
+    },
+    {
+     "technique": "marker-impl-names-its-exclusion",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/Cargo.toml:23 The crate inherits forbid(unsafe_code), so a hand-written unsafe impl Send/Sync cannot compile. A grep for `unsafe impl` found 0 hits."
+    },
+    {
+     "technique": "soundness-argument-names-its-dependencies",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/Cargo.toml:23 Searches for unsafe, transmute, from_raw and get_unchecked found 0 hits, so there are no escape hatches whose soundness argument needs writing down."
+    },
+    {
+     "technique": "trusted-leaf-gets-an-outside-test",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/Cargo.toml:23 There are no external_body or trusted function bodies and no prover, so there is no trusted leaf that needs a witness from outside."
+    },
+    {
+     "technique": "leaf-spec-states-what-callers-read",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/Cargo.toml:23 No function is marked trusted, so no trusted contract has to be sized to what its callers read."
+    },
+    {
+     "technique": "verdict-pins-its-checker",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/src/house_ledger.rs:117 HeadVerdict is the result of a domain-level comparison of signed HOUSE heads made by compare_heads. It is not the verdict of a prover, linter or type checker. The witness that stores it lives in table-ledger, outside this context."
+    }
+   ],
+   "absenceTerms": [
+    "unsafe",
+    "unsafe impl",
+    "external_body",
+    "set_var",
+    "assume"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-09T22:57:48.541907+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "trust-base"
+   ],
+   "techniques": [
+    "assumptions-are-build-errors",
+    "census-counts-unmarked-members",
+    "leaf-spec-states-what-callers-read",
+    "marker-impl-names-its-exclusion",
+    "soundness-argument-names-its-dependencies",
+    "trusted-leaf-gets-an-outside-test",
+    "verdict-pins-its-checker",
+    "verifier-footprint-stays-contained"
+   ],
+   "deviations": 0,
+   "context": "table-wire-protocol",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
