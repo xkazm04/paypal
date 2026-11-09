@@ -6334,52 +6334,62 @@
       "subject": "subprocess-lifecycle",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-26",
-      "evaluatedTs": "2026-10-26T22:26:05.331Z",
-      "worker": "d97b7f27-af4d-4d9f-a2a4-a761681cbf82",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T22:17:13.594Z",
+      "worker": "8d7790be-34c3-4b18-bcae-b01d76aa8e03",
       "techniques": [
-        {
-          "technique": "spawn-contract",
-          "verdict": "conformant",
-          "evidence": "crates/table-engine/src/native.rs:78 One door, `fn command()`: env_clear plus the ENV_ALLOW allowlist, and the two wallet credentials injected one by one. The argv is a vector from a closed builder (argv.rs). The program is a canonical absolute path (resolve.rs). Each run gets a private cwd, and stdin is closed after the prompt. Gaps: the search path is the ambient PATH plus user directories, not sanitized, and this crate emits no spawn record (resolved exe, argv, env names)."
-        },
         {
           "technique": "termination-and-reaping",
           "verdict": "deviation",
-          "evidence": "crates/table-engine/src/native.rs:250 There is no ladder. The kill is immediate: the job close plus child.kill, with no polite stop and no grace deadline, and the rung is not recorded. The rest is realized: the tree is killed through the KILL_ON_JOB_CLOSE job assigned while the child is suspended (windows_job.rs), there is a kill_on_drop backstop, the reap is a wait, and the Error vocabulary is closed (Spawn/Attach/Exit{code}/Cancelled/Timeout). Orphan directories are swept at startup under a lock check."
+          "evidence": "crates/table-engine/src/native.rs:252 Several parts are realized: a kernel job binding attached while the child is still suspended (windows_job.rs), kill_on_drop, an unconditional child.wait() after the kill, and distinct Spawn/Attach/Exit{code}/Timeout/Cancelled errors. The ladder itself is missing: no polite stop, no grace deadline, and the rung used is never recorded."
         },
         {
           "technique": "cancellation-needs-a-terminable-unit",
           "verdict": "conformant",
-          "evidence": "crates/table-engine/src/native.rs:245 The work runs in a child process inside a job object. Cancel races the run and then kills the tree, so stopping is a fact and does not depend on the child cooperating. The test cancellation_kills_descendants_and_dropped_runs_remove_registration checks that the grandchild is gone. No signalled-versus-reaped counts are emitted."
-        },
-        {
-          "technique": "concurrency-and-slots",
-          "verdict": "conformant",
-          "evidence": "crates/table-engine/src/native.rs:398 Each run gets its own private directory and cwd, created by the door and removed when it drops. A file lock on it gives machine-scoped exclusion across app instances, and the startup sweep checks that lock. The global admission cap is not in this context (see notes)."
+          "evidence": "crates/table-engine/src/native.rs:248 A cancel races the run and is enforced by killing the job/process tree, a unit the host can survive losing. No cooperative token is relied on. The signalled-vs-reaped counts are not emitted."
         },
         {
           "technique": "liveness-and-heartbeats",
           "verdict": "deviation",
-          "evidence": "crates/table-engine/src/native.rs:204 Time to first contact (Init) has its own deadline (limits.init, line 202). After input is sent, the read waits with no stall threshold and no per-run activity record, so a wedged child is only found at the 120s ceiling and looks the same as a slow one."
+          "evidence": "crates/table-engine/src/native.rs:207 The time-to-first-contact deadline is separate and arms correctly (line 205). After Init, though, reads wait without bound until the 120s total ceiling. There is no activity record per run, no stalled state and no degraded claim."
         },
         {
           "technique": "host-resource-protection",
           "verdict": "deviation",
-          "evidence": "crates/table-engine/src/native.rs:246 A 120s ceiling exists, and the output budgets (4 MiB total, 64 KiB per line) end the run. Missing: Error::Timeout carries no ceiling value, and cause() returns None for it. Nothing checks memory or CPU pressure before a spawn: rg for pressure, GlobalMemoryStatus and sysinfo over crates/ found nothing."
+          "evidence": "crates/table-engine/src/native.rs:178 Every run gets a default ceiling (RunLimits 10s init / 120s total), and output is budgeted at 4 MiB total and 64 KiB per line. But nothing samples memory or CPU pressure before the spawn, there is no memory budget on the job, and Error::Timeout does not record the ceiling's value."
         },
         {
           "technique": "session-reuse",
           "verdict": "not-applicable",
-          "evidence": "crates/table-engine/src/native.rs:167 Every run is a cold, ephemeral spawn: Claude runs with --no-session-persistence and Codex with --ephemeral. No warm pool and no resumed sessions."
+          "evidence": "crates/table-engine/src/native.rs:170 Every run is a deliberate cold, ephemeral spawn with a fresh per-run session uuid. There is no warm pool or resumable session to fingerprint."
         },
         {
           "technique": "decode-child-output-per-line",
           "verdict": "not-applicable",
-          "evidence": "crates/table-engine/src/native.rs:310 stdout is a JSONL protocol stream with a declared UTF-8 encoding, decoded strictly per line. The technique excludes declared-encoding protocol streams. stderr is drained and thrown away, not decoded."
+          "evidence": "crates/table-engine/src/native.rs:423 The output is a declared-UTF-8 JSONL protocol stream, decoded strictly by that declaration (an invalid line is an error, not a lossy guess). The technique's own carve-out covers this case. stderr is drained and dropped."
+        },
+        {
+          "technique": "spawn-contract",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/native.rs:78 One door, `fn command()`: env_clear plus the ENV_ALLOW allowlist, and the two wallet credentials injected one by one. The argv is a vector from a closed builder (argv.rs). The program is a canonical absolute path (resolve.rs). Each run gets a private cwd, and stdin is closed after the prompt. Gaps: the search path is the ambient PATH plus user directories, not sanitized, and this crate emits no spawn record (resolved exe, argv, env names).",
+          "carriedFrom": "2026-10-26"
+        },
+        {
+          "technique": "concurrency-and-slots",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/native.rs:398 Each run gets its own private directory and cwd, created by the door and removed when it drops. A file lock on it gives machine-scoped exclusion across app instances, and the startup sweep checks that lock. The global admission cap is not in this context (see notes).",
+          "carriedFrom": "2026-10-26"
         }
       ],
-      "registryProposal": "termination-and-reaping requires a polite rung for every child. Here the children are untrusted, ephemeral agent CLIs (no session persistence, contained in a job object, nothing to flush), and an immediate tree kill is arguably the safer choice: a grace period gives the untrusted child more time to act after cancel. The technique could say when skipping the polite rung is correct (the child holds no state worth flushing, or stopping it is a security action) and require only that the skip be recorded."
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "crates/table-engine/src/native.rs:249 On cancel, timeout or any finish, the run drops the Windows job straight away. That kills the whole tree with no polite stop, no grace deadline and no record of which rung was used. The process lives under a ceiling, but nothing checks machine pressure before the spawn and no stalled state is tracked after first contact.",
+          "evaluatedAt": "2026-10-26T22:26:05.331Z",
+          "worker": "d97b7f27-af4d-4d9f-a2a4-a761681cbf82",
+          "reason": "replaced by 8d7790be-34c3-4b18-bcae-b01d76aa8e03"
+        }
+      ]
     },
     "a1a41cac-6c94-418e-8740-5d1188336cb0/talking-avatar": {
       "context": "director-takes-rig",
