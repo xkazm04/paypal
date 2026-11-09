@@ -1,0 +1,145 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2509a544-b24f-4ead-b253-331647179ecc",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-09T01:20:20.057517+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "shared-ui-primitives",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:39 The source-text walk over the shared/ui primitives asserts zero offenders with no floor on files read, and its readdirSync is not recursive, so an emptied or relocated population reports the same green as a clean tree.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:39 Comments are stripped and the needle is proved, but the walk declares no floor; line 51 only asserts hits equal an empty list. Low severity while the directory is flat. The file sits beside the listed paths and walks them."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:42 Seeded fragments prove the matcher fires per slot, and one seeded comment-only line proves it stays quiet."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/hold.test.tsx:7 The hold duration is proved on a faked clock, so machine load cannot move the verdict."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/layers.test.tsx:40 After asserting the handler did not fire under a layer, the test shows it does fire with no layer, so the not-called assertion has a reachable witness."
+    }
+   ],
+   "registryProposal": "pin-the-call-not-the-name could say what a floor must cover when a seeded fragment already proves the needle: the seeded control keeps the needle honest but says nothing about the population, and a non-recursive directory read loses files without any count moving."
+  },
+  {
+   "context": "rescue-spend-shield-modules",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/console/areas/rescue/rescue.test.tsx:121 The pin named 'keeps no user-facing text inline' has no seeded control or floor, and evaluated in memory this regex finds nothing in text on its own line or in text following a JSX expression, so it stays green on both of those forms of inline English.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/rescue/rescue.test.tsx:121 Measured in memory: single-line text 1 hit, multi-line text 0, text after an expression 0. Today it reads 0 hits on a clean 39-line file. The sibling shared/ui words.test.ts seeds its counter; this pin does not. The pin at normal.test.ts:165 is well shaped, with an argument list in its needle."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/rescue/rescue.test.tsx:80 The test named for the fix travelling as a draft asserts that hand-off only inside this branch, so a disabled discount skips the claim and the test still passes. Read, not run; whether the branch is taken today was not established."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/console/areas/rescue/RescueLayer.tsx:19 The model the unit tests drive is imported by the shipped Rescue layer, so those tests sit on the production path."
+    }
+   ]
+  },
+  {
+   "context": "design-theme-and-copy",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/lib/contrast.test.ts:42 The contrast test finds the light block with an unchecked indexOf over raw CSS, and in memory a renamed selector gives split -1 so the dark arm silently audits the light palette (dark.bg #e6ebf0, equal to light.bg), while a comment naming the selector above it empties the dark tokens.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/contrast.test.ts:42 No check that the marker matched, and the haystack keeps its comments, so it fails toward green on a rename and toward red on prose. As-is split is 10281 and correct; both failure cases were evaluated in memory, not in the suite."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/polish3.test.ts:36 The file names the lane that covers the rendered page its own assertions do not reach."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "attention-forecast-and-window-placement",
+   "reason": "evidence leans on native/surface.rs, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T01:20:20.057517+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "shared-ui-primitives",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T01:20:20.057517+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "pin-the-call-not-the-name",
+    "proved-off-the-path",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "rescue-spend-shield-modules",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T01:20:20.057517+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "design-theme-and-copy",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

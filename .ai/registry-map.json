@@ -3205,7 +3205,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/lib/contrast.test.ts:42 The contrast test finds the light block with an unchecked indexOf over raw CSS, and in memory a renamed selector gives split -1 so the dark arm silently audits the light palette (dark.bg #e6ebf0, equal to light.bg), while a comment naming the selector above it empties the dark tokens.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "voice-io",
@@ -6896,7 +6900,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/rescue/rescue.test.tsx:121 The pin named 'keeps no user-facing text inline' has no seeded control or floor, and evaluated in memory this regex finds nothing in text on its own line or in text following a JSX expression, so it stays green on both of those forms of inline English.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "agent-cli-transport",
@@ -8211,7 +8219,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:39 The source-text walk over the shared/ui primitives asserts zero offenders with no floor on files read, and its readdirSync is not recursive, so an emptied or relocated population reports the same green as a clean tree.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",
