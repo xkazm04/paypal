@@ -18,7 +18,7 @@ import { APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, TABLES_TRADE } from '../../
 import { Quarantine, WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Loading, type BtnKind } from '../../../../../shared/ui';
 import { useLocked } from '../../../world';
-import { Reveal, Skeleton } from '../../stagger';
+import { Staged, Skeleton } from '../../stagger';
 
 /** A button that opens the approval window on `args`. `onOpened` runs once it opened. */
 export function HandOff({ args, children, kind = 'gold', sm, title, onOpened, className, disabled }: {
@@ -74,9 +74,9 @@ export function SplitView({ list, pane, label, count }: { list: ReactNode; pane:
     <div className={`tr-split${count <= FIT_ROWS ? ' fit' : ''}`}>
       <div className="tr-list"><RowNoteContext.Provider value={false}>{list}</RowNoteContext.Provider></div>
       {/* The picked row's pane takes its turn one beat after the list (stagger.tsx). */}
-      <Reveal wave={2} skeleton={<Skeleton className="tr-pane" />}>
+      <Staged wave={2} skeleton={<Skeleton className="tr-pane" />}>
         <section className="tr-pane" aria-label={label} aria-live="polite">{pane ?? <p className="le-empty">{TABLES_TRADE.pick}</p>}</section>
-      </Reveal>
+      </Staged>
     </div>
   );
 }

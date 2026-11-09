@@ -31,7 +31,7 @@ import { Btn, ExplainHint, Placeholder, ReadFailed } from '../../../../../shared
 import type { LayerProps } from '../../layers';
 import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
 import { fitHeight, PlaceFrame, type LensCard } from '../settings/frame';
-import { Reveal, Skeleton } from '../../stagger';
+import { Staged, Skeleton } from '../../stagger';
 import type { RewindState } from './clock';
 import { useTimeline } from './useTimeline';
 import type { Labeller } from './Scrubber';
@@ -138,7 +138,7 @@ export function RewindLayer({ nav, state }: LayerProps) {
         // the tape (the list) comes before them (stagger.tsx). Above them, the sentence that draws on them.
         <>
         {sayIt && sayOpen ? <SayPanel said={said} compact /> : null}
-        <Reveal wave={3} sizeKey="rewind:hub" skeleton={<Skeleton className="rw-host" h="23rem" />}>
+        <Staged wave={3} sizeKey="rewind:hub" skeleton={<Skeleton className="rw-host" h="23rem" />}>
           <div className="rw-host" ref={picture}>
             <Suspense fallback={<Placeholder what={READING_WHAT.picture} shape="pane" />}>
               {/* A one-time sweep-in when the picture mounts; the Reveals animate on mount only, so scrubbing never replays it. */}
@@ -146,7 +146,7 @@ export function RewindLayer({ nav, state }: LayerProps) {
               <Sweep><RewindBar r={r} labelOf={labelOf} onOpenDeal={nav.deal} ahead={ahead} /></Sweep>
             </Suspense>
           </div>
-        </Reveal>
+        </Staged>
         </>
       )}>
       <section className="rw-tape" aria-label={REWIND_TAPE.title} style={{ height: `calc(${fitHeight(Math.min(tape.length, TAPE_PAGE), 38, '70vh')} + 2rem)` }}>

@@ -21,7 +21,7 @@ import { ContentCrumbs } from './CrumbTrail';
 import { crumbItems } from './crumbItems';
 import { Latest, LatestSkeleton, type LatestProps } from './Latest';
 import { MAX_CARDS, ModuleSummary, type ModuleCard } from './ModuleSummary';
-import { Reveal, Skeleton } from './stagger';
+import { Staged, Skeleton } from './stagger';
 
 /** A nested detail view of a module. */
 export type ModuleViewDef = {
@@ -98,9 +98,9 @@ export function ModuleLayer(p: ModuleLayerProps) {
           {view.sub ? <p className="ml-sub">{view.sub}</p> : null}
           {view.actions ? <div className="cs-acts">{view.actions}</div> : null}
         </header>
-        <Reveal wave={1} sizeKey={`${p.module}:view:${route.view}`} skeleton={<Skeleton className="ml-vbody" h="16rem" />}>
+        <Staged wave={1} sizeKey={`${p.module}:view:${route.view}`} skeleton={<Skeleton className="ml-vbody" h="16rem" />}>
           <div className="ml-vbody">{view.render()}</div>
-        </Reveal>
+        </Staged>
       </div>
     );
   }
@@ -131,15 +131,15 @@ export function ModuleLayer(p: ModuleLayerProps) {
         </div>
         {/* The answer, Your call and the action are wave 0 (stagger.tsx); the cards take their turn. */}
         {p.cards?.length ? (
-          <Reveal wave={1} sizeKey={`${p.module}:cards`} skeleton={<Skeleton className="ml-cards" blocks={Math.min(p.cards.length, MAX_CARDS)} block="ui-sumcard compact" style={{ '--n': Math.min(p.cards.length, MAX_CARDS) } as CSSProperties} />}>
+          <Staged wave={1} sizeKey={`${p.module}:cards`} skeleton={<Skeleton className="ml-cards" blocks={Math.min(p.cards.length, MAX_CARDS)} block="ui-sumcard compact" style={{ '--n': Math.min(p.cards.length, MAX_CARDS) } as CSSProperties} />}>
             <ModuleSummary cards={p.cards} />
-          </Reveal>
+          </Staged>
         ) : null}
       </header>
-      {p.latest ? <Reveal wave={2} sizeKey={`${p.module}:latest`} skeleton={<LatestSkeleton {...p.latest} />}><Latest {...p.latest} /></Reveal> : null}
-      {p.children ? <Reveal wave={2} sizeKey={`${p.module}:body`} skeleton={<Skeleton className="ml-body" h="8rem" />}><div className="ml-body">{p.children}</div></Reveal> : null}
+      {p.latest ? <Staged wave={2} sizeKey={`${p.module}:latest`} skeleton={<LatestSkeleton {...p.latest} />}><Latest {...p.latest} /></Staged> : null}
+      {p.children ? <Staged wave={2} sizeKey={`${p.module}:body`} skeleton={<Skeleton className="ml-body" h="8rem" />}><div className="ml-body">{p.children}</div></Staged> : null}
       {nothing ? <p className="ml-empty">{p.empty ?? MODULE_EMPTY}</p> : null}
-      {p.explain ? <Reveal wave={3} skeleton={<Skeleton className="ml-explain" blocks={1} />}><Disclosure summary={p.explain.summary} className="ml-explain">{p.explain.body}</Disclosure></Reveal> : null}
+      {p.explain ? <Staged wave={3} skeleton={<Skeleton className="ml-explain" blocks={1} />}><Disclosure summary={p.explain.summary} className="ml-explain">{p.explain.body}</Disclosure></Staged> : null}
     </div>
   );
 }

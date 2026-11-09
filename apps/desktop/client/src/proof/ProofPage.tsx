@@ -9,7 +9,7 @@ import { ARENA_PROOF } from '../lib/words/arena';
 import { ProofChecker, type ProofSource } from '../shared/proofcheck/ProofChecker';
 // The console's reveal sequence (a no-op on the standalone page, which has no <Stagger>): the heading
 // paints first, the checker (the heavy part) takes the next wave.
-import { Reveal, Skeleton } from '../windows/main/console/stagger';
+import { Staged, Skeleton } from '../windows/main/console/stagger';
 
 /** The standing marker, worded as the director's banner is: sample data, not the wallet. */
 const SAMPLE_NOTE = 'Practice deal on sample data, not the wallet. Nothing here is a real payment; the checks themselves are real.';
@@ -56,10 +56,10 @@ export function ProofPage({ host = 'page' }: { host?: 'page' | 'console' } = {})
           <a className="ui-btn sm" href={way.demo ? link('') : link('?demo=1')}>{way.demo ? PROOF_CHECKER.page.stop : PROOF_CHECKER.page.watch}</a>
         </p>
       </header>
-      <Reveal wave={1} sizeKey="proof:checker" skeleton={<Skeleton h="62rem" />}>
+      <Staged wave={1} sizeKey="proof:checker" skeleton={<Skeleton h="62rem" />}>
         {source ? <ProofChecker key={source.name} source={source} samples={SAMPLES} own={AUTHORITY_MANIFEST} heading={false} lede={false} level={2} ownerChecklist {...way} />
           : <p className="pf-lede" role="status">{ARENA_PROOF.loading}</p>}
-      </Reveal>
+      </Staged>
     </Shell>
   );
 }

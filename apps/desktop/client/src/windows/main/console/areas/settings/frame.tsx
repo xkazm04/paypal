@@ -15,7 +15,7 @@ import { IF_NOTHING, LAYER_LOADING, PLACE_FRAME, YOUR_CALL } from '../../../../.
 import { Chip, Disclosure, UNKNOWN, type ChipTone } from '../../../../../shared/ui';
 import { useSheetView } from '../../layers';
 import { Latest, LatestSkeleton, type LatestProps } from '../../Latest';
-import { Reveal, Skeleton, type Wave } from '../../stagger';
+import { Staged, Skeleton, type Wave } from '../../stagger';
 
 /** One card of a place: a figure or status that opens a nested view (or moves to another layer). */
 export type LensCard = {
@@ -151,7 +151,7 @@ export function PlaceFrame(p: PlaceFrameProps) {
         {p.aside ? <div className="pf-aside">{p.aside}</div> : null}
       </header></Rise>
       {p.lead}
-      {cards.length ? (<Reveal wave={1} sizeKey={`${p.place ?? p.root}:cards`} skeleton={<Skeleton className="pf-cards" blocks={cards.length} block="ui-sumcard pf-card" style={{ '--n': cards.length } as CSSProperties} />}>
+      {cards.length ? (<Staged wave={1} sizeKey={`${p.place ?? p.root}:cards`} skeleton={<Skeleton className="pf-cards" blocks={cards.length} block="ui-sumcard pf-card" style={{ '--n': cards.length } as CSSProperties} />}>
         <section className="pf-cards" aria-label={PLACE_FRAME.cards} style={{ '--n': cards.length } as CSSProperties}>
           {cards.map((c) => {
             const on = open === c.id && !!c.view;
@@ -179,8 +179,8 @@ export function PlaceFrame(p: PlaceFrameProps) {
             );
           })}
         </section>
-      </Reveal>) : null}
-      {current?.view ? (<Reveal wave={1} skeleton={<Skeleton className="pf-view" h="12rem" />} sizeKey={`${p.place ?? p.root}:view:${current.id}`}>
+      </Staged>) : null}
+      {current?.view ? (<Staged wave={1} skeleton={<Skeleton className="pf-view" h="12rem" />} sizeKey={`${p.place ?? p.root}:view:${current.id}`}>
         <section className="pf-view" id={`${baseId}-view`} ref={viewRef} aria-labelledby={`${baseId}-vh`} onKeyDown={onViewKey} data-view={current.id}>
           <header className="pf-vhead">
             <h2 className="pf-vtitle" id={`${baseId}-vh`} tabIndex={-1} data-view-title="">{current.view.title}</h2>
@@ -188,12 +188,12 @@ export function PlaceFrame(p: PlaceFrameProps) {
           </header>
           <div className="pf-vbody"><Suspense fallback={<p className="layer-loading" role="status">{LAYER_LOADING}</p>}>{current.view.render()}</Suspense></div>
         </section>
-      </Reveal>) : null}
-      {p.children ? <Reveal wave={p.childrenWave ?? 2} sizeKey={`${p.place ?? p.root}:content`} skeleton={(p.childrenWave ?? 2) ? <Skeleton h="6rem" /> : undefined}>{p.children}</Reveal> : null}
+      </Staged>) : null}
+      {p.children ? <Staged wave={p.childrenWave ?? 2} sizeKey={`${p.place ?? p.root}:content`} skeleton={(p.childrenWave ?? 2) ? <Skeleton h="6rem" /> : undefined}>{p.children}</Staged> : null}
       {p.latest && !current ? (Array.isArray(p.latest) ? p.latest : [p.latest]).map((l: LatestProps) => (
-        <Reveal key={l.title} wave={2} sizeKey={`${p.place ?? p.root}:latest:${l.title}`} skeleton={<LatestSkeleton {...l} />}><Latest {...l} /></Reveal>
+        <Staged key={l.title} wave={2} sizeKey={`${p.place ?? p.root}:latest:${l.title}`} skeleton={<LatestSkeleton {...l} />}><Latest {...l} /></Staged>
       )) : null}
-      {p.explain ? <Reveal wave={3} skeleton={<Skeleton className="pf-explain" blocks={1} />}><Disclosure summary={p.explain.summary} className="pf-explain">{p.explain.body}</Disclosure></Reveal> : null}
+      {p.explain ? <Staged wave={3} skeleton={<Skeleton className="pf-explain" blocks={1} />}><Disclosure summary={p.explain.summary} className="pf-explain">{p.explain.body}</Disclosure></Staged> : null}
     </div>
   );
 }

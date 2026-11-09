@@ -26,9 +26,9 @@ export type FooterProps = {
   onHelp: () => void;
 };
 
-/** The console re-renders every second (setup/start.ts useStart reads the clock) and hands the
- *  footer new arrow functions each time: the footer keeps the latest in a ref and draws through a
- *  memoised body with stable handlers, so the tick re-renders this thin shell only (measured). */
+/** The console hands the footer new arrow functions on each of its renders: the footer keeps the
+ *  latest in a ref and draws through a memoised body with stable handlers, so a console render
+ *  re-renders this thin shell only. */
 export function Footer(p: FooterProps) {
   const latest = useRef(p);
   latest.current = p;

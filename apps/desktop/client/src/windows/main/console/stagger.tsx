@@ -323,11 +323,6 @@ export function Staged({ wave, priority = 0, skeleton, sizeKey, children }: Stag
   );
 }
 
-/** @deprecated The old name of `Staged`, kept only until the last importers outside the motion
- *  package (arena/BreakTheTable, proof/ProofPage, console/Centre, console/ModuleLayer,
- *  areas/rewind/RewindLayer, areas/settings/frame, areas/tables/parts) import `Staged`. */
-export const Reveal = Staged;
-
 /** A skeleton with a remembered height: the skeleton's own estimate is the floor until the part has
  *  shown once. */
 function SkeletonRoom({ h, children }: { h: number | undefined; children: ReactNode }) {
