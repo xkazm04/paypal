@@ -10513,6 +10513,48 @@
           "evidence": "apps/desktop/client/src/mock/backend.ts:159 The mock's gate is the generated Rust table, not a hand-walked copy."
         }
       ]
+    },
+    "dfab992a-8315-4db9-b496-6aa38639cf8c/test-harness": {
+      "context": "ledger-repositories-audit-evidence",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:15:03.595Z",
+      "worker": "25c1659c-8a75-4c98-ad09-a9730c46be91",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/audit_detail.rs:512 The comment on line 511 claims the cut removes a test module, but the needle matches any use of the attribute, so the walk's haystack fails toward green. The same cut is repeated at line 595."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/lib.rs:131 Older-ledger fixtures are the current schema with hand-listed DROPs (tests.rs:209 leaves generation_at in a 'v5' store), a shape no real older file has, and production carries the !has_reset_column branches (lib.rs:137, :146) only to tolerate it."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/audit_detail.rs:507 The walk declares floors on files and matches, which catch an empty walk but not the partial truncation recorded above."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/live_deals_tests.rs:255 The only elapsed-time measurement found in the listed files is an ignored probe that prints and asserts no duration."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/tests.rs:17 Each test gets a private in-memory store built by the real migration chain, so it cannot go stale; the per-test cost was not measured."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/lib.rs:74 The file-backed open that production uses and the in-memory fixture share one construction function."
+        }
+      ],
+      "registryProposal": "pin-the-call-not-the-name could name the section-boundary case: a needle used to cut a file at its test section also matches the same attribute on single fields and statements, and a count floor cannot see that partial truncation because the remaining files still clear it."
     }
   }
 }

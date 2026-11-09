@@ -4756,7 +4756,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-ledger/src/audit_detail.rs:512 The audit-action walk discards everything after a file's first #[cfg(test)], and that attribute also decorates single fields and statements, so production writers such as run.finish (engines.rs:481, after the marker at :474) and owner.decision (service.rs:693, after the marker at :175) are never read while the floors stay satisfied.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         }
       ],
       "governance": "governed"

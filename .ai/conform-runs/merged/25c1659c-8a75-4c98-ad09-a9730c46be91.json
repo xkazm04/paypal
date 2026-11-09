@@ -1,0 +1,93 @@
+{
+ "schema": "conform-run/1",
+ "worker": "25c1659c-8a75-4c98-ad09-a9730c46be91",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-09T02:15:03.595819+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "ledger-repositories-audit-evidence",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-ledger/src/audit_detail.rs:512 The audit-action walk discards everything after a file's first #[cfg(test)], and that attribute also decorates single fields and statements, so production writers such as run.finish (engines.rs:481, after the marker at :474) and owner.decision (service.rs:693, after the marker at :175) are never read while the floors stay satisfied.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/audit_detail.rs:512 The comment on line 511 claims the cut removes a test module, but the needle matches any use of the attribute, so the walk's haystack fails toward green. The same cut is repeated at line 595."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/lib.rs:131 Older-ledger fixtures are the current schema with hand-listed DROPs (tests.rs:209 leaves generation_at in a 'v5' store), a shape no real older file has, and production carries the !has_reset_column branches (lib.rs:137, :146) only to tolerate it."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/audit_detail.rs:507 The walk declares floors on files and matches, which catch an empty walk but not the partial truncation recorded above."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/live_deals_tests.rs:255 The only elapsed-time measurement found in the listed files is an ignored probe that prints and asserts no duration."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/tests.rs:17 Each test gets a private in-memory store built by the real migration chain, so it cannot go stale; the per-test cost was not measured."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/lib.rs:74 The file-backed open that production uses and the in-memory fixture share one construction function."
+    }
+   ],
+   "registryProposal": "pin-the-call-not-the-name could name the section-boundary case: a needle used to cut a file at its test section also matches the same attribute on single fields and statements, and a count floor cannot see that partial truncation because the remaining files still clear it."
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "book-module",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "owner-mandate-config",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "table-wire-protocol",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T02:15:03.595819+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "assert-the-schedule-not-the-stopwatch",
+    "derived-selection-must-be-measured",
+    "fixture-economics",
+    "pin-the-call-not-the-name",
+    "proved-off-the-path"
+   ],
+   "deviations": 1,
+   "context": "ledger-repositories-audit-evidence",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
