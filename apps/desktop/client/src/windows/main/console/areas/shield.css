@@ -23,6 +23,7 @@
 .ar-shield .sh-row.k-clear .sh-lead { color: var(--ok); }
 .ar-shield .sh-what { font-weight: var(--fw-semibold); }
 .ar-shield .c-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-shield .sh-quiet { margin: 0 0 var(--sp-2); }
 .ar-shield .sh-sub { color: var(--muted); font-size: var(--fs-small); }
 
 /* ---- a paused payment, beside the list ------------------------------------------------------------- */

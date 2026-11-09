@@ -3,7 +3,7 @@
 import type { Deal } from '@bindings/Deal';
 import type { Money } from '@bindings/Money';
 import { formatMoney } from '../../../lib/format';
-import { timeLeftWords } from '../../../lib/words';
+import { MONEY_CHECK_SILENCE, MONEY_CHECK_SILENCE_SHORT, timeLeftWords } from '../../../lib/words';
 import type { ChipTone } from '../../../shared/ui';
 import { dealTotal, sumByCurrency, type ChipClass } from '../logic';
 
@@ -12,6 +12,9 @@ export function silenceParts(text: string): { head: string; rest: string | null 
   const i = text.indexOf(' · ');
   return i < 0 ? { head: text, rest: null } : { head: text.slice(0, i), rest: text.slice(i + 3) };
 }
+
+/** What silence does, as short as a list row can say it: the head of the line, and the one line whose head is a whole paragraph in its short wording. */
+export const silenceShort = (text: string): string => (text === MONEY_CHECK_SILENCE ? MONEY_CHECK_SILENCE_SHORT : silenceParts(text).head);
 
 const TONE: Record<ChipClass, ChipTone> = { live: 'teal', wait: 'gold', held: 'gold', done: 'ok', bad: 'red', off: 'line' };
 /** The v2 chip tone for a deal's state class (text + colour, never colour alone). */

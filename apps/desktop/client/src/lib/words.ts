@@ -583,6 +583,8 @@ export function moneyCheckWord(c: MoneyCheck): { text: string; means: string } {
 }
 /** The card's "if you do nothing" line while PayPal is being asked (the same words Rust sends). */
 export const MONEY_CHECK_SILENCE = 'at the deadline the wallet asks PayPal what happened, and what PayPal shows decides: a payment PayPal already took stays paid';
+/** That line where a list row answers it; the whole line is the row's accessible name and is on the deal. */
+export const MONEY_CHECK_SILENCE_SHORT = 'at the deadline the wallet asks PayPal';
 /** The card's line once the deal ended before PayPal showed what happened (the same words Rust sends). */
 export const MONEY_CHECK_ENDED_SILENCE = 'the deal has ended and the wallet sends nothing more: look at this payment in PayPal';
 /** The deal page's answer for that end: what PayPal could not show, and what to do. */
@@ -913,6 +915,8 @@ export const STALE_PART: Record<'settings' | 'deals' | 'attention' | 'runs' | 'l
 /** The layers' names, as the crumbs and the Find list say them. */
 export const CENTRE_TITLE = 'What needs you';
 export const WAITING_TITLE = 'Everything waiting';
+/** The column heads of the waiting list (the fourth is IF_NOTHING: said once here, each row answers it). */
+export const WAITING_COLS = { who: 'Who', amount: 'Amount', call: 'Your call', left: 'Time left' } as const;
 export const REWIND_TITLE = 'Rewind';
 /** The places in the top bar. */
 export const PLACE = { rewind: 'Rewind', rules: 'Rules', connections: 'Connections', settings: 'Settings', find: 'Find', try: 'Break it', proof: 'Proof', director: 'Preview' } as const;

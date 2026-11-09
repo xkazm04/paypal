@@ -27,6 +27,7 @@
 .ar-rescue .rs-total { margin: 0; font-size: var(--fs-title3); }
 .ar-rescue .rs-total b { font-family: var(--num); font-weight: var(--fw-medium); }
 .ar-rescue .rs-never { margin: 0; max-width: 60rem; }
+.ar-rescue .rs-quiet { margin: 0; }
 
 /* the comparison: one row per renewal, the five fixes as short cells (labels in each cell) */
 .ar-rescue .rs-cell { display: flex; align-items: baseline; gap: var(--sp-1); }

@@ -255,7 +255,10 @@ body.w-main { --cs-bar: 3.25rem; --sheet-top: var(--cs-bar); }
 .cs-waiting .ui-list-body { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .cs-wscroll { flex: 1 1 0; min-height: 0; overflow: auto; outline: none; }
 .cs-wrow-wrap { padding: 2px 0; }
-.cs-wrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: var(--sp-3); width: 100%; height: 100%; padding: 0 var(--sp-3);
+.cs-whead, .cs-wrow { grid-template-columns: 6px minmax(9rem, 1.1fr) 6.5rem minmax(7rem, 0.8fr) minmax(0, 1.5fr) 7.5rem; }
+.cs-whead { display: grid; gap: var(--sp-3); padding: 0 var(--sp-3) var(--sp-1); color: var(--dim); font: var(--fw-medium) var(--fs-small)/1.2 var(--label); font-stretch: var(--label-stretch); letter-spacing: var(--track-label); text-transform: uppercase; }
+.cs-whead .r { text-align: right; }
+.cs-wrow { display: grid; align-items: center; gap: var(--sp-3); width: 100%; height: 100%; padding: 0 var(--sp-3);
   text-align: left; font: inherit; color: var(--text); cursor: pointer; border: 0; border-radius: var(--r-card); background: color-mix(in srgb, var(--bg) 45%, transparent);
   box-shadow: inset 3px 0 0 var(--c), 0 0 0 1px var(--line); }
 .cs-wrow:hover, .cs-wrow[data-focused] { background: var(--sel); }
@@ -264,10 +267,10 @@ body.w-main { --cs-bar: 3.25rem; --sheet-top: var(--cs-bar); }
 .cs-wrow .t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .cs-wrow .t > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cs-wrow .t b { font-weight: var(--fw-semibold); }
-.cs-wrow .t b .amt { font-family: var(--num); font-variant-numeric: tabular-nums; color: var(--gold-l); }
+.cs-wrow .amt { text-align: right; font-family: var(--num); font-variant-numeric: tabular-nums; color: var(--gold-l); }
+.cs-wrow .call { font-weight: var(--fw-semibold); }
 .cs-wrow .t span { color: var(--muted); font-size: var(--fs-small); }
-.cs-wrow .t .sil { color: var(--dim); }
-.cs-wrow .m { color: var(--dim); font: var(--fw-medium) var(--fs-small)/1 var(--label); font-stretch: var(--label-stretch); letter-spacing: var(--track-label); text-transform: uppercase; }
+.cs-wrow .sil { color: var(--muted); font-size: var(--fs-small); line-height: 1.25; }
 .cs-wrow .when { min-width: 7rem; text-align: right; color: var(--gold-l); font: var(--fw-medium) var(--fs-small)/1 var(--num); font-variant-numeric: tabular-nums; }
 .cs-wrow .when.now { color: var(--red-l); }
 

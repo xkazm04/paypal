@@ -13,7 +13,7 @@ import { clockLabel, formatMinor } from '../../../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../../../lib/hooks';
 import { LATEST_OF, OPEN_THE_DEAL, RESCUE, RESCUE_REPLAY_ABOUT, RESCUE_WATCH_HOLD, RESCUE_WATCH_STATE, RESCUE_VIEWS_TITLE, RESCUE_WATCH_ABOUT, ruleSentence, watchingWords } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
-import { Btn, Chip, ExplainHint, Kv } from '../../../../../shared/ui';
+import { Btn, Chip, ExplainHint, Kv, Silence } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { dealTotal, sumByCurrency } from '../../../logic';
 import { atRiskOf, ifNothingOf, isReplay, recovered, refusalLine, recoveredThisMonth, watchStatus, type Col, type NotCountedWhy } from '../../../modules/rescue/model';
@@ -36,7 +36,8 @@ export function answerOf(r: RescueWorld): { answer: string; sub: string } {
     const n = r.rows.failing.length;
     const asks = r.rows.failing.some((d) => !!r.need(d));
     const t = atRiskOf(first, r.book);
-    const quiet = isReplay(first, r.view(first)) ? RESCUE.answer.replay : RESCUE.answer.retries;
+    // With a decision open, "Your call" says what doing nothing does: this line only adds what PayPal does.
+    const quiet = isReplay(first, r.view(first)) ? (asks ? RESCUE.answer.replayShort : RESCUE.answer.replay) : (asks ? RESCUE.answer.retriesShort : RESCUE.answer.retries);
     const sums = sumByCurrency(r.rows.failing.map((d) => atRiskOf(d, r.book))).map((m) => formatMinor(m.minor, m.currency)).join(' · ');
     return {
       answer: n === 1 ? RESCUE.answer.one(cap(r.name(first)), formatMinor(t.minor, t.currency), asks, isReplay(first, r.view(first))) : RESCUE.answer.many(n, sums, asks),
@@ -59,6 +60,15 @@ const CMP_COLS = { '--cols': 'minmax(9rem, 1.2fr) repeat(5, minmax(0, 1fr))' } a
 /** The head of the one "if you do nothing" answer (the same one the deal page and approval window print). */
 const quietHead = (d: Deal, r: RescueWorld): string => silenceParts(ifNothingOf(d, r.need(d)?.on_silence, r.view(d)) ?? '').head;
 
+/** The whole sentence of a row, as its accessible name: the row itself keeps to columns and one short note. */
+const rowSay = (d: Deal, r: RescueWorld): string => {
+  const need = r.need(d);
+  return [cap(r.name(d)), r.title(d), need ? `${RESCUE.ifNothing}: ${ifNothingOf(d, need.on_silence, r.view(d)) ?? ''}` : null, refusalLine(r.view(d))].filter(Boolean).join(', ');
+};
+
+/** The plan alone: the who column already names the subscriber. */
+const planOf = (d: Deal, r: RescueWorld): string => silenceParts(r.title(d)).head;
+
 function FailedRow({ deal, r }: { deal: Deal; r: RescueWorld }) {
   const need = r.need(deal);
   const t = atRiskOf(deal, r.book);
@@ -69,7 +79,7 @@ function FailedRow({ deal, r }: { deal: Deal; r: RescueWorld }) {
       <span className="rs-amt num">{formatMinor(t.minor, t.currency)}</span>
       <span className="rs-st">{need ? <Chip tone="gold">{RESCUE.yourCall}</Chip> : <RescueState deal={deal} />}</span>
       <span className="rs-st"><Countdown deadline={r.deadline(deal)} /></span>
-      <span className="rs-sub c-note">{r.title(deal)}{need ? <> · {RESCUE.ifNothing}: {quietHead(deal, r)}</> : null}{refused ? <> · <span className="rs-refusal">{refused}</span></> : null}</span>
+      <span className="rs-sub c-note">{refused ? <span className="rs-refusal">{RESCUE.refusal.short}</span> : planOf(deal, r)}</span>
     </span>
   );
 }
@@ -78,28 +88,34 @@ function ProgressRow({ deal, r }: { deal: Deal; r: RescueWorld }) {
   const need = r.need(deal);
   const view = r.view(deal);
   const t = dealTotal(deal);
+  // The first clause; "paid, receipt saved" is what the state and count chips already say.
+  const line = deskLine(deal, view);
+  const note = line === RESCUE.desk.paidVerified ? null : silenceParts(line).head;
   return (
     <span className={`row1 rs-row${need ? ' needs' : ''}`} style={ROW_COLS} title={cap(r.name(deal))}>
       <b className="rs-who" title={r.name(deal)}>{cap(r.name(deal))}</b>
       <span className="rs-amt num">{formatMinor(t.minor, t.currency)}</span>
       <span className="rs-st"><RescueState deal={deal} /></span>
       <span className="rs-st"><CountChip deal={deal} view={view} /></span>
-      <span className="rs-sub c-note">{need ? `${RESCUE.ifNothing}: ${quietHead(deal, r)}` : deskLine(deal, view)}</span>
+      <span className="rs-sub c-note">{note}</span>
     </span>
   );
 }
 
 /** The renewals that need a fix: the list, and the picked one's fixes beside it. */
 function Failed({ r, picked, onPick, compare }: { r: RescueWorld; picked: Record<string, Col>; onPick: (id: string, c: Col) => void; compare?: boolean }) {
+  // The rows keep to columns, so the list says once what silence does; the picked renewal's fixes say it in full.
+  const quiet = r.rows.failing.find((d) => r.need(d));
   const nav = useLayerNav();
   return (
     <div className={`rs-list${compare ? ' rs-compare' : ''}`}>
       {r.bookError ? <WalletNotice error={r.bookError} what={RESCUE.bookWhat} /> : null}
+      {!compare && quiet ? <p className="rs-quiet"><Silence text={quietHead(quiet, r)} /></p> : null}
       {compare ? <p className="ui-hint rs-never"><ExplainHint label={RESCUE.neverLabel} line={RESCUE.neverLine}>{RESCUE.never}</ExplainHint></p> : null}
       <ListEngine<Deal> className={fewRows(r.rows.failing.length)} label={compare ? RESCUE_VIEWS_TITLE.compare : RESCUE_VIEWS_TITLE.failed} rows={r.rows.failing} getKey={(d) => d.id} estimateSize={36} wideAt={1200}
         searchText={(d) => `${r.name(d)} ${r.title(d)}`}
         renderRow={(d) => (compare ? <span className="row1 rs-crow" style={CMP_COLS} title={`${cap(r.name(d))} · ${r.title(d)}`}><b className="rs-who" title={r.title(d)}>{cap(r.name(d))}</b><CompareCells deal={d} r={r} /></span> : <FailedRow deal={d} r={r} />)}
-        rowLabel={(d) => `${cap(r.name(d))}, ${r.title(d)}`}
+        rowLabel={(d) => rowSay(d, r)}
         onOpen={(d) => nav.deal(d.id)}
         detail={(d) => <FixPanel key={d.id} deal={d} r={r} col={picked[d.id] ?? 'NONE'} onPick={(c) => onPick(d.id, c)} onDeal={() => nav.deal(d.id)} />}
         empty={RESCUE.empty.failed} />
@@ -114,7 +130,7 @@ function Progress({ r }: { r: RescueWorld }) {
       {r.bookError ? <WalletNotice error={r.bookError} what={RESCUE.bookWhat} /> : null}
       <ListEngine<Deal> className={fewRows(r.rows.inflight.length)} label={RESCUE_VIEWS_TITLE.progress} rows={r.rows.inflight} getKey={(d) => d.id} estimateSize={36} wideAt={1200}
         searchText={(d) => `${r.name(d)} ${r.title(d)}`}
-        renderRow={(d) => <ProgressRow deal={d} r={r} />} rowLabel={(d) => cap(r.name(d))}
+        renderRow={(d) => <ProgressRow deal={d} r={r} />} rowLabel={(d) => rowSay(d, r)}
         onOpen={(d) => nav.deal(d.id)} detail={(d) => <DeskDetail deal={d} r={r} onDeal={() => nav.deal(d.id)} />}
         empty={RESCUE.empty.progress} />
     </div>
@@ -154,7 +170,8 @@ function Recovered({ r }: { r: RescueWorld }) {
               <span className={`rs-amt num${x.why === null ? ' okc' : ''}`}>{formatMinor(t.minor, t.currency)}</span>
               <span className="rs-st"><RescueState deal={x.deal} /></span>
               <span className="rs-st"><CountChip deal={x.deal} view={r.view(x.deal)} /></span>
-              <span className="rs-sub c-note">{x.why === null ? RESCUE.recovered.countsLine : RESCUE.notCounted[x.why]}</span>
+              {/* Counted, or sent and not paid: the count chip beside it already says so. */}
+              <span className="rs-sub c-note">{x.why === null || x.why === 'sent' ? null : RESCUE.notCounted[x.why]}</span>
             </span>
           );
         }}
@@ -235,7 +252,7 @@ function latestOf(r: RescueWorld, open: (v: string) => void, deal: (id: string) 
   return {
     title: LATEST_OF.rescue, total: rows.length,
     rows: rows.slice(0, MAX_ROWS).map((d) => ({
-      key: d.id, label: `${cap(r.name(d))}, ${r.title(d)}, ${OPEN_THE_DEAL}`, onOpen: () => deal(d.id),
+      key: d.id, label: `${rowSay(d, r)}, ${OPEN_THE_DEAL}`, onOpen: () => deal(d.id),
       node: failing.has(d.id) ? <FailedRow deal={d} r={r} /> : <ProgressRow deal={d} r={r} />,
     })),
     seeAll: { onOpen: () => open(failing.size ? 'failed' : r.rows.inflight.length ? 'progress' : 'recovered') },

@@ -11,10 +11,10 @@ import { useQuery } from '../../../../../lib/hooks';
 import { BOOK, IF_NOTHING } from '../../../../../lib/words';
 import { dealTotal } from '../../../logic';
 import { atRiskOf } from '../../../modules/rescue/model';
-import { silenceParts } from '../../../home/model';
+import { silenceShort } from '../../../home/model';
 import { useLayerNav } from '../../layers';
 import { fewRows, ListEngine, type ListFilter } from '../../ListEngine';
-import { Amount, Countdown, DealRow } from '../../rows';
+import { Amount, Countdown, DealRow, dealRowSay } from '../../rows';
 import { useDisplayOf } from '../../../world';
 import { outlook, outlookCount, outlookKeyOf, OUTLOOK_KEYS, type OutlookItem, type OutlookKey } from './model';
 import { MoneyText, type BookWorld } from './parts';
@@ -41,7 +41,7 @@ function OutlookLine({ it, b }: { it: OutlookItem; b: BookWorld }) {
   const w = BOOK.outlook[it.key];
   const n = it.deals.length;
   const need = it.soonest ? b.needOf.get(it.soonest.deal.id) : undefined;
-  const silence = need ? silenceParts(need.on_silence).head : w.ifNothing;
+  const silence = need ? silenceShort(need.on_silence) : w.ifNothing;
   return (
     <li className={`bk-ol${n ? ' has' : ''}`} data-ol={it.key}>
       <span className="bk-ol-n num">{n}</span>
@@ -70,7 +70,7 @@ export function Outlook({ b, items }: { b: BookWorld; items: OutlookItem[] }) {
       <Reveal style={FILL}><ListEngine<Deal> className={fewRows(rows.length)} label={BOOK.outlookList} rows={rows} getKey={(d) => d.id} filters={filters} estimateSize={36} measure
         searchText={(d) => `${b.title(d)} ${b.who(d)}`}
         renderRow={(d) => <DealRow deal={d} need={b.needOf.get(d.id)} who={b.who(d)} />}
-        rowLabel={(d) => b.title(d)} onOpen={(d) => nav.deal(d.id)} empty={BOOK.outlookEmpty} /></Reveal>
+        rowLabel={(d) => dealRowSay(b.title(d), b.needOf.get(d.id))} onOpen={(d) => nav.deal(d.id)} empty={BOOK.outlookEmpty} /></Reveal>
     </RevealGroup>
   );
 }

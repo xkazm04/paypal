@@ -9,10 +9,10 @@ import { formatTally } from '../../../lib/data/counts';
 import { useWindowedRows, type RowProps } from '../../../lib/data/useWindowedRows';
 import { formatMinor } from '../../../lib/format';
 import { useNow } from '../../../lib/hooks';
-import { EVERY_MODULE, houseWords, IF_NOTHING, LATEST_OF, OPEN_THE_DEAL, WAITING_EMPTY, WAITING_FILTER, WAITING_KICKER, WAITING_TITLE, waitingShown, waitingTitle } from '../../../lib/words';
+import { EVERY_MODULE, houseWords, IF_NOTHING, LATEST_OF, OPEN_THE_DEAL, WAITING_COLS, WAITING_EMPTY, WAITING_FILTER, WAITING_KICKER, WAITING_TITLE, waitingShown, waitingTitle } from '../../../lib/words';
 import { MODULE, MODULES } from '../../../shared/modules';
 import { FilterChips, ListShell, type FilterOption } from '../../../shared/ui';
-import { shortTitle, silenceParts, timeLeft } from '../home/model';
+import { shortTitle, silenceShort, timeLeft } from '../home/model';
 import { decidedBy, splitHeadline } from '../logic';
 import { useCpLookup } from '../ui';
 import { useDeals, useDisplayOf, useWorldSelector, type World } from '../world';
@@ -26,7 +26,7 @@ const selModuleOf = (w: World) => w.moduleOfDeal;
 const SHORT_LIST = 8;
 
 /** A waiting row's height in px (fixed: three short lines). */
-export const WAITING_ROW = 76;
+export const WAITING_ROW = 56;
 
 type Filter = Module | 'all';
 
@@ -62,7 +62,9 @@ export function Waiting({ queue, module, onFilter, onPick, onDeal }: {
           onChange={(v) => { const f = v[0]; onFilter(!f || f === 'all' ? undefined : f); }} /> : undefined}
         summary={queue.length ? waitingShown(rows.length, queue.length, formatTally) : undefined}
         isEmpty={!rows.length} empty={WAITING_EMPTY}
-        renderRows={() => (
+        renderRows={() => (<>
+          {/* Read per row through its accessible name, so the heads are for the eye only. */}
+          <div className="cs-whead" aria-hidden="true"><span /><span>{WAITING_COLS.who}</span><span className="r">{WAITING_COLS.amount}</span><span>{WAITING_COLS.call}</span><span>{IF_NOTHING}</span><span className="r">{WAITING_COLS.left}</span></div>
           <div ref={list.scrollRef} onKeyDown={list.onKeyDown} className="cs-wscroll" role="list" aria-label={WAITING_TITLE} style={short ? { flex: 'none', height: rows.length * WAITING_ROW + 4 } : undefined}>
             <div style={{ height: list.totalSize, position: 'relative' }}>
               {list.items.map((it) => (
@@ -70,7 +72,7 @@ export function Waiting({ queue, module, onFilter, onPick, onDeal }: {
               ))}
             </div>
           </div>
-        )} />
+        </>)} />
       {short && onDeal && decided.length ? (
         // The waiting list is the decisions themselves (wave 0); what was decided lately takes its turn.
         <DecidedLately decided={decided} onDeal={onDeal} who={(d) => cp(d.counterparty).name} />
@@ -83,21 +85,25 @@ function WaitingRow({ item, props, top, onPick }: { item: AttentionItem; props: 
   const now = useNow();
   const disp = useDisplayOf(item.deal_id);
   const amount = formatMinor(item.amount_minor, item.currency);
+  // The call beside the amount; a headline that carries a second figure ("Asked $339.00, not $329.00") stays whole.
   const [verb] = splitHeadline(item.headline, amount);
+  const call = /\d/.test(verb) ? item.headline : verb;
   const left = timeLeft(item.deadline, now);
   const who = item.counterparty ? houseWords(item.counterparty) : null;
-  const { head } = silenceParts(item.on_silence);
+  const title = disp ? shortTitle(disp.title) : null;
+  const say = `${[item.headline, who, title].filter(Boolean).join(', ')}. ${IF_NOTHING}: ${item.on_silence}. ${[left?.text, MODULE[item.module].name].filter(Boolean).join(', ')}`;
   const style = { position: 'absolute', left: 0, right: 0, top, height: WAITING_ROW, '--c': MODULE[item.module].cssVar } as CSSProperties;
   return (
     <div role="listitem" style={style} className="cs-wrow-wrap">
-      <button type="button" {...props} className="cs-wrow" onClick={() => onPick(item.deal_id)} data-fk={`w-${item.deal_id}`}>
+      <button type="button" {...props} className="cs-wrow" aria-label={say} onClick={() => onPick(item.deal_id)} data-fk={`w-${item.deal_id}`}>
         <span className="dot" aria-hidden="true" />
         <span className="t">
-          <b>{verb} <span className="amt">{amount}</span></b>
-          <span>{[who, disp ? shortTitle(disp.title) : null].filter(Boolean).join(' · ')}</span>
-          <span className="sil">{IF_NOTHING}: {head}</span>
+          <b>{who ? who.split(' · ')[0] : title}</b>
+          {who && title ? <span>{title}</span> : null}
         </span>
-        <span className="m">{MODULE[item.module].name}</span>
+        <span className="amt">{amount}</span>
+        <span className="call">{call}</span>
+        <span className="sil">{silenceShort(item.on_silence)}</span>
         <span className={`when ${left?.urgent ? 'now' : ''}`}>{left ? left.text : ''}</span>
       </button>
     </div>

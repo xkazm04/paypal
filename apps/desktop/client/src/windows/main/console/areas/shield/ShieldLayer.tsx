@@ -7,7 +7,7 @@
 // down: each paused payment as a decision, the lists, and how the shield decides.
 import { LATEST_OF, OPEN_THE_DEAL, SHIELD, SHIELD_VIEWS_TITLE } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
-import { ExplainHint } from '../../../../../shared/ui';
+import { ExplainHint, Silence } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
@@ -20,20 +20,23 @@ import { formatMinor } from '../../../../../lib/format';
 import type { Deal } from '@bindings/Deal';
 import { paypalLine } from '../../../modules/shield/matrix';
 import { Checks, HowShield } from './Checks';
-import { PausedDecision, ReleaseHandoff, ShieldRow, useShieldWorld, type ShieldWorld } from './parts';
+import { PausedDecision, ReleaseHandoff, ShieldRow, shieldRowSay, useShieldWorld, type ShieldWorld } from './parts';
 
 /** One of the shield's lists: windowed, searchable; a row opens its deal (a paused one, beside it). */
 function ShieldList({ rows, s, label, empty, paused }: { rows: Deal[]; s: ShieldWorld; label: string; empty: string; paused?: boolean }) {
   const nav = useLayerNav();
-  return (
+  // The rows keep to columns: the paused list says once what silence does; the picked decision says it in full.
+  const need = paused && rows[0] ? s.need(rows[0]) : undefined;
+  return (<>
+    {need ? <p className="sh-quiet"><Silence text={silenceParts(need.on_silence).head} /></p> : null}
     <ListEngine<Deal> className={fewRows(rows.length)} label={label} rows={rows} getKey={(d) => d.id} estimateSize={36} wideAt={paused ? 1200 : undefined}
       searchText={(d) => `${s.who(d)} ${s.title(d)}`}
       renderRow={(d) => <ShieldRow deal={d} s={s} />}
-      rowLabel={(d) => `${s.who(d)}, ${s.title(d)}`}
+      rowLabel={(d) => shieldRowSay(d, s)}
       onOpen={(d) => nav.deal(d.id)}
       detail={paused ? (d) => <PausedDecision key={d.id} deal={d} s={s} onDeal={() => nav.deal(d.id)} /> : undefined}
       empty={empty} />
-  );
+  </>);
 }
 
 /** The answer line, from the same sets the page lists. */
@@ -64,7 +67,7 @@ function latestOf(s: ShieldWorld, open: (v: string) => void, deal: (id: string) 
   const rows = [...flagged, ...s.checked.filter((d) => !seen.has(d.id))];
   return {
     title: LATEST_OF.shield, total: rows.length,
-    rows: rows.slice(0, MAX_ROWS).map((d) => ({ key: d.id, label: `${s.who(d)}, ${s.title(d)}, ${OPEN_THE_DEAL}`, onOpen: () => deal(d.id), node: <ShieldRow deal={d} s={s} /> })),
+    rows: rows.slice(0, MAX_ROWS).map((d) => ({ key: d.id, label: `${shieldRowSay(d, s)}, ${OPEN_THE_DEAL}`, onOpen: () => deal(d.id), node: <ShieldRow deal={d} s={s} /> })),
     seeAll: { onOpen: () => open(s.paused.length ? 'paused' : s.stopped.length ? 'stopped' : flagged.length ? 'through' : 'week') },
   };
 }

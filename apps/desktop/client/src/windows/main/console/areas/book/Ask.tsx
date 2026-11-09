@@ -26,7 +26,7 @@ import {
 import { compose, isUnsure, knownParties, lensAsRun, lensQuery, MAX_ASK, understand, type AskCtx, type ReadingChip, type Understood, type Unsure } from '../../../modules/book/understand';
 import { useLayerNav } from '../../layers';
 import { fewRows, ListEngine } from '../../ListEngine';
-import { DealRow } from '../../rows';
+import { DealRow, dealRowSay } from '../../rows';
 import { useEvidenceOf } from './evidence';
 import { useExport } from './Ledger';
 import { outsideSpan } from './model';
@@ -163,7 +163,7 @@ export function Ask({ b }: { b: BookWorld }) {
               <ListEngine<Deal> className={fewRows(res.rows.length)} label={BOOK.ask.behindLabel} rows={res.rows} getKey={(d) => d.id} estimateSize={36} measure
                 searchText={(d) => `${b.title(d)} ${b.who(d)}`}
                 renderRow={(d) => <DealRow deal={d} need={b.needOf.get(d.id)} who={b.who(d)} />}
-                rowLabel={(d) => b.title(d)} onOpen={(d) => nav.deal(d.id)} empty={BOOK.ask.none} />
+                rowLabel={(d) => dealRowSay(b.title(d), b.needOf.get(d.id))} onOpen={(d) => nav.deal(d.id)} empty={BOOK.ask.none} />
             </div>
           ) : null}
         </section>

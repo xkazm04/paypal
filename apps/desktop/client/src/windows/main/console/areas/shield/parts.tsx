@@ -4,7 +4,7 @@
 // confirm (deal_withdraw: no money moves, PayPal was never asked), a paused payment as a decision,
 // and one line per checked payment. Counterparty words show only through the quarantined NoteText.
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
@@ -164,20 +164,32 @@ export function PausedDecision({ deal, s, onDeal }: { deal: Deal; s: ShieldWorld
  *  note (hidden on a narrow window). */
 const ROW_COLS = { '--cols': 'auto minmax(9rem, 1.2fr) minmax(7rem, max-content) minmax(4rem, max-content) 8rem minmax(0, 1.8fr)' } as CSSProperties;
 
-/** One payment the shield checked, as a list row's content (the row is the button: no control here). */
-export function ShieldRow({ deal, s }: { deal: Deal; s: ShieldWorld }) {
+/** What the shield did to a payment: the row's kind, the whole line, and the one clause the row shows. */
+function rowLine(deal: Deal, s: ShieldWorld) {
   const need = s.need(deal);
-  const t = dealTotal(deal);
   const [a, b] = paypalLine(deal);
   const kind = deal.shield === 'BLOCK' ? 'block' : need ? 'paused' : deal.shield === 'HOLD' && !deal.shield_release ? 'closed' : deal.shield === 'CLEAR' ? 'clear' : 'other';
   const why = deal.shield_rule ? shieldRuleWord(deal.shield_rule).text : null;
-  let sub: ReactNode;
-  if (kind === 'block') sub = <span className="tx-red">{SHIELD.row.blocked(why, b)}</span>;
+  let sub: string;
+  if (kind === 'block') sub = SHIELD.row.blocked(why, b);
   else if (kind === 'paused') sub = SHIELD.row.paused(why);
   else if (kind === 'closed') sub = SHIELD.row.closed(why, stateLabel(deal.state, deal).toLowerCase(), a.toLowerCase());
   else if (kind === 'clear') sub = SHIELD.row.clear(stateLabel(deal.state, deal));
   else if (shieldReleased(deal)) sub = SHIELD.row.released(s.moduleName(deal));
   else sub = SHIELD.row.other(why, s.moduleName(deal));
+  // A block's first clause is its verdict chip again, so its reason is the clause worth the room.
+  const short = sub.split(' · ')[kind === 'block' && why ? 1 : 0] ?? sub;
+  return { kind, sub, short };
+}
+
+/** The row's whole sentence, as its accessible name: the row keeps to columns and one short note. */
+export const shieldRowSay = (deal: Deal, s: ShieldWorld): string => `${s.who(deal)}, ${s.title(deal)}, ${rowLine(deal, s).sub}`;
+
+/** One payment the shield checked, as a list row's content (the row is the button: no control here). */
+export function ShieldRow({ deal, s }: { deal: Deal; s: ShieldWorld }) {
+  const need = s.need(deal);
+  const t = dealTotal(deal);
+  const { kind, short } = rowLine(deal, s);
   return (
     <span className={`row1 sh-row k-${kind}`} style={ROW_COLS} title={`${s.who(deal)} · ${s.title(deal)}`}>
       <span className="sh-lead" aria-hidden="true"><Icon name={kind === 'block' ? 'block' : kind === 'paused' || kind === 'closed' ? 'pause' : kind === 'clear' ? 'check' : 'eye'} size={13} /></span>
@@ -185,7 +197,7 @@ export function ShieldRow({ deal, s }: { deal: Deal; s: ShieldWorld }) {
       <span className="sh-v">{kind === 'closed' ? <Chip tone="line" title={SHIELD.closedTitle}>{SHIELD.closedChip}</Chip> : <VerdictChip v={deal.shield} />}</span>
       <span className="sh-cd">{need ? <Countdown deadline={need.deadline} /> : null}</span>
       <Amount money={t} tone={kind === 'block' ? 'struck' : undefined} className="sh-amt" />
-      <span className="sh-sub c-note">{s.title(deal)} · {sub}</span>
+      <span className="sh-sub c-note">{s.title(deal)} · {kind === 'block' ? <span className="tx-red">{short}</span> : short}</span>
     </span>
   );
 }

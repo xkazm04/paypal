@@ -160,7 +160,7 @@ export function SpendLayer({ nav }: LayerProps) {
     const at = l.deal.created_at;
     return (
       <Row1 className={`${need ? 'needs ' : ''}${picked ? 'picked' : ''}`.trim() || undefined} title={text}
-        note={<span className={`sp-rl ${line.kind}`}>{text}</span>}>
+        note={<span className={`sp-rl ${line.kind}`}>{line.text}</span>}>
         <span className="c-who">
           <span className="dot" aria-hidden="true" />
           <b title={disp.title}>{disp.title}</b>
@@ -176,7 +176,7 @@ export function SpendLayer({ nav }: LayerProps) {
     <ListEngine<Lane> label={label} rows={rows} getKey={(l) => l.deal.id} filters={filters} sorts={filters ? ALL_SORTS : undefined} estimateSize={36}
       searchText={(l) => `${display(l.deal).title} ${whoOf(l)} ${l.slot ?? ''}`}
       renderRow={(l) => row1(l, picked?.deal.id === l.deal.id)}
-      rowLabel={(l) => `${display(l.deal).title}, ${outcomeOf(l.deal).label}`} onPick={(l) => pick(l.deal.id)} onOpen={(l) => nav.deal(l.deal.id)} empty={empty} />
+      rowLabel={(l) => `${display(l.deal).title}, ${outcomeOf(l.deal).label}, ${noteOf(l)}`} onPick={(l) => pick(l.deal.id)} onOpen={(l) => nav.deal(l.deal.id)} empty={empty} />
   );
   const noteOf = (l: Lane): string => {
     const line = l.cols.length ? ruleLine(l.cells, l.cols) : { text: SPEND.otherRules };

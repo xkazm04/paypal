@@ -42,6 +42,8 @@ export const RESCUE = {
   /** The wallet's own refusal of an offer, as a quiet line. One closed reason per engine refusal (bindings RescueRefusal); never the subscriber's or an agent's words. */
   refusal: {
     line: (why: string) => `The wallet won’t allow this offer: ${why}. Nothing is sent.`,
+    /** The row's note; the whole line is the row's accessible name and is on the case itself. */
+    short: 'The wallet won’t allow this offer',
     why: {
       fixes_clause_missing: 'your rules don’t include a fix for failed renewals',
       lever_not_allowed: 'your rules don’t allow this kind of fix',
@@ -64,8 +66,11 @@ export const RESCUE = {
     one: (name: string, amount: string, asks: boolean, replay = false) => `${name}’s ${amount} renewal failed.${asks ? ' Your call.' : replay ? ' Nothing is sent without you.' : ' PayPal retries on its own.'}`,
     many: (n: number, sums: string, asks: boolean) => `${n} renewals failed, ${sums} in all.${asks ? ' Your call on each.' : ' PayPal retries on its own.'}`,
     retries: 'If you do nothing, PayPal retries the payment by itself.',
+    /** Beside "Your call", which already says what doing nothing does. */
+    retriesShort: 'PayPal retries the payment by itself.',
     /** A replayed failure: PayPal has no failed payment of it, so nothing retries it. */
     replay: 'It’s a replay: if you do nothing, nothing is sent and PayPal has nothing to retry.',
+    replayShort: 'It’s a replay: PayPal has nothing to retry.',
     soonest: (name: string, amount: string) => `Soonest: ${name}’s ${amount} renewal.`,
     none: 'No renewal is failing right now.',
     waiting: (n: number) => `${n} fix${n === 1 ? ' is' : 'es are'} waiting for the subscriber.`,
@@ -206,7 +211,6 @@ export const RESCUE = {
     ruleLine: 'Replays and unpaid invoices never count.',
     ruleLabel: 'What counts as recovered',
     counts: 'Counts', notCounts: 'Doesn’t count', closed: 'Closed',
-    countsLine: 'Counts as money you got back',
   },
   notCounted: {
     REPLAY: 'A replayed failure, never counted',

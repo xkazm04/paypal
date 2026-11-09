@@ -17,7 +17,7 @@ import { AMOUNT_UNKNOWN_TITLE, houseWords, IF_NOTHING, NO_DEADLINE, STATE_UNKNOW
 import { Countdown as Ticking } from '../../../shared/honesty';
 import { MODULE } from '../../../shared/modules';
 import { UNKNOWN } from '../../../shared/ui';
-import { shortTitle, silenceParts, timeLeft } from '../home/model';
+import { shortTitle, timeLeft } from '../home/model';
 import { amountTone, dealTotal } from '../logic';
 import { useDisplayOf, useWorldSelector, type World } from '../world';
 
@@ -73,9 +73,13 @@ export function WhoChip({ name, className }: { name: string | null | undefined; 
 
 const selCp = (w: World) => w.moduleOfDeal;
 
+/** A DealRow's accessible name: the row draws no "If you do nothing" (its page says it once), so the
+ *  name carries it for a deal that waits for the owner. */
+export const dealRowSay = (title: string, need?: AttentionItem | null): string => (need ? `${title}. ${IF_NOTHING}: ${need.on_silence}` : title);
+
 /** One deal as a list row's content: what it is, with whom, the amount, its state, and - when it
- *  waits for the owner - the "If you do nothing" line and its countdown. Content only: put it inside
- *  the ListEngine row (which is the button) or any other container. */
+ *  waits for the owner - its countdown. Content only: put it inside the ListEngine row (which is the
+ *  button) or any other container. */
 export function DealRow({ deal, need, who, extra }: {
   deal: Deal;
   /** The open decision on this deal, if any (World useNeedOf). */
@@ -89,14 +93,12 @@ export function DealRow({ deal, need, who, extra }: {
   const moduleOf = useWorldSelector(selCp);
   const m = moduleOf(deal);
   const style = { '--c': MODULE[m].cssVar } as CSSProperties;
-  const sil = need ? silenceParts(need.on_silence) : null;
   return (
     <span className={`cs-dealrow${need ? ' needs' : ''}`} style={style}>
       <span className="dot" aria-hidden="true" />
       <span className="t">
         <b>{disp ? shortTitle(disp.title) : UNKNOWN}</b>
         <span className="sub"><WhoChip name={who} />{extra ? <> · {extra}</> : null}</span>
-        {sil ? <span className="sil">{IF_NOTHING}: {sil.head}</span> : null}
       </span>
       <Amount money={dealTotal(deal)} tone={amountTone(deal)} />
       <StateChip deal={deal} />

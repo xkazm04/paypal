@@ -16,7 +16,7 @@ describe('Rescue refusal line', () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1600 });
     const r = await renderLayerAtScale('#m=rescue&v=failed', null);
     const rows = [...r.layer.querySelectorAll('.rs-row .rs-refusal')].map((e) => e.textContent);
-    expect(rows).toEqual([LINE]);
+    expect(rows).toEqual([RESCUE.refusal.short]);
     expect(LINE).toBe('The wallet won’t allow this offer: the discount is a bigger share than your rules allow. Nothing is sent.');
     const refused = r.layer.querySelector('.rs-refusal')?.closest('.le-row') as HTMLElement | null;
     await act(async () => { fireEvent.click(refused ?? (r.layer.querySelector('.le-row') as HTMLElement)); });

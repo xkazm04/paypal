@@ -163,7 +163,6 @@
 .cs-dealrow .t > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cs-dealrow .t b { font-weight: var(--fw-semibold); }
 .cs-dealrow .sub { color: var(--muted); font-size: var(--fs-small); }
-.cs-dealrow .sil { color: var(--dim); font-size: var(--fs-small); }
 .cs-dealrow.needs .dot { background: var(--gold); box-shadow: var(--glow-gold); }
 
 /* ---- the "Latest" strip under a summary's cards (Latest.tsx): quiet, subordinate to the cards ---- */
