@@ -36,7 +36,7 @@ export const COMPARABLES = {
   none: 'No similar products found for this item.',
   noKey: 'No market key is set, so there is nothing to compare with.',
   offline: 'Similar products aren’t available right now.',
-  note: 'From shops, as they wrote it. For your information: it never blocks or changes this deal.',
+  note: 'From shops, as they wrote it. It never changes this deal.',
   list: 'Similar products',
   cheaperKey: 'Same item',
 } as const;

@@ -159,9 +159,9 @@
 .dr-comp-note { flex-basis: 100%; }
 .dr .mini { position: relative; flex: 0 0 88px; height: 10px; }
 .dr .mini::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 2px; background: var(--line2); border-radius: 1px; }
-.dr .mini .b { position: absolute; top: 2px; height: 6px; border-radius: 2px; background: color-mix(in srgb, var(--market) 30%, transparent); }
-.dr .mini .m { position: absolute; top: 0; width: 2px; height: 10px; background: var(--market); transform: translateX(-1px); }
-.dr .mini .d { position: absolute; top: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); transform: translateX(-4px); box-shadow: 0 0 0 2px var(--panel); }
+.dr .mini .b { position: absolute; top: 2px; left: var(--lo); right: calc(100% - var(--hi)); height: 6px; border-radius: 2px; background: color-mix(in srgb, var(--market) 30%, transparent); }
+.dr .mini .m { position: absolute; top: 0; left: var(--med); width: 2px; height: 10px; background: var(--market); transform: translateX(-1px); }
+.dr .mini .d { position: absolute; top: 1px; left: var(--dot); width: 8px; height: 8px; border-radius: 50%; background: var(--teal); transform: translateX(-4px); box-shadow: 0 0 0 2px var(--panel); }
 
 /* ---- band (haggle, before settlement) --------------------------------------------------------- */
 .dr-band { display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -234,10 +234,13 @@
 :is(.dr-pop, .dr-sheet) .tlog .w-them { color: var(--coral-l); }
 :is(.dr-pop, .dr-sheet) .dr-track { position: relative; height: 34px; margin: var(--sp-2) 0 0; }
 :is(.dr-pop, .dr-sheet) .dr-track::before { content: ""; position: absolute; left: 0; right: 0; top: 9px; height: 2px; background: var(--line); }
-:is(.dr-pop, .dr-sheet) .dr-track .tr-band { position: absolute; top: 5px; height: 10px; border-radius: 3px; background: color-mix(in srgb, var(--market) 22%, transparent); border: 1px solid color-mix(in srgb, var(--market) 40%, transparent); }
-:is(.dr-pop, .dr-sheet) .dr-track .tr-med { position: absolute; top: 2px; width: 2px; height: 16px; background: var(--market); transform: translateX(-1px); }
-:is(.dr-pop, .dr-sheet) .dr-track .tr-dot { position: absolute; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--teal); border: 2px solid var(--panel); transform: translateX(-7px); box-shadow: 0 0 0 1px var(--teal-l); }
+:is(.dr-pop, .dr-sheet) .dr-track .tr-band { position: absolute; top: 5px; left: var(--lo); right: calc(100% - var(--hi)); height: 10px; border-radius: 3px; background: color-mix(in srgb, var(--market) 22%, transparent); border: 1px solid color-mix(in srgb, var(--market) 40%, transparent); }
+:is(.dr-pop, .dr-sheet) .dr-track .tr-med { position: absolute; top: 2px; left: var(--med); width: 2px; height: 16px; background: var(--market); transform: translateX(-1px); }
+:is(.dr-pop, .dr-sheet) .dr-track .tr-dot { position: absolute; top: 3px; left: var(--dot); width: 14px; height: 14px; border-radius: 50%; background: var(--teal); border: 2px solid var(--panel); transform: translateX(-7px); box-shadow: 0 0 0 1px var(--teal-l); }
 :is(.dr-pop, .dr-sheet) .dr-track .tr-t { position: absolute; top: 20px; transform: translateX(-50%); font-size: var(--fs-small); font-variant-numeric: tabular-nums; color: var(--dim); }
+:is(.dr-pop, .dr-sheet) .dr-track .tr-t.lo { left: var(--lo); }
+:is(.dr-pop, .dr-sheet) .dr-track .tr-t.med { left: var(--med); }
+:is(.dr-pop, .dr-sheet) .dr-track .tr-t.hi { left: var(--hi); }
 
 @media (max-width: 680px) {
   .dr .dt-h, .dr-row { grid-template-columns: 0 minmax(0, 1fr) 96px minmax(0, 1fr); }
@@ -246,6 +249,34 @@
 @media (prefers-reduced-motion: reduce) {
   .dr-poll::before, .dr-hint .hello-glyph { animation: none; }
 }
+
+/* ---- hierarchy: the decision first, the reference material quieter --------------------------
+   Eye order on a review: the answer and the two amounts (what you agree to, to whom), the checks,
+   then the footer's deadline and the one gold hold. What follows the checks is for reference: it
+   stays on the page, drawn smaller and dimmer under a hairline. */
+.dr-aside { display: flex; flex-direction: column; gap: var(--sp-2); padding-top: var(--sp-3); border-top: 1px dashed var(--line); }
+.dr-aside:empty { display: none; }
+.dr-aside .dr-mkt { min-height: 0; }
+.dr-aside .dr-comparables .dr-cheaper, .dr-aside .dr-comp-list .n { color: var(--muted); }
+.dr-aside .dr-comp-list .p { color: var(--dim); }
+.dr-aside .dr-inv .dr-sec { color: var(--dim); }
+.dr-next .nx-s { padding: var(--sp-1) var(--sp-3); }
+.dr-next .nx-t { font-size: var(--fs-small); }
+.dr-checks .dr-sec { color: var(--muted); }
+
+/* ---- the settle: a held decision the wallet accepted ------------------------------------------
+   Once, under 500 ms, no travel and no bounce: the two amounts' plate lights gold and comes to rest,
+   the plate acknowledging the decision. Its reduced form (OS reduced motion or the in-app calm mode,
+   design/base.css) is the instant state change it already carries: the "Done" line and the new
+   phase appear at once, with no animation. DealReview drops the class on animationend. */
+@keyframes drSettle {
+  0% { background: transparent; box-shadow: inset 0 0 0 1px transparent; }
+  35% { background: color-mix(in srgb, var(--gold) 9%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent); }
+  100% { background: transparent; box-shadow: inset 0 0 0 1px transparent; }
+}
+.dr.settled .dr-twin { animation: drSettle var(--dur-slow) var(--ease) 1; }
+@media (prefers-reduced-motion: reduce) { .dr.settled .dr-twin { animation: none; } }
+:root.calm .dr.settled .dr-twin, body.calm .dr.settled .dr-twin { animation: none; }
 
 /* ---- owner screens: the answer on top (OwnerConfig, PairingConfirm, MandateEditor) ----------- */
 .ow-answer .ui-answer, .ow-ans .ui-answer { margin: 0; padding: var(--sp-3) var(--sp-4); align-items: flex-start; }
@@ -266,7 +297,7 @@
 .dr .ui-hold:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .dr-next { display: flex; flex-direction: column; gap: var(--sp-1); }
-.dr-next .nx { list-style: none; margin: 0; padding: 0; display: grid; gap: 22px; }
+.dr-next .nx { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--sp-5); }
 .nx-s { position: relative; display: flex; align-items: flex-start; gap: var(--sp-2); min-width: 0; padding: var(--sp-2) var(--sp-3);
   border-radius: var(--r); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line); }
 .nx-n { flex: none; display: grid; place-items: center; width: var(--sp-5); height: var(--sp-5); margin-top: 1px; border-radius: 50%;

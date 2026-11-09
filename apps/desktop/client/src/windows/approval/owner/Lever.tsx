@@ -4,7 +4,7 @@
 import { useId, useRef, type ReactNode } from 'react';
 import type { Currency } from '@bindings/Currency';
 import { formatMinor } from '../../../lib/format';
-import { ruleNameOf } from '../../../lib/words';
+import { APPROVAL_SHORT, ruleNameOf } from '../../../lib/words';
 import { Chip } from '../../../shared/ui';
 import { minorToInput, parseMoneyInput } from '../model';
 import type { Dir } from './diff';
@@ -98,7 +98,7 @@ export function Lever({ n, title, value, currency, signed, ticks, tickNote, dir,
         )}
         <span>{formatMinor(range.max, currency)}</span>
       </div>
-      {ticks === null ? <p className="ui-hint ow-noticks">{tickNote ?? 'This week’s deals are marked here once your wallet has tried these rules.'}</p> : null}
+      {ticks === null ? <p className="ui-hint ow-noticks">{tickNote ?? APPROVAL_SHORT.ticksEmpty}</p> : null}
       {bad ? <p id={`${id}-e`} className="ui-hint red" role="alert">“{value}” is not an amount in {currency}</p> : null}
       {children ? <div className="sub">{children}</div> : null}
     </div>

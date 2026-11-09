@@ -13,9 +13,9 @@ import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMinor, formatMoney, nowUnix } from '../../../lib/format';
 import { backend } from '../../../lib/runtime';
 import { buildLimits, readLimits, type LimitsDraft } from '../../../lib/limits';
-import { LIMIT_WORDS, NO_WALLET_LIMIT, WALLET_LIMITS_ABOUT } from '../../../lib/words';
+import { APPROVAL_SHORT, LIMIT_WORDS, NO_WALLET_LIMIT, WALLET_LIMITS_ABOUT } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
-import { Btn, Chip, Field, Group, Hint, Meter, Row, Section, Sheet } from '../../../shared/ui';
+import { Btn, Chip, ExplainHint, Field, Group, Hint, Meter, Row, Section, Sheet } from '../../../shared/ui';
 import { minorToInput, parseMoneyInput } from '../model';
 import { useSession } from '../session';
 import { useDebouncedSimulation } from './data';
@@ -145,7 +145,7 @@ export function WalletLimits({ view, error, loading, currency, locked, onSigned 
           );
         }) : null}
       </Group>
-      <Hint>{WALLET_LIMITS_ABOUT}</Hint>
+      <Hint><ExplainHint label={APPROVAL_SHORT.limitsAbout} line={APPROVAL_SHORT.limitsLine}>{WALLET_LIMITS_ABOUT}</ExplainHint></Hint>
       {editing ? <LimitsSheet view={view} currency={limits?.currency ?? currency} locked={locked} onClose={() => setEditing(false)} onSigned={() => { setEditing(false); onSigned(); }} /> : null}
     </Section>
   );
@@ -199,7 +199,7 @@ function LimitsSheet({ view, currency, locked, onClose, onSigned }: {
   );
   return (
     <Sheet title={was ? 'Change your wallet limits' : 'Set your wallet limits'} onClose={onClose} footer={footer} className="ow-lim-sheet">
-      <p className="ow-p">{WALLET_LIMITS_ABOUT}</p>
+      <p className="ow-p"><ExplainHint label={APPROVAL_SHORT.limitsAbout} line={APPROVAL_SHORT.limitsLine}>{WALLET_LIMITS_ABOUT}</ExplainHint></p>
       <div className="ow-lim-form">
         {field('out', `${currency} ${LIMIT_WORDS.out.per}`)}
         {field('held', `${currency} ${LIMIT_WORDS.held.per}`)}

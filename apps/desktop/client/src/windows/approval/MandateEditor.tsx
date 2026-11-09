@@ -21,7 +21,7 @@ import type { OpenMandate } from '@bindings/OpenMandate';
 import type { WalletError } from '../../lib/contract';
 import { shortHash, shortId } from '../../lib/format';
 import { useNow, useQuery } from '../../lib/hooks';
-import { kindWord, rulesName, SAY_EDITOR, timeLeftWords, WHATIF_FIRST_RULE, WHATIF_NO_CHANGE } from '../../lib/words';
+import { APPROVAL_SHORT, kindWord, rulesName, SAY_EDITOR, timeLeftWords, WHATIF_FIRST_RULE, WHATIF_NO_CHANGE } from '../../lib/words';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Hourglass, Kv, Popover, Seg, Spacer, type IconName } from '../../shared/ui';
 import { bpToPercent, buildMandate, CLAUSE_NUMBER, draftFrom, draftFromRules, fromLocalInput, newDraft, percentDiffers, previewClauses, refusalWords, ruleProblems, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from './mandateDraft';
@@ -137,7 +137,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
   const signedName = 'Now';
   const draftName = preview ? 'If withdrawn' : !base ? 'These rules' : changes.length ? 'Your change' : 'Unchanged';
   const subject = preview ? 'Withdrawing' : base && changes.length ? 'This version' : 'These rules';
-  const summary = !args ? 'Fill in the limits to see what these rules would have done this week.'
+  const summary = !args ? APPROVAL_SHORT.whatIfEmpty
     : what.error ? (what.error.code === 'REFUSED' ? refusalWords(what.error.message) : 'This week’s deals couldn’t be tried just now. Signing still checks everything.')
       : lines ? summaryWords(lines, subject)
         : 'Trying this week’s deals…';

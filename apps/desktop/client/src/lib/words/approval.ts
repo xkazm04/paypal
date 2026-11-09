@@ -185,3 +185,28 @@ export const APPROVAL_AFTER_FAILURE = {
     message: 'The wallet didn’t answer after your decision, so whether it went ahead isn’t known yet. This window reads the deal again by itself.',
   },
 } as const;
+
+/** Short visible lines of the approval window (spark perfection-ten A3). Each long explanation they
+ *  stand for stays one click away, behind an (i) (shared ExplainHint) whose title is the `*About`
+ *  word. Safety text (if you do nothing, nothing is sent, refusals) never moves behind one. */
+export const APPROVAL_SHORT = {
+  /** The deal review's secondary material (market, price check, similar products, invoice). */
+  aside: 'For reference',
+  limitsLine: 'One cap above all your agents’ rules.',
+  limitsAbout: 'About wallet limits',
+  replayRow: 'Replay a test renewal and approve its fix',
+  replayAbout: 'About replaying a renewal',
+  replayLine: 'The fix’s invoice is real. What it brings in is never counted.',
+  watchRow: 'Checked with PayPal · checking never moves money',
+  watchAbout: 'About watching subscriptions',
+  watchLine: 'Checked with PayPal every few hours. Checking never moves money.',
+  emailLine: 'A fix’s invoice goes to this email. Watching sends nothing.',
+  emailAbout: 'About the subscriber’s email',
+  tableAbout: 'About tables',
+  tableOpenLine: 'Your agent haggles under the rules you choose. Opening pays nothing.',
+  tableJoinLine: 'Pick the rules your agent haggles under. Joining pays nothing.',
+  tableCodeLine: 'Paste the seller’s code and check the terms. Joining pays nothing.',
+  connectRow: 'Start one in Signet, then check the four words here',
+  ticksEmpty: 'Deals show here once your wallet has tried these rules.',
+  whatIfEmpty: 'Fill in the limits to see how this week would have gone.',
+} as const;

@@ -11,7 +11,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { WalletError } from '../../lib/contract';
 import { useNow, useQuery } from '../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../lib/lazy';
-import { AGENT_APP, APPROVAL_FIRST_RUN, APPROVAL_TABLE, OWNER_KEY, rulesName, ruleRowLabel, ruleSetOrdinal, SAFETY_PROMISE, START_STEP, timeLeftWords, watchingWords, type StartStepKey } from '../../lib/words';
+import { AGENT_APP, APPROVAL_FIRST_RUN, APPROVAL_SHORT, APPROVAL_TABLE, OWNER_KEY, RESCUE_REPLAY_ABOUT, RESCUE_WATCH_ABOUT, rulesName, ruleRowLabel, ruleSetOrdinal, SAFETY_PROMISE, START_STEP, timeLeftWords, watchingWords, type StartStepKey } from '../../lib/words';
 import { agentAppAvailable, useAgentApp } from '../../lib/engine';
 import { connectionFacts, gettingStarted, rulesInForce, settingsFacts } from '../../lib/firstRun';
 import { StartProgress, StartSteps, type StepAction } from '../../shared/start';
@@ -56,6 +56,8 @@ const INFO = {
   mandates: 'What each agent may do without asking you. Open a set of rules to see how this week would have gone under a change, before you sign it. Withdrawn rules stop every agent that used them.',
   pairing: 'Connecting starts in Signet: one of you creates a code, the other joins it. Then each of you checks the same four words here, in your own approval window.',
   key: 'Your rules and approvals are signed with your owner key, which never leaves this computer. Its id is public: a proof file names it, so whoever checks one compares it with the id you send them.',
+  replay: RESCUE_REPLAY_ABOUT,
+  watch: RESCUE_WATCH_ABOUT,
 } as const;
 type InfoKey = keyof typeof INFO;
 
@@ -68,6 +70,8 @@ const INFO_LABEL: Record<InfoKey, string> = {
   mandates: 'About agent rules',
   pairing: 'About connections',
   key: 'About your owner key',
+  replay: APPROVAL_SHORT.replayAbout,
+  watch: APPROVAL_SHORT.watchAbout,
 };
 
 const TARGET_TEXT = { credentials: 'save a key', mandate: 'sign rules', unlock: 'unlock with fingerprint, face or PIN' } as const;
@@ -300,13 +304,15 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
 
         <Section title="Failed renewals">
           <Group>
-            <Row title="Replay a failed renewal" sub={rescueRules(list, now) ? 'PayPal can’t fail a test renewal, so you can replay one and approve its fix' : 'Sign rules for fixing failed renewals first'}>
+            <Row title="Replay a failed renewal" sub={rescueRules(list, now) ? APPROVAL_SHORT.replayRow : 'Sign rules for fixing failed renewals first'}>
               <Chip tone="line">replay</Chip>
+              {i('replay')}
               <Btn sm onClick={() => setReplaying(true)}>Replay one…</Btn>
             </Row>
             <Row title={rescueBook.error ? 'Watched subscriptions' : watchingWords(watching.length)}
-              sub={rescueBook.error ? 'This window can’t read them right now' : rescueRules(list, now) ? 'Your wallet checks them with PayPal for a failed renewal; checking never moves money' : 'Sign rules for fixing failed renewals first'}>
+              sub={rescueBook.error ? 'This window can’t read them right now' : rescueRules(list, now) ? APPROVAL_SHORT.watchRow : 'Sign rules for fixing failed renewals first'}>
               <Chip tone={rescueBook.error ? 'dashed' : 'line'}>{rescueBook.error ? 'not available' : 'checks only'}</Chip>
+              {i('watch')}
               <Btn sm onClick={() => setWatchingOpen(true)}>{watching.length ? 'Manage…' : 'Watch one…'}</Btn>
             </Row>
           </Group>
@@ -334,7 +340,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
                 <Chip tone="gold">needs you</Chip>
               </Row>
             ) : (
-              <Row title="No connection is waiting" sub="Start one in Signet; it brings you back here for the four words">
+              <Row title="No connection is waiting" sub={APPROVAL_SHORT.connectRow}>
                 <Chip tone="line">none</Chip>
               </Row>
             )}

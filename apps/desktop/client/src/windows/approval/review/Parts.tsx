@@ -2,7 +2,7 @@
 // twin header, the two-sided comparison with a ✓ / ✕ / ! / ? mark per row, the market line, the
 // status pill and the footer's due line. Presentational only: DealReview owns data, gates and
 // commands. Words follow docs/ux/UX-GUIDE.md: plain on Layer 1, provenance one click down.
-import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
+import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { MarketRef } from '@bindings/MarketRef';
 import type { Mode } from '@bindings/Mode';
@@ -150,6 +150,11 @@ function priceWord(deal: Deal): ReturnType<typeof marketWords> | null {
   return marketWords(deal.terms.unit_price.minor, m.p25.minor, m.median.minor, m.p75.minor);
 }
 
+/** The market track's positions (data, per deal) as custom properties; approval.css places the marks. */
+function trackVars(p: { lo: number; hi: number; med: number; dot: number }): CSSProperties {
+  return { '--lo': `${p.lo}%`, '--hi': `${p.hi}%`, '--med': `${p.med}%`, '--dot': `${p.dot}%` } as CSSProperties;
+}
+
 export function MarketLine({ deal, onInfo }: { deal: Deal; onInfo: (el: HTMLElement) => void }) {
   const m = deal.market;
   if (!m) {
@@ -166,10 +171,10 @@ export function MarketLine({ deal, onInfo }: { deal: Deal; onInfo: (el: HTMLElem
   return (
     <div className="dr-mkt">
       <span className="k">Market price</span>
-      <span className="mini" aria-hidden="true">
-        <span className="b" style={{ left: `${p.lo}%`, right: `${100 - p.hi}%` }} />
-        <span className="m" style={{ left: `${p.med}%` }} />
-        <span className="d" style={{ left: `${p.dot}%` }} />
+      <span className="mini" aria-hidden="true" style={trackVars(p)}>
+        <span className="b" />
+        <span className="m" />
+        <span className="d" />
       </span>
       <span className="t" title={pct !== null ? `Percentile ${pct} of comparable listings` : undefined}>
         {word ? <b className={`mw ${word.tone}`}>{word.text}</b> : <b>other currency</b>}
@@ -193,13 +198,13 @@ export function MarketTrack({ deal }: { deal: Deal }) {
       <p className="pop-p">
         {formatMoney(deal.terms.unit_price)} is <b>{word ? word.text : 'in another currency'}</b>. Comparable listings usually sell for {formatMoney(m.p25)}–{formatMoney(m.p75)}, typically {formatMoney(m.median)}.
       </p>
-      <div className="dr-track" role="img" aria-label={`usual range ${formatMoney(m.p25)} to ${formatMoney(m.p75)}, typical ${formatMoney(m.median)}, this price ${formatMoney(deal.terms.unit_price)}`}>
-        <span className="tr-band" style={{ left: `${p.lo}%`, right: `${100 - p.hi}%` }} />
-        <span className="tr-med" style={{ left: `${p.med}%` }} />
-        <span className="tr-dot" style={{ left: `${p.dot}%` }} />
-        <span className="tr-t" style={{ left: `${p.lo}%` }}>{formatMoney(m.p25)}</span>
-        <span className="tr-t" style={{ left: `${p.med}%` }}>{formatMoney(m.median)}</span>
-        <span className="tr-t" style={{ left: `${p.hi}%` }}>{formatMoney(m.p75)}</span>
+      <div className="dr-track" role="img" aria-label={`usual range ${formatMoney(m.p25)} to ${formatMoney(m.p75)}, typical ${formatMoney(m.median)}, this price ${formatMoney(deal.terms.unit_price)}`} style={trackVars(p)}>
+        <span className="tr-band" />
+        <span className="tr-med" />
+        <span className="tr-dot" />
+        <span className="tr-t lo">{formatMoney(m.p25)}</span>
+        <span className="tr-t med">{formatMoney(m.median)}</span>
+        <span className="tr-t hi">{formatMoney(m.p75)}</span>
       </div>
       <p className="ui-hint">
         Checked {clockLabel(m.retrieved_at)}{m.cached ? ' (saved copy)' : ''}{pct !== null ? ` · percentile ${pct}` : ''}. A reference, not a verdict.

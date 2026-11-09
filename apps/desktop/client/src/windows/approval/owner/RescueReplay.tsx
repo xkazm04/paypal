@@ -7,9 +7,9 @@ import type { Deal } from '@bindings/Deal';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { WalletError } from '../../../lib/contract';
 import { formatMoney, nowUnix } from '../../../lib/format';
-import { RESCUE_NO_RULES, RESCUE_REPLAY_ABOUT, ruleSentence } from '../../../lib/words';
+import { APPROVAL_SHORT, RESCUE_NO_RULES, RESCUE_REPLAY_ABOUT, ruleSentence } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
-import { Btn, Field, Hint, Sheet } from '../../../shared/ui';
+import { Btn, ExplainHint, Field, Hint, Sheet } from '../../../shared/ui';
 import { parseMoneyInput } from '../model';
 import { useSession } from '../session';
 import { buildReplay, rescueRules, type ReplayDraft } from './replay';
@@ -58,7 +58,7 @@ export function RescueReplay({ entries, locked, onClose, onReplayed }: {
   );
   return (
     <Sheet title="Replay a failed renewal" onClose={onClose} footer={footer} className="ow-lim-sheet ow-rr">
-      <p className="ow-p">{RESCUE_REPLAY_ABOUT}</p>
+      <p className="ow-p"><ExplainHint label={APPROVAL_SHORT.replayAbout} line={APPROVAL_SHORT.replayLine}>{RESCUE_REPLAY_ABOUT}</ExplainHint></p>
       {rules ? (
         <>
           <div className="ow-lim-form">

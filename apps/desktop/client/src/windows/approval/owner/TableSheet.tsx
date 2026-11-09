@@ -14,9 +14,9 @@ import type { HouseTableDraft } from '@bindings/HouseTableDraft';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney, nowUnix } from '../../../lib/format';
-import { APPROVAL_TABLE as W, houseWords, rulesName, RULES_CATEGORY } from '../../../lib/words';
+import { APPROVAL_SHORT, APPROVAL_TABLE as W, houseWords, rulesName, RULES_CATEGORY } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
-import { Btn, Field, Hint, Kv, Seg, Sheet, useToast } from '../../../shared/ui';
+import { Btn, ExplainHint, Field, Hint, Kv, Seg, Sheet, useToast } from '../../../shared/ui';
 import { parseMoneyInput } from '../model';
 import { useSession } from '../session';
 import { decodeListingCode, encodeListingCode } from '../listingCode';
@@ -145,7 +145,7 @@ export function TableSheet({ seed, entries, counterparties, locked, onClose }: {
       {house ? null : (
         <Seg label={W.section} value={mode} onChange={setMode} options={[{ value: 'sell', label: W.sellMode }, { value: 'code', label: W.codeMode }]} />
       )}
-      <p className="ow-p">{house ? W.joinAbout : byCode ? W.codeAbout : W.openAbout}</p>
+      <p className="ow-p"><ExplainHint label={APPROVAL_SHORT.tableAbout} line={house ? APPROVAL_SHORT.tableJoinLine : byCode ? APPROVAL_SHORT.tableCodeLine : APPROVAL_SHORT.tableOpenLine}>{house ? W.joinAbout : byCode ? W.codeAbout : W.openAbout}</ExplainHint></p>
       {house ? (
         <>
           <Kv items={[

@@ -17,11 +17,12 @@ import type { RescueLever } from '@bindings/RescueLever';
 import { WalletError, toWalletError } from '../../lib/contract';
 import { useCounterparties, useDealDisplay } from '../../lib/display';
 import { formatMoney, nowUnix, shortId } from '../../lib/format';
-import { APPROVAL_AFTER_FAILURE, APPROVAL_DECIDED, APPROVAL_SEAL, HELLO_NEXT_STEP, houseWords, PAYMENT_CANNOT_BE_UNDONE, RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, sellerSaysOnly } from '../../lib/words';
+import { APPROVAL_AFTER_FAILURE, APPROVAL_DECIDED, APPROVAL_SEAL, APPROVAL_SHORT, HELLO_NEXT_STEP, houseWords, PAYMENT_CANNOT_BE_UNDONE, RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, sellerSaysOnly } from '../../lib/words';
 import { ifNothingOf } from '../main/modules/rescue/model';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { MODULES } from '../../shared/modules';
+import { isCalm } from '../../design/motion';
 import { Seal, type SealState } from '../../shared/brand';
 import { Countdown, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Field, HoldButton, Popover, Sheet, layerCount, useFocusRescue, useToast } from '../../shared/ui';
@@ -87,6 +88,8 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const [closeNote, setCloseNote] = useState<string | null>(null);
   // Bumped when the wallet answers that the summary changed: the CHECKING reveal runs again.
   const [revealRun, setRevealRun] = useState(0);
+  // A held decision the wallet accepted: the plate settles once (approval.css drSettle), then the class goes.
+  const [settled, setSettled] = useState(false);
   const headRef = useRef<HTMLHeadingElement>(null);
   const bodyRef = useRef<HTMLElement>(null);
   // A decided money button unmounts while it has focus: keyboard and screen-reader users land on
@@ -265,7 +268,11 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
       return;
     }
     const r = await s.call<DecisionCmd>(cmd, args, true);
-    if (r.ok) setOutcome(outcomeText(cmd, r.value, cpName));
+    if (r.ok) {
+      setOutcome(outcomeText(cmd, r.value, cpName));
+      // Calm (OS reduced motion or the in-app mode): the instant state change is the whole acknowledgment.
+      if (cmd !== 'deal_void' && !isCalm()) setSettled(true);
+    }
     else if (cmd === 'deal_countersign' && reachedPaypal(r.error) && readsLostAuthorize(summary)) setFailure({ what: READ_FAILED, error: r.error, from: summary.deal.state });
     else if (reachedPaypal(r.error)) setFailure({ what: unconfirmedHeading(cmd, summary.deal, r.error), error: r.error, from: summary.deal.state });
     else {
@@ -420,7 +427,8 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const tone = phase === 'mismatch' || phase === 'block' ? 'bad' : phase === 'hold' ? 'hold' : phase === 'done' ? 'ok' : showLock ? 'lock' : 'gold';
 
   return (
-    <div className={`aw dr phase-${phase} t-${tone}`} style={moduleMeta ? ({ '--c': moduleMeta.cssVar } as CSSProperties) : undefined}>
+    <div className={`aw dr phase-${phase} t-${tone}${settled ? ' settled' : ''}`} style={moduleMeta ? ({ '--c': moduleMeta.cssVar } as CSSProperties) : undefined}
+      onAnimationEnd={(e) => { if (e.animationName === 'drSettle') setSettled(false); }}>
       <ReviewBar module={moduleName} label={null} mode={d.mode} onDetails={() => { setPop(null); setDetails(true); }} />
 
       <main className="dr-body" ref={bodyRef} aria-labelledby="dr-h">
@@ -455,8 +463,6 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
             <AnswerBar tone={says.tone} icon={says.icon} title={answerWhyText ? <>{says.text}<WhyNote why={answerWhyText} /></> : says.text} sub={says.sub} actions={answerAction} />
           </div>
         )}
-
-        {!checking && path ? <NextPath steps={path} /> : null}
 
         <TwinHeader twin={diff.twin} checking={checking} />
 
@@ -507,7 +513,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
           </section>
         )}
 
-        {!decided && d.kind !== 'rescue' ? <MarketLine deal={d} onInfo={(el) => openPop('mkt', el)} /> : null}
+        {!checking && path ? <NextPath steps={path} /> : null}
 
         {summary.unavailable_reason && !terminal && !(g.ownerAccept.visible && phase === 'ready') ? (
           <div className="dr-mkt">
@@ -524,10 +530,14 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
           </div>
         ) : null}
 
-        {d.kind === 'rescue' && summary.rescue ? <InvoiceCard view={summary.rescue} total={total} sent={!!d.paypal.order} /> : null}
-
-        {!terminal && !locked && d.kind !== 'rescue' ? <PriceCheck deal={d} payload={mandate?.payload} onDone={async () => { await refetch(); }} /> : null}
-        {!terminal && !locked && d.kind !== 'rescue' ? <Comparables deal={d} payload={mandate?.payload} /> : null}
+        {/* Secondary material, drawn quieter than the decision above it: the market, the invoice's
+            wording, the price check and similar products. Every line stays on the page. */}
+        <div className="dr-aside" role="group" aria-label={APPROVAL_SHORT.aside}>
+          {!decided && d.kind !== 'rescue' ? <MarketLine deal={d} onInfo={(el) => openPop('mkt', el)} /> : null}
+          {d.kind === 'rescue' && summary.rescue ? <InvoiceCard view={summary.rescue} total={total} sent={!!d.paypal.order} /> : null}
+          {!terminal && !locked && d.kind !== 'rescue' ? <PriceCheck deal={d} payload={mandate?.payload} onDone={async () => { await refetch(); }} /> : null}
+          {!terminal && !locked && d.kind !== 'rescue' ? <Comparables deal={d} payload={mandate?.payload} /> : null}
+        </div>
 
         {g.bandSet.visible && !locked ? <BandAdjust deal={d} band={display?.band ?? null} gate={g.bandSet} onDone={async () => { await refetch(); }} draft={handoff?.draft?.type === 'band' && handoff.deal_id === d.id ? handoff.draft : null} /> : null}
       </main>

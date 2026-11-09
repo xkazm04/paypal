@@ -11,7 +11,7 @@ export function NextPath({ steps }: { steps: readonly NextStep[] }) {
   return (
     <section className="dr-next" aria-label="What happens next">
       <h2 className="dr-sec">What happens next</h2>
-      <ol className="nx" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
+      <ol className="nx">
         {steps.map((s, i) => (
           <li key={i} className={cx('nx-s', s.by, s.now && 'now')} aria-current={s.now ? 'step' : undefined}>
             <span className="nx-n" aria-hidden="true">{i + 1}</span>

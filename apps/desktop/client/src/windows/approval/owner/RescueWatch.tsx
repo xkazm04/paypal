@@ -7,9 +7,9 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { RescueWatchView } from '@bindings/RescueWatchView';
 import type { WalletError } from '../../../lib/contract';
 import { useNow } from '../../../lib/hooks';
-import { RESCUE_NO_RULES, RESCUE_WATCH_ABOUT, RESCUE_WATCH_EMAIL, RESCUE_WATCH_HOLD, RESCUE_WATCH_STATE, watchingWords } from '../../../lib/words';
+import { APPROVAL_SHORT, RESCUE_NO_RULES, RESCUE_WATCH_ABOUT, RESCUE_WATCH_EMAIL, RESCUE_WATCH_HOLD, RESCUE_WATCH_STATE, watchingWords } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
-import { Btn, Chip, Field, Group, Hint, Row, Sheet } from '../../../shared/ui';
+import { Btn, Chip, ExplainHint, Field, Group, Hint, Row, Sheet } from '../../../shared/ui';
 import { useSession } from '../session';
 import { rescueRules } from './replay';
 import { buildWatch, nextCheckWords, type WatchDraft } from './watch';
@@ -77,7 +77,7 @@ export function RescueWatch({ entries, watching, locked, onClose, onChanged }: {
   );
   return (
     <Sheet title="Watch subscriptions" onClose={onClose} footer={footer} className="ow-lim-sheet ow-rr ow-rw">
-      <p className="ow-p">{RESCUE_WATCH_ABOUT}</p>
+      <p className="ow-p"><ExplainHint label={APPROVAL_SHORT.watchAbout} line={APPROVAL_SHORT.watchLine}>{RESCUE_WATCH_ABOUT}</ExplainHint></p>
       <Group label={watchingWords(list.length)} empty={watchingWords(0)}>
         {list.map((w) => {
           const st = RESCUE_WATCH_STATE[w.state];
@@ -100,7 +100,7 @@ export function RescueWatch({ entries, watching, locked, onClose, onChanged }: {
             {field('email', 'Subscriber’s email', 'name@example.com', { email: true })}
             {field('plan', 'Plan', 'care-plan', { mono: true })}
           </div>
-          <Hint>{RESCUE_WATCH_EMAIL} Watching sends nothing; a fix still waits for you to approve it.</Hint>
+          <Hint><ExplainHint label={APPROVAL_SHORT.emailAbout} line={APPROVAL_SHORT.emailLine}>{RESCUE_WATCH_EMAIL} Watching sends nothing; a fix still waits for you to approve it.</ExplainHint></Hint>
           {!built.ok && typed ? <Hint>{built.problems[0]}</Hint> : null}
         </>
       ) : <Hint>{RESCUE_NO_RULES} Open agent rules, add “Fixes for failed renewals” to a set for rescuing renewals, and sign it.</Hint>}
