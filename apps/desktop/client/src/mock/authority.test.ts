@@ -213,11 +213,9 @@ describe('authority table (browser mock)', () => {
     expect(after?.state).toBe('cancelled');
   });
 
-  it('refuses an agent start while agents are paused or the deal already has a run', async () => {
+  it('refuses an agent start while agents are paused', async () => {
     const main = mockBackend('main');
     const id = main.world.deal('D-0193')!.deal.id;
-    await main.invoke('agent_start', { deal_id: id });
-    await expect(main.invoke('agent_start', { deal_id: id })).rejects.toMatchObject({ code: 'UNAVAILABLE' });
     await main.invoke('pause_all_agents', null);
     await expect(main.invoke('agent_start', { deal_id: id })).rejects.toMatchObject({ code: 'UNAVAILABLE' });
   });

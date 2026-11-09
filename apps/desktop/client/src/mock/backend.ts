@@ -779,7 +779,6 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     agent_start: ({ deal_id }) => {
       // engines.rs start_agent: each refusal told as itself, before anything starts.
       if (state.settings.agents_paused) fail('UNAVAILABLE', 'Agents are paused. Resume them to start one.');
-      if (state.runs.some((r) => r.deal_id === deal_id && (r.state === 'running' || r.state === 'starting'))) fail('UNAVAILABLE', 'An agent is already running on this deal.');
       // engines.rs: a scripted-engine run is a practice run; any other keeps the deal's mode.
       const engine = state.settings.selected_engine;
       const deal = find(deal_id).deal;
