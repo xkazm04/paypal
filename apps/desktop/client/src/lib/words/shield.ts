@@ -21,6 +21,7 @@ export const SHIELD_VIEWS_TITLE = {
 
 export const SHIELD = {
   title: 'Shield',
+  purpose: 'Scam checks that run before PayPal is ever asked.',
   /** The round-2 panels: the week strip, "what's normal vs this payment" and the check lights. */
   panels: {
     thisWeek: 'this week',
@@ -84,6 +85,8 @@ export const SHIELD = {
   },
 
   pausedSub: 'Each one waits for you. Releasing happens in the approval window, where you type the payee’s name.',
+  pausedSubLine: 'Each one waits for you.',
+  pausedSubLabel: 'Releasing a paused payment',
   stoppedSub: 'Payments the shield stopped, and why',
   throughSub: 'Paused payments you let go on',
   safeSub: 'Payments where the shield found nothing',
@@ -106,6 +109,12 @@ export const SHIELD = {
     'seller-approved': 'You start here; you type the payee’s name and release it in the approval window. The buyer already approved at PayPal, so releasing is the last step: the money is taken in on the wallet’s next check, with no other click.',
     'seller-waiting': 'You start here; you type the payee’s name and release it in the approval window. Releasing doesn’t take the money yet: it comes in after the buyer approves at PayPal, with no other click from you.',
   },
+  releaseLine: {
+    buyer: 'Releasing doesn’t pay: you still approve on PayPal.',
+    'seller-approved': 'Releasing is the last step: the money then comes in.',
+    'seller-waiting': 'Releasing doesn’t take the money yet.',
+  },
+  releaseLabel: 'What releasing does',
   reviewMeans: 'The approval window decides. Nothing moves until you confirm there.',
   opened: {
     buyer: 'The approval window is open · type the payee’s name there to release. Releasing doesn’t pay: you still approve on PayPal after.',
@@ -136,8 +145,8 @@ export const SHIELD = {
 
   row: {
     blocked: (why: string | null, paypal: string) => `Blocked for good${why ? ` · ${why.toLowerCase()}` : ''} · it can’t be released · ${paypal}`,
-    paused: (why: string | null) => `Paused for you${why ? ` · ${why.toLowerCase()}` : ''}`,
-    closed: (why: string | null, then: string, paypal: string) => `Paused by the shield${why ? ` · ${why.toLowerCase()}` : ''} · then ${then} · ${paypal}`,
+    paused: (why: string | null) => (why ? why.toLowerCase() : 'Paused for you'),
+    closed: (why: string | null, then: string, paypal: string) => `${why ? `${why.toLowerCase()} · ` : ''}then ${then} · ${paypal}`,
     clear: (state: string) => state,
     released: (module: string) => `You let it go on after a pause · decided in ${module}`,
     other: (why: string | null, module: string) => `${why ? `${why.toLowerCase()} · ` : ''}decided in ${module}`,
@@ -146,6 +155,8 @@ export const SHIELD = {
   scope: { label: 'Which payments', week: 'This week', all: 'Everything checked' },
   show: { label: 'Show', all: 'Everything', outcome: 'Outcome only', outcomeTitle: 'Fade the checks and keep what the shield said and what you decided' },
   unshown: 'Payee match reports only through “Shield says”. Friends & family and the message check are not active yet.',
+  unshownLine: 'Some checks aren’t active yet.',
+  unshownLabel: 'Checks not active yet',
   checksLabel: 'Every payment the shield checked',
   checksEmpty: 'Nothing paused, nothing blocked. The shield hasn’t had to check anyone yet.',
   checksEmptyWeek: 'The shield checked nothing this week. Everything older is under “Everything checked”.',
@@ -164,7 +175,11 @@ export const SHIELD = {
     says: 'Shield says',
     decidedBy: 'Decided by:',
     released: 'You let it go on after a pause, for these terms only. A change to the deal is checked again.',
+    releasedLine: 'You let it go on, for these terms only.',
+    releasedLabel: 'Letting a payment go on',
     strictest: 'The strictest result wins. A check can only make a payment safer, and a block is final.',
+    strictestLine: 'The strictest result wins, and a block is final.',
+    strictestLabel: 'How the results combine',
     price: 'Price against typical',
     paypal: 'PayPal',
     moneyNow: (now: string) => `Money right now: ${now}.`,
@@ -189,6 +204,8 @@ export const SHIELD = {
     ],
     all: 'All the checks ›',
     lede: 'Before any money goes to a payee, the shield runs these checks. The strictest result wins, and a check can only make a payment safer, never approve one.',
+    ledeLine: 'These checks run before any money goes out.',
+    ledeLabel: 'What the checks can do',
     checks: 'The checks',
     ifFinds: 'If it finds something:',
     noPrice: 'With no typical price to compare, the price check never waves a payment through: it asks you.',

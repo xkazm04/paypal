@@ -13,7 +13,7 @@ import { clockLabel, formatMinor } from '../../../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../../../lib/hooks';
 import { LATEST_OF, OPEN_THE_DEAL, RESCUE, RESCUE_REPLAY_ABOUT, RESCUE_WATCH_HOLD, RESCUE_WATCH_STATE, RESCUE_VIEWS_TITLE, RESCUE_WATCH_ABOUT, ruleSentence, watchingWords } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
-import { Btn, Chip, Kv } from '../../../../../shared/ui';
+import { Btn, Chip, ExplainHint, Kv } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { dealTotal, sumByCurrency } from '../../../logic';
 import { atRiskOf, ifNothingOf, isReplay, recovered, refusalLine, recoveredThisMonth, watchStatus, type Col, type NotCountedWhy } from '../../../modules/rescue/model';
@@ -95,7 +95,7 @@ function Failed({ r, picked, onPick, compare }: { r: RescueWorld; picked: Record
   return (
     <div className={`rs-list${compare ? ' rs-compare' : ''}`}>
       {r.bookError ? <WalletNotice error={r.bookError} what={RESCUE.bookWhat} /> : null}
-      {compare ? <p className="ui-hint rs-never">{RESCUE.never}</p> : null}
+      {compare ? <p className="ui-hint rs-never"><ExplainHint label={RESCUE.neverLabel} line={RESCUE.neverLine}>{RESCUE.never}</ExplainHint></p> : null}
       <ListEngine<Deal> className={fewRows(r.rows.failing.length)} label={compare ? RESCUE_VIEWS_TITLE.compare : RESCUE_VIEWS_TITLE.failed} rows={r.rows.failing} getKey={(d) => d.id} estimateSize={36} wideAt={1200}
         searchText={(d) => `${r.name(d)} ${r.title(d)}`}
         renderRow={(d) => (compare ? <span className="row1 rs-crow" style={CMP_COLS} title={`${cap(r.name(d))} · ${r.title(d)}`}><b className="rs-who" title={r.title(d)}>{cap(r.name(d))}</b><CompareCells deal={d} r={r} /></span> : <FailedRow deal={d} r={r} />)}
@@ -143,7 +143,7 @@ function Recovered({ r }: { r: RescueWorld }) {
       <p className="rs-total">{RESCUE.recovered.total} <b className={`money${total ? ' okc' : ''}`}>{total ?? RESCUE.recovered.noneYet}</b></p>
       <p className="rs-total">{RESCUE.recovered.month} <b className={`money${month?.length ? ' okc' : ''}`}>{month ? moneyList(month) ?? RESCUE.recovered.noneYet : RESCUE.recovered.monthUnknown}</b></p>
       </Reveal>
-      <p className="ui-hint">{RESCUE.recovered.rule}</p>
+      <p className="ui-hint"><ExplainHint label={RESCUE.recovered.ruleLabel} line={RESCUE.recovered.ruleLine}>{RESCUE.recovered.rule}</ExplainHint></p>
       <ListEngine<RecoveredRow> className={fewRows(rows.length)} label={RESCUE_VIEWS_TITLE.recovered} rows={rows} getKey={(x) => x.deal.id} filters={RECOVERED_FILTERS} estimateSize={36}
         searchText={(x) => `${r.name(x.deal)} ${r.title(x.deal)}`}
         renderRow={(x) => {
@@ -269,6 +269,7 @@ export function RescueLayer({ nav }: LayerProps) {
   return (
     <div className="ar-rescue">
       <ModuleLayer module="rescue" answer={answer} sub={sub} latest={latestOf(r, (v) => route.open(v), nav.deal)}
+        purpose={<ExplainHint label={RESCUE.how.title} line={RESCUE.purpose}><ul className="tr-steps">{RESCUE.how.items.map((x) => <li key={x.title}><b>{x.title}.</b> {x.text}</li>)}</ul><p>{RESCUE.never}</p></ExplainHint>}
         yourCall={first && firstNeed ? { count: asking.length, ifNothing: quietHead(first, r), onOpen: () => route.open('failed', 'your-call') } : null}
         action={first && firstNeed ? <HandOff deal={first} quiet={refusalLine(r.view(first)) !== null} /> : undefined}
         cards={[
@@ -278,13 +279,12 @@ export function RescueLayer({ nav }: LayerProps) {
           { id: 'progress', view: 'progress', label: RESCUE_VIEWS_TITLE.progress, value: r.rows.inflight.length ? RESCUE.cards.fixes(r.rows.inflight.length) : RESCUE.none,
             note: r.rows.inflight.length ? RESCUE.cards.waitingFor(moneyList(strip.inProgress) ?? '') : RESCUE.cards.nothingWaiting },
           { id: 'recovered', view: 'recovered', label: RESCUE_VIEWS_TITLE.recovered, value: moneyList(strip.recovered) ?? RESCUE.cards.noneYet, note: `${RESCUE.cards.thisMonth(month ? moneyList(month) : null)} · ${RESCUE.cards.countedOnce}` },
-          { id: 'watch', view: 'watch', label: RESCUE_VIEWS_TITLE.watch, value: r.book ? watchingWords(watching) : r.bookError ? RESCUE.cards.unread : RESCUE.cards.reading,
+          { id: 'watch', view: 'watch', label: RESCUE_VIEWS_TITLE.watch, value: r.book ? RESCUE.cards.watched(watching) : r.bookError ? RESCUE.cards.unread : RESCUE.cards.reading,
             note: r.book ? watchLines(r.book, now).note : RESCUE.cards.watchNote },
         ]}
-        explain={{ summary: RESCUE.how.title, body: <><ul className="rs-how">{RESCUE.how.items.map((x) => <li key={x.title}><b>{x.title}.</b> {x.text}</li>)}</ul><p>{RESCUE.never}</p></> }}
         views={{
-          failed: { title: RESCUE_VIEWS_TITLE.failed, sub: RESCUE.failedSub, actions: <><ReplayButton /><Btn sm onClick={() => route.open('compare')}>{RESCUE_VIEWS_TITLE.compare}</Btn></>, render: () => <Failed r={r} picked={picked} onPick={pick} /> },
-          compare: { title: RESCUE_VIEWS_TITLE.compare, sub: RESCUE.compareSub, render: () => <Failed r={r} picked={picked} onPick={pick} compare /> },
+          failed: { title: RESCUE_VIEWS_TITLE.failed, sub: <ExplainHint label={RESCUE.failedSubLabel} line={RESCUE.failedSubLine}>{RESCUE.failedSub}</ExplainHint>, actions: <><ReplayButton /><Btn sm onClick={() => route.open('compare')}>{RESCUE_VIEWS_TITLE.compare}</Btn></>, render: () => <Failed r={r} picked={picked} onPick={pick} /> },
+          compare: { title: RESCUE_VIEWS_TITLE.compare, sub: <ExplainHint label={RESCUE.compareSubLabel} line={RESCUE.compareSubLine}>{RESCUE.compareSub}</ExplainHint>, render: () => <Failed r={r} picked={picked} onPick={pick} compare /> },
           progress: { title: RESCUE_VIEWS_TITLE.progress, sub: RESCUE.progressSub, render: () => <Progress r={r} /> },
           recovered: { title: RESCUE_VIEWS_TITLE.recovered, sub: RESCUE.recoveredSub, render: () => <Recovered r={r} /> },
           watch: { title: RESCUE_VIEWS_TITLE.watch, sub: RESCUE.watchSub, render: () => <Watch r={r} /> },

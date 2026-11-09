@@ -6,6 +6,7 @@
 // and "Outcome only" fades the checks. No column is added per payee, so the page never scrolls
 // sideways. The picked row's whole story (every check, the price band, their note quarantined, the
 // decision and its hand-off) sits beside the list.
+import { ExplainHint } from '../../../../../shared/ui';
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { Fragment, useMemo, useState, type CSSProperties } from 'react';
 import type { Deal } from '@bindings/Deal';
@@ -124,7 +125,7 @@ export function PayeeStory({ deal, s }: { deal: Deal; s: ShieldWorld }) {
       <h3 className="sh-h3">{SHIELD.story.says}</h3>
       <p className="sh-say"><VerdictChip v={deal.shield} /> <span>{v ? v.means : SHIELD.noVerdictTitle}</span></p>
       {deal.shield_rule ? <p className="sh-det"><b>{SHIELD.story.decidedBy}</b> {shieldRuleWord(deal.shield_rule).text}. {shieldRuleWord(deal.shield_rule).means}</p> : null}
-      {shieldReleased(deal) ? <p className="sh-det">{SHIELD.story.released}</p> : null}
+      {shieldReleased(deal) ? <p className="sh-det"><ExplainHint label={SHIELD.story.releasedLabel} line={SHIELD.story.releasedLine}>{SHIELD.story.released}</ExplainHint></p> : null}
       </Reveal>
       <Reveal className="sh-sec">
       <ul className="sh-cklist">
@@ -134,7 +135,7 @@ export function PayeeStory({ deal, s }: { deal: Deal; s: ShieldWorld }) {
           return <Fragment key={chk.k}>{stage}<li title={x.l}><span className={`sh-mark r-${x.r}`} aria-hidden="true" /><span>{chk.name}</span><span className={`res r-${x.r}`}>{x.s}</span></li></Fragment>;
         })}
       </ul>
-      <Hint>{SHIELD.story.strictest}</Hint>
+      <Hint><ExplainHint label={SHIELD.story.strictestLabel} line={SHIELD.story.strictestLine}>{SHIELD.story.strictest}</ExplainHint></Hint>
       </Reveal>
       <Reveal className="sh-sec">
       <h3 className="sh-h3">{SHIELD.story.price}</h3>
@@ -151,7 +152,7 @@ export function PayeeStory({ deal, s }: { deal: Deal; s: ShieldWorld }) {
       </Reveal>
       <Reveal className="sh-sec">
       <h3 className="sh-h3">{SHIELD.story.decision}</h3>
-      <p className="sh-det">{deal.shield === 'BLOCK' ? SHIELD.story.blockFinal : need && releasable(deal) ? SHIELD.releaseMeans[releaseCase(deal)] : need ? need.headline : SHIELD.story.nothing(v ? v.text : SHIELD.noVerdict, s.moduleName(deal))}</p>
+      <p className="sh-det">{deal.shield === 'BLOCK' ? SHIELD.story.blockFinal : need && releasable(deal) ? <ExplainHint label={SHIELD.releaseLabel} line={SHIELD.releaseLine[releaseCase(deal)]}>{SHIELD.releaseMeans[releaseCase(deal)]}</ExplainHint> : need ? need.headline : SHIELD.story.nothing(v ? v.text : SHIELD.noVerdict, s.moduleName(deal))}</p>
       {need ? <p className="sh-det">{SHIELD.ifNothing}: <b>{need.on_silence}</b></p> : null}
       <div className="cs-acts">
         {need ? <ReleaseHandoff deal={deal} need={need} sm /> : null}
@@ -185,7 +186,7 @@ export function Checks({ s }: { s: ShieldWorld }) {
         <Seg label={SHIELD.scope.label} value={scope} onChange={setScope} options={[{ value: 'week', label: SHIELD.scope.week }, { value: 'all', label: SHIELD.scope.all }]} />
         <Seg label={SHIELD.show.label} value={outcome ? 'outcome' : 'all'} onChange={(v) => setOutcome(v === 'outcome')}
           options={[{ value: 'all', label: SHIELD.show.all }, { value: 'outcome', label: SHIELD.show.outcome, title: SHIELD.show.outcomeTitle }]} />
-        <span className="ui-hint sh-unshown">{SHIELD.unshown}</span>
+        <span className="ui-hint sh-unshown"><ExplainHint label={SHIELD.unshownLabel} line={SHIELD.unshownLine}>{SHIELD.unshown}</ExplainHint></span>
       </div></Reveal>
       <ListEngine<Deal> className={fewRows(rows.length)} label={SHIELD.checksLabel} rows={rows} getKey={(d) => d.id} filters={filters} filterLabel={SHIELD.filter.label} estimateSize={36} wideAt={1200} toolbarMin={0}
         searchText={(d) => `${s.who(d)} ${s.title(d)} ${d.shield ? shieldWord(d.shield).text : ''}`}
@@ -203,7 +204,7 @@ export function Checks({ s }: { s: ShieldWorld }) {
 export function HowShield() {
   return (
     <RevealGroup className="sh-how">
-      <Reveal><p className="sh-det">{SHIELD.how.lede}</p></Reveal>
+      <Reveal><p className="sh-det"><ExplainHint label={SHIELD.how.ledeLabel} line={SHIELD.how.ledeLine}>{SHIELD.how.lede}</ExplainHint></p></Reveal>
       <Reveal className="sh-sec">
       <h2 className="sh-h3">{SHIELD.how.checks}</h2>
       <ol className="sh-steps">

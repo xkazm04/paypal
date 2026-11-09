@@ -31,6 +31,7 @@ type OutlookWords = { label: (n: number) => string; short: string; totalNote: st
 
 export const BOOK = {
   title: 'Book',
+  purpose: 'Every payment in one list, matched to PayPal’s statement.',
   loading: 'your book',
   ledgerWhat: 'Ledger',
   dash: '—',
@@ -39,7 +40,9 @@ export const BOOK = {
   goingOut: 'going out',
   comingIn: 'coming in',
   payments: (n: number) => plural(n, 'payment', 'payments'),
-  checkingLine: (n: number) => `${plural(n, 'payment is', 'payments are')} being checked with PayPal: not paid, and not on hold.`,
+  checkingLine: (n: number) => `${plural(n, 'payment is', 'payments are')} being checked with PayPal: not paid, not on hold.`,
+  checkingShort: (n: number) => `${n} being checked with PayPal.`,
+  checkingLabel: 'Being checked with PayPal',
   safety: 'Your safety record',
   safetyTitle: 'Every entry on record: who decided each money step, and what your agents were refused',
 
@@ -63,7 +66,7 @@ export const BOOK = {
   cards: {
     money: 'This week’s money',
     paidOut: (m: string) => `${m} paid out`,
-    noOut: 'Nothing paid out',
+    noOut: 'No money out',
     paidIn: (m: string) => `${m} paid in`,
     today: (m: string) => `Today ${m}`,
     nothingToday: 'nothing yet',
@@ -74,10 +77,10 @@ export const BOOK = {
     outlookNone: 'No holds, links or renewals',
     check: 'Check',
     record: 'The record',
-    recordValue: 'Every step, newest first',
+    recordValue: 'Every step',
     recordNote: 'Who took it, and on whose authority',
     ask: 'Ask your book',
-    askValue: 'Ask in your own words',
+    askValue: 'In your words',
     askNote: 'Or tap a question about your week',
   },
 
@@ -96,7 +99,8 @@ export const BOOK = {
     out: 'Paid out', outNote: 'the money moved',
     in: 'Paid in', inNote: 'the money moved',
     held: 'On hold', heldNote: 'not paid yet',
-    stopped: 'Stopped', stoppedNote: 'never paid, or paid back (refused, withdrawn and expired offers included)',
+    stopped: 'Stopped', stoppedNote: 'never paid, or paid back',
+    stoppedMore: 'Refused, withdrawn and expired offers are included.',
     deals: (n: number) => plural(n, 'deal', 'deals'),
     why: (label: string) => `Why this figure for “${label}”?`,
   },
@@ -161,6 +165,8 @@ export const BOOK = {
 
   record: {
     sub: 'Every step, newest first. Each one is linked to the one before it, so a change to an earlier step shows.',
+    subLine: 'Every step, newest first, each linked to the last.',
+    subLabel: 'How the record holds together',
     label: 'Every step on record',
     what: 'The record',
     loading: 'the record',
@@ -216,6 +222,8 @@ export const BOOK = {
     yours: 'Your question',
     slip: 'Your question and its answer',
     readOnly: 'Ask in your own words, or tap a question. Your wallet reads it itself: no AI, and nothing can change.',
+    readOnlyLine: 'Ask in your own words, or tap a question.',
+    readOnlyLabel: 'How asking works',
     show: 'Show answer',
     runKey: 'Ctrl+Enter',
     clearKey: 'Esc',
@@ -235,6 +243,8 @@ export const BOOK = {
     },
     thisView: 'This view',
     onlyReads: (n: number) => `It only reads your ${n} deals: no PayPal call, and nothing can change. Your wallet checks the question before it answers.`,
+    onlyReadsLine: (n: number) => `It only reads your ${n} deals.`,
+    onlyReadsLabel: 'What this view can do',
     queryKey: { view: 'Looks at', filter: 'Only', range: 'When', group_by: 'One line per', metrics: 'Shows' },
     groupHead: { kind: 'Kind', counterparty: 'Who', state: 'Status', day: 'Day', decided_by: 'Decided by' } as Record<string, string>,
     kinds: { haggle: 'Haggles', purchase: 'Purchases', shop_order: 'Shop orders', rescue: 'Rescues', invoice: 'Invoices' },
@@ -250,6 +260,8 @@ export const BOOK = {
     walletAnswering: 'the wallet’s answer',
     walletWhat: 'The wallet’s answer',
     walletLine: (n: number) => `Checked by your wallet · ${plural(n, 'line', 'lines')} · each currency and mode on its own line, and money out and money in on separate lines`,
+    walletLineShort: (n: number) => `Checked by your wallet · ${plural(n, 'line', 'lines')}`,
+    walletLineLabel: 'How this answer is added up',
     /** The wallet's answer was cut at the query's row limit: it shows the first lines only. */
     cutLine: (n: number) => `Showing the first ${plural(n, 'line', 'lines')}: more matched than the limit you asked for. Narrow the question or raise the limit to see the rest.`,
     amountLeftOut: 'Amounts are left out here: with no status picked they would add paid, on hold, in progress and stopped money together. Pick a status, or ask by status, to see them.',
@@ -262,6 +274,8 @@ export const BOOK = {
 
   proof: {
     sub: 'A signed proof file someone sent you, or one you saved, checked by your wallet. Only reads.',
+    subLine: 'Check a signed proof file. Only reads.',
+    subLabel: 'Proof files',
     choose: 'Choose a proof file',
     another: 'Check another file',
     checking: 'Checking…',

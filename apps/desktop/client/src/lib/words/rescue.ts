@@ -24,6 +24,7 @@ type FixKey = 'DISCOUNT_THIS_CYCLE' | 'PAUSE' | 'RETRY_AFTER_FIX' | 'DOWNGRADE';
 
 export const RESCUE = {
   title: 'Rescue',
+  purpose: 'Failed subscription renewals, each with one discount you approve.',
   /** The "what the subscriber would get" mock on each fix. */
   get: {
     label: 'What the subscriber would get',
@@ -56,6 +57,8 @@ export const RESCUE = {
   yourCall: 'Your call',
   openDeal: 'Open deal ›',
   never: 'Never a price change for everyone on the plan: changing the plan price would change it for every subscriber, not just the one who is struggling. No fix, agent or approval can do that from here, by design.',
+  neverLine: 'Never a price change for the whole plan.',
+  neverLabel: 'Why never the whole plan',
 
   answer: {
     one: (name: string, amount: string, asks: boolean, replay = false) => `${name}’s ${amount} renewal failed.${asks ? ' Your call.' : replay ? ' Nothing is sent without you.' : ' PayPal retries on its own.'}`,
@@ -84,6 +87,7 @@ export const RESCUE = {
     unread: 'Can’t be read',
     reading: 'Reading…',
     watchNote: 'Rules and watched subscriptions',
+    watched: (n: number) => (n ? `${n} watched` : 'None yet'),
   },
 
   how: {
@@ -96,7 +100,11 @@ export const RESCUE = {
   },
 
   failedSub: 'Pick one fix for one subscriber, or do nothing. The approval window is the only place a fix is approved.',
+  failedSubLine: 'Pick one fix, or do nothing.',
+  failedSubLabel: 'How a fix is approved',
   compareSub: 'Every fix of every failed renewal, side by side. Pick a renewal to choose its fix.',
+  compareSubLine: 'Every fix, side by side.',
+  compareSubLabel: 'Comparing fixes',
   progressSub: 'Invoices sent, waiting for the subscriber to pay',
   recoveredSub: 'Only what PayPal shows paid counts',
   watchSub: 'Subscriptions your wallet checks, and the fixes you allow',
@@ -195,6 +203,8 @@ export const RESCUE = {
     monthUnknown: 'not shown: a rescue has no payment date yet',
     noneYet: 'none yet',
     rule: 'Only an invoice PayPal shows paid, with its receipt saved, counts, and only for a renewal PayPal reported failed. Replays never do, and sent is not paid. Each currency is added up on its own.',
+    ruleLine: 'Replays and unpaid invoices never count.',
+    ruleLabel: 'What counts as recovered',
     counts: 'Counts', notCounts: 'Doesn’t count', closed: 'Closed',
     countsLine: 'Counts as money you got back',
   },
@@ -210,9 +220,9 @@ export const RESCUE = {
   watch: {
     reading: 'Reading…',
     unread: 'Can’t be read right now',
-    none: 'Watch a subscription and your wallet checks it with PayPal for a failed renewal. Checking never moves money.',
-    failing: (n: number) => `${n} with a failed renewal · checked with PayPal every few hours; checking never moves money`,
-    checked: 'Checked with PayPal every few hours for a failed renewal; checking never moves money',
+    none: 'Your wallet checks a watched subscription with PayPal. Checking never moves money.',
+    failing: (n: number) => `${n} with a failed renewal · checked every few hours, never moves money`,
+    checked: 'Checked with PayPal every few hours; checking never moves money',
     reads: (today: number, max: number) => `${today} of ${max} checks today`,
     /** The day's checks are used up: the wallet reads nothing more until the next UTC day. */
     spent: (at: string) => `Today’s checks are used up, so nothing is being checked. Your wallet checks again from ${at}; checking never moves money.`,

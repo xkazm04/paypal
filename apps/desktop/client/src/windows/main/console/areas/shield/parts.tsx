@@ -12,7 +12,7 @@ import { useMutation, useNow, useQuery } from '../../../../../lib/hooks';
 import { APPROVAL_LOCKED_TITLE, SHIELD, shieldReleased, shieldRuleWord, shieldWord } from '../../../../../lib/words';
 import { MinorMoney, WalletNotice } from '../../../../../shared/honesty';
 import { MODULE } from '../../../../../shared/modules';
-import { Btn, Chip, DecisionCard, Icon, Kv, Sheet, useToast, type DecisionOption } from '../../../../../shared/ui';
+import { Btn, Chip, DecisionCard, ExplainHint, Icon, Kv, Sheet, useToast, type DecisionOption } from '../../../../../shared/ui';
 import { canWithdraw, dealTotal, stateLabel } from '../../../logic';
 import { NoteChip } from '../shared/NoteChip';
 import { CheckLights, ComparePanel, ReasonWhy } from '../../../modules/shield/Panels';
@@ -155,7 +155,7 @@ export function PausedDecision({ deal, s, onDeal }: { deal: Deal; s: ShieldWorld
         <ReleaseHandoff deal={deal} need={need} />
         <RefuseButton deal={deal} need={need} title={s.title(deal)} />
       </div></Reveal>
-      <p className="ui-hint">{live ? SHIELD.releaseMeans[releaseCase(deal)] : SHIELD.reviewMeans}</p>
+      <p className="ui-hint">{live ? <ExplainHint label={SHIELD.releaseLabel} line={SHIELD.releaseLine[releaseCase(deal)]}>{SHIELD.releaseMeans[releaseCase(deal)]}</ExplainHint> : SHIELD.reviewMeans}</p>
     </RevealGroup>
   );
 }

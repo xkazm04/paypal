@@ -3,6 +3,7 @@
 // daily cap with today's meter); the purchases are a windowed list whose rows carry one mark per rule;
 // the pane shows the picked purchase, or the picked rule with every purchase at it. Display only.
 // Pure logic: modules/spend/gate.ts.
+import { ExplainHint } from '../../../../../shared/ui';
 import { useMemo, useState, type CSSProperties } from 'react';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { clockLabel, formatMinor } from '../../../../../lib/format';
@@ -84,7 +85,7 @@ export function GateView({ lanes, cols, m, sets, display, who, needOf }: {
         <Disclosure summary={SPEND.legendTitle}>
           <ul className="sp-legend">{SPEND.legend.map(([g, t]) => <li key={t}><span className="g" aria-hidden="true">{g}</span>{t}</li>)}</ul>
         </Disclosure>
-        {sets > 1 ? <Hint>{SPEND.moreSets(sets)}</Hint> : null}
+        {sets > 1 ? <Hint><ExplainHint label={SPEND.moreSetsLabel} line={SPEND.moreSetsLine(sets)}>{SPEND.moreSets(sets)}</ExplainHint></Hint> : null}
       </Reveal>
       <Reveal style={FILL}><SplitView label={SPEND.gateList} count={lanes.length}
         list={(

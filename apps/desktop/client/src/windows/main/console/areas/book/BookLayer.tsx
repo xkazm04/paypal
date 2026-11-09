@@ -7,7 +7,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useAttention, useNeeds } from '../../../world';
 import { BOOK, BOOK_VIEWS_TITLE, LATEST_OF, OPEN_THE_DEAL } from '../../../../../lib/words';
-import { Btn } from '../../../../../shared/ui';
+import { Btn, ExplainHint } from '../../../../../shared/ui';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { silenceParts } from '../../../home/model';
 import { Loading } from '../../../ui';
@@ -25,14 +25,15 @@ import { Record } from './Record';
 import { paidTodayText, usePaidToday } from './today';
 
 /** The answer line and the line under it, from the week's figures alone. */
-function answerOf(b: BookWorld): { answer: string; sub: string | null } {
+function answerOf(b: BookWorld): { answer: string; sub: ReactNode } {
   const f = figures(b.weekDeals, b.checking);
   const out = moneyList(f.paidOut);
   const inn = moneyList(f.paidIn);
   if (!b.all.length) return { answer: BOOK.answer.nothing, sub: BOOK.answer.nothingSub };
   const answer = out && inn ? BOOK.answer.both(out, inn) : out ? BOOK.answer.out(out) : inn ? BOOK.answer.in(inn) : BOOK.answer.none;
   const held = BOOK.answer.held(moneyList(f.heldOut), moneyList(f.heldIn));
-  const bits = [held, f.checking ? BOOK.checkingLine(f.checking) : null, f.nStopped ? BOOK.answer.stopped(f.nStopped) : null].filter((x): x is string => !!x);
+  const bits = [held, f.checking ? BOOK.checkingShort(f.checking) : null, f.nStopped ? BOOK.answer.stopped(f.nStopped) : null].filter((x): x is string => !!x);
+  if (f.checking) return { answer, sub: <ExplainHint label={BOOK.checkingLabel} line={bits.join(' ')}>{BOOK.checkingLine(f.checking)}</ExplainHint> };
   return { answer, sub: bits.length ? bits.join(' ') : null };
 }
 
@@ -76,6 +77,7 @@ export function BookLayer({ nav }: LayerProps) {
   return (
     <div className="ar-book">
       <ModuleLayer module="book" answer={answer} sub={sub} latest={latest}
+        purpose={<ExplainHint label={BOOK.how.title} line={BOOK.purpose}><ul className="tr-steps">{BOOK.how.items.map((x) => <li key={x.title}><b>{x.title}.</b> {x.text}</li>)}</ul></ExplainHint>}
         action={<Btn sm onClick={() => nav.place('safety')} title={BOOK.safetyTitle} data-fk="safety">{BOOK.safety}</Btn>}
         cards={[
           { id: 'ledger', view: 'ledger', label: BOOK.cards.money, value: out ? BOOK.cards.paidOut(out) : BOOK.cards.noOut,
@@ -86,7 +88,6 @@ export function BookLayer({ nav }: LayerProps) {
           { id: 'record', view: 'record', label: BOOK.cards.record, value: BOOK.cards.recordValue, note: BOOK.cards.recordNote },
           { id: 'ask', view: 'ask', label: BOOK.cards.ask, value: BOOK.cards.askValue, note: BOOK.cards.askNote },
         ]}
-        explain={{ summary: BOOK.how.title, body: <ul className="bk-how">{BOOK.how.items.map((x) => <li key={x.title}><b>{x.title}.</b> {x.text}</li>)}</ul> }}
         views={views} />
     </div>
   );
@@ -99,8 +100,8 @@ function useViews(b: BookWorld, scope: LedgerScope, setScope: (s: LedgerScope) =
     ledger: { title: BOOK_VIEWS_TITLE.ledger, sub: ledgerSub(scope), actions: <LedgerActions b={b} scope={scope} onScope={setScope} onProof={toProof} />, render: () => <Ledger b={b} scope={scope} /> },
     recent: { title: BOOK_VIEWS_TITLE.recent, sub: BOOK.recentSub, actions: <LedgerActions b={b} scope={scope} onScope={setScope} onProof={toProof} />, render: () => <Ledger b={b} scope={scope} /> },
     outlook: { title: BOOK_VIEWS_TITLE.outlook, sub: BOOK.outlookSub, render: () => <Outlook b={b} items={items} /> },
-    record: { title: BOOK_VIEWS_TITLE.record, sub: BOOK.record.sub, actions: <Btn sm onClick={toProof} title={BOOK.proofTitle}>{BOOK.proofOpen}</Btn>, render: () => <Record b={b} /> },
+    record: { title: BOOK_VIEWS_TITLE.record, sub: <ExplainHint label={BOOK.record.subLabel} line={BOOK.record.subLine}>{BOOK.record.sub}</ExplainHint>, actions: <Btn sm onClick={toProof} title={BOOK.proofTitle}>{BOOK.proofOpen}</Btn>, render: () => <Record b={b} /> },
     ask: { title: BOOK_VIEWS_TITLE.ask, sub: BOOK.ask.sub, render: () => <Ask b={b} /> },
-    proof: { title: BOOK_VIEWS_TITLE.proof, sub: BOOK.proof.sub, render: () => <Proof /> },
+    proof: { title: BOOK_VIEWS_TITLE.proof, sub: <ExplainHint label={BOOK.proof.subLabel} line={BOOK.proof.subLine}>{BOOK.proof.sub}</ExplainHint>, render: () => <Proof /> },
   };
 }

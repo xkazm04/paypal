@@ -7,6 +7,7 @@
 // down: each paused payment as a decision, the lists, and how the shield decides.
 import { LATEST_OF, OPEN_THE_DEAL, SHIELD, SHIELD_VIEWS_TITLE } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
+import { ExplainHint } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
@@ -43,14 +44,14 @@ function answerOf(s: ShieldWorld): { answer: string; sub: string } {
     const t = dealTotal(lead);
     return {
       answer: s.paused.length === 1 ? SHIELD.answer.onePaused(formatMinor(t.minor, t.currency), s.who(lead)) : SHIELD.answer.manyPaused(s.paused.length),
-      sub: [SHIELD.answer.nothingSent, s.blocked.length ? SHIELD.answer.blocked(s.blocked.length) : '', safe].filter(Boolean).join(' '),
+      sub: [SHIELD.answer.nothingSent, s.blocked.length ? SHIELD.answer.blocked(s.blocked.length) : ''].filter(Boolean).join(' '),
     };
   }
   if (s.stopped.length) {
     const neverSent = s.stopped.every((d) => paypalLine(d)[0].startsWith(SHIELD.nothingSentPrefix));
     return {
       answer: SHIELD.answer.stopped(s.stopped.length),
-      sub: [SHIELD.answer.stoppedParts(s.blocked.length, s.closed.length), neverSent ? SHIELD.answer.neverAsked : '', SHIELD.answer.nothingNeeds, safe].filter(Boolean).join(' '),
+      sub: [SHIELD.answer.stoppedParts(s.blocked.length, s.closed.length), neverSent ? SHIELD.answer.neverAsked : '', SHIELD.answer.nothingNeeds].filter(Boolean).join(' '),
     };
   }
   return { answer: SHIELD.answer.quiet, sub: s.checked.length ? safe || SHIELD.answer.quietSub : SHIELD.answer.notYet };
@@ -86,6 +87,7 @@ export function ShieldLayer({ nav }: LayerProps) {
   return (
     <div className="ar-shield">
       <ModuleLayer module="shield" answer={answer} sub={sub} latest={latestOf(s, (v) => route.open(v), nav.deal)}
+        purpose={<ExplainHint label={SHIELD.how.title} line={SHIELD.purpose}><ul className="tr-steps">{SHIELD.how.short.map((x) => <li key={x.title}><b>{x.title}.</b> {x.text}</li>)}</ul><p><button type="button" className="linkbtn" onClick={() => route.open('how')}>{SHIELD.how.all}</button></p></ExplainHint>}
         yourCall={first && firstNeed ? { count: s.paused.length, ifNothing: silenceParts(firstNeed.on_silence).head, onOpen: () => route.open('paused', 'your-call') } : null}
         action={first && firstNeed ? <ReleaseHandoff deal={first} need={firstNeed} /> : undefined}
         cards={[
@@ -97,9 +99,8 @@ export function ShieldLayer({ nav }: LayerProps) {
           { id: 'safe', view: 'safe', label: SHIELD_VIEWS_TITLE.safe, value: s.cleared.length ? SHIELD.count(s.cleared.length) : SHIELD.none,
             note: s.cleared.length ? SHIELD.cards.nothingFound : SHIELD.cards.nothingChecked },
         ]}
-        explain={{ summary: SHIELD.how.title, body: <><ul className="sh-howlist">{SHIELD.how.short.map((x) => <li key={x.title}><b>{x.title}.</b> {x.text}</li>)}</ul><p><button type="button" className="linkbtn" onClick={() => route.open('how')}>{SHIELD.how.all}</button></p></> }}
         views={{
-          paused: { title: SHIELD_VIEWS_TITLE.paused, sub: SHIELD.pausedSub, render: () => <ShieldList rows={s.paused} s={s} label={SHIELD_VIEWS_TITLE.paused} empty={SHIELD.empty.paused} paused /> },
+          paused: { title: SHIELD_VIEWS_TITLE.paused, sub: <ExplainHint label={SHIELD.pausedSubLabel} line={SHIELD.pausedSubLine}>{SHIELD.pausedSub}</ExplainHint>, render: () => <ShieldList rows={s.paused} s={s} label={SHIELD_VIEWS_TITLE.paused} empty={SHIELD.empty.paused} paused /> },
           stopped: { title: SHIELD_VIEWS_TITLE.stopped, sub: SHIELD.stoppedSub, render: () => <ShieldList rows={s.stopped} s={s} label={SHIELD_VIEWS_TITLE.stopped} empty={SHIELD.empty.stopped} /> },
           through: { title: SHIELD_VIEWS_TITLE.through, sub: SHIELD.throughSub, render: () => <ShieldList rows={s.released} s={s} label={SHIELD_VIEWS_TITLE.through} empty={SHIELD.empty.through} /> },
           safe: { title: SHIELD_VIEWS_TITLE.safe, sub: SHIELD.safeSub, render: () => <ShieldList rows={s.cleared} s={s} label={SHIELD_VIEWS_TITLE.safe} empty={SHIELD.empty.safe} /> },

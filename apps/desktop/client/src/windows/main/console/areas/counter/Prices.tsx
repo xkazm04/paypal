@@ -9,7 +9,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { Money } from '@bindings/Money';
 import { clockLabel, exponent, formatMinor, formatMoney } from '../../../../../lib/format';
 import { COUNTER } from '../../../../../lib/words';
-import { Btn, Chip, Disclosure, Field, Kv, Silence } from '../../../../../shared/ui';
+import { Btn, Chip, Disclosure, ExplainHint, Field, Kv, Silence } from '../../../../../shared/ui';
 import { dealTotal, isLive } from '../../../logic';
 import {
   currencyMark, draftFloor, draftState, fmtShort, floorText, itemName, minorToText, parseMoneyText, scaleOf, stepFloor, unitPrice, vsMarket,
@@ -34,7 +34,7 @@ export function ItemPane({ row, draft, mandate, catPending, onText, onOrder }: {
         <h2 title={title}>{title}</h2>
         {catPending ? <Chip tone="dashed" title={COUNTER.catalogUnknown}>{COUNTER.catalogPending}</Chip> : null}
       </header>
-      {row.title === null ? <p className="ui-hint">{COUNTER.codeOnly}</p> : null}
+      {row.title === null ? <p className="ui-hint"><ExplainHint label={COUNTER.codeOnlyLabel} line={COUNTER.codeOnlyLine}>{COUNTER.codeOnly}</ExplainHint></p> : null}
       <FloorField row={row} draft={draft} onText={onText} />
       <PriceScale row={row} floor={f} />
       <Kv items={[
@@ -57,7 +57,7 @@ export function ItemPane({ row, draft, mandate, catPending, onText, onOrder }: {
           </ul>
         ) : <p className="ui-hint">{COUNTER.ordersCount(0)}</p>}
       </section>
-      <p className="ui-hint">{COUNTER.itemHint(!!mandate)}</p>
+      <p className="ui-hint"><ExplainHint label={COUNTER.itemHintLabel} line={COUNTER.itemHintLine}>{COUNTER.itemHint(!!mandate)}</ExplainHint></p>
     </div>
   );
 }

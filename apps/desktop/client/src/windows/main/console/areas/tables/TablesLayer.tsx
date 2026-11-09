@@ -5,14 +5,14 @@
 // signs: a decision and a new price range hand off to the approval window (`approval_open`); withdraw
 // and shop around move no money. The unsent price-range drafts live here, so they survive a view
 // change; Escape discards an unsent draft before it leaves the page.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import { useQuery } from '../../../../../lib/hooks';
 import { headlineWords, LATEST_OF, OPEN_THE_DEAL, TABLES, TABLES_TRADE, TABLES_VIEWS, TABLES_WATCH, tablesClip, tablesItem, tablesShortWho } from '../../../../../lib/words';
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { WalletNotice } from '../../../../../shared/honesty';
-import { Btn, Chip, useLayer, useToast } from '../../../../../shared/ui';
+import { Btn, Chip, ExplainHint, useLayer, useToast } from '../../../../../shared/ui';
 import { silenceParts, shortTitle } from '../../../home/model';
 import { amountTone, dealTotal, isLive, isOwnerAccept, isSettled } from '../../../logic';
 import { bandOf, fenceKey, LIMIT_WORD, sameBand, short, type BandDraft } from '../../../modules/tables/ladder';
@@ -69,14 +69,12 @@ function answerOf(c: Ctx, needDeals: readonly Deal[], live: number): { answer: s
   const who = c.who(lead).short;
   const item = tablesItem(tablesClip(c.display(lead).title));
   const amt = need.amount_minor ? short(need.amount_minor, need.currency) : null;
-  const rest = needDeals.length - 1;
-  const more = rest ? TABLES.more(rest) : '';
   if (need.actions.includes('review')) {
     const answer = amt ? (isOwnerAccept(need, lead) ? TABLES.offers(who, amt, item) : TABLES.agreed(who, amt, item)) : TABLES.headline(headlineWords(need.headline));
     const room = roomLine(lead, need.amount_minor ?? null, bandOf(c.display(lead).band));
-    return { answer, sub: `${room ?? TABLES.nothingAccepted}${more}` };
+    return { answer, sub: room ?? TABLES.nothingAccepted };
   }
-  return { answer: TABLES.mismatch(who, item), sub: `${TABLES.mismatchSub}${more}` };
+  return { answer: TABLES.mismatch(who, item), sub: TABLES.mismatchSub };
 }
 
 /** The one line a table's list row keeps of its old second line: the limit as signed, or that there is none. */
@@ -217,7 +215,7 @@ export function TablesLayer({ nav }: LayerProps) {
       renderRow={(d) => <TableRow1 deal={d} c={c} picked={picked?.id === d.id} />}
       rowLabel={(d) => `${display(d).title}, ${c.who(d).full}`} onPick={(d) => pick(d.id)} onOpen={open} empty={empty} />
   );
-  const tablesView = (title: string, subLine: string) => ({
+  const tablesView = (title: string, subLine: ReactNode) => ({
     title, sub: subLine,
     render: () => <SplitView label={TABLES.openList} count={openDeals.length} list={tableList(openDeals, TABLES.openList, pickedTable, pickTable, TABLES.openEmpty)} pane={tablePane(pickedTable, true)} />,
   });
@@ -235,16 +233,16 @@ export function TablesLayer({ nav }: LayerProps) {
 
   return (
     <ModuleLayer module="tables" kicker={TABLES.kicker} answer={answer} sub={sub} yourCall={yourCall} latest={latest}
+      purpose={<ExplainHint label={TABLES.whyTitle} line={TABLES.purpose}><ol className="tr-steps">{TABLES.why.map((s) => <li key={s}>{s}</li>)}</ol></ExplainHint>}
       action={<><Btn onClick={() => route.open('watch')} title={TABLES_WATCH.watchAllTitle}>{TABLES_WATCH.watchAll}</Btn><Btn onClick={() => nav.place('pairing')} title={TABLES.openTableTitle}>{TABLES.openTable}</Btn></>}
       cards={cards}
-      explain={{ summary: TABLES.whyTitle, body: <ol className="tr-steps">{TABLES.why.map((s) => <li key={s}>{s}</li>)}</ol> }}
       views={{
         need: {
           title: TABLES_VIEWS.need, sub: needDeals.length ? TABLES.needSub(needDeals.length) : undefined,
           render: () => <SplitView label={TABLES.needList} count={needDeals.length} list={tableList(needDeals, TABLES.needList, pickedNeed, pickNeed, TABLES.needEmpty)} pane={tablePane(pickedNeed, true)} />,
         },
         tables: tablesView(TABLES_VIEWS.tables, TABLES.openSub),
-        ladder: tablesView(TABLES_VIEWS.ladder, TABLES.ladderSub),
+        ladder: tablesView(TABLES_VIEWS.ladder, <ExplainHint label={TABLES.ladderSubLabel} line={TABLES.ladderSubLine}>{TABLES.ladderSub}</ExplainHint>),
         shop: {
           title: TABLES_VIEWS.shop, sub: TABLES.shopNote,
           actions: <ShopAroundButton groups={groupList} deals={deals} display={display} onGrouped={() => void groups.refetch()} onToast={say} />,
@@ -256,7 +254,7 @@ export function TablesLayer({ nav }: LayerProps) {
           ),
         },
         watch: {
-          title: TABLES_VIEWS.watch, sub: TABLES_WATCH.sub,
+          title: TABLES_VIEWS.watch, sub: <ExplainHint label={TABLES_WATCH.subLabel} line={TABLES_WATCH.subLine}>{TABLES_WATCH.sub}</ExplainHint>,
           render: () => <WatchView deals={deals} display={display} needOf={needOf} who={c.who} />,
         },
         closed: {

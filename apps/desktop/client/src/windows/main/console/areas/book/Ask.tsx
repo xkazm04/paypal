@@ -4,6 +4,7 @@
 // (a fixed view) is drafted first, then shown. The window works the same query out over its own
 // deals (the deals behind the answer, in one windowed list), and the wallet answers it too
 // (book_query, read-only). Nothing here can change anything: Esc clears, Ctrl+Enter shows a draft.
+import { ExplainHint } from '../../../../../shared/ui';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { BookAnswer } from '@bindings/BookAnswer';
 import type { Currency } from '@bindings/Currency';
@@ -166,7 +167,7 @@ export function Ask({ b }: { b: BookWorld }) {
             </div>
           ) : null}
         </section>
-      ) : <p className="ui-hint">{BOOK.ask.readOnly}</p>}
+      ) : <p className="ui-hint"><ExplainHint label={BOOK.ask.readOnlyLabel} line={BOOK.ask.readOnlyLine}>{BOOK.ask.readOnly}</ExplainHint></p>}
     </div>
   );
 }
@@ -198,7 +199,7 @@ function ReadBody({ lens, rows }: { lens: Lens; rows: number }) {
       <p className="bk-q">{lens.question}</p>
       <Kv items={readQuery(lens.query).map(([k, v]) => [BOOK.ask.queryKey[k as keyof typeof BOOK.ask.queryKey] ?? k, plainLine(k, v)] as const)} />
       {lens.unavailable ? <WalletNotice error={new WalletError({ code: 'UNAVAILABLE', message: lens.unavailable })} what={BOOK.ask.thisView} /> : null}
-      <p className="ui-hint">{BOOK.ask.onlyReads(rows)}</p>
+      <p className="ui-hint"><ExplainHint label={BOOK.ask.onlyReadsLabel} line={BOOK.ask.onlyReadsLine(rows)}>{BOOK.ask.onlyReads(rows)}</ExplainHint></p>
     </div>
   );
 }
@@ -279,7 +280,7 @@ export function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (
   };
   return (
     <div className="bk-wallet">
-      <p className="ui-hint">{BOOK.ask.walletLine(answer.rows.length)}</p>
+      <p className="ui-hint"><ExplainHint label={BOOK.ask.walletLineLabel} line={BOOK.ask.walletLineShort(answer.rows.length)}>{BOOK.ask.walletLine(answer.rows.length)}</ExplainHint></p>
       {answer.truncated ? <p className="ui-hint">{BOOK.ask.cutLine(answer.rows.length)}</p> : null}
       {amountLeftOut ? <p className="ui-hint">{BOOK.ask.amountLeftOut}</p> : null}
       {answer.rows.length ? (

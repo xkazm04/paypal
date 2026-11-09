@@ -3,7 +3,7 @@
 // window on the first paused payment and calls nothing else); locked, it carries the lock and says
 // so; the checks side by side are rows with a fixed set of columns however many payees there are
 // (#13), windowed and filterable; the picked payment's story reads their note only when asked.
-import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
@@ -220,7 +220,11 @@ describe('Release words, per deal case', () => {
       need: () => need, who: () => 'K', cpEntry: () => undefined, title: () => 'T', moduleName: () => 'Shield', known: null,
     } as unknown as ShieldWorld;
     const r = render(<ToastProvider><PausedDecision deal={d} s={s} onDeal={() => {}} /></ToastProvider>);
-    expect(r.container.querySelector('.ui-hint')?.textContent).toBe(SHIELD.releaseMeans[c]);
+    // The consequence stays on the page; the full sentence moved behind the (i).
+    const hint = r.container.querySelector('.ui-hint') as HTMLElement;
+    expect(hint.textContent).toContain(SHIELD.releaseLine[c]);
+    fireEvent.click(within(hint).getByRole('button', { name: new RegExp(SHIELD.releaseLabel) }));
+    expect(screen.getByRole('dialog', { name: SHIELD.releaseLabel }).textContent).toContain(SHIELD.releaseMeans[c]);
     if (c !== 'buyer') expect(r.container.textContent).not.toContain(CLAIM);
   });
 });

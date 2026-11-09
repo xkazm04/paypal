@@ -128,7 +128,7 @@ export function Totals({ deals, checking }: { deals: readonly Deal[]; checking: 
         const [one, two] = totalWhy(t.k, counted);
         return (
           <div key={t.k} className={`bk-tile tl-${t.bucket}`} title={BUCKET_SUB[t.bucket]}>
-            <div className="tk"><span>{t.label}</span><Why question={BOOK.tiles.why(t.label)} className="tw"><p>{one}</p><p>{two}</p></Why></div>
+            <div className="tk"><span>{t.label}</span><Why question={BOOK.tiles.why(t.label)} className="tw"><p>{one}</p><p>{two}</p>{t.k === 'stopped' ? <p>{BOOK.tiles.stoppedMore}</p> : null}</Why></div>
             <div className="tv">
               {t.money.length ? t.money.map((x) => (
                 <span key={`${x.dir}${x.m.currency}`} className="fig">

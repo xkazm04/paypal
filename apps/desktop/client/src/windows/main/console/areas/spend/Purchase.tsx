@@ -10,7 +10,7 @@ import { clockLabel, formatMinor } from '../../../../../lib/format';
 import { useMutation } from '../../../../../lib/hooks';
 import { APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, receiptWord, reconWord, RULE_NAME, rulesName, ruleSentence, SPEND, TABLES_TRADE } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
-import { Btn, Chip, DecisionCard, Disclosure, Hint, Kv, Section, Sheet, type DecisionOption } from '../../../../../shared/ui';
+import { Btn, Chip, DecisionCard, Disclosure, ExplainHint, Hint, Kv, Section, Sheet, type DecisionOption } from '../../../../../shared/ui';
 import { amountNote, amountTone, canWithdraw, dealTotal, decidedBy } from '../../../logic';
 import { CLAUSE_NO, columnValue, outcomeOf, reachedPaypal, type Cell, type GateColumn } from '../../../modules/spend/gate';
 import { LockGlyph } from '../../../ui';
@@ -86,12 +86,13 @@ export function PurchaseDecision({ lane, disp, need, m, who, onToast }: {
       onClick: async () => { const r = await withdraw.run({ deal_id: deal.id }); if (r === null) onToast(SPEND.withdrawn(disp.title), 'ok'); },
     });
   }
+  const whyText = whyAsked(deal, need, m, who);
   const context = [checking ? SPEND.checking : held ? SPEND.onHold : SPEND.waiting, lane.slot ? SPEND.agent(lane.slot) : null, deal.created_at ? SPEND.askedAt(clockLabel(deal.created_at)) : null].filter(Boolean).join(' · ');
   return (
     <>
       <DecisionCard context={context}
         question={held ? SPEND.payQ(who.name, disp.title) : SPEND.whatQ(disp.title, who.name)}
-        why={whyAsked(deal, need, m, who)}
+        why={whyText === SPEND.whyPurchase ? <ExplainHint label={SPEND.whyPurchaseLabel} line={SPEND.whyPurchaseLine}>{whyText}</ExplainHint> : whyText}
         amount={<Amount money={t} tone={amountTone(deal)} />}
         options={options}
         silence={need.on_silence} deadline={need.deadline}>

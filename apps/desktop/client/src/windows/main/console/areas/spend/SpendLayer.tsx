@@ -4,14 +4,14 @@
 // purchase beside it. Main never moves money: paying and releasing a hold hand off to the approval
 // window (`approval_open`); letting a purchase lapse and withdrawing it move no money. Per-deal proof
 // is read only for the picked purchase. Pure logic: modules/spend/gate.ts.
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import { clockLabel, formatMinor } from '../../../../../lib/format';
 import { useQuery } from '../../../../../lib/hooks';
 import { joinWords, LATEST_OF, OPEN_THE_DEAL, SPEND, SPEND_VIEWS, TABLES_TRADE, tablesClip } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
-import { Btn, Chip, Hint, Loading, useToast } from '../../../../../shared/ui';
+import { Btn, Chip, ExplainHint, Hint, Loading, useToast } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { amountTone, dealTotal, mandatesGoverning } from '../../../logic';
 import { gateColumns, laneCells, outcomeOf, ruleLine, type GateColumn, type Outcome } from '../../../modules/spend/gate';
@@ -48,7 +48,7 @@ const ALL_SORTS: readonly ListSort<Lane>[] = [
 ];
 
 /** The answer line and the sentence under it, from the purchases and the attention queue. */
-function answerOf(deals: readonly Deal[], needs: ReadonlyArray<{ d: Deal; need: AttentionItem }>, hasRules: boolean, title: (d: Deal) => string): { answer: string; sub?: string } {
+function answerOf(deals: readonly Deal[], needs: ReadonlyArray<{ d: Deal; need: AttentionItem }>, hasRules: boolean, title: (d: Deal) => string): { answer: string; sub?: ReactNode } {
   const needIds = new Set(needs.map((x) => x.d.id));
   const tally = { paid: 0, refused: 0, voided: 0, other: 0 };
   for (const d of deals) {
@@ -67,7 +67,7 @@ function answerOf(deals: readonly Deal[], needs: ReadonlyArray<{ d: Deal; need: 
     const held = needs.every((x) => x.d.state === 'AUTHORIZED' && !x.need.money_check);
     return {
       answer: needs.length === 1 ? SPEND.oneNeeds(title(lead.d), formatMinor(t.minor, t.currency)) : SPEND.manyNeed(needs.length),
-      sub: `${held ? SPEND.heldSub : ''}${rest}` || undefined,
+      sub: held ? <ExplainHint label={SPEND.heldLabel} line={`${SPEND.heldLine}${rest ? ` ${rest}` : ''}`}>{SPEND.heldSub}</ExplainHint> : rest || undefined,
     };
   }
   if (!hasRules) return { answer: SPEND.noRules, sub: SPEND.noRulesSub };
@@ -207,8 +207,8 @@ export function SpendLayer({ nav }: LayerProps) {
 
   return (
     <ModuleLayer module="spend" kicker={SPEND.kicker} answer={answer} sub={sub} yourCall={yourCall} latest={latest}
+      purpose={<ExplainHint label={SPEND.whyTitle} line={SPEND.purpose}><ol className="tr-steps">{SPEND.why.map((s) => <li key={s}>{s}</li>)}</ol></ExplainHint>}
       cards={cards}
-      explain={{ summary: SPEND.whyTitle, body: <ol className="tr-steps">{SPEND.why.map((s) => <li key={s}>{s}</li>)}</ol> }}
       views={{
         need: {
           title: SPEND_VIEWS.need, sub: needs.length ? SPEND.needSub(needs.length) : undefined,
@@ -223,12 +223,12 @@ export function SpendLayer({ nav }: LayerProps) {
           render: () => rulesState ?? <GateView lanes={lanes} cols={cols} m={m} sets={purchase.length} display={display} who={whoOf} needOf={needOf} />,
         },
         rules: {
-          title: SPEND_VIEWS.rules, sub: m ? SPEND.rulesSub : undefined,
+          title: SPEND_VIEWS.rules, sub: m ? <ExplainHint label={SPEND.rulesSubLabel} line={SPEND.rulesSubLine}>{SPEND.rulesSub}</ExplainHint> : undefined,
           actions: <Btn kind="primary" onClick={() => nav.place('rules')}>{SPEND.changeRulesBtn}</Btn>,
           render: () => rulesState ?? (m ? (
             <RevealGroup className="sp-rules">
               <Reveal><ClauseList m={m} lane={null} /></Reveal>
-              <Reveal><Hint>{SPEND.changeHint}</Hint></Reveal>
+              <Reveal><Hint><ExplainHint label={SPEND.changeHintLabel} line={SPEND.changeHintLine}>{SPEND.changeHint}</ExplainHint></Hint></Reveal>
             </RevealGroup>
           ) : <p className="le-empty">{SPEND.rulesNone}</p>),
         },

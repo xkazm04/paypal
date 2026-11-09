@@ -11,7 +11,7 @@ import { clockLabel, formatMinor, formatMoney } from '../../../../../lib/format'
 import { useNow, useQuery } from '../../../../../lib/hooks';
 import { COUNTER, COUNTER_VIEWS, LATEST_OF, OPEN_THE_DEAL, stateWord, TABLES_TRADE, timeLeftWords } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
-import { Btn, Chip, Kv, Loading, useLayer, useLayerCount, useToast } from '../../../../../shared/ui';
+import { Btn, Chip, ExplainHint, Kv, Loading, useLayer, useLayerCount, useToast } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { chipClass, dealTotal, isLive, PENDING_BACKEND, stripFor, sumByCurrency } from '../../../logic';
 import {
@@ -210,8 +210,8 @@ export function CounterLayer({ nav }: LayerProps) {
 
   return (
     <ModuleLayer module="counter" kicker={COUNTER.kicker} answer={answer} sub={sub} yourCall={yourCall} latest={latestOrders([...live, ...past], live.length > 0)}
+      purpose={<ExplainHint label={COUNTER.whyTitle} line={COUNTER.purpose}><ul className="tr-steps">{COUNTER.why.map(([t, x]) => <li key={t}><b>{t}.</b> {x}</li>)}</ul></ExplainHint>}
       cards={cards}
-      explain={{ summary: COUNTER.whyTitle, body: <ul className="tr-steps">{COUNTER.why.map(([t, x]) => <li key={t}><b>{t}.</b> {x}</li>)}</ul> }}
       views={{
         orders: {
           title: COUNTER_VIEWS.orders, sub: COUNTER.ordersSub(live.length),
@@ -255,7 +255,7 @@ export function CounterLayer({ nav }: LayerProps) {
           ),
         },
         rules: {
-          title: COUNTER_VIEWS.rules, sub: COUNTER.rulesSub,
+          title: COUNTER_VIEWS.rules, sub: <ExplainHint label={COUNTER.rulesSubLabel} line={COUNTER.rulesSubLine}>{COUNTER.rulesSub}</ExplainHint>,
           actions: <Btn onClick={() => nav.place('rules')}>{COUNTER.openRules}</Btn>,
           render: () => (mq.error ? <WalletNotice error={mq.error} what={COUNTER.rulesWhat} message={TABLES_TRADE.unread} /> : !mq.data ? <Loading what={COUNTER.rulesReading} /> : <ShopRules mandate={mandate} count={seller.length} floors={signedFloors} />),
         },
