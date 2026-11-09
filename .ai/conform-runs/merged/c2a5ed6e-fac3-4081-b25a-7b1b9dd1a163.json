@@ -1,0 +1,157 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c2a5ed6e-fac3-4081-b25a-7b1b9dd1a163",
+ "subject": "quality-gates",
+ "evaluatedAt": "2026-11-09T02:45:13.768743+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "deal-review",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/approval/frame.test.tsx:53 The source guard on DealReview.tsx reads raw text with no comment stripping, so a comment containing `await closeThisWindow()` would keep this presence check green after the real call at DealReview.tsx:302 was deleted, while sibling guards such as reasons.test.ts do strip comments.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/approval/frame.test.tsx:53 Presence assertion over unnormalised source (read at line 52). The technique requires the presence assertion to be normalised to code, and the file does not state that over-detection is the safe direction."
+    },
+    {
+     "technique": "unmeasurable-criteria",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/review/Checks.tsx:20 A wait line is an announced, counted skip: it stays in the total and is not read as a pass. gating.ts:109 refuses when the checklist is empty (checks.length > 0). This is a runtime approval gate, applied by analogy to the pipeline wording."
+    },
+    {
+     "technique": "policy-projection",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/review/Checks.tsx:2 The component maps over the wallet's own enumeration with no hand-walked subset. Not-applicable lines fold into a counted line with a Show control, so none disappear silently."
+    }
+   ],
+   "registryProposal": "The golden path frames gates as pipeline and merge machinery, yet policy-projection and unmeasurable-criteria fit in-product refusal gates such as an approval checklist equally well; the subject should state whether product-runtime gates are in scope."
+  },
+  {
+   "context": "tumbler-window",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:148 Six comments in Tumbler.tsx (lines 148, 167, 402, 414, 440, 456) suppress a hook-dependency rule that nothing runs, since no ESLint dependency, config or invocation exists in the client package, CI or check.ps1, so a wrong dependency array passes every rung exactly as a correct one does.",
+   "techniques": [
+    {
+     "technique": "prose-rule-drift",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:148 The comment treats the rule as in force, but no instrument exists: package.json has no eslint dependency or script and the repo search found no config. The forbidden action simply succeeds, which is this technique's tell."
+    },
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/logic.test.ts:36 The haystack is normalised to code before matching; walkaway.test.ts:27 does the same for the forecast horizon."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/logic.test.ts:44 The guard asserts its extracted population before comparing, so a moved or reworded Rust table goes red instead of comparing nothing."
+    },
+    {
+     "technique": "instrument-answers-only-its-own-question",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/targets.test.ts:5 The census states the half of the property its instrument cannot answer and names the instrument that owns it."
+    }
+   ]
+  },
+  {
+   "context": "shared-ui-primitives",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:39 The shared/ui English guard never asserts that its file walk found anything, so an empty population yields `expect(hits).toEqual([])` green, and the seeded test at line 42 proves only the matcher, not the walk.",
+   "techniques": [
+    {
+     "technique": "gate-liveness",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:39 The technique treats a walked population of zero as fatal and no length or floor assertion exists. The matcher's own red path is proven by the seeded literals at lines 43-45."
+    },
+    {
+     "technique": "unparseable-form-is-a-finding",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:49 A blocking regex gate that does not refuse forms it cannot read. Running a verbatim copy of its patterns returned no hits for `const greeting = 'Hello there'; <b>{greeting}</b>`, for `<Row hint=\"Hello there\" />` and for an object field rendered as {W.heading}, while the control still matched. No such English was found in the tree today."
+    },
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:9 The haystack is normalised to code, and the seeded test keeps the needle alive. The empty-walk gap is recorded under gate-liveness."
+    },
+    {
+     "technique": "false-positive-economics",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:46 A false-positive fixture pins that class names, glyphs and comment text do not fire the detector."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "quality-gates",
+   "context": "table-engine-agent-process",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "quality-gates",
+   "context": "attention-forecast-and-window-placement",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T02:45:13.768743+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "match-the-resolved-artifact",
+    "policy-projection",
+    "unmeasurable-criteria"
+   ],
+   "deviations": 1,
+   "context": "deal-review",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T02:45:13.768743+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "gate-liveness",
+    "instrument-answers-only-its-own-question",
+    "match-the-resolved-artifact",
+    "prose-rule-drift"
+   ],
+   "deviations": 1,
+   "context": "tumbler-window",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T02:45:13.768743+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "false-positive-economics",
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "unparseable-form-is-a-finding"
+   ],
+   "deviations": 1,
+   "context": "shared-ui-primitives",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

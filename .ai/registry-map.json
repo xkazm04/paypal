@@ -2700,7 +2700,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/frame.test.tsx:53 The source guard on DealReview.tsx reads raw text with no comment stripping, so a comment containing `await closeThisWindow()` would keep this presence check green after the real call at DealReview.tsx:302 was deleted, while sibling guards such as reasons.test.ts do strip comments.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "agent-memory",
@@ -8267,7 +8271,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:39 The shared/ui English guard never asserts that its file walk found anything, so an empty population yields `expect(hits).toEqual([])` green, and the seeded test at line 42 proves only the matcher, not the walk.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "prompt-safety",
@@ -9243,7 +9251,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:148 Six comments in Tumbler.tsx (lines 148, 167, 402, 414, 440, 456) suppress a hook-dependency rule that nothing runs, since no ESLint dependency, config or invocation exists in the client package, CI or check.ps1, so a wrong dependency array passes every rung exactly as a correct one does.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         }
       ],
       "governance": "governed"

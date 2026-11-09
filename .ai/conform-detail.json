@@ -10622,6 +10622,95 @@
         "at": "2026-11-09T02:31:20.859860+00:00",
         "reason": "reviewer (sonnet): The anchor crates/table-attention/src/lib.rs:1 is only a doc comment saying the crate is pure projections, so it is incidental and does not itself show that no gate exists. My own greps for std::fs, env!, CARGO_MANIFEST_DIR and Command::new in that crate's src also found nothing, which fits the clai"
       }
+    },
+    "1b4ef14a-5a8a-438c-988d-365c439b153d/quality-gates": {
+      "context": "deal-review",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:45:13.768Z",
+      "worker": "c2a5ed6e-fac3-4081-b25a-7b1b9dd1a163",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/frame.test.tsx:53 Presence assertion over unnormalised source (read at line 52). The technique requires the presence assertion to be normalised to code, and the file does not state that over-detection is the safe direction."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/review/Checks.tsx:20 A wait line is an announced, counted skip: it stays in the total and is not read as a pass. gating.ts:109 refuses when the checklist is empty (checks.length > 0). This is a runtime approval gate, applied by analogy to the pipeline wording."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/review/Checks.tsx:2 The component maps over the wallet's own enumeration with no hand-walked subset. Not-applicable lines fold into a counted line with a Show control, so none disappear silently."
+        }
+      ],
+      "registryProposal": "The golden path frames gates as pipeline and merge machinery, yet policy-projection and unmeasurable-criteria fit in-product refusal gates such as an approval checklist equally well; the subject should state whether product-runtime gates are in scope."
+    },
+    "78691638-b912-45fd-98f8-083cec08e3a9/quality-gates": {
+      "context": "tumbler-window",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:45:13.768Z",
+      "worker": "c2a5ed6e-fac3-4081-b25a-7b1b9dd1a163",
+      "techniques": [
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:148 The comment treats the rule as in force, but no instrument exists: package.json has no eslint dependency or script and the repo search found no config. The forbidden action simply succeeds, which is this technique's tell."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/tumbler/logic.test.ts:36 The haystack is normalised to code before matching; walkaway.test.ts:27 does the same for the forecast horizon."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/tumbler/logic.test.ts:44 The guard asserts its extracted population before comparing, so a moved or reworded Rust table goes red instead of comparing nothing."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/tumbler/targets.test.ts:5 The census states the half of the property its instrument cannot answer and names the instrument that owns it."
+        }
+      ]
+    },
+    "9a477925-2fcc-4133-982d-849ca52dbe7f/quality-gates": {
+      "context": "shared-ui-primitives",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:45:13.768Z",
+      "worker": "c2a5ed6e-fac3-4081-b25a-7b1b9dd1a163",
+      "techniques": [
+        {
+          "technique": "gate-liveness",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:39 The technique treats a walked population of zero as fatal and no length or floor assertion exists. The matcher's own red path is proven by the seeded literals at lines 43-45."
+        },
+        {
+          "technique": "unparseable-form-is-a-finding",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:49 A blocking regex gate that does not refuse forms it cannot read. Running a verbatim copy of its patterns returned no hits for `const greeting = 'Hello there'; <b>{greeting}</b>`, for `<Row hint=\"Hello there\" />` and for an object field rendered as {W.heading}, while the control still matched. No such English was found in the tree today."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:9 The haystack is normalised to code, and the seeded test keeps the needle alive. The empty-walk gap is recorded under gate-liveness."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/words.test.ts:46 A false-positive fixture pins that class names, glyphs and comment text do not fire the detector."
+        }
+      ]
     }
   }
 }
