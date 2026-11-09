@@ -1119,7 +1119,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/frame.test.tsx:53 This source guard matches raw file text with no comment stripping, so a comment holding that phrase would keep it green after the real close path was removed, even though the repo already strips comments for this reason in rustConstants.test.ts; DealReview.tsx:302 is real code today, so the blind spot is latent.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         }
       ],
       "governance": "governed"
@@ -3094,7 +3098,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/design/tokens.test.ts:78 The colour-literal gate blocks for real but its pattern-based normalisation erases genuine violations (a probe of `.a-mask:hover { color: #123456; }` counted 0), and the walk has no population floor, misses other colour forms and reads stylesheets only, so its green overstates what the tokens.css rule claims.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "authorization",

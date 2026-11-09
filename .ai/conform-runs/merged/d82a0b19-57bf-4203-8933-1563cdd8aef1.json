@@ -1,0 +1,188 @@
+{
+ "schema": "conform-run/1",
+ "worker": "d82a0b19-57bf-4203-8933-1563cdd8aef1",
+ "subject": "quality-gates",
+ "evaluatedAt": "2026-11-09T03:02:37.429840+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "design-system-styles",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/design/tokens.test.ts:78 The colour-literal gate blocks for real but its pattern-based normalisation erases genuine violations (a probe of `.a-mask:hover { color: #123456; }` counted 0), and the walk has no population floor, misses other colour forms and reads stylesheets only, so its green overstates what the tokens.css rule claims.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.test.ts:78 The mask pass runs up to the next ; or } from any text ending in 'mask...:', so a selector like .a-mask:hover swallows its first declaration, with no seeded pair to catch it. Line 56's token-read scan also reads raw text, comments included, with no stated reason; no token currently depends on that (0 of 150 measured)."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.test.ts:75 No floor on the walked population and no known-bad fixture: the one file guaranteed present is exempted two lines later, so an empty walk reports clean. The same file asserts a floor for font URLs at line 175."
+    },
+    {
+     "technique": "unparseable-form-is-a-finding",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.test.ts:68 Measured 0 hits for tomato, rebeccapurple, hwb(...) and color(display-p3 ...). The escape set is CSS's own fixed grammar and the tree is owned, yet unrecognised forms pass silently."
+    },
+    {
+     "technique": "renameable-detector-keys",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.test.ts:71 A location key: moving a colour from a stylesheet to an inline style clears the check with the colour still rendered. Director.tsx:636 already writes rgb(...) inline."
+    },
+    {
+     "technique": "prose-rule-drift",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.css:14 The rule covers the client; the mechanism covers .css only. No other test walks TS/TSX for colours, so writing one there fails nothing, and Director.tsx:636 is a live case."
+    },
+    {
+     "technique": "waiver-names-its-finding",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.test.ts:77 A standing exemption scoped to a directory when it covers exactly one file (devInspector.css), with no reaper. The per-name SCALE_OR_PINNED list at line 45 is the conforming form."
+    },
+    {
+     "technique": "severity-by-construction",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/design/tokens.test.ts:82 A finding fails the assertion, the vite include matches this file, and the CI client job runs pnpm test."
+    },
+    {
+     "technique": "blocking-by-input-determinism",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/design/tokens.test.ts:12 The verdict is a function of the tree being gated, with no external feed, so it has earned blocking."
+    },
+    {
+     "technique": "false-positive-economics",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/design/tokens.test.ts:65 The detector was narrowed rather than the gate dropped: five real mask declarations carry #000 for alpha only. The over-reach of that narrowing is recorded under match-the-resolved-artifact."
+    },
+    {
+     "technique": "decidable-in-a-window",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/design/tokens.test.ts:79 A literal in a stylesheet is decidable from that one file; no call graph is needed."
+    },
+    {
+     "technique": "unmeasurable-criteria",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/design/tokens.test.ts:18 A token the contrast floor cannot read refuses instead of comparing a missing value and passing."
+    },
+    {
+     "technique": "refusal-names-a-reachable-remedy",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/design/tokens.test.ts:80 The message gives file and count and names no remedy, so there is no remedy to resolve; this technique assumes one is named."
+    }
+   ],
+   "registryProposal": "refusal-names-a-reachable-remedy opens by deferring 'the message contains a remedy' to a technique under metric-gates, so a plain predicate gate whose refusal names no remedy at all has no owning rule inside quality-gates."
+  },
+  {
+   "context": "approval-window-shell",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/approval/frame.test.tsx:53 This source guard matches raw file text with no comment stripping, so a comment holding that phrase would keep it green after the real close path was removed, even though the repo already strips comments for this reason in rustConstants.test.ts; DealReview.tsx:302 is real code today, so the blind spot is latent.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/approval/frame.test.tsx:53 Prose satisfies the matcher: the read at line 52 is not normalised to code and no comment explains why."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:26 The population is pinned before its members are judged, so an empty or shrunken scan fails instead of passing."
+    },
+    {
+     "technique": "severity-by-construction",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:28 Each finding fails an assertion in a file the vite include matches and the CI client job runs."
+    },
+    {
+     "technique": "blocking-by-input-determinism",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:8 Reads only the tree being gated."
+    },
+    {
+     "technique": "false-positive-economics",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:2 Scope is deliberately limited to the notices it can judge correctly, so other features' notices cannot trip it."
+    },
+    {
+     "technique": "decidable-in-a-window",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:19 Whether an element carries its message prop is decided inside that one element."
+    },
+    {
+     "technique": "unmeasurable-criteria",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/gating.ts:109 Applied by analogy to this runtime gate: an absent checklist allows nothing, guarding the vacuous truth of every() on an empty list."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "quality-gates",
+   "context": "table-engine-agent-process",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "quality-gates",
+   "context": "attention-forecast-and-window-placement",
+   "reason": "evidence leans on lib/words.ts, which is not a tracked file"
+  },
+  {
+   "subject": "quality-gates",
+   "context": "deal-detail",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T03:02:37.429840+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "blocking-by-input-determinism",
+    "decidable-in-a-window",
+    "false-positive-economics",
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "prose-rule-drift",
+    "refusal-names-a-reachable-remedy",
+    "renameable-detector-keys",
+    "severity-by-construction",
+    "unmeasurable-criteria",
+    "unparseable-form-is-a-finding",
+    "waiver-names-its-finding"
+   ],
+   "deviations": 1,
+   "context": "design-system-styles",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T03:02:37.429840+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "blocking-by-input-determinism",
+    "decidable-in-a-window",
+    "false-positive-economics",
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "severity-by-construction",
+    "unmeasurable-criteria"
+   ],
+   "deviations": 1,
+   "context": "approval-window-shell",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
