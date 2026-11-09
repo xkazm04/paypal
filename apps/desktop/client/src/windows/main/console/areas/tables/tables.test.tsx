@@ -18,6 +18,7 @@ vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/r
 
 afterEach(() => { cleanup(); history.replaceState(null, '', '/'); });
 
+const ROW = '.sg-grid .ag-center-cols-container .ag-row';
 const reads = (r: LayerRun, cmd: string) => r.calls.filter((c) => c.cmd === cmd).length;
 const acts = (r: LayerRun) => r.calls.filter((c) => !/^(list_|get_|deal_display|deal_transcript|deal_evidence|deal_groups|attention_list|agent_runs|counterparty_|mandate_list|engine_status|engine_brief|safety_record|deal_history|approval_open)/.test(c.cmd));
 
@@ -63,10 +64,11 @@ describe('Tables flows', () => {
     const pane = () => r.layer.querySelector<HTMLElement>('.tr-pane') as HTMLElement;
     const goldIn = () => within(pane()).queryAllByRole('button').find((b) => b.classList.contains('dc-opt') && b.classList.contains('gold'));
     // Pick tables until one asks for a review (a mismatch has no gold, only "Open the deal").
-    const rows = [...r.layer.querySelectorAll<HTMLButtonElement>('.tr-list .le-row')];
+    await waitFor(() => expect(r.layer.querySelectorAll(`.tr-list ${ROW} .c-who`).length).toBeGreaterThan(0));
+    const rows = [...r.layer.querySelectorAll<HTMLElement>(`.tr-list ${ROW}`)];
     for (const row of rows) {
       if (goldIn()) break;
-      act(() => { row.click(); });
+      act(() => { row.querySelector<HTMLElement>('.ag-cell')?.click(); });
       await waitFor(() => expect(pane().textContent).toMatch(/If you do nothing/));
     }
     const gold = goldIn();
@@ -83,26 +85,21 @@ describe('Tables flows', () => {
 
   it('picking a table opens it beside the list', async () => {
     const r = await renderLayerAtScale({ level: 'module', module: 'tables', view: 'tables' }, 'large');
-    const list = r.layer.querySelector<HTMLElement>('.tr-list');
-    const rows = () => [...(list?.querySelectorAll<HTMLButtonElement>('.le-row') ?? [])];
-    expect(rows().length).toBeGreaterThan(1);
-    const second = rows()[1];
-    const label = second?.getAttribute('aria-label') ?? '';
-    act(() => { second?.click(); });
-    await waitFor(() => expect(label.startsWith(`${r.layer.querySelector('.tr-pane h2')?.textContent ?? '-'}, `)).toBe(true));
+    await waitFor(() => expect(r.layer.querySelectorAll(`.tr-list ${ROW} .c-who b`).length).toBeGreaterThan(1));
+    const second = [...r.layer.querySelectorAll<HTMLElement>(`.tr-list ${ROW}`)].find((row) => row.getAttribute('row-index') === '1');
+    const title = second?.querySelector('.c-who b')?.getAttribute('title') ?? '';
+    expect(title).not.toBe('');
+    act(() => { second?.querySelector<HTMLElement>('.ag-cell')?.click(); });
+    await waitFor(() => expect(r.layer.querySelector('.tr-pane h2')?.textContent).toBe(title));
   }, 60_000);
 
-  it('search narrows a long list and clearing it brings every row back', async () => {
-    // The open tables (8 on the busy world) sit under the toolbar's threshold; the ended list does not.
+  it('the ended list is a grid: column headers, no pager, no search box', async () => {
     const r = await renderLayerAtScale({ level: 'module', module: 'tables', view: 'closed' }, 'large');
-    const rows = () => [...r.layer.querySelectorAll<HTMLButtonElement>('.le-row')];
-    const before = rows().length;
-    const search = r.layer.querySelector<HTMLInputElement>('input[type="search"]');
-    expect(search).toBeTruthy();
-    fireEvent.change(search as HTMLInputElement, { target: { value: 'zzzz-no-such-table' } });
-    await waitFor(() => expect(r.layer.textContent).toMatch(/Nothing matches/));
-    fireEvent.change(search as HTMLInputElement, { target: { value: '' } });
-    await waitFor(() => expect(rows().length).toBe(before));
+    await waitFor(() => expect(r.layer.querySelector('.sg-grid .ag-header')).not.toBeNull());
+    const headers = [...r.layer.querySelectorAll('.sg-grid .ag-header-cell-text')].map((e) => e.textContent);
+    expect(headers).toEqual(expect.arrayContaining([TABLES.col.what, TABLES.col.status, TABLES.col.amount, TABLES.col.moved]));
+    expect(r.layer.querySelector('.pg-range')).toBeNull();
+    expect(r.layer.querySelector('input[type="search"]')).toBeNull();
   }, 60_000);
 
   it('names the item on the ladder by its title, never by its code', async () => {
@@ -120,23 +117,19 @@ describe('Tables flows', () => {
     const paid = [...r.layer.querySelectorAll<HTMLButtonElement>('.ui-filter')].find((b) => b.textContent?.startsWith(TABLES.fPaid));
     act(() => { paid?.click(); });
     await waitFor(() => expect(paid?.getAttribute('aria-pressed')).toBe('true'));
-    const row = r.layer.querySelector<HTMLButtonElement>('.le-row');
-    act(() => { row?.click(); });
+    await waitFor(() => expect(r.layer.querySelector(`${ROW} .ag-cell`)).toBeTruthy());
+    act(() => { r.layer.querySelector<HTMLElement>(`${ROW} .ag-cell`)?.click(); });
     await waitFor(() => expect(location.hash).toMatch(/^#d=/));
   }, 60_000);
 });
 
 
 describe('tables rows are one line', () => {
-  it.each(['need', 'tables', 'ladder', 'closed', 'shop'] as const)('every row of the %s list is one .row1, its note is a c-note cell and the row title', async (view) => {
+  it.each(['need', 'tables', 'ladder', 'closed', 'shop'] as const)('every row of the %s list is one grid row with no second text block', async (view) => {
     const r = await renderLayerAtScale({ level: 'module', module: 'tables', view }, 'large');
-    const rows = [...r.layer.querySelectorAll<HTMLElement>('.le-row')];
-    expect(rows.length).toBeGreaterThan(0);
-    for (const row of rows) {
-      expect(row.querySelectorAll('.row1')).toHaveLength(1);
+    await waitFor(() => expect(r.layer.querySelectorAll(`${ROW} .c-who`).length).toBeGreaterThan(0));
+    for (const row of r.layer.querySelectorAll<HTMLElement>(ROW)) {
       expect(row.querySelector('.tr-row, .t .sub')).toBeNull();
-      const note = row.querySelector('.row1 > .c-note');
-      if (note) expect(row.querySelector('.row1')?.getAttribute('title')).toBeTruthy();
     }
   }, 60_000);
 });
@@ -155,7 +148,7 @@ describe('tables Latest strip rows are one line', () => {
 describe('tables split lists leave the note to the pane', () => {
   it.each(['need', 'tables', 'ladder', 'shop'] as const)('the %s list beside its pane draws no note column', async (view) => {
     const r = await renderLayerAtScale({ level: 'module', module: 'tables', view }, 'large');
-    expect(r.layer.querySelectorAll('.tr-list .le-row .row1').length).toBeGreaterThan(0);
+    await waitFor(() => expect(r.layer.querySelectorAll(`.tr-list ${ROW} .c-who`).length).toBeGreaterThan(0));
     expect(r.layer.querySelectorAll('.tr-list .c-note')).toHaveLength(0);
     expect(r.layer.querySelectorAll('.tr-list .row1[data-noted]')).toHaveLength(0);
   }, 60_000);

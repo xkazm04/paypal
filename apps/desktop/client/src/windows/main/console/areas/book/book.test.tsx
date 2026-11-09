@@ -113,32 +113,19 @@ describe('Book ledger', () => {
     const r = await renderLayerAtScale('#m=book&v=ledger', 'large');
     expectLayerHealthy(r);
     expect(heading(r.layer)).toBe(BOOK_VIEWS_TITLE.ledger);
-    const rows = r.layer.querySelectorAll('.le-item').length;
-    expect(rows).toBeGreaterThan(0);
+    await waitFor(() => expect(r.layer.querySelectorAll('.sg-grid .ag-center-cols-container .ag-row').length).toBeGreaterThan(0));
+    const rows = r.layer.querySelectorAll('.sg-grid .ag-center-cols-container .ag-row').length;
     expect(rows).toBeLessThan(60);
     expect(r.budget.byCommand.get('deal_evidence')?.total ?? 0).toBeLessThanOrEqual(rows);
   }, 60_000);
 
-  it('pages the ledger: 20 one-line rows and a pager "1-20 of N" over the filtered count', async () => {
+  it('draws the ledger as a grid: column headers and filters, no pager, no search box', async () => {
     const r = await renderLayerAtScale('#m=book&v=ledger', 'large');
-    fireEvent.click(within(r.layer).getByRole('button', { name: BOOK.scope.all }));
-    await settle();
-    const list = r.layer.querySelectorAll('.le-item');
-    expect(list.length).toBeLessThanOrEqual(20);
-    for (const row of r.layer.querySelectorAll('.bk-row')) expect(row.classList.contains('row1')).toBe(true);
-    expect(r.layer.querySelector('.pg-range')?.textContent).toMatch(/^1-20 of [0-9,]+$/);
-    fireEvent.click(within(r.layer).getByRole('button', { name: 'Next page' }));
-    await waitFor(() => expect(r.layer.querySelector('.pg-range')?.textContent).toMatch(/^21-40 of /));
-  }, 60_000);
-
-  it('searches, says when nothing matches, and Escape clears the search first', async () => {
-    const r = await renderLayerAtScale('#m=book&v=ledger', 'large');
-    const box = within(r.layer).getByRole('searchbox');
-    fireEvent.change(box, { target: { value: 'no deal is called this' } });
-    await waitFor(() => expect(r.layer.textContent).toContain(BOOK.list.noMatch));
-    fireEvent.keyDown(box, { key: 'Escape' });
-    await waitFor(() => expect(r.layer.querySelectorAll('.le-item').length).toBeGreaterThan(0));
-    expect(location.hash).toContain('v=ledger');
+    await waitFor(() => expect(r.layer.querySelector('.sg-grid .ag-header')).not.toBeNull());
+    const headers = [...r.layer.querySelectorAll('.sg-grid .ag-header-cell-text')].map((e) => e.textContent);
+    expect(headers).toEqual(expect.arrayContaining([BOOK.col.when, BOOK.col.what, BOOK.col.status, BOOK.col.amount]));
+    expect(r.layer.querySelector('.pg-range')).toBeNull();
+    expect(within(r.layer).queryByRole('searchbox')).toBeNull();
   }, 60_000);
 
   // "PayPal agrees" counts the week's payments that need a place on the statement. A deal whose
@@ -184,6 +171,19 @@ describe('Book record (#16)', () => {
     await settle();
     expect(pages()).toHaveLength(2);
     expect((pages()[1]?.args as { before: number }).before).toBeGreaterThan(0);
+    expect(r.rows()).toBeLessThanOrEqual(250);
+  }, 60_000);
+});
+
+describe('Book record as a grid', () => {
+  it('draws the steps as grid rows and reads the next page when the grid is scrolled near its end', async () => {
+    const r = await renderLayerAtScale('#m=book&v=record', 'large');
+    await waitFor(() => expect(r.layer.querySelectorAll('.sg-grid .ag-center-cols-container .ag-row').length).toBeGreaterThan(0));
+    const pages = () => r.calls.filter((c) => c.cmd === 'audit_page');
+    expect(pages()).toHaveLength(1);
+    await act(async () => { fireEvent.scroll(r.layer.querySelector('.sg-grid .ag-body-viewport') as HTMLElement); });
+    await settle();
+    expect(pages()).toHaveLength(2);
     expect(r.rows()).toBeLessThanOrEqual(250);
   }, 60_000);
 });

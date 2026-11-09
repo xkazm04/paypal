@@ -5,9 +5,11 @@
 // block has no release anywhere). Four cards open the stopped payments, the ones the owner let go
 // on, every check side by side (the old matrix, as rows) and the ones that looked safe. One level
 // down: each paused payment as a decision, the lists, and how the shield decides.
-import { LATEST_OF, OPEN_THE_DEAL, SHIELD, SHIELD_VIEWS_TITLE } from '../../../../../lib/words';
+import { useMemo } from 'react';
+import { LATEST_OF, OPEN_THE_DEAL, SHIELD, SHIELD_VIEWS_TITLE, shieldReleased, shieldRuleWord, shieldWord } from '../../../../../lib/words';
+import type { GridColumn } from '../../../../../shared/DataGrid';
 import { WalletNotice } from '../../../../../shared/honesty';
-import { ExplainHint, Silence } from '../../../../../shared/ui';
+import { Chip, ExplainHint, Icon, Silence } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
@@ -15,21 +17,57 @@ import { useLayerNav, type LayerProps } from '../../layers';
 import { fewRows, ListEngine } from '../../ListEngine';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer } from '../../ModuleLayer';
-import { dealTotal } from '../../../logic';
+import { dealTotal, stateLabel } from '../../../logic';
 import { formatMinor } from '../../../../../lib/format';
 import type { Deal } from '@bindings/Deal';
 import { paypalLine } from '../../../modules/shield/matrix';
+import { Amount, Countdown } from '../../rows';
 import { Checks, HowShield } from './Checks';
-import { PausedDecision, ReleaseHandoff, ShieldRow, shieldRowSay, useShieldWorld, type ShieldWorld } from './parts';
+import { PausedDecision, ReleaseHandoff, ShieldRow, shieldRowSay, useShieldWorld, VerdictChip, type ShieldWorld } from './parts';
+
+/** The row's kind and short clause. KEEP IN STEP with rowLine in parts.tsx, which ShieldRow draws. */
+function kindOf(deal: Deal, s: ShieldWorld) {
+  const need = s.need(deal);
+  const [a, b] = paypalLine(deal);
+  const kind = deal.shield === 'BLOCK' ? 'block' : need ? 'paused' : deal.shield === 'HOLD' && !deal.shield_release ? 'closed' : deal.shield === 'CLEAR' ? 'clear' : 'other';
+  const why = deal.shield_rule ? shieldRuleWord(deal.shield_rule).text : null;
+  const sub = kind === 'block' ? SHIELD.row.blocked(why, b)
+    : kind === 'paused' ? SHIELD.row.paused(why)
+      : kind === 'closed' ? SHIELD.row.closed(why, stateLabel(deal.state, deal).toLowerCase(), a.toLowerCase())
+        : kind === 'clear' ? SHIELD.row.clear(stateLabel(deal.state, deal))
+          : shieldReleased(deal) ? SHIELD.row.released(s.moduleName(deal)) : SHIELD.row.other(why, s.moduleName(deal));
+  return { kind, short: sub.split(' · ')[kind === 'block' && why ? 1 : 0] ?? sub };
+}
+
+/** A shield list as grid columns: the same cells as ShieldRow. The rows keep the order they come in. */
+function shieldColumns(s: ShieldWorld): GridColumn<Deal>[] {
+  const says = (d: Deal) => {
+    if (kindOf(d, s).kind === 'closed') return SHIELD.closedChip;
+    return d.shield ? shieldWord(d.shield).text : SHIELD.noVerdict;
+  };
+  return [
+    { id: 'kind', header: SHIELD.col.kind, width: 72, sortable: false, filter: false, value: () => null,
+      cell: (d) => { const { kind } = kindOf(d, s); return <span className={`sh-lead k-${kind}`} aria-hidden="true"><Icon name={kind === 'block' ? 'block' : kind === 'paused' || kind === 'closed' ? 'pause' : kind === 'clear' ? 'check' : 'eye'} size={13} /></span>; } },
+    { id: 'who', header: SHIELD.col.payee, flex: 1.2, minWidth: 150, value: (d) => s.who(d), cell: (d) => <b className="sh-what" title={s.who(d)}>{s.who(d)}</b> },
+    { id: 'says', header: SHIELD.col.says, width: 135, value: says,
+      cell: (d) => (kindOf(d, s).kind === 'closed' ? <Chip tone="line" title={SHIELD.closedTitle}>{SHIELD.closedChip}</Chip> : <VerdictChip v={d.shield} />) },
+    { id: 'left', header: SHIELD.col.left, width: 110, filter: false, value: (d) => s.need(d)?.deadline ?? null, cell: (d) => { const need = s.need(d); return need ? <Countdown deadline={need.deadline} /> : null; } },
+    { id: 'amount', header: SHIELD.col.amount, width: 120, end: true, filter: 'number', value: (d) => dealTotal(d).minor, filterValue: (d) => dealTotal(d).minor / 100,
+      cell: (d) => <Amount money={dealTotal(d)} tone={kindOf(d, s).kind === 'block' ? 'struck' : undefined} className="sh-amt" /> },
+    { id: 'note', header: SHIELD.col.note, flex: 1.8, minWidth: 180, value: (d) => `${s.title(d)} ${kindOf(d, s).short}`,
+      cell: (d) => { const { kind, short } = kindOf(d, s); return <span className="sh-sub">{s.title(d)} · {kind === 'block' ? <span className="tx-red">{short}</span> : short}</span>; } },
+  ];
+}
 
 /** One of the shield's lists: windowed, searchable; a row opens its deal (a paused one, beside it). */
 function ShieldList({ rows, s, label, empty, paused }: { rows: Deal[]; s: ShieldWorld; label: string; empty: string; paused?: boolean }) {
   const nav = useLayerNav();
   // The rows keep to columns: the paused list says once what silence does; the picked decision says it in full.
   const need = paused && rows[0] ? s.need(rows[0]) : undefined;
+  const columns = useMemo(() => shieldColumns(s), [s]);
   return (<>
     {need ? <p className="sh-quiet"><Silence text={silenceParts(need.on_silence).head} /></p> : null}
-    <ListEngine<Deal> className={fewRows(rows.length)} label={label} rows={rows} getKey={(d) => d.id} estimateSize={36} wideAt={paused ? 1200 : undefined}
+    <ListEngine<Deal> className={fewRows(rows.length)} label={label} rows={rows} getKey={(d) => d.id} columns={columns} estimateSize={36} wideAt={paused ? 1200 : undefined}
       searchText={(d) => `${s.who(d)} ${s.title(d)}`}
       renderRow={(d) => <ShieldRow deal={d} s={s} />}
       rowLabel={(d) => shieldRowSay(d, s)}

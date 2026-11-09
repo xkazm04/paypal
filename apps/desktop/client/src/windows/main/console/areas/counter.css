@@ -1,6 +1,12 @@
 /* Area: counter (rebuild WP3a). Imported by console/layers/counter.ts (the shared .tr-* parts are in
    tables.css). Scoped under .mod-counter (the module layer's root). Tokens only (src/design/tokens.css),
    text never below --fs-small, motion only through the --dur-* / --ease-* tokens. */
+/* An order's cell in the grid (.row1's who cell, outside a .row1). */
+.mod-counter .ctr-cw { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.mod-counter .ctr-cw b, .mod-counter .ctr-item { font-weight: var(--fw-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.mod-counter .ctr-cw .cs-who-chip { color: var(--muted); font-size: var(--fs-small); max-width: 9rem; flex: 0 1 auto; }
+.mod-counter .ctr-cw .dot { flex: none; width: 6px; height: 6px; border-radius: 1px; background: var(--mc, var(--steel)); }
+.mod-counter .ctr-cw.needs .dot { background: var(--gold); box-shadow: var(--glow-gold); }
 .mod-counter .ctr-pane { display: flex; flex-direction: column; gap: var(--sp-3); }
 .mod-counter .ctr-top { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); }
 .mod-counter .ctr-top .cs-amt.big { font-size: var(--fs-title1); }

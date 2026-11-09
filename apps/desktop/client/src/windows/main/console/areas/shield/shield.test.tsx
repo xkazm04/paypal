@@ -30,6 +30,8 @@ vi.mock('../../../world', async (orig) => {
 });
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
 
+const GRID_ROWS = '.sg-grid .ag-center-cols-container .ag-row';
+
 afterEach(() => { cleanup(); history.replaceState(null, '', '/'); Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 }); });
 
 async function paused(): Promise<string[]> {
@@ -67,7 +69,8 @@ describe('Shield summary', () => {
     await act(async () => { fireEvent.click(r.layer.querySelector('.ml-call') as HTMLElement); });
     await waitFor(() => expect(document.querySelector('.cs-layer [data-layer-title]')?.textContent).toBe(SHIELD_VIEWS_TITLE.paused));
     await settle();
-    expect(document.querySelectorAll('.cs-layer .le-item').length).toBe((await paused()).length);
+    const ids = await paused();
+    await waitFor(() => expect(document.querySelectorAll(`.cs-layer ${GRID_ROWS}`).length).toBe(ids.length));
   }, 60_000);
 });
 
@@ -92,9 +95,9 @@ describe('Shield checks, side by side (#13)', () => {
   it('one row per payment and the same columns whatever the number of payees', async () => {
     const r = await renderLayerAtScale('#m=shield&v=week', 'large');
     expectLayerHealthy(r);
-    const rows = [...r.layer.querySelectorAll('.sh-crow')];
-    expect(rows.length).toBeGreaterThan(0);
-    for (const row of rows) expect(row.children).toHaveLength(7);
+    await waitFor(() => expect(r.layer.querySelectorAll(GRID_ROWS).length).toBeGreaterThan(0));
+    const rows = [...r.layer.querySelectorAll(GRID_ROWS)];
+    for (const row of rows) expect(row.querySelectorAll('.ag-cell')).toHaveLength(7);
     // Everything checked is one switch away, still windowed.
     fireEvent.click(within(r.layer).getByRole('button', { name: SHIELD.scope.all }));
     await settle();
@@ -104,7 +107,8 @@ describe('Shield checks, side by side (#13)', () => {
   it('a wide window shows the picked payment beside the list; their note is read only when opened', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1600 });
     const r = await renderLayerAtScale('#m=shield&v=week', 'large');
-    await act(async () => { fireEvent.click(r.layer.querySelector('.le-row') as HTMLElement); });
+    const row = await waitFor(() => { const x = r.layer.querySelector<HTMLElement>(`${GRID_ROWS} .ag-cell`); if (!x) throw new Error('no row yet'); return x; });
+    await act(async () => { fireEvent.click(row); });
     const story = await waitFor(() => { const s = r.layer.querySelector<HTMLElement>('.sh-story'); if (!s) throw new Error('no story'); return s; });
     await settle();
     expect(r.calls.filter((c) => c.cmd === 'counterparty_note')).toHaveLength(0);

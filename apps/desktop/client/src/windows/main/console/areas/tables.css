@@ -285,6 +285,17 @@
 .row1 .c-note { color: var(--dim); font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .le-row:has(.row1.picked) { background: var(--sel); box-shadow: inset 2px 0 0 var(--signal), 0 0 0 1px var(--sel-line); }
 /* Below the note's breakpoint the note's track goes with it, so the other cells keep the room. */
+/* The same cells drawn in the data grid. */
+.sg-grid .c-who { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.sg-grid .c-who b { font-weight: var(--fw-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.sg-grid .c-who .cs-who-chip { color: var(--muted); font-size: var(--fs-small); max-width: 9rem; flex: 0 1 auto; }
+.sg-grid .dot { flex: none; width: 6px; height: 6px; border-radius: 1px; background: var(--mc, var(--steel)); }
+.sg-grid .c-who.needs .dot { background: var(--gold); box-shadow: var(--glow-gold); }
+.sg-grid .c-state, .sg-grid .c-time, .sg-grid .c-amt { white-space: nowrap; }
+.sg-grid .c-state { overflow: hidden; }
+.sg-grid .c-amt { font-family: var(--num); font-variant-numeric: tabular-nums lining-nums; }
+.sg-grid .c-time { color: var(--muted); font-size: var(--fs-small); }
+.sg-grid .c-time .cs-cd { height: auto; padding: 0 var(--sp-1); }
 @media (max-width: 1099.98px) { .row1[data-noted] { grid-template-columns: var(--cols-lite); } }
 .tr-note { margin: 0; color: var(--muted); font-size: var(--fs-small); }
 /* A narrow list drops its columns in priority order (the note is already gone in a split): the time

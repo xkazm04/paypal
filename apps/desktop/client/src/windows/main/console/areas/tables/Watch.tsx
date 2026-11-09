@@ -8,16 +8,20 @@ import { useMemo, useState } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import type { DisplayBand } from '@bindings/DisplayBand';
+import type { Money } from '@bindings/Money';
 import { AGREED_OR_LATER } from '@bindings/dealStates';
+import { clockLabel, exponent } from '../../../../../lib/format';
 import { useQuery } from '../../../../../lib/hooks';
-import { TABLES_WATCH as W } from '../../../../../lib/words';
-import { isLive } from '../../../logic';
+import { STATE_UNKNOWN, stateWord, TABLES, TABLES_WATCH as W } from '../../../../../lib/words';
+import type { GridColumn } from '../../../../../shared/DataGrid';
+import { shortTitle } from '../../../home/model';
+import { amountTone, dealTotal, isLive } from '../../../logic';
 import { haggleOf, watchable, type Haggle } from '../../../modules/tables/corridor';
 import { takeWatched, worthWatching } from '../../../modules/tables/watchPick';
 import type { World } from '../../../world';
 import { ListEngine } from '../../ListEngine';
-import { DealRow1 } from '../../rows';
-import { Btn } from '../../../../../shared/ui';
+import { Amount, DealRow1, StateChip, WhoChip } from '../../rows';
+import { Btn, UNKNOWN } from '../../../../../shared/ui';
 import { Corridor } from './Corridor';
 import { SplitView, useTranscript } from './parts';
 
@@ -29,6 +33,36 @@ export function watchOrder(deals: readonly Deal[], display: World['display']): D
   return deals
     .filter((d) => worthWatching(d, display(d).band))
     .sort((a, b) => Number(done(b)) - Number(done(a)) || (done(a) ? rounds(b) - rounds(a) : 0) || (b.updated_at ?? 0) - (a.updated_at ?? 0) || a.id.localeCompare(b.id));
+}
+
+/** An amount's sort value; one the row draws as the dash has no place among the figures. */
+export const amountValue = (m: Money): number | null => (Number.isSafeInteger(m.minor) ? m.minor : null);
+/** An amount as its number filter reads it: major units of its own currency. */
+export const amountMajor = (m: Money): number | null => (Number.isSafeInteger(m.minor) ? m.minor / 10 ** exponent(m.currency) : null);
+/** The words StateChip draws, as text: a state the words do not know is "Not available yet". */
+export function stateText(d: Pick<Deal, 'state' | 'side' | 'kind'>): string {
+  try {
+    const t = stateWord(d.state, { side: d.side, kind: d.kind }).text;
+    return typeof t === 'string' ? t : STATE_UNKNOWN;
+  } catch {
+    return STATE_UNKNOWN;
+  }
+}
+
+/** DealRow1's cells as grid columns: name and who, state, amount, when it last moved. The name column
+ *  filters over the full title and the counterparty's full name; `newest` opens it latest first. */
+export function dealColumns({ display, who, shown, newest }: {
+  display: World['display']; who: (d: Deal) => { short: string; full: string }; shown: 'short' | 'full'; newest?: boolean;
+}): GridColumn<Deal>[] {
+  return [
+    { id: 'what', header: TABLES.col.what, flex: 2, minWidth: 180, value: (d) => `${display(d).title} ${who(d).full}`,
+      cell: (d) => <span className="c-who"><span className="dot" aria-hidden="true" /><b title={display(d).title}>{shortTitle(display(d).title)}</b><WhoChip name={who(d)[shown]} /></span> },
+    { id: 'status', header: TABLES.col.status, width: 160, value: stateText, cell: (d) => <span className="c-state"><StateChip deal={d} /></span> },
+    { id: 'amount', header: TABLES.col.amount, width: 130, end: true, filter: 'number', value: (d) => amountValue(dealTotal(d)), filterValue: (d) => amountMajor(dealTotal(d)),
+      cell: (d) => <Amount money={dealTotal(d)} tone={amountTone(d)} /> },
+    { id: 'time', header: TABLES.col.moved, width: 130, filter: false, sort: newest ? 'desc' : undefined, value: (d) => d.updated_at ?? d.created_at ?? null,
+      cell: (d) => { const at = d.updated_at ?? d.created_at ?? null; return <span className="c-time">{at ? clockLabel(at) : UNKNOWN}</span>; } },
+  ];
 }
 
 type Props = {
@@ -43,9 +77,9 @@ export function WatchView({ deals, display, needOf, who }: Props) {
   const [k, setK] = useState<string | null>(takeWatched);
   const [stage, setStage] = useState(false);
   const picked = (k !== null ? rows.find((d) => d.id === k) : undefined) ?? rows[0];
+  const columns = useMemo(() => dealColumns({ display, who, shown: 'short' }), [display, who]);
   const list = (
-    <ListEngine<Deal> label={W.list} rows={rows} getKey={(d) => d.id} estimateSize={36}
-      searchText={(d) => `${display(d).title} ${who(d).full}`}
+    <ListEngine<Deal> label={W.list} rows={rows} getKey={(d) => d.id} estimateSize={36} columns={columns}
       renderRow={(d) => <DealRow1 deal={d} who={who(d).short} picked={picked?.id === d.id} />}
       rowLabel={(d) => `${display(d).title}, ${who(d).full}`} onPick={(d) => setK(d.id)} onOpen={(d) => setK(d.id)} empty={W.empty} />
   );

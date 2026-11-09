@@ -11,6 +11,7 @@ import type { Deal } from '@bindings/Deal';
 import { useQuery } from '../../../../../lib/hooks';
 import { headlineWords, LATEST_OF, OPEN_THE_DEAL, TABLES, TABLES_TRADE, TABLES_VIEWS, TABLES_WATCH, tablesClip, tablesItem, tablesShortWho } from '../../../../../lib/words';
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
+import type { GridColumn } from '../../../../../shared/DataGrid';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, ExplainHint, useLayer, useToast } from '../../../../../shared/ui';
 import { silenceParts, shortTitle } from '../../../home/model';
@@ -20,7 +21,7 @@ import { useCpLookup } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
 import { useDeals, useNeeds, useWorldSelector, type World } from '../../../world';
 import type { LayerProps } from '../../layers';
-import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
+import { ListEngine, type ListFilter } from '../../ListEngine';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer, type YourCall } from '../../ModuleLayer';
 import type { ModuleCard } from '../../ModuleSummary';
@@ -30,7 +31,7 @@ import { NeedCard } from './Need';
 import { SplitView, TheirWords, usePick } from './parts';
 import { canShopAround, liveGroups, ShopAroundButton, ShopView } from './Shop';
 import { watchTable, worthWatching } from '../../../modules/tables/watchPick';
-import { WatchView } from './Watch';
+import { amountMajor, amountValue, dealColumns, stateText, WatchView } from './Watch';
 
 const selModuleOf = (w: World) => w.moduleOfDeal;
 const selDisplay = (w: World) => w.display;
@@ -45,19 +46,14 @@ function liveFilters(c: Ctx): readonly ListFilter<Deal>[] {
     { value: 'live', label: TABLES.fLive, test: (d) => isLive(d) && !c.needOf.has(d.id) },
   ];
 }
-function liveSorts(c: Ctx): readonly ListSort<Deal>[] {
-  return [
-    { value: 'soonest', label: TABLES.sSoonest, compare: (a, b) => (c.needOf.has(b.id) ? 1 : 0) - (c.needOf.has(a.id) ? 1 : 0) || deadlineOf(c, a) - deadlineOf(c, b) },
-    { value: 'name', label: TABLES.sName, compare: (a, b) => c.display(a).title.localeCompare(c.display(b).title) },
-  ];
-}
+/** Decisions first, then the soonest deadline (none last). */
+const soonestFirst = (c: Ctx) => (a: Deal, b: Deal): number => (c.needOf.has(b.id) ? 1 : 0) - (c.needOf.has(a.id) ? 1 : 0) || deadlineOf(c, a) - deadlineOf(c, b);
+/** The same order as one number for the grid's time column: anything not waiting for the owner sits past every deadline. */
+const NOT_WAITING = 1e15;
+const soonestKey = (c: Ctx, d: Deal): number => (c.needOf.has(d.id) ? 0 : NOT_WAITING) + deadlineOf(c, d);
 const ENDED_FILTERS: readonly ListFilter<Deal>[] = [
   { value: 'paid', label: TABLES.fPaid, test: isSettled },
   { value: 'stopped', label: TABLES.fStopped, test: (d) => !isSettled(d) },
-];
-const ENDED_SORTS: readonly ListSort<Deal>[] = [
-  { value: 'newest', label: TABLES.sNewest, compare: (a, b) => (b.updated_at ?? b.created_at ?? 0) - (a.updated_at ?? a.created_at ?? 0) },
-  { value: 'largest', label: TABLES.sLargest, compare: (a, b) => dealTotal(b).minor - dealTotal(a).minor },
 ];
 
 /** The answer line and the sentence under it. */
@@ -103,6 +99,26 @@ function TableRow1({ deal, c, picked }: { deal: Deal; c: Ctx; picked: boolean })
   );
 }
 
+/** TableRow1's cells as grid columns. The limit, the row's title, stays the amount's hover. */
+function tableColumns(c: Ctx): GridColumn<Deal>[] {
+  return [
+    { id: 'what', header: TABLES.col.what, flex: 2, minWidth: 180, value: (d) => `${c.display(d).title} ${c.who(d).full}`,
+      cell: (d) => (
+        <span className={`c-who${c.needOf.has(d.id) ? ' needs' : ''}`}>
+          <span className="dot" aria-hidden="true" />
+          <b title={c.display(d).title}>{shortTitle(c.display(d).title)}</b>
+          <WhoChip name={c.who(d).short} />
+        </span>
+      ) },
+    { id: 'status', header: TABLES.col.status, width: 160, value: (d) => (c.needOf.has(d.id) ? TABLES.needChip : stateText(d)),
+      cell: (d) => <span className="c-state">{c.needOf.has(d.id) ? <Chip tone="gold">{TABLES.needChip}</Chip> : <StateChip deal={d} />}</span> },
+    { id: 'amount', header: TABLES.col.amount, width: 130, end: true, filter: 'number', value: (d) => amountValue(dealTotal(d)), filterValue: (d) => amountMajor(dealTotal(d)),
+      cell: (d) => <span title={tableNote(d, c)}><Amount money={dealTotal(d)} tone={amountTone(d)} /></span> },
+    { id: 'time', header: TABLES.col.left, width: 130, filter: false, sort: 'asc', value: (d) => soonestKey(c, d),
+      cell: (d) => <span className="c-time"><Countdown deadline={c.needOf.get(d.id)?.deadline ?? c.display(d).deadline} /></span> },
+  ];
+}
+
 export function TablesLayer({ nav }: LayerProps) {
   const route = useModuleRoute();
   const toast = useToast();
@@ -116,9 +132,10 @@ export function TablesLayer({ nav }: LayerProps) {
   const c = useMemo<Ctx>(() => ({ display, needOf, who: (d) => { const x = cp(d.counterparty); return { short: tablesShortWho(x), full: x.name }; } }), [display, needOf, cp]);
   const deals = useMemo(() => (all ?? []).filter((d) => moduleOf(d) === 'tables'), [all, moduleOf]);
   const filters = useMemo(() => liveFilters(c), [c]);
-  const sorts = useMemo(() => liveSorts(c), [c]);
+  const tableCols = useMemo(() => tableColumns(c), [c]);
+  const endedCols = useMemo(() => dealColumns({ display, who: c.who, shown: 'full', newest: true }), [display, c.who]);
   // Rows come in the list's first order, so the table picked by default is the one on top.
-  const soonest = sorts[0]?.compare;
+  const soonest = useMemo(() => soonestFirst(c), [c]);
   const strip = useMemo(() => deals.filter((d) => isLive(d) || needOf.has(d.id)), [deals, needOf]);
   const needDeals = useMemo(() => strip.filter((d) => needOf.has(d.id)).sort(soonest), [strip, needOf, soonest]);
   const openDeals = useMemo(() => strip.filter(isLive).sort(soonest), [strip, soonest]);
@@ -210,8 +227,7 @@ export function TablesLayer({ nav }: LayerProps) {
     );
   };
   const tableList = (rows: readonly Deal[], label: string, picked: Deal | undefined, pick: (k: string) => void, empty: string) => (
-    <ListEngine<Deal> label={label} rows={rows} getKey={(d) => d.id} filters={rows.length > 8 ? filters : undefined} sorts={sorts} estimateSize={36}
-      searchText={(d) => `${display(d).title} ${cp(d.counterparty).name}`}
+    <ListEngine<Deal> label={label} rows={rows} getKey={(d) => d.id} filters={rows.length > 8 ? filters : undefined} columns={tableCols} estimateSize={36}
       renderRow={(d) => <TableRow1 deal={d} c={c} picked={picked?.id === d.id} />}
       rowLabel={(d) => `${display(d).title}, ${c.who(d).full}`} onPick={(d) => pick(d.id)} onOpen={open} empty={empty} />
   );
@@ -260,8 +276,7 @@ export function TablesLayer({ nav }: LayerProps) {
         closed: {
           title: TABLES_VIEWS.closed, sub: closed.length ? TABLES.endedSub(closed.length) : undefined,
           render: () => (
-            <ListEngine<Deal> label={TABLES.endedList} rows={closed} getKey={(d) => d.id} filters={ENDED_FILTERS} sorts={ENDED_SORTS} estimateSize={36}
-              searchText={(d) => `${display(d).title} ${cp(d.counterparty).name}`}
+            <ListEngine<Deal> label={TABLES.endedList} rows={closed} getKey={(d) => d.id} filters={ENDED_FILTERS} columns={endedCols} estimateSize={36}
               renderRow={(d) => <DealRow1 deal={d} who={c.who(d).full} />}
               rowLabel={(d) => `${display(d).title}, ${OPEN_THE_DEAL}`} onOpen={open} empty={TABLES.endedEmpty} />
           ),

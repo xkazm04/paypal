@@ -160,7 +160,7 @@ export const SHIELD = {
   checksLabel: 'Every payment the shield checked',
   checksEmpty: 'Nothing paused, nothing blocked. The shield hasn’t had to check anyone yet.',
   checksEmptyWeek: 'The shield checked nothing this week. Everything older is under “Everything checked”.',
-  col: { payee: 'Payee', amount: 'Amount', says: 'Shield says', newPayee: 'New payee', price: 'Price vs typical', paypal: 'PayPal', decision: 'Your decision' },
+  col: { kind: 'Kind', payee: 'Payee', amount: 'Amount', says: 'Shield says', newPayee: 'New payee', price: 'Price vs typical', paypal: 'PayPal', decision: 'Your decision', left: 'Time left', note: 'What and why' },
   filter: { label: 'Show', paused: 'Waiting for you', blocked: 'Blocked', newPayee: 'New payee', price: 'Odd price', clear: 'Looked safe' },
   move: {
     blocked: 'Blocked for good',

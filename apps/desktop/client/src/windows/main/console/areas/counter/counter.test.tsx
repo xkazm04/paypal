@@ -15,6 +15,7 @@ vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/r
 
 afterEach(() => { cleanup(); history.replaceState(null, '', '/'); });
 
+const GRID_ROW = '.tr-list .sg-grid .ag-center-cols-container .ag-row';
 const reads = (r: LayerRun, cmd: string) => r.calls.filter((c) => c.cmd === cmd).length;
 
 describe('Counter at scale', () => {
@@ -59,7 +60,8 @@ describe('Counter flows', () => {
 
   it('picking an order shows it with what happens if nobody acts', async () => {
     const r = await renderLayerAtScale({ level: 'module', module: 'counter', view: 'orders' }, 'large');
-    const rows = [...r.layer.querySelectorAll<HTMLButtonElement>('.tr-list .le-row')];
+    await waitFor(() => expect(r.layer.querySelectorAll(GRID_ROW).length).toBeGreaterThan(0));
+    const rows = [...r.layer.querySelectorAll<HTMLElement>(GRID_ROW)];
     const last = rows[rows.length - 1];
     act(() => { last?.click(); });
     await waitFor(() => expect(r.layer.querySelector('.tr-pane')?.textContent).toMatch(new RegExp(COUNTER.ifNothing)));
@@ -69,16 +71,10 @@ describe('Counter flows', () => {
 
 
 describe('counter rows are one line', () => {
-  it.each(['orders', 'prices', 'earlier'] as const)('every row of the %s list is one .row1, its note is a c-note cell and the row title', async (view) => {
+  it.each(['orders', 'prices', 'earlier'] as const)('every row of the %s list is one grid row with no second text block', async (view) => {
     const r = await renderLayerAtScale({ level: 'module', module: 'counter', view }, 'large');
-    const rows = [...r.layer.querySelectorAll<HTMLElement>('.tr-list .le-row')];
-    expect(rows.length).toBeGreaterThan(0);
-    for (const row of rows) {
-      expect(row.querySelectorAll('.row1')).toHaveLength(1);
-      expect(row.querySelector('.tr-row, .t .sub')).toBeNull();
-      const note = row.querySelector('.row1 > .c-note');
-      if (note) expect(row.querySelector('.row1')?.getAttribute('title')).toBeTruthy();
-    }
+    await waitFor(() => expect(r.layer.querySelectorAll(GRID_ROW).length).toBeGreaterThan(0));
+    for (const row of r.layer.querySelectorAll<HTMLElement>(GRID_ROW)) expect(row.querySelector('.tr-row, .t .sub')).toBeNull();
   }, 60_000);
 });
 
@@ -96,7 +92,7 @@ describe('counter Latest strip rows are one line', () => {
 describe('counter split lists leave the note to the pane', () => {
   it.each(['orders', 'prices', 'earlier'] as const)('the %s list beside its pane draws no note column', async (view) => {
     const r = await renderLayerAtScale({ level: 'module', module: 'counter', view }, 'large');
-    expect(r.layer.querySelectorAll('.tr-list .le-row .row1').length).toBeGreaterThan(0);
+    await waitFor(() => expect(r.layer.querySelectorAll(GRID_ROW).length).toBeGreaterThan(0));
     expect(r.layer.querySelectorAll('.tr-list .c-note')).toHaveLength(0);
     expect(r.layer.querySelectorAll('.tr-list .row1[data-noted]')).toHaveLength(0);
   }, 60_000);

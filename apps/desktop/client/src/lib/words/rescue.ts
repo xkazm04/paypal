@@ -24,6 +24,7 @@ type FixKey = 'DISCOUNT_THIS_CYCLE' | 'PAUSE' | 'RETRY_AFTER_FIX' | 'DOWNGRADE';
 
 export const RESCUE = {
   title: 'Rescue',
+  col: { who: 'Subscriber', amount: 'Amount', state: 'Status', left: 'Time left', plan: 'Plan', count: 'Recovered?', stands: 'Where it stands', why: 'Why not counted' },
   purpose: 'Failed subscription renewals, each with one discount you approve.',
   /** The "what the subscriber would get" mock on each fix. */
   get: {

@@ -89,9 +89,7 @@ export const SPEND = {
   fReleased: 'Released',
   fAsked: 'Asked you',
   fUnknown: 'Not known',
-  sNewest: 'Newest first',
-  sLargest: 'Largest first',
-  sAgent: 'By agent',
+  col: { what: 'What', rules: 'Rules', outcome: 'Outcome', amount: 'Amount', when: 'When', left: 'Time left' },
   // a purchase
   onHold: 'On hold at PayPal',
   checking: 'Checking with PayPal',

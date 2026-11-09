@@ -12,12 +12,13 @@ import { clockLabel } from '../../../../../lib/format';
 import { useNow, useQuery } from '../../../../../lib/hooks';
 import { BOOK, stateWord } from '../../../../../lib/words';
 import { ModeBadge } from '../../../../../shared/honesty';
+import type { GridColumn } from '../../../../../shared/DataGrid';
 import { Btn, Seg, useToast } from '../../../../../shared/ui';
 import { amountTone, dealTotal } from '../../../logic';
 import { MoneyWent } from '../../../modules/book/MoneyWent';
 import { bucketOf, dirOf, toCSV, type Bucket } from '../../../modules/book/model';
 import { useLayerNav } from '../../layers';
-import { fewRows, ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
+import { fewRows, ListEngine, type ListFilter } from '../../ListEngine';
 import { Amount } from '../../rows';
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { evidenceForExport, useEvidenceOf } from './evidence';
@@ -28,12 +29,6 @@ export type LedgerScope = 'week' | 'all';
 
 const BUCKET_FILTER: ReadonlyArray<[Bucket, string]> = [
   ['captured', BOOK.filter.paid], ['held', BOOK.filter.held], ['motion', BOOK.filter.motion], ['unconfirmed', BOOK.filter.unconfirmed], ['stopped', BOOK.filter.stopped],
-];
-
-const SORTS: readonly ListSort<Deal>[] = [
-  { value: 'newest', label: BOOK.sort.newest, compare: (a, b) => (stampOf(b) ?? 0) - (stampOf(a) ?? 0) },
-  { value: 'oldest', label: BOOK.sort.oldest, compare: (a, b) => (stampOf(a) ?? 0) - (stampOf(b) ?? 0) },
-  { value: 'largest', label: BOOK.sort.largest, compare: (a, b) => dealTotal(b).minor - dealTotal(a).minor },
 ];
 
 /** The scope switch, for the view's head. */
@@ -88,6 +83,20 @@ export function LedgerRow({ deal, b, statement = true }: { deal: Deal; b: BookWo
   );
 }
 
+/** The ledger as grid columns: the same cells as the row, each one sortable and filterable. */
+function ledgerColumns(b: BookWorld): GridColumn<Deal>[] {
+  return [
+    { id: 'when', header: BOOK.col.when, width: 104, sort: 'desc', filter: false, className: 'sg-dim', value: (d) => stampOf(d) ?? null, cell: (d) => { const at = stampOf(d); return at ? clockLabel(at) : BOOK.dash; } },
+    { id: 'what', header: BOOK.col.what, flex: 2, minWidth: 160, className: 'sg-strong', value: (d) => b.title(d) },
+    { id: 'status', header: BOOK.col.status, width: 215, value: (d) => stateWord(d.state, { side: d.side, kind: d.kind }).text,
+      cell: (d) => <><StatusChip deal={d} check={b.needOf.get(d.id)?.money_check} />{d.mode !== 'sandbox' ? <ModeBadge mode={d.mode} /> : null}</> },
+    { id: 'statement', header: BOOK.col.statement, width: 135, sortable: false, filter: false, value: () => null, cell: (d) => <RowStatement deal={d} /> },
+    { id: 'amount', header: BOOK.col.amount, width: 130, end: true, filter: 'number', value: (d) => dealTotal(d).minor, filterValue: (d) => dealTotal(d).minor / 100,
+      cell: (d) => <><Amount money={dealTotal(d)} tone={amountTone(d)} />{dirOf(d) === 'in' ? <span className="bk-in">{BOOK.in}</span> : null}</> },
+    { id: 'who', header: BOOK.col.who, flex: 1, minWidth: 130, className: 'sg-who', value: (d) => b.who(d) },
+  ];
+}
+
 const FILL = { display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0, minWidth: 0 } as const;
 
 /** The ledger: totals and the list. `initialSort` lets "Recent payments" open it newest first. */
@@ -104,6 +113,7 @@ export function Ledger({ b, scope }: { b: BookWorld; scope: LedgerScope }) {
   // later matched and an ending PayPal never confirmed, which are not in the paid bucket.
   const paidIds = useMemo(() => b.weekDeals.filter((d) => !!d.paypal.capture).map((d) => d.id), [b.weekDeals]);
   const [agreeOpen, setAgreeOpen] = useState(false);
+  const columns = useMemo(() => ledgerColumns(b), [b]);
   return (
     <RevealGroup className="bk-ledger">
       <Reveal><Totals deals={rows} checking={checking} /></Reveal>
@@ -114,7 +124,7 @@ export function Ledger({ b, scope }: { b: BookWorld; scope: LedgerScope }) {
       </details></Reveal>
       <Reveal style={FILL}><ListEngine<Deal> className={fewRows(rows.length)} label={scope === 'week' ? BOOK.list.week : BOOK.list.all} rows={rows} getKey={(d) => d.id}
         searchText={(d) => `${b.title(d)} ${b.who(d)} ${b.label(d)} ${stateWord(d.state, { side: d.side, kind: d.kind }).text}`}
-        filters={filters} filterLabel={BOOK.filter.label} sorts={SORTS} estimateSize={36} wideAt={1200}
+        filters={filters} filterLabel={BOOK.filter.label} columns={columns} estimateSize={36} wideAt={1200}
         renderRow={(d) => <LedgerRow deal={d} b={b} />}
         rowLabel={(d) => `${b.title(d)}, ${b.who(d)}`}
         onOpen={(d) => nav.deal(d.id)}

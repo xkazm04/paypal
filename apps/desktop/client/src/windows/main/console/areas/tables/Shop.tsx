@@ -2,7 +2,7 @@
 // latest signed price and the winner once one agreed, and the quiet "Shop around" action that groups
 // open tables for one item (`deal_group_open`). Grouping only restricts: Rust lets one seller agree
 // and tells the others no with a signed message; no money moves here. Pure logic: modules/tables/groups.ts.
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { DealGroupView } from '@bindings/DealGroupView';
 import type { GroupTable } from '@bindings/GroupTable';
@@ -11,15 +11,17 @@ import { formatMoney } from '../../../../../lib/format';
 import { useMutation } from '../../../../../lib/hooks';
 import { GROUP_CLOSED, GROUP_WINNER, itemWords, SHOP_AROUND, SHOP_AROUND_MEANS, SHOP_AROUND_OTHERS, sellersWord, shoppingFor, stateWord, TABLES, tablesItem, tablesShortWho } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
+import type { GridColumn } from '../../../../../shared/DataGrid';
 import { Btn, Chip, Kv, Sheet, UNKNOWN, type ChipTone } from '../../../../../shared/ui';
 import { isLive } from '../../../logic';
 import { groupStanding, isOpenTable, shopAroundSets } from '../../../modules/tables/groups';
 import { useCpLookup } from '../../../ui';
 import { useLayerNav } from '../../layers';
-import { ListEngine, type ListSort } from '../../ListEngine';
+import { ListEngine } from '../../ListEngine';
 import { Amount, Row1, StateChip, WhoChip } from '../../rows';
 import type { World } from '../../../world';
 import { SplitView, usePick } from './parts';
+import { amountMajor, amountValue } from './Watch';
 
 /** Groups still worth showing: bargaining, or won while the winning deal is still under way. */
 export function liveGroups(groups: readonly DealGroupView[], deals: readonly Deal[]): DealGroupView[] {
@@ -42,31 +44,41 @@ function chipOf(g: DealGroupView, who: (t: GroupTable) => string): { tone: ChipT
   return { tone: 'teal', text: TABLES.bargaining };
 }
 
-const SORTS: readonly ListSort<DealGroupView>[] = [
-  { value: 'size', label: TABLES.sLargest, compare: (a, b) => b.tables.length - a.tables.length },
-];
+/** The lowest signed price while the group is still bargaining. */
+function bestOf(g: DealGroupView) {
+  const s = groupStanding(g);
+  return s.kind === 'bargaining' ? s.best?.seller_price ?? null : null;
+}
 
 /** The Shop around view: the groups on the left, the picked group's sellers on the right. */
 export function ShopView({ groups, deals, display }: { groups: readonly DealGroupView[]; deals: readonly Deal[]; display: World['display'] }) {
   const cp = useCpLookup();
   const live = useMemo(() => liveGroups(groups, deals), [groups, deals]);
   const byId = useMemo(() => new Map(deals.map((d) => [d.id, d])), [deals]);
-  const itemOf = (g: DealGroupView): string => {
+  const itemOf = useCallback((g: DealGroupView): string => {
     const first = byId.get(g.tables[0]?.deal_id ?? '');
     // No table of the group at hand: a plain name made from the code, never the code itself.
     return tablesItem(first ? display(first).title : itemWords(g.item_ref));
-  };
-  const who = (t: GroupTable) => tablesShortWho(cp(t.counterparty));
+  }, [byId, display]);
+  const who = useCallback((t: GroupTable) => tablesShortWho(cp(t.counterparty)), [cp]);
   const [picked, pick] = usePick(live, (g) => g.group_id);
+  const columns = useMemo<GridColumn<DealGroupView>[]>(() => [
+    // Filters over the sellers' names too, as the search did.
+    { id: 'item', header: TABLES.col.item, flex: 2, minWidth: 180, value: (g) => `${shoppingFor(itemOf(g))} ${g.tables.map((t) => cp(t.counterparty).name).join(' ')}`,
+      cell: (g) => <span className="c-who"><b title={shoppingFor(itemOf(g))}>{shoppingFor(itemOf(g))}</b></span> },
+    { id: 'status', header: TABLES.col.status, width: 170, value: (g) => chipOf(g, who).text,
+      cell: (g) => { const c = chipOf(g, who); return <span className="c-state"><Chip tone={c.tone}>{c.text}</Chip></span>; } },
+    { id: 'best', header: TABLES.col.best, width: 130, end: true, filter: 'number', value: (g) => { const b = bestOf(g); return b ? amountValue(b) : null; }, filterValue: (g) => { const b = bestOf(g); return b ? amountMajor(b) : null; },
+      cell: (g) => { const b = bestOf(g); return b ? <Amount money={b} /> : <span className="c-amt tx-dim">{UNKNOWN}</span>; } },
+    { id: 'sellers', header: TABLES.col.sellers, width: 120, filter: 'number', sort: 'desc', value: (g) => g.tables.length, cell: (g) => <span className="c-time">{sellersWord(g.tables.length)}</span> },
+  ], [itemOf, who, cp]);
   return (
     <SplitView label={TABLES.groupsWhat} count={live.length}
       list={(
-        <ListEngine<DealGroupView> label={TABLES.groupList} rows={live} getKey={(g) => g.group_id} sorts={SORTS} estimateSize={36}
-          searchText={(g) => `${itemOf(g)} ${g.tables.map((t) => cp(t.counterparty).name).join(' ')}`}
+        <ListEngine<DealGroupView> label={TABLES.groupList} rows={live} getKey={(g) => g.group_id} columns={columns} estimateSize={36}
           renderRow={(g) => {
             const c = chipOf(g, who);
-            const s = groupStanding(g);
-            const best = s.kind === 'bargaining' ? s.best?.seller_price ?? null : null;
+            const best = bestOf(g);
             const note = `${sellersWord(g.tables.length)}${best ? ` · ${TABLES.best(formatMoney(best))}` : ''}`;
             return (
               <Row1 className={picked?.group_id === g.group_id ? 'picked' : undefined} note={note} title={note}>

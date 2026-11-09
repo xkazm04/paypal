@@ -6,17 +6,18 @@
 // progress, the money that came back and the subscriptions the wallet watches. Replaying a failed
 // renewal and changing the watch list happen in the approval window.
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
-import { useMemo, useState, type CSSProperties } from 'react';
+import { Children, useMemo, useState, type CSSProperties } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { RescueBook } from '@bindings/RescueBook';
 import { clockLabel, formatMinor } from '../../../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../../../lib/hooks';
-import { LATEST_OF, OPEN_THE_DEAL, RESCUE, RESCUE_REPLAY_ABOUT, RESCUE_WATCH_HOLD, RESCUE_WATCH_STATE, RESCUE_VIEWS_TITLE, RESCUE_WATCH_ABOUT, ruleSentence, watchingWords } from '../../../../../lib/words';
+import { LATEST_OF, OPEN_THE_DEAL, RESCUE, RESCUE_REPLAY_ABOUT, RESCUE_WATCH_HOLD, RESCUE_WATCH_STATE, RESCUE_VIEWS_TITLE, RESCUE_WATCH_ABOUT, ruleSentence, stateWord, watchingWords } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
+import type { GridColumn } from '../../../../../shared/DataGrid';
 import { Btn, Chip, ExplainHint, Kv, Silence } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { dealTotal, sumByCurrency } from '../../../logic';
-import { atRiskOf, ifNothingOf, isReplay, recovered, refusalLine, recoveredThisMonth, watchStatus, type Col, type NotCountedWhy } from '../../../modules/rescue/model';
+import { atRiskOf, COLS, ifNothingOf, isReplay, recovered, refusalLine, recoveredThisMonth, watchStatus, type Col, type NotCountedWhy } from '../../../modules/rescue/model';
 import { moneyList, rescueStrip } from '../../../modules/rescue/preview';
 import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
@@ -102,17 +103,74 @@ function ProgressRow({ deal, r }: { deal: Deal; r: RescueWorld }) {
   );
 }
 
+const self = (d: Deal): Deal => d;
+const stateText = (d: Deal): string => stateWord(d.state, { side: d.side, kind: d.kind }).text;
+
+/** The subscriber column every rescue list opens with; `title` is the name's tooltip. */
+const whoCol = <T,>(r: RescueWorld, deal: (x: T) => Deal, title: (d: Deal) => string = r.name): GridColumn<T> => ({
+  id: 'who', header: RESCUE.col.who, flex: 1.2, minWidth: 150, value: (x) => cap(r.name(deal(x))),
+  cell: (x) => <b className="rs-who" title={title(deal(x))}>{cap(r.name(deal(x)))}</b>,
+});
+
+/** The failed list as grid columns: the same cells as FailedRow. */
+function failedColumns(r: RescueWorld): GridColumn<Deal>[] {
+  const note = (d: Deal): string => (refusalLine(r.view(d)) ? RESCUE.refusal.short : planOf(d, r));
+  return [
+    whoCol<Deal>(r, self),
+    { id: 'amount', header: RESCUE.col.amount, width: 120, end: true, filter: 'number', value: (d) => atRiskOf(d, r.book).minor, filterValue: (d) => atRiskOf(d, r.book).minor / 100,
+      cell: (d) => { const t = atRiskOf(d, r.book); return <span className={`rs-amt num${r.need(d) ? ' needs' : ''}`}>{formatMinor(t.minor, t.currency)}</span>; } },
+    { id: 'state', header: RESCUE.col.state, width: 170, value: (d) => (r.need(d) ? RESCUE.yourCall : stateText(d)),
+      cell: (d) => (r.need(d) ? <Chip tone="gold">{RESCUE.yourCall}</Chip> : <RescueState deal={d} />) },
+    { id: 'left', header: RESCUE.col.left, width: 125, filter: false, value: (d) => r.deadline(d), cell: (d) => <Countdown deadline={r.deadline(d)} /> },
+    { id: 'note', header: RESCUE.col.plan, flex: 1.8, minWidth: 160, value: note,
+      cell: (d) => <span className="rs-sub">{refusalLine(r.view(d)) ? <span className="rs-refusal">{RESCUE.refusal.short}</span> : planOf(d, r)}</span> },
+  ];
+}
+
+/** One fix's cell of the comparison: CompareCells draws the five together, this column shows its own. */
+function CompareCell({ deal, r, col }: { deal: Deal; r: RescueWorld; col: Col }) {
+  const cells = Children.toArray(CompareCells({ deal, r }).props.children);
+  return <>{cells[COLS.indexOf(col)]}</>;
+}
+
+/** The comparison as grid columns: who, then the five fixes. A fix's cell is derived and has no order. */
+function compareColumns(r: RescueWorld): GridColumn<Deal>[] {
+  return [
+    whoCol<Deal>(r, self, r.title),
+    ...COLS.map((c): GridColumn<Deal> => ({ id: c, header: RESCUE.cmp.head[c], flex: 1, minWidth: 115, sortable: false, filter: false, value: () => null, cell: (d) => <CompareCell deal={d} r={r} col={c} /> })),
+  ];
+}
+
+/** The first clause of where a fix stands; "paid, receipt saved" is what the chips already say. */
+const progressNote = (d: Deal, r: RescueWorld): string | null => {
+  const line = deskLine(d, r.view(d));
+  return line === RESCUE.desk.paidVerified ? null : silenceParts(line).head;
+};
+
+/** The in-progress list as grid columns: the same cells as ProgressRow. */
+function progressColumns(r: RescueWorld): GridColumn<Deal>[] {
+  return [
+    whoCol<Deal>(r, self),
+    { id: 'amount', header: RESCUE.col.amount, width: 120, end: true, filter: 'number', value: (d) => dealTotal(d).minor, filterValue: (d) => dealTotal(d).minor / 100,
+      cell: (d) => { const t = dealTotal(d); return <span className={`rs-amt num${r.need(d) ? ' needs' : ''}`}>{formatMinor(t.minor, t.currency)}</span>; } },
+    { id: 'state', header: RESCUE.col.state, width: 170, value: stateText, cell: (d) => <RescueState deal={d} /> },
+    { id: 'count', header: RESCUE.col.count, width: 135, sortable: false, filter: false, value: () => null, cell: (d) => <CountChip deal={d} view={r.view(d)} /> },
+    { id: 'note', header: RESCUE.col.stands, flex: 1.8, minWidth: 160, value: (d) => progressNote(d, r), cell: (d) => <span className="rs-sub">{progressNote(d, r)}</span> },
+  ];
+}
+
 /** The renewals that need a fix: the list, and the picked one's fixes beside it. */
 function Failed({ r, picked, onPick, compare }: { r: RescueWorld; picked: Record<string, Col>; onPick: (id: string, c: Col) => void; compare?: boolean }) {
   // The rows keep to columns, so the list says once what silence does; the picked renewal's fixes say it in full.
   const quiet = r.rows.failing.find((d) => r.need(d));
   const nav = useLayerNav();
+  const columns = useMemo(() => (compare ? compareColumns(r) : failedColumns(r)), [r, compare]);
   return (
     <div className={`rs-list${compare ? ' rs-compare' : ''}`}>
       {r.bookError ? <WalletNotice error={r.bookError} what={RESCUE.bookWhat} /> : null}
       {!compare && quiet ? <p className="rs-quiet"><Silence text={quietHead(quiet, r)} /></p> : null}
       {compare ? <p className="ui-hint rs-never"><ExplainHint label={RESCUE.neverLabel} line={RESCUE.neverLine}>{RESCUE.never}</ExplainHint></p> : null}
-      <ListEngine<Deal> className={fewRows(r.rows.failing.length)} label={compare ? RESCUE_VIEWS_TITLE.compare : RESCUE_VIEWS_TITLE.failed} rows={r.rows.failing} getKey={(d) => d.id} estimateSize={36} wideAt={1200}
+      <ListEngine<Deal> className={fewRows(r.rows.failing.length)} label={compare ? RESCUE_VIEWS_TITLE.compare : RESCUE_VIEWS_TITLE.failed} rows={r.rows.failing} getKey={(d) => d.id} columns={columns} estimateSize={36} wideAt={1200}
         searchText={(d) => `${r.name(d)} ${r.title(d)}`}
         renderRow={(d) => (compare ? <span className="row1 rs-crow" style={CMP_COLS} title={`${cap(r.name(d))} · ${r.title(d)}`}><b className="rs-who" title={r.title(d)}>{cap(r.name(d))}</b><CompareCells deal={d} r={r} /></span> : <FailedRow deal={d} r={r} />)}
         rowLabel={(d) => rowSay(d, r)}
@@ -125,10 +183,11 @@ function Failed({ r, picked, onPick, compare }: { r: RescueWorld; picked: Record
 
 function Progress({ r }: { r: RescueWorld }) {
   const nav = useLayerNav();
+  const columns = useMemo(() => progressColumns(r), [r]);
   return (
     <div className="rs-list">
       {r.bookError ? <WalletNotice error={r.bookError} what={RESCUE.bookWhat} /> : null}
-      <ListEngine<Deal> className={fewRows(r.rows.inflight.length)} label={RESCUE_VIEWS_TITLE.progress} rows={r.rows.inflight} getKey={(d) => d.id} estimateSize={36} wideAt={1200}
+      <ListEngine<Deal> className={fewRows(r.rows.inflight.length)} label={RESCUE_VIEWS_TITLE.progress} rows={r.rows.inflight} getKey={(d) => d.id} columns={columns} estimateSize={36} wideAt={1200}
         searchText={(d) => `${r.name(d)} ${r.title(d)}`}
         renderRow={(d) => <ProgressRow deal={d} r={r} />} rowLabel={(d) => rowSay(d, r)}
         onOpen={(d) => nav.deal(d.id)} detail={(d) => <DeskDetail deal={d} r={r} onDeal={() => nav.deal(d.id)} />}
@@ -144,6 +203,21 @@ const RECOVERED_FILTERS: readonly ListFilter<RecoveredRow>[] = [
   { value: 'closed', label: RESCUE.recovered.closed, test: (x) => x.why === 'closed' || x.why === 'unverified' },
 ];
 
+/** Counted, or sent and not paid, has no note: the count chip beside it already says so. */
+const recoveredNote = (x: RecoveredRow): string | null => (x.why === null || x.why === 'sent' ? null : RESCUE.notCounted[x.why]);
+
+/** The recovered list as grid columns: the same cells as its row. */
+function recoveredColumns(r: RescueWorld): GridColumn<RecoveredRow>[] {
+  return [
+    whoCol<RecoveredRow>(r, (x) => x.deal),
+    { id: 'amount', header: RESCUE.col.amount, width: 120, end: true, filter: 'number', value: (x) => dealTotal(x.deal).minor, filterValue: (x) => dealTotal(x.deal).minor / 100,
+      cell: (x) => { const t = dealTotal(x.deal); return <span className={`rs-amt num${x.why === null ? ' okc' : ''}`}>{formatMinor(t.minor, t.currency)}</span>; } },
+    { id: 'state', header: RESCUE.col.state, width: 170, value: (x) => stateText(x.deal), cell: (x) => <RescueState deal={x.deal} /> },
+    { id: 'count', header: RESCUE.col.count, width: 135, sortable: false, filter: false, value: () => null, cell: (x) => <CountChip deal={x.deal} view={r.view(x.deal)} /> },
+    { id: 'note', header: RESCUE.col.why, flex: 1.8, minWidth: 160, value: recoveredNote, cell: (x) => <span className="rs-sub">{recoveredNote(x)}</span> },
+  ];
+}
+
 /** What counts as recovered and what does not: the wallet's totals, then every rescue with its reason. */
 function Recovered({ r }: { r: RescueWorld }) {
   const nav = useLayerNav();
@@ -151,6 +225,7 @@ function Recovered({ r }: { r: RescueWorld }) {
   const rows = useMemo<RecoveredRow[]>(() => [...rec.counted.map((deal) => ({ deal, why: null })), ...rec.notCounted.map((x) => ({ deal: x.deal, why: x.why as NotCountedWhy }))], [rec]);
   const now = useNow();
   const month = useMemo(() => recoveredThisMonth(r.all, r.book, now), [r.all, r.book, now]);
+  const columns = useMemo(() => recoveredColumns(r), [r]);
   const total = rec.totals.length ? rec.totals.map((t) => formatMinor(t.minor, t.currency)).join(' · ') : null;
   return (
     <div className="rs-list">
@@ -160,7 +235,7 @@ function Recovered({ r }: { r: RescueWorld }) {
       <p className="rs-total">{RESCUE.recovered.month} <b className={`money${month?.length ? ' okc' : ''}`}>{month ? moneyList(month) ?? RESCUE.recovered.noneYet : RESCUE.recovered.monthUnknown}</b></p>
       </Reveal>
       <p className="ui-hint"><ExplainHint label={RESCUE.recovered.ruleLabel} line={RESCUE.recovered.ruleLine}>{RESCUE.recovered.rule}</ExplainHint></p>
-      <ListEngine<RecoveredRow> className={fewRows(rows.length)} label={RESCUE_VIEWS_TITLE.recovered} rows={rows} getKey={(x) => x.deal.id} filters={RECOVERED_FILTERS} estimateSize={36}
+      <ListEngine<RecoveredRow> className={fewRows(rows.length)} label={RESCUE_VIEWS_TITLE.recovered} rows={rows} getKey={(x) => x.deal.id} filters={RECOVERED_FILTERS} columns={columns} estimateSize={36}
         searchText={(x) => `${r.name(x.deal)} ${r.title(x.deal)}`}
         renderRow={(x) => {
           const t = dealTotal(x.deal);

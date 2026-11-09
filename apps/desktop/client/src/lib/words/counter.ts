@@ -55,6 +55,7 @@ export const COUNTER = {
     ['Buyers pay on PayPal', 'You are paid when the buyer approves.'],
   ] as const,
   // lists
+  col: { order: 'Order', status: 'Status', amount: 'Amount', left: 'Time left', closed: 'Closed', item: 'Item', change: 'Change', orders: 'Orders' },
   ordersList: 'Open orders',
   earlierList: 'Closed orders',
   itemsList: 'Items in your shop',
@@ -74,10 +75,6 @@ export const COUNTER = {
   fWithOrders: 'With orders',
   fAbove: 'Above market',
   fChanged: 'Changed',
-  sSoonest: 'Soonest deadline first',
-  sNewest: 'Newest first',
-  sLargest: 'Largest first',
-  sName: 'By name',
   // an order
   from: (who: string): string => `from ${who}`,
   withdrawsChip: 'would be withdrawn',
@@ -118,7 +115,6 @@ export const COUNTER = {
   lowest: 'Lowest price',
   lowestTitle: 'Your agent never quotes below this price. It is part of your signed shop rules.',
   vsMarket: 'vs market',
-  ordersNow: 'Orders now',
   ordersCount: (n: number): string => (n ? plural(n, 'order') : 'no orders'),
   none: 'none',
   notSet: 'not set',

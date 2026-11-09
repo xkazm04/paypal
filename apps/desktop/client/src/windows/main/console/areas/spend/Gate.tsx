@@ -8,6 +8,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { clockLabel, formatMinor } from '../../../../../lib/format';
 import { RULE_NAME, ruleSentence, SPEND } from '../../../../../lib/words';
+import type { GridColumn } from '../../../../../shared/DataGrid';
 import { Btn, Chip, Disclosure, Hint, Kv, Meter, Section } from '../../../../../shared/ui';
 import { amountTone, dealTotal } from '../../../logic';
 import { clauseGroups, COLUMN_NAME, columnValue, outcomeOf, velocityFill, type Cell, type GateColumn } from '../../../modules/spend/gate';
@@ -15,9 +16,10 @@ import { short } from '../../../modules/tables/ladder';
 import { useModuleRoute } from '../../../viewNav';
 import { useAttention, useSettings, type World } from '../../../world';
 import { useLayerNav } from '../../layers';
-import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
+import { ListEngine, type ListFilter } from '../../ListEngine';
 import { Amount, Row1 } from '../../rows';
 import { SplitView } from '../tables/parts';
+import { amountMajor, amountValue } from '../tables/Watch';
 import { PurchasePane, type Lane } from './Purchase';
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 
@@ -30,10 +32,6 @@ const FILTERS: readonly ListFilter<Lane>[] = [
   { value: 'refused', label: SPEND.fRefused, test: (l) => l.cells.some((c) => c.kind === 'fail') || l.deal.state === 'REFUSED' },
   { value: 'asked', label: SPEND.fAsked, test: (l) => l.cells.some((c) => c.kind === 'you') },
   { value: 'unknown', label: SPEND.fUnknown, test: (l) => !l.own || l.cells.some((c) => c.kind === 'unknown') },
-];
-const SORTS: readonly ListSort<Lane>[] = [
-  { value: 'newest', label: SPEND.sNewest, compare: (a, b) => (b.deal.created_at ?? 0) - (a.deal.created_at ?? 0) },
-  { value: 'agent', label: SPEND.sAgent, compare: (a, b) => (a.slot ?? '~').localeCompare(b.slot ?? '~') || (b.deal.created_at ?? 0) - (a.deal.created_at ?? 0) },
 ];
 
 const FILL = { display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0, minWidth: 0 } as const;
@@ -55,6 +53,28 @@ export function GateView({ lanes, cols, m, sets, display, who, needOf }: {
   })), [lanes, cols]);
   const vel = cols.find((c) => c.clause.type === 'velocity')?.clause;
   const velocity = vel?.type === 'velocity' ? vel : undefined;
+  const nCols = cols.length;
+  const columns = useMemo<GridColumn<Lane>[]>(() => {
+    const outcomeWord = (l: Lane) => (needOf(l.deal.id)?.money_check ? SPEND.checking : outcomeOf(l.deal).label);
+    return [
+      // Filters over the agent too, as the search did; the agent stays the time's hover.
+      { id: 'what', header: SPEND.col.what, flex: 2, minWidth: 180, value: (l) => `${display(l.deal).title} ${who(l)} ${l.slot ?? ''}`,
+        cell: (l) => <span className="c-who"><b title={display(l.deal).title}>{display(l.deal).title}</b><span className="cs-who-chip" title={who(l)}>{who(l)}</span></span> },
+      { id: 'rules', header: SPEND.col.rules, width: Math.max(96, nCols * 20 + 28), sortable: false, filter: false, value: () => null,
+        cell: (l) => (
+          <span className="sp-marks" aria-hidden="true">
+            {/* A lane under another rule set is not read against these columns: unknown, drawn dim. */}
+            {l.cells.map((c) => { const k = l.own ? c.kind : 'unknown'; return <i key={c.n} className={k}>{MARK[k]}</i>; })}
+          </span>
+        ) },
+      { id: 'outcome', header: SPEND.col.outcome, width: 170, value: outcomeWord,
+        cell: (l) => <span className="sp-out c-state"><Chip tone={outcomeOf(l.deal).tone}>{outcomeWord(l)}</Chip></span> },
+      { id: 'amount', header: SPEND.col.amount, width: 130, end: true, filter: 'number', value: (l) => amountValue(dealTotal(l.deal)), filterValue: (l) => amountMajor(dealTotal(l.deal)),
+        cell: (l) => <Amount money={dealTotal(l.deal)} tone={amountTone(l.deal)} /> },
+      { id: 'when', header: SPEND.col.when, width: 120, filter: false, sort: 'desc', value: (l) => l.deal.created_at ?? null,
+        cell: (l) => <span className="c-time" title={l.slot ? SPEND.agent(l.slot) : undefined}>{l.deal.created_at ? clockLabel(l.deal.created_at) : ''}</span> },
+    ];
+  }, [display, who, needOf, nCols]);
   const fill = velocityFill(att?.wallet_spend_today_minor ?? 0, att?.wallet_spend_today_currency, velocity, !!settings?.meters_available);
   if (!cols.length) return <p className="le-empty">{SPEND.rulesNone}</p>;
   const lane = pick?.kind === 'lane' ? lanes.find((l) => l.deal.id === pick.id) : pick === null ? lanes[0] : undefined;
@@ -89,8 +109,7 @@ export function GateView({ lanes, cols, m, sets, display, who, needOf }: {
       </Reveal>
       <Reveal style={FILL}><SplitView label={SPEND.gateList} count={lanes.length}
         list={(
-          <ListEngine<Lane> label={SPEND.gateList} rows={lanes} getKey={(l) => l.deal.id} filters={FILTERS} sorts={SORTS} estimateSize={36}
-            searchText={(l) => `${display(l.deal).title} ${who(l)} ${l.slot ?? ''}`}
+          <ListEngine<Lane> label={SPEND.gateList} rows={lanes} getKey={(l) => l.deal.id} filters={FILTERS} columns={columns} estimateSize={36}
             renderRow={(l) => {
               const out = outcomeOf(l.deal);
               return (

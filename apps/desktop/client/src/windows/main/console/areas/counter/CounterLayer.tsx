@@ -11,6 +11,7 @@ import { clockLabel, formatMinor, formatMoney } from '../../../../../lib/format'
 import { useNow, useQuery } from '../../../../../lib/hooks';
 import { COUNTER, COUNTER_VIEWS, LATEST_OF, OPEN_THE_DEAL, stateWord, TABLES_TRADE, timeLeftWords } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
+import type { GridColumn } from '../../../../../shared/DataGrid';
 import { Btn, Chip, ExplainHint, Kv, Loading, useLayer, useLayerCount, useToast } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { chipClass, dealTotal, isLive, PENDING_BACKEND, stripFor, sumByCurrency } from '../../../logic';
@@ -21,7 +22,7 @@ import { useCpLookup } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
 import { useDeals, useNeeds, useWorldSelector, type World } from '../../../world';
 import type { LayerProps } from '../../layers';
-import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
+import { ListEngine, type ListFilter } from '../../ListEngine';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer, type YourCall } from '../../ModuleLayer';
 import type { ModuleCard } from '../../ModuleSummary';
@@ -38,22 +39,54 @@ const selAll = (w: World) => w.deals.data;
 
 const sum = (ds: readonly Deal[]): string => sumByCurrency(ds.map(dealTotal)).map((m) => formatMinor(m.minor, m.currency)).join(' · ');
 
-const ORDER_SORTS = (deadlineOf: (d: Deal) => number): readonly ListSort<Deal>[] => [
-  { value: 'soonest', label: COUNTER.sSoonest, compare: (a, b) => deadlineOf(a) - deadlineOf(b) },
-  { value: 'largest', label: COUNTER.sLargest, compare: (a, b) => dealTotal(b).minor - dealTotal(a).minor },
-];
-const PAST_SORTS: readonly ListSort<Deal>[] = [
-  { value: 'newest', label: COUNTER.sNewest, compare: (a, b) => (b.updated_at ?? b.created_at ?? 0) - (a.updated_at ?? a.created_at ?? 0) },
-  { value: 'largest', label: COUNTER.sLargest, compare: (a, b) => dealTotal(b).minor - dealTotal(a).minor },
-];
 const PAST_FILTERS: readonly ListFilter<Deal>[] = [
   { value: 'paid', label: COUNTER.fPaid, test: (d) => chipClass(d) === 'done' },
   { value: 'stopped', label: COUNTER.fStopped, test: (d) => chipClass(d) !== 'done' },
 ];
-const ITEM_SORTS: readonly ListSort<CatalogRow>[] = [
-  { value: 'name', label: COUNTER.sName, compare: (a, b) => itemName(a).localeCompare(itemName(b)) },
-  { value: 'orders', label: COUNTER.ordersNow, compare: (a, b) => b.deals.filter(isLive).length - a.deals.filter(isLive).length },
-];
+
+type OrderCtx = {
+  display: World['display']; needOf: World['needOf']; cp: ReturnType<typeof useCpLookup>;
+  rowOf: ReadonlyMap<string, CatalogRow>; draft: FloorDraft;
+};
+
+/** An order list as grid columns, the same cells as orderRow1 (its note stays in the pane). `open` lists
+ *  soonest deadline first, an order with none last; the closed list goes newest first. */
+function orderColumns(c: OrderCtx, open: boolean): GridColumn<Deal>[] {
+  const need = (d: Deal) => c.needOf(d.id);
+  const name = (d: Deal) => c.cp(d.counterparty).name;
+  const at = (d: Deal) => d.updated_at ?? d.created_at;
+  const withdrawn = (d: Deal) => underDraft(d, c.rowOf.get(d.terms.item_ref), c.draft);
+  const deadline = (d: Deal) => need(d)?.deadline ?? c.display(d).deadline;
+  return [
+    { id: 'what', header: COUNTER.col.order, flex: 2, minWidth: 180, value: (d) => `${c.display(d).title} ${name(d)}`,
+      cell: (d) => {
+        const title = c.display(d).title;
+        return <span className={`ctr-cw${need(d) ? ' needs' : ''}`}><span className="dot" aria-hidden="true" /><b title={title}>{title}</b><WhoChip name={name(d)} /></span>;
+      } },
+    { id: 'state', header: COUNTER.col.status, width: 170, value: (d) => (withdrawn(d) ? COUNTER.withdrawsChip : need(d) ? COUNTER.needsChip : stateWord(d.state, { side: d.side, kind: d.kind }).text),
+      cell: (d) => (withdrawn(d) ? <Chip tone="coral" title={COUNTER.withdrawsTitle}>{COUNTER.withdrawsChip}</Chip>
+        : need(d) ? <Chip tone="gold">{COUNTER.needsChip}</Chip> : <StateChip deal={d} />) },
+    { id: 'amount', header: COUNTER.col.amount, width: 120, end: true, filter: 'number', value: (d) => dealTotal(d).minor, filterValue: (d) => dealTotal(d).minor / 100,
+      cell: (d) => <Amount money={dealTotal(d)} tone={isLive(d) ? undefined : chipClass(d) === 'done' ? 'moved' : 'struck'} /> },
+    { id: 'time', header: open ? COUNTER.col.left : COUNTER.col.closed, width: 125, filter: false, sort: open ? 'asc' : 'desc',
+      value: (d) => (open ? deadline(d) ?? Infinity : at(d) ?? 0),
+      cell: (d) => { const when = at(d); return isLive(d) ? <Countdown deadline={deadline(d)} /> : when ? clockLabel(when) : ''; } },
+  ];
+}
+
+/** The items as grid columns, the same cells as their row (the market note stays in the pane). */
+function itemColumns(draft: FloorDraft): GridColumn<CatalogRow>[] {
+  const liveOf = (r: CatalogRow) => r.deals.filter(isLive).length;
+  return [
+    { id: 'item', header: COUNTER.col.item, flex: 2, minWidth: 160, sort: 'asc', value: itemName, cell: (r) => <b className="ctr-item" title={itemName(r)}>{itemName(r)}</b> },
+    { id: 'change', header: COUNTER.col.change, width: 150, filter: false, value: (r) => (draft[r.itemRef] !== undefined ? COUNTER.draftChip : null),
+      cell: (r) => (draft[r.itemRef] !== undefined ? <Chip tone="gold">{COUNTER.draftChip}</Chip> : null) },
+    { id: 'lowest', header: COUNTER.lowest, width: 130, end: true, filter: 'number', value: (r) => draftFloor(r, draft)?.minor ?? null,
+      filterValue: (r) => { const f = draftFloor(r, draft); return f ? f.minor / 100 : null; },
+      cell: (r) => { const f = draftFloor(r, draft); return f ? <Amount money={f} /> : <span className="c-amt tx-dim">{COUNTER.notSet}</span>; } },
+    { id: 'orders', header: COUNTER.col.orders, width: 110, filter: 'number', value: liveOf, cell: (r) => COUNTER.ordersCount(liveOf(r)) },
+  ];
+}
 
 export function CounterLayer({ nav }: LayerProps) {
   const route = useModuleRoute();
@@ -79,10 +112,6 @@ export function CounterLayer({ nav }: LayerProps) {
   }, [deals, needOf, display]);
   const past = useMemo(() => deals.filter((d) => !isLive(d)).sort((a, b) => (b.updated_at ?? b.created_at ?? 0) - (a.updated_at ?? a.created_at ?? 0)), [deals]);
   const mine = useMemo(() => needs.filter((n) => deals.some((d) => d.id === n.deal_id)), [needs, deals]);
-  const deadlineOf = (d: Deal): number => needOf(d.id)?.deadline ?? display(d).deadline ?? Infinity;
-  const deadlineRef = useRef(deadlineOf);
-  deadlineRef.current = deadlineOf;
-  const orderSorts = useMemo(() => ORDER_SORTS((d) => deadlineRef.current(d)), []);
   const orderFilters = useMemo<readonly ListFilter<Deal>[]>(() => [
     { value: 'needs', label: COUNTER.fNeeds, test: (d) => !!needOf(d.id) },
     { value: 'waiting', label: COUNTER.fWaiting, test: (d) => chipClass(d) === 'wait' },
@@ -94,6 +123,9 @@ export function CounterLayer({ nav }: LayerProps) {
   const { diff, errors } = useMemo(() => draftState(rows, draft), [rows, draft]);
   const impact = useMemo(() => draftImpact(diff), [diff]);
   const hasDraft = diff.length > 0 || errors.length > 0;
+  const liveColumns = useMemo(() => orderColumns({ display, needOf, cp, rowOf, draft }, true), [display, needOf, cp, rowOf, draft]);
+  const pastColumns = useMemo(() => orderColumns({ display, needOf, cp, rowOf, draft }, false), [display, needOf, cp, rowOf, draft]);
+  const itemCols = useMemo(() => itemColumns(draft), [draft]);
   const itemFilters = useMemo<readonly ListFilter<CatalogRow>[]>(() => [
     { value: 'live', label: COUNTER.fWithOrders, test: (r) => matchesFilter(r, 'live', draft) },
     { value: 'over', label: COUNTER.fAbove, test: (r) => matchesFilter(r, 'over', draft) },
@@ -191,8 +223,8 @@ export function CounterLayer({ nav }: LayerProps) {
       </Row1>
     );
   };
-  const orderList = (rowsOf: readonly Deal[], label: string, picked: Deal | undefined, pick: (k: string) => void, empty: string, filters: readonly ListFilter<Deal>[], sorts: readonly ListSort<Deal>[]) => (
-    <ListEngine<Deal> label={label} rows={rowsOf} getKey={(d) => d.id} filters={filters} sorts={sorts} estimateSize={36}
+  const orderList = (rowsOf: readonly Deal[], label: string, picked: Deal | undefined, pick: (k: string) => void, empty: string, filters: readonly ListFilter<Deal>[], columns: readonly GridColumn<Deal>[]) => (
+    <ListEngine<Deal> label={label} rows={rowsOf} getKey={(d) => d.id} filters={filters} columns={columns} estimateSize={36}
       searchText={(d) => `${display(d).title} ${cp(d.counterparty).name}`}
       renderRow={(d) => orderRow1(d, picked?.id === d.id)}
       rowLabel={(d) => `${display(d).title}, ${cp(d.counterparty).name}`} onPick={(d) => pick(d.id)} onOpen={(d) => nav.deal(d.id)} empty={empty} />
@@ -217,7 +249,7 @@ export function CounterLayer({ nav }: LayerProps) {
           title: COUNTER_VIEWS.orders, sub: COUNTER.ordersSub(live.length),
           render: () => (
             <>
-              <SplitView label={COUNTER.ordersList} count={live.length} list={orderList(live, COUNTER.ordersList, pickedOrder, pickOrder, COUNTER.ordersEmpty, orderFilters, orderSorts)} pane={orderPane(pickedOrder)} />
+              <SplitView label={COUNTER.ordersList} count={live.length} list={orderList(live, COUNTER.ordersList, pickedOrder, pickOrder, COUNTER.ordersEmpty, orderFilters, liveColumns)} pane={orderPane(pickedOrder)} />
               {hasDraft ? tray : null}
             </>
           ),
@@ -230,7 +262,7 @@ export function CounterLayer({ nav }: LayerProps) {
               {!mq.data && !mq.error ? <Loading what={COUNTER.rulesReading} /> : (
                 <SplitView label={COUNTER.itemsList} count={rows.length}
                   list={(
-                    <ListEngine<CatalogRow> label={COUNTER.itemsList} rows={rows} getKey={(r) => r.itemRef} filters={itemFilters} sorts={ITEM_SORTS} estimateSize={36}
+                    <ListEngine<CatalogRow> label={COUNTER.itemsList} rows={rows} getKey={(r) => r.itemRef} filters={itemFilters} columns={itemCols} estimateSize={36}
                       searchText={(r) => `${r.title ?? ''} ${r.itemRef}`}
                       renderRow={(r) => {
                         const f = draftFloor(r, draft);
@@ -261,7 +293,7 @@ export function CounterLayer({ nav }: LayerProps) {
         },
         earlier: {
           title: COUNTER_VIEWS.earlier, sub: COUNTER.earlierSub(past.length),
-          render: () => <SplitView label={COUNTER.earlierList} count={past.length} list={orderList(past, COUNTER.earlierList, pickedPast, pickPast, COUNTER.earlierEmpty, PAST_FILTERS, PAST_SORTS)} pane={orderPane(pickedPast)} />,
+          render: () => <SplitView label={COUNTER.earlierList} count={past.length} list={orderList(past, COUNTER.earlierList, pickedPast, pickPast, COUNTER.earlierEmpty, PAST_FILTERS, pastColumns)} pane={orderPane(pickedPast)} />,
         },
       }} />
   );

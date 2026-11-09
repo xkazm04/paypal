@@ -18,13 +18,14 @@
 @media (max-width: 1100px) { .ar-shield .sh-row.row1 { grid-template-columns: auto minmax(9rem, 1fr) minmax(7rem, max-content) minmax(4rem, max-content) 8rem; } }
 @container (max-width: 60rem) { .ar-shield .sh-row.row1 { grid-template-columns: auto minmax(9rem, 1fr) minmax(7rem, max-content) minmax(4rem, max-content) 8rem; } .ar-shield .sh-row .c-note { display: none; } }
 .ar-shield .sh-lead { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: var(--r-tight); color: var(--muted); background: color-mix(in srgb, var(--text) 6%, transparent); }
-.ar-shield .sh-row.k-block .sh-lead { color: var(--red-l); }
-.ar-shield .sh-row.k-paused .sh-lead { color: var(--gold-l); }
-.ar-shield .sh-row.k-clear .sh-lead { color: var(--ok); }
+.ar-shield .sh-row.k-block .sh-lead, .ar-shield .sh-lead.k-block { color: var(--red-l); }
+.ar-shield .sh-row.k-paused .sh-lead, .ar-shield .sh-lead.k-paused { color: var(--gold-l); }
+.ar-shield .sh-row.k-clear .sh-lead, .ar-shield .sh-lead.k-clear { color: var(--ok); }
 .ar-shield .sh-what { font-weight: var(--fw-semibold); }
 .ar-shield .c-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ar-shield .sh-quiet { margin: 0 0 var(--sp-2); }
 .ar-shield .sh-sub { color: var(--muted); font-size: var(--fs-small); }
+.ar-shield .sg-cell .sh-sub, .ar-shield .sg-cell .sh-what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---- a paused payment, beside the list ------------------------------------------------------------- */
 .ar-shield .sh-paused { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
@@ -47,10 +48,10 @@
 .ar-shield .c-mkt { display: inline-flex; align-items: center; gap: var(--sp-2); }
 .ar-shield .c-move { color: var(--muted); }
 .ar-shield .c-move.tx-gold { color: var(--gold-l); }
-.ar-shield .sh-crow.outcome .c-chk { opacity: .35; }
-@container (max-width: 72rem) { .ar-shield .sh-crow { grid-template-columns: minmax(8rem, 1.5fr) 6.5rem 9rem minmax(6rem, .9fr) minmax(8rem, 1fr) minmax(8rem, 1fr); } .ar-shield .c-pp { display: none; } }
-@container (max-width: 56rem) { .ar-shield .sh-crow { grid-template-columns: minmax(7rem, 1.4fr) 6rem 9rem minmax(6rem, 1fr) minmax(7rem, 1fr); } .ar-shield .c-new { display: none; } }
-@container (max-width: 44rem) { .ar-shield .sh-crow { grid-template-columns: minmax(7rem, 1.4fr) 6rem 9rem minmax(7rem, 1fr); } .ar-shield .c-chk { display: none; } }
+.ar-shield .sh-crow.outcome .c-chk, .ar-shield .le.sh-outcome .sg-cell .c-chk { opacity: .35; }
+@container (max-width: 72rem) { .ar-shield .sh-crow { grid-template-columns: minmax(8rem, 1.5fr) 6.5rem 9rem minmax(6rem, .9fr) minmax(8rem, 1fr) minmax(8rem, 1fr); } .ar-shield .sh-crow .c-pp { display: none; } }
+@container (max-width: 56rem) { .ar-shield .sh-crow { grid-template-columns: minmax(7rem, 1.4fr) 6rem 9rem minmax(6rem, 1fr) minmax(7rem, 1fr); } .ar-shield .sh-crow .c-new { display: none; } }
+@container (max-width: 44rem) { .ar-shield .sh-crow { grid-template-columns: minmax(7rem, 1.4fr) 6rem 9rem minmax(7rem, 1fr); } .ar-shield .sh-crow .c-chk { display: none; } }
 
 /* the picked row's story */
 .ar-shield .sh-story { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }

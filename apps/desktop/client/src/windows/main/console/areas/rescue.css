@@ -39,6 +39,9 @@
 .ar-rescue .rs-cell.k-default b { color: var(--ok); }
 .ar-rescue .rs-cell.k-offer b { color: var(--teal-l); font-family: var(--num); }
 .ar-rescue .rs-cell.k-off b, .ar-rescue .rs-cell.k-unknown b { color: var(--dim); }
+/* In the grid the column header names the fix, and the row's "needs you" gold moves to its amount. */
+.ar-rescue .sg-grid .rs-cell small.h { display: none; }
+.ar-rescue .sg-grid .rs-amt.needs { color: var(--gold-l); }
 @container (max-width: 46rem) { .ar-rescue .rs-crow { grid-template-columns: minmax(9rem, 1.2fr) repeat(3, minmax(0, 1fr)); } .ar-rescue .rs-cell:nth-child(n + 5) { display: none; } }
 
 /* ---- one failed renewal, beside the list ------------------------------------------------------------- */

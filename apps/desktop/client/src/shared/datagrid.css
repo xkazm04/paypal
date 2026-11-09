@@ -1,0 +1,33 @@
+/* The data grid in our colours. Colours only through tokens. */
+.sg-grid { flex: 1 1 auto; min-width: 0; min-height: 0; height: 100%; }
+/* A parent with no definite height (a split view) must not collapse the grid. */
+.sg-grid:not([data-auto]) { min-height: min(60vh, 24rem); }
+.sg-grid[data-auto] { height: auto; flex: none; }
+/* A list stacked over its detail has no height to fill. */
+.le.stack .sg-grid:not([data-auto]) { height: 50vh; flex: none; }
+.sg-cell { display: inline-flex; align-items: center; gap: var(--sp-1); height: 100%; max-width: 100%; }
+.sg-cell.end { justify-content: flex-end; width: 100%; }
+.sg-grid.ag-theme-quartz {
+  --ag-font-family: var(--font); --ag-font-size: 14px;
+  --ag-background-color: var(--panel); --ag-foreground-color: var(--text); --ag-data-color: var(--text);
+  --ag-header-background-color: var(--toolbar); --ag-header-foreground-color: var(--muted);
+  --ag-border-color: var(--line); --ag-row-border-color: var(--line); --ag-secondary-border-color: var(--line);
+  --ag-row-hover-color: var(--hover); --ag-selected-row-background-color: var(--sel);
+  --ag-active-color: var(--teal); --ag-range-selection-border-color: var(--focus); --ag-input-focus-border-color: var(--focus);
+  --ag-control-panel-background-color: var(--sheet); --ag-modal-overlay-background-color: var(--scrim);
+  --ag-input-border-color: var(--line2); --ag-odd-row-background-color: var(--panel);
+  --ag-border-radius: 2px; --ag-wrapper-border-radius: 4px; --ag-grid-size: 6px;
+  --ag-header-column-resize-handle-color: var(--line2);
+  /* The grid's icon font is a data: URL, which the desktop CSP refuses: icons are plain glyphs. */
+  --ag-icon-font-family: var(--font);
+  --ag-icon-font-code-asc: "\2191"; --ag-icon-font-code-desc: "\2193"; --ag-icon-font-code-none: "\2195";
+  --ag-icon-font-code-filter: "\25BE"; --ag-icon-font-code-menu: "\2261"; --ag-icon-font-code-menu-alt: "\2261";
+  --ag-icon-font-code-small-down: "\25BE"; --ag-icon-font-code-small-up: "\25B4";
+  --ag-icon-font-code-tick: "\2713"; --ag-icon-font-code-cross: "\00D7"; --ag-icon-font-code-eq: "=";
+}
+.sg-grid .ag-header-cell-text { font-family: var(--label); font-size: var(--fs-small); font-weight: var(--fw-semibold); }
+.sg-grid .ag-popup .ag-menu, .sg-grid .ag-filter { background: var(--sheet); color: var(--text); }
+.sg-grid .ag-input-field-input, .sg-grid .ag-picker-field-wrapper { background: var(--well); color: var(--text); }
+.sg-grid .ag-cell.sg-strong { font-weight: var(--fw-semibold); }
+.sg-grid .ag-cell.sg-dim { color: var(--dim); font-variant-numeric: tabular-nums; }
+.sg-grid .ag-cell.sg-who { color: var(--coral-l); }

@@ -18,6 +18,9 @@ vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/r
 
 afterEach(() => { cleanup(); history.replaceState(null, '', '/'); Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 }); });
 
+const GRID_ROW = '.sg-grid .ag-center-cols-container .ag-row';
+const firstRow = (layer: HTMLElement) => waitFor(() => { const row = layer.querySelector<HTMLElement>(GRID_ROW); if (!row) throw new Error('no grid row'); return row; });
+
 async function failing() {
   const w = mockBackend('main');
   const [deals, att] = await Promise.all([w.invoke('list_deals', null), w.invoke('attention_list', null)]);
@@ -51,13 +54,15 @@ describe('Rescue lists (#12)', () => {
   it.each(['failed', 'progress', 'recovered', 'compare'])('%s is a windowed list', async (v) => {
     const r = await renderLayerAtScale(`#m=rescue&v=${v}`, 'large');
     expectLayerHealthy(r);
-    expect(r.layer.querySelectorAll('.le-item').length).toBeLessThan(60);
+    await waitFor(() => expect(r.layer.querySelectorAll(GRID_ROW).length).toBeGreaterThan(0));
+    expect(r.layer.querySelectorAll(GRID_ROW).length).toBeLessThan(60);
   }, 60_000);
 
   it('End on a renewal’s fixes lands on the last open fix, not a switched-off one', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1600 });
     const r = await renderLayerAtScale('#m=rescue&v=failed', 'large');
-    await act(async () => { fireEvent.click(r.layer.querySelector('.le-row') as HTMLElement); });
+    const row = await firstRow(r.layer);
+    await act(async () => { fireEvent.click(row); });
     const panel = await waitFor(() => { const p = r.layer.querySelector<HTMLElement>('.rs-panel'); if (!p) throw new Error('no panel'); return p; });
     const radios = [...panel.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
     const lastOpen = radios.filter((b) => !b.disabled).at(-1)!;
@@ -71,7 +76,8 @@ describe('Rescue lists (#12)', () => {
   it('the fix picked beside the list travels to the approval window as a draft', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1600 });
     const r = await renderLayerAtScale('#m=rescue&v=failed', 'large');
-    await act(async () => { fireEvent.click(r.layer.querySelector('.le-row') as HTMLElement); });
+    const row = await firstRow(r.layer);
+    await act(async () => { fireEvent.click(row); });
     const panel = await waitFor(() => { const p = r.layer.querySelector<HTMLElement>('.rs-panel'); if (!p) throw new Error('no panel'); return p; });
     // "Do nothing" is picked at the start: silence never moves money.
     expect(within(panel).getByRole('radio', { name: new RegExp(RESCUE.doNothing) }).getAttribute('aria-checked')).toBe('true');

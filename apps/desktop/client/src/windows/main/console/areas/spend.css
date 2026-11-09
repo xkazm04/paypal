@@ -51,7 +51,7 @@
 .mod-spend .sp-hits { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
 .mod-spend .sp-hits li { display: grid; gap: 2px; }
 .mod-spend .sp-acts { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
-@media (max-width: 1400px) { .mod-spend .sp-marks { display: none; } }
+@media (max-width: 1400px) { .mod-spend .row1 .sp-marks { display: none; } }
 .mod-spend .sp-gatefoot { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); }
 .mod-spend .sp-gatefoot .ui-hint { margin: 0; }
 .mod-spend .sp-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); color: var(--muted); }

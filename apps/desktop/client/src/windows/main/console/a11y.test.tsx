@@ -111,22 +111,20 @@ describe('one keyboard session down the chain and back', () => {
     act(() => { card.focus(); });
     await act(async () => { card.click(); });
     await waitFor(() => expect(location.hash).toBe('#m=spend&v=week'));
-    // the list: arrows move, Enter opens the deal (a click would only pick it)
-    const row = await waitFor(() => { const r = document.querySelector<HTMLElement>('.cs-layer .le-row[tabindex="0"]'); if (!r) throw new Error('no row'); return r; });
-    act(() => { row.focus(); });
-    fireEvent.keyDown(row, { key: 'ArrowDown' });
-    await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
-    const focused = document.activeElement as HTMLElement;
-    expect(focused.classList.contains('le-row')).toBe(true);
-    const fk = focused.dataset.fk;
-    fireEvent.keyDown(focused, { key: 'Enter' });
+    // the grid: Enter on a cell opens the deal (a click would only pick it)
+    const row = await waitFor(() => { const r = document.querySelector<HTMLElement>('.cs-layer .sg-grid .ag-center-cols-container .ag-row[data-fk]'); if (!r) throw new Error('no row'); return r; });
+    const fk = row.dataset.fk;
+    const cell = row.querySelector<HTMLElement>('.ag-cell');
+    if (!cell) throw new Error('no cell');
+    act(() => { cell.focus(); });
+    fireEvent.keyDown(cell, { key: 'Enter' });
     await waitFor(() => expect(layerId()).toBe('deal'));
     expect(location.hash).toMatch(/^#d=.+&m=spend&v=week$/);
     await waitFor(() => expect(document.activeElement?.hasAttribute('data-layer-title')).toBe(true));
     // Escape: back to the view, the focus on the row that opened the deal
     fireEvent.keyDown(document.activeElement ?? window, { key: 'Escape' });
     await waitFor(() => expect(location.hash).toBe('#m=spend&v=week'));
-    await waitFor(() => expect((document.activeElement as HTMLElement | null)?.dataset.fk).toBe(fk));
+    await waitFor(() => expect((document.activeElement as HTMLElement | null)?.closest<HTMLElement>('[data-fk]')?.dataset.fk).toBe(fk));
     // Escape: back to the summary, the focus on the card
     fireEvent.keyDown(document.activeElement ?? window, { key: 'Escape' });
     await waitFor(() => expect(location.hash).toBe('#m=spend'));

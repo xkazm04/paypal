@@ -141,10 +141,7 @@ export const TABLES = {
   fLive: 'Haggling',
   fPaid: 'Paid',
   fStopped: 'Ended without a deal',
-  sSoonest: 'Soonest deadline first',
-  sNewest: 'Newest first',
-  sLargest: 'Largest first',
-  sName: 'By name',
+  col: { what: 'What', status: 'Status', amount: 'Amount', left: 'Time left', moved: 'Last moved', item: 'Item', best: 'Best price', sellers: 'Sellers' },
   // a table
   withWho: (who: string): string => `with ${who}`,
   offersLeft: (n: number): string => ` · ${plural(n, 'offer')} left`,

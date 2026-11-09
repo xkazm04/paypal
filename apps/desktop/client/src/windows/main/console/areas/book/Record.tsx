@@ -10,6 +10,7 @@ import type { Deal } from '@bindings/Deal';
 import { clockLabel } from '../../../../../lib/format';
 import { useMutation } from '../../../../../lib/hooks';
 import { AUDIT_BROKEN, BOOK, stateWord } from '../../../../../lib/words';
+import type { GridColumn } from '../../../../../shared/DataGrid';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Field, Loading } from '../../../../../shared/ui';
 import { decidedBy } from '../../../logic';
@@ -60,17 +61,36 @@ export function stepChange(r: Pick<AuditRow, 'from' | 'to'>, deal: Pick<Deal, 's
 /** A step's columns: when, what, the status change, then who took it (and the deal) as the note. */
 const STEP_COLS = { '--cols': '5.5rem minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr)' } as CSSProperties;
 
-function StepRow({ r, deal, title }: { r: AuditRow; deal: Deal | undefined; title: string | null }) {
+const stepBy = (r: AuditRow): string | null => (r.decided_by ? decidedBy({ decided_by: r.decided_by }).text : null);
+
+/** Who decided a step and the status it moved the deal to; a dash when it did neither. */
+function StepChange({ r, deal }: { r: AuditRow; deal: Deal | undefined }) {
   const change = stepChange(r, deal);
-  const by = r.decided_by ? decidedBy({ decided_by: r.decided_by }).text : null;
+  const by = stepBy(r);
+  return <span className="bk-change">{by ? <span>{by}</span> : null}{by && change ? ' · ' : null}{change ?? (by ? null : <span className="bk-dim">{BOOK.dash}</span>)}</span>;
+}
+
+function StepRow({ r, deal, title }: { r: AuditRow; deal: Deal | undefined; title: string | null }) {
   return (
     <span className="row1 bk-step" style={STEP_COLS} title={`${actionWord(r.action)} · ${actorWord(r.actor)}${title ? ` · ${title}` : ''}`}>
       <span className="bk-when">{clockLabel(r.at)}</span>
       <b className="bk-t">{actionWord(r.action)}</b>
-      <span className="bk-change">{by ? <span>{by}</span> : null}{by && change ? ' · ' : null}{change ?? (by ? null : <span className="bk-dim">{BOOK.dash}</span>)}</span>
+      <StepChange r={r} deal={deal} />
       <span className="bk-sub c-note">{actorWord(r.actor)}{title ? <> · <span className="bk-who">{title}</span></> : null}</span>
     </span>
   );
+}
+
+/** The record as grid columns: the same cells as the row. No initial sort: the steps stay in the order
+ *  they are read, newest first. */
+function stepColumns(dealOf: (r: AuditRow) => Deal | undefined, titleOf: (r: AuditRow) => string | null): GridColumn<AuditRow>[] {
+  return [
+    { id: 'when', header: BOOK.record.col.when, width: 104, filter: false, className: 'sg-dim', value: (r) => r.at, cell: (r) => clockLabel(r.at) },
+    { id: 'what', header: BOOK.record.col.what, flex: 1, minWidth: 160, className: 'sg-strong', value: (r) => actionWord(r.action) },
+    { id: 'change', header: BOOK.record.col.change, flex: 1.2, minWidth: 180, value: (r) => [stepBy(r), stepChange(r, dealOf(r))].filter(Boolean).join(' · ') || null, cell: (r) => <StepChange r={r} deal={dealOf(r)} /> },
+    { id: 'who', header: BOOK.record.col.who, flex: 1, minWidth: 160, value: (r) => `${actorWord(r.actor)} ${titleOf(r) ?? ''}`.trim(),
+      cell: (r) => { const title = titleOf(r); return <span className="bk-sub">{actorWord(r.actor)}{title ? <> · <span className="bk-who">{title}</span></> : null}</span>; } },
+  ];
 }
 
 type Page = { next: number | null; oldest: number | null };
@@ -119,7 +139,7 @@ export function Record({ b }: { b: BookWorld }) {
   const older = () => { if (next) void page(next); };
   const onScroll = (e: UIEvent<HTMLDivElement>) => {
     const el = e.target as HTMLElement;
-    if (!el.classList.contains('le-scroll') || !next) return;
+    if (!el.classList.contains('ag-body-viewport') || !next) return;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - NEAR_END_PX) older();
   };
 
@@ -147,7 +167,10 @@ export function Record({ b }: { b: BookWorld }) {
   };
   const end = dayStartOf(day);
   const shown = useMemo(() => (end === null ? rows : rows.filter((r) => r.at < end + 86_400)), [rows, end]);
-  const titleOf = (r: AuditRow) => { const d = r.deal_id ? byId.get(r.deal_id) : undefined; return d ? b.title(d) : null; };
+  const title = b.title;
+  const dealOf = useCallback((r: AuditRow) => (r.deal_id ? byId.get(r.deal_id) : undefined), [byId]);
+  const titleOf = useCallback((r: AuditRow) => { const d = dealOf(r); return d ? title(d) : null; }, [dealOf, title]);
+  const columns = useMemo(() => stepColumns(dealOf, titleOf), [dealOf, titleOf]);
 
   if (broken) {
     return (
@@ -176,9 +199,9 @@ export function Record({ b }: { b: BookWorld }) {
       {/* Before the first page is read the list says nothing: a failed read is the notice above,
           never "nothing on record". */}
       {next === undefined ? (read.error ? null : <Loading what={BOOK.record.loading} />) : (
-        <Reveal style={FILL}><ListEngine<AuditRow> className={fewRows(shown.length)} label={BOOK.record.label} rows={shown} getKey={(r) => String(r.seq)} filters={FILTERS} filterLabel={BOOK.record.filter.label} estimateSize={36} toolbarMin={0}
+        <Reveal style={FILL}><ListEngine<AuditRow> className={fewRows(shown.length)} label={BOOK.record.label} rows={shown} getKey={(r) => String(r.seq)} filters={FILTERS} filterLabel={BOOK.record.filter.label} columns={columns} estimateSize={36} toolbarMin={0}
           searchText={(r) => `${actionWord(r.action)} ${actorWord(r.actor)} ${titleOf(r) ?? ''}`}
-          renderRow={(r) => <StepRow r={r} deal={r.deal_id ? byId.get(r.deal_id) : undefined} title={titleOf(r)} />}
+          renderRow={(r) => <StepRow r={r} deal={dealOf(r)} title={titleOf(r)} />}
           rowLabel={(r) => `${actionWord(r.action)}, ${clockLabel(r.at)}`}
           onOpen={(r) => { if (r.deal_id) nav.deal(r.deal_id); }}
           empty={BOOK.record.empty} /></Reveal>

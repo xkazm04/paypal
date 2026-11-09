@@ -4,12 +4,13 @@
 // purchase beside it. Main never moves money: paying and releasing a hold hand off to the approval
 // window (`approval_open`); letting a purchase lapse and withdrawing it move no money. Per-deal proof
 // is read only for the picked purchase. Pure logic: modules/spend/gate.ts.
-import { useMemo, type ReactNode } from 'react';
+import { useCallback, useMemo, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import { clockLabel, formatMinor } from '../../../../../lib/format';
 import { useQuery } from '../../../../../lib/hooks';
 import { joinWords, LATEST_OF, OPEN_THE_DEAL, SPEND, SPEND_VIEWS, TABLES_TRADE, tablesClip } from '../../../../../lib/words';
+import type { GridColumn } from '../../../../../shared/DataGrid';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, ExplainHint, Hint, Loading, useToast } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
@@ -19,12 +20,13 @@ import { useCpLookup } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
 import { useDeals, useNeeds, useWorldSelector, type World } from '../../../world';
 import type { LayerProps } from '../../layers';
-import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
+import { ListEngine, type ListFilter } from '../../ListEngine';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer, type YourCall } from '../../ModuleLayer';
 import type { ModuleCard } from '../../ModuleSummary';
 import { Amount, Countdown, Row1 } from '../../rows';
 import { SplitView, usePick } from '../tables/parts';
+import { amountMajor, amountValue } from '../tables/Watch';
 import { GateView } from './Gate';
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { ClauseList, PurchaseDecision, PurchasePane, PurchasePath, type Lane } from './Purchase';
@@ -41,11 +43,33 @@ const ALL_FILTERS: readonly ListFilter<Lane>[] = [
   { value: 'refused', label: SPEND.fRefused, test: kindIs('refused') },
   { value: 'voided', label: SPEND.fReleased, test: kindIs('voided') },
 ];
-const ALL_SORTS: readonly ListSort<Lane>[] = [
-  { value: 'newest', label: SPEND.sNewest, compare: (a, b) => (b.deal.created_at ?? 0) - (a.deal.created_at ?? 0) },
-  { value: 'largest', label: SPEND.sLargest, compare: (a, b) => dealTotal(b.deal).minor - dealTotal(a.deal).minor },
-  { value: 'agent', label: SPEND.sAgent, compare: (a, b) => (a.slot ?? '~').localeCompare(b.slot ?? '~') || (b.deal.created_at ?? 0) - (a.deal.created_at ?? 0) },
-];
+
+const ruleOf = (l: Lane) => (l.cols.length ? ruleLine(l.cells, l.cols) : { kind: 'unknown' as const, text: SPEND.otherRules });
+/** A lane's rule line, as its hover, its name and its pane say it. */
+const noteOf = (l: Lane): string => `${ruleOf(l).text}${outcomeOf(l.deal).kind === 'refused' ? SPEND.neverAsked : ''}`;
+
+/** The purchase row's cells as grid columns. `waiting` is the needs-you list: the world's order (no
+ *  initial sort) and the time column is the deadline. The rule line, the row's title, stays the outcome's hover. */
+function laneColumns(display: World['display'], needOf: World['needOf'], who: (l: Lane) => string, waiting: boolean): GridColumn<Lane>[] {
+  return [
+    // Filters over the agent too, as the search did.
+    { id: 'what', header: SPEND.col.what, flex: 2, minWidth: 180, value: (l) => `${display(l.deal).title} ${who(l)} ${l.slot ?? ''}`,
+      cell: (l) => (
+        <span className={`c-who${needOf(l.deal.id) ? ' needs' : ''}`}>
+          <span className="dot" aria-hidden="true" />
+          <b title={display(l.deal).title}>{display(l.deal).title}</b>
+          <span className="cs-who-chip" title={who(l)}>{who(l)}</span>
+        </span>
+      ) },
+    { id: 'outcome', header: SPEND.col.outcome, width: 170, value: (l) => outcomeOf(l.deal).label,
+      cell: (l) => { const out = outcomeOf(l.deal); return <span className="c-state" title={noteOf(l)}><Chip tone={out.tone}>{out.label}</Chip></span>; } },
+    { id: 'amount', header: SPEND.col.amount, width: 130, end: true, filter: 'number', value: (l) => amountValue(dealTotal(l.deal)), filterValue: (l) => amountMajor(dealTotal(l.deal)),
+      cell: (l) => <Amount money={dealTotal(l.deal)} tone={amountTone(l.deal)} /> },
+    { id: 'when', header: waiting ? SPEND.col.left : SPEND.col.when, width: 130, filter: false, sort: waiting ? undefined : 'desc',
+      value: (l) => (waiting ? needOf(l.deal.id)?.deadline ?? null : l.deal.created_at ?? null),
+      cell: (l) => { const need = needOf(l.deal.id); const at = l.deal.created_at; return <span className="c-time">{need ? <Countdown deadline={need.deadline} /> : at ? clockLabel(at) : ''}</span>; } },
+  ];
+}
 
 /** The answer line and the sentence under it, from the purchases and the attention queue. */
 function answerOf(deals: readonly Deal[], needs: ReadonlyArray<{ d: Deal; need: AttentionItem }>, hasRules: boolean, title: (d: Deal) => string, path: ReactNode): { answer: string; sub?: ReactNode } {
@@ -125,7 +149,9 @@ export function SpendLayer({ nav }: LayerProps) {
   }, [needs, lanes]);
   const [pickedNeed, pickNeed] = usePick(needLanes, (l) => l.deal.id);
   const [pickedAll, pickAll] = usePick(lanes, (l) => l.deal.id);
-  const whoOf = (l: Lane) => cp(l.deal.counterparty).name;
+  const whoOf = useCallback((l: Lane) => cp(l.deal.counterparty).name, [cp]);
+  const needCols = useMemo(() => laneColumns(display, needOf, whoOf, true), [display, needOf, whoOf]);
+  const allCols = useMemo(() => laneColumns(display, needOf, whoOf, false), [display, needOf, whoOf]);
 
   const firstNeed = needs[0]?.need;
   const ifNothing = firstNeed ? silenceParts(firstNeed.on_silence).head : null;
@@ -154,8 +180,8 @@ export function SpendLayer({ nav }: LayerProps) {
     const disp = display(l.deal);
     const out = outcomeOf(l.deal);
     const need = needOf(l.deal.id);
-    const line = l.cols.length ? ruleLine(l.cells, l.cols) : { kind: 'unknown' as const, text: SPEND.otherRules };
-    const text = `${line.text}${out.kind === 'refused' ? SPEND.neverAsked : ''}`;
+    const line = ruleOf(l);
+    const text = noteOf(l);
     const at = l.deal.created_at;
     return (
       <Row1 className={`${need ? 'needs ' : ''}${picked ? 'picked' : ''}`.trim() || undefined} title={text}
@@ -172,15 +198,10 @@ export function SpendLayer({ nav }: LayerProps) {
     );
   };
   const list = (rows: readonly Lane[], label: string, picked: Lane | undefined, pick: (k: string) => void, empty: string, filters?: readonly ListFilter<Lane>[]) => (
-    <ListEngine<Lane> label={label} rows={rows} getKey={(l) => l.deal.id} filters={filters} sorts={filters ? ALL_SORTS : undefined} estimateSize={36}
-      searchText={(l) => `${display(l.deal).title} ${whoOf(l)} ${l.slot ?? ''}`}
+    <ListEngine<Lane> label={label} rows={rows} getKey={(l) => l.deal.id} filters={filters} columns={filters ? allCols : needCols} estimateSize={36}
       renderRow={(l) => row1(l, picked?.deal.id === l.deal.id)}
       rowLabel={(l) => `${display(l.deal).title}, ${outcomeOf(l.deal).label}, ${noteOf(l)}`} onPick={(l) => pick(l.deal.id)} onOpen={(l) => nav.deal(l.deal.id)} empty={empty} />
   );
-  const noteOf = (l: Lane): string => {
-    const line = l.cols.length ? ruleLine(l.cells, l.cols) : { text: SPEND.otherRules };
-    return `${line.text}${outcomeOf(l.deal).kind === 'refused' ? SPEND.neverAsked : ''}`;
-  };
   const pane = (l: Lane | undefined) => {
     if (!l) return null;
     const disp = display(l.deal);

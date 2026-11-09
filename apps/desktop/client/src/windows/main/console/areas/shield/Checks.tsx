@@ -10,9 +10,10 @@ import { ExplainHint } from '../../../../../shared/ui';
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { Fragment, useMemo, useState, type CSSProperties } from 'react';
 import type { Deal } from '@bindings/Deal';
-import { formatMinor } from '../../../../../lib/format';
+import { formatMinor, nowUnix } from '../../../../../lib/format';
 import { useNow } from '../../../../../lib/hooks';
 import { SHIELD, shieldReleased, shieldRuleWord, shieldWord } from '../../../../../lib/words';
+import type { GridColumn } from '../../../../../shared/DataGrid';
 import { MinorMoney } from '../../../../../shared/honesty';
 import { Btn, Chip, Hint, Kv, Seg } from '../../../../../shared/ui';
 import { dealTotal, ledgerScope, moneyNow, stateLabel } from '../../../logic';
@@ -54,25 +55,58 @@ function decisionWords(deal: Deal, s: ShieldWorld): string {
 /** The checks row's columns; the narrower templates (by the row's own width) are in shield.css. */
 const CHECK_COLS = { '--cols': 'minmax(9rem, 1.6fr) 7rem 8.5rem minmax(0, .8fr) minmax(0, 1fr) minmax(0, .9fr) minmax(0, 1.2fr)' } as CSSProperties;
 
-function CheckRow({ deal, s, outcome }: { deal: Deal; s: ShieldWorld; outcome: boolean }) {
-  const now = useNow();
-  const cp = s.cpEntry(deal);
-  const newcp = checkCell('newcp', deal, cp, now);
-  const market = checkCell('market', deal, cp, now);
-  const over = !!overPauseLine(deal);
+/** Whether the payee is new; reads the clock itself, so the second's tick redraws only this cell. */
+function NewCheck({ deal, s }: { deal: Deal; s: ShieldWorld }) {
+  const newcp = checkCell('newcp', deal, s.cpEntry(deal), useNow());
+  return <span className={`c-chk c-new r-${newcp.r}`} title={`${SHIELD.col.newPayee}: ${newcp.l}`}>{newcp.s}</span>;
+}
+
+function PriceCheck({ deal, s }: { deal: Deal; s: ShieldWorld }) {
+  const market = checkCell('market', deal, s.cpEntry(deal), useNow());
+  return <span className={`c-chk c-mkt r-${market.r}${overPauseLine(deal) ? ' tx-coral' : ''}`} title={`${SHIELD.col.price}: ${market.l}`}><PriceMini deal={deal} />{market.s.replace(/ typical$/, '')}</span>;
+}
+
+function PaypalCheck({ deal }: { deal: Deal }) {
   const [pp] = paypalLine(deal);
+  return <span className={`c-pp ${pp.startsWith(SHIELD.nothingSentPrefix) ? 'tx-ok' : 'tx-gold'}`} title={`${SHIELD.col.paypal}: ${pp}`}>{pp}</span>;
+}
+
+function DecisionCheck({ deal, s }: { deal: Deal; s: ShieldWorld }) {
+  return <span className={`c-move${s.need(deal) ? ' tx-gold' : ''}`} title={`${SHIELD.col.decision}: ${decisionWords(deal, s)}`}>{decisionWords(deal, s)}</span>;
+}
+
+function CheckWho({ deal, s }: { deal: Deal; s: ShieldWorld }) {
+  return <span className="c-who"><b title={s.who(deal)}>{s.who(deal)}</b> <span className="sh-sub" title={s.title(deal)}>{s.title(deal)}</span></span>;
+}
+
+function CheckRow({ deal, s, outcome }: { deal: Deal; s: ShieldWorld; outcome: boolean }) {
   const need = s.need(deal);
   return (
     <span className={`row1 sh-crow${need ? ' needs' : ''}${outcome ? ' outcome' : ''}`} style={CHECK_COLS} title={`${s.who(deal)} · ${s.title(deal)}`}>
-      <span className="c-who"><b title={s.who(deal)}>{s.who(deal)}</b> <span className="sh-sub" title={s.title(deal)}>{s.title(deal)}</span></span>
+      <CheckWho deal={deal} s={s} />
       <span className="c-amt"><Amount money={dealTotal(deal)} tone={deal.shield === 'BLOCK' ? 'struck' : undefined} /></span>
       <span className="c-say"><VerdictChip v={deal.shield} /></span>
-      <span className={`c-chk c-new r-${newcp.r}`} title={`${SHIELD.col.newPayee}: ${newcp.l}`}>{newcp.s}</span>
-      <span className={`c-chk c-mkt r-${market.r}${over ? ' tx-coral' : ''}`} title={`${SHIELD.col.price}: ${market.l}`}><PriceMini deal={deal} />{market.s.replace(/ typical$/, '')}</span>
-      <span className={`c-pp ${pp.startsWith(SHIELD.nothingSentPrefix) ? 'tx-ok' : 'tx-gold'}`} title={`${SHIELD.col.paypal}: ${pp}`}>{pp}</span>
-      <span className={`c-move${need ? ' tx-gold' : ''}`} title={`${SHIELD.col.decision}: ${decisionWords(deal, s)}`}>{decisionWords(deal, s)}</span>
+      <NewCheck deal={deal} s={s} />
+      <PriceCheck deal={deal} s={s} />
+      <PaypalCheck deal={deal} />
+      <DecisionCheck deal={deal} s={s} />
     </span>
   );
+}
+
+/** The checks as grid columns: the same cells as the row, each one sortable and filterable. The payee
+ *  column holds the title too, so its filter finds a payment by either, as the search did. */
+function checkColumns(s: ShieldWorld): GridColumn<Deal>[] {
+  return [
+    { id: 'who', header: SHIELD.col.payee, flex: 1.6, minWidth: 170, value: (d) => `${s.who(d)} ${s.title(d)}`, cell: (d) => <CheckWho deal={d} s={s} /> },
+    { id: 'amount', header: SHIELD.col.amount, width: 120, end: true, filter: 'number', value: (d) => dealTotal(d).minor, filterValue: (d) => dealTotal(d).minor / 100,
+      cell: (d) => <Amount money={dealTotal(d)} tone={d.shield === 'BLOCK' ? 'struck' : undefined} /> },
+    { id: 'says', header: SHIELD.col.says, width: 135, value: (d) => (d.shield ? shieldWord(d.shield).text : SHIELD.noVerdict), cell: (d) => <VerdictChip v={d.shield} /> },
+    { id: 'new', header: SHIELD.col.newPayee, width: 140, value: (d) => checkCell('newcp', d, s.cpEntry(d), nowUnix()).s, cell: (d) => <NewCheck deal={d} s={s} /> },
+    { id: 'price', header: SHIELD.col.price, width: 170, filter: 'number', value: (d) => overMedian(d), cell: (d) => <PriceCheck deal={d} s={s} /> },
+    { id: 'paypal', header: SHIELD.col.paypal, width: 140, value: (d) => paypalLine(d)[0], cell: (d) => <PaypalCheck deal={d} /> },
+    { id: 'decision', header: SHIELD.col.decision, flex: 1.2, minWidth: 160, value: (d) => decisionWords(d, s), cell: (d) => <DecisionCheck deal={d} s={s} /> },
+  ];
 }
 
 /** The deal's unit price against typical: usual range box, typical tick, the 1.4 × pause line. */
@@ -169,16 +203,19 @@ export function Checks({ s }: { s: ShieldWorld }) {
   const now = useNow();
   const [scope, setScope] = useState<Scope>('week');
   const [outcome, setOutcome] = useState(false);
-  const week = useMemo(() => ledgerScope([...s.checked], now).deals.filter((d) => d.shield !== null || !!s.need(d)), [s, now]);
+  // Once a minute, not once a second: a new list or filter each second would redraw the grid each second.
+  const minute = Math.floor(now / 60) * 60;
+  const week = useMemo(() => ledgerScope([...s.checked], minute).deals.filter((d) => d.shield !== null || !!s.need(d)), [s, minute]);
   const rows = scope === 'week' ? week : s.checked;
   const strip = useMemo(() => weekStrip(s.checked, now, (d) => !!s.need(d)), [s, now]);
   const filters = useMemo<readonly ListFilter<Deal>[]>(() => [
     { value: 'paused', label: SHIELD.filter.paused, test: (d) => !!s.need(d) && d.shield !== 'BLOCK' },
     { value: 'blocked', label: SHIELD.filter.blocked, test: (d) => d.shield === 'BLOCK' },
-    { value: 'new', label: SHIELD.filter.newPayee, test: (d) => { const c = s.cpEntry(d); return !c || now - c.first_seen < 86_400; } },
+    { value: 'new', label: SHIELD.filter.newPayee, test: (d) => { const c = s.cpEntry(d); return !c || minute - c.first_seen < 86_400; } },
     { value: 'price', label: SHIELD.filter.price, test: (d) => overPauseLine(d) !== false },
     { value: 'clear', label: SHIELD.filter.clear, test: (d) => d.shield === 'CLEAR' && !s.need(d) },
-  ], [s, now]);
+  ], [s, minute]);
+  const columns = useMemo(() => checkColumns(s), [s]);
   return (
     <RevealGroup className="sh-checks">
       <Reveal><WeekTiles strip={strip} /></Reveal>
@@ -188,7 +225,7 @@ export function Checks({ s }: { s: ShieldWorld }) {
           options={[{ value: 'all', label: SHIELD.show.all }, { value: 'outcome', label: SHIELD.show.outcome, title: SHIELD.show.outcomeTitle }]} />
         <span className="ui-hint sh-unshown"><ExplainHint label={SHIELD.unshownLabel} line={SHIELD.unshownLine}>{SHIELD.unshown}</ExplainHint></span>
       </div></Reveal>
-      <ListEngine<Deal> className={fewRows(rows.length)} label={SHIELD.checksLabel} rows={rows} getKey={(d) => d.id} filters={filters} filterLabel={SHIELD.filter.label} estimateSize={36} wideAt={1200} toolbarMin={0}
+      <ListEngine<Deal> className={[fewRows(rows.length), outcome ? 'sh-outcome' : ''].filter(Boolean).join(' ') || undefined} label={SHIELD.checksLabel} rows={rows} getKey={(d) => d.id} filters={filters} filterLabel={SHIELD.filter.label} columns={columns} estimateSize={36} wideAt={1200} toolbarMin={0}
         searchText={(d) => `${s.who(d)} ${s.title(d)} ${d.shield ? shieldWord(d.shield).text : ''}`}
         renderRow={(d) => <CheckRow deal={d} s={s} outcome={outcome} />}
         rowLabel={(d) => `${s.who(d)}, ${d.shield ? shieldWord(d.shield).text : SHIELD.noVerdict}`}

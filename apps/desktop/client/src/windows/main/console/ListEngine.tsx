@@ -23,6 +23,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExtern
 import { formatCount, formatTally } from '../../../lib/data/counts';
 import { useWindowedRows } from '../../../lib/data/useWindowedRows';
 import { LIST_ALL, LIST_CLEAR, LIST_DETAIL_EMPTY, LIST_FILTER, LIST_NO_MATCH, LIST_SEARCH, LIST_SEARCH_PLACEHOLDER, LIST_SORT, LIST_TWO_STEP, listShowing } from '../../../lib/words';
+import { DataGrid, type DataGridHandle, type GridColumn } from '../../../shared/DataGrid';
 import { Btn, Field } from '../../../shared/ui';
 import { pageCount, Pager } from './Pager';
 import { Reveal, Skeleton } from './stagger';
@@ -58,8 +59,11 @@ export type ListEngineProps<T> = {
   /** A row's height in px, or an estimate per row; with `measure` each row is measured as drawn. */
   estimateSize: number | ((row: T, index: number) => number);
   measure?: boolean;
-  /** The row's content (inside the row button). */
+  /** The row's content (inside the row button). Unused when `columns` is given. */
   renderRow: (row: T, s: RowState) => ReactNode;
+  /** Draws the list as the data grid: the grid's own column sort and filters replace the search box,
+   *  the sort choice and the pager. Filter chips, pick and detail work as on any list. */
+  columns?: readonly GridColumn<T>[];
   /** The row's accessible name, when its content says too much or too little. */
   rowLabel?: (row: T) => string;
   /** Opening a row: Enter, and a click too when the list has no pane (`onPick` / `detail`).
@@ -132,6 +136,8 @@ export function shownRows<T>(rows: readonly T[], hay: readonly string[] | null, 
 export const FEW_ROWS = 6;
 export const fewRows = (n: number): string | undefined => (n <= FEW_ROWS ? 'few' : undefined);
 
+const NO_ROWS: readonly never[] = [];
+
 export function ListEngine<T>(p: ListEngineProps<T>) {
   const { rows, getKey, filters, sorts, onOpen, onPick } = p;
   const searchRef = useRef(p.searchText);
@@ -146,11 +152,15 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
   const [sortValue, setSortValue] = useState<string | null>(p.initialSort ?? sorts?.[0]?.value ?? null);
   const filter = filters?.find((f) => f.value === filterValue) ?? null;
   const sort = sorts?.find((s) => s.value === sortValue) ?? null;
-  const shown = useMemo(() => shownRows(rows, hay, q, filter, sort), [rows, hay, q, filter, sort]);
+  const grid = p.columns;
+  const isGrid = !!grid;
+  const shown = useMemo(() => shownRows(rows, isGrid ? null : hay, isGrid ? '' : q, filter, isGrid ? null : sort), [rows, hay, q, filter, sort, isGrid]);
+  const gridRef = useRef<DataGridHandle>(null);
+  const [gridShown, setGridShown] = useState<number | null>(null);
 
   // The page: 1-based, kept with the filter / search / sort it was chosen under, so changing any of
   // them is back to page 1 without an effect; clamped when the data shrinks.
-  const pageSize = p.pageSize ?? LIST_PAGE_SIZE;
+  const pageSize = isGrid ? 0 : p.pageSize ?? LIST_PAGE_SIZE;
   const sig = `${filterValue ?? ''} ${q} ${sortValue ?? ''}`;
   const [pageAt, setPageAt] = useState<{ sig: string; page: number }>({ sig, page: 1 });
   const pages = pageCount(shown.length, pageSize);
@@ -166,8 +176,8 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
   const pickedRow = hasDetail && picked !== null ? shown.find((r) => getKey(r) === picked) : undefined;
   const detailRef = useRef<HTMLElement>(null);
 
-  const list = useWindowedRows({ rows: pageRows, getKey, estimateSize: p.estimateSize, measure: p.measure });
-  const toolbar = rows.length > (p.toolbarMin ?? TOOLBAR_MIN);
+  const list = useWindowedRows({ rows: isGrid ? NO_ROWS as readonly T[] : pageRows, getKey, estimateSize: p.estimateSize, measure: p.measure });
+  const toolbar = rows.length > (p.toolbarMin ?? TOOLBAR_MIN) && (!isGrid || !!filters?.length);
 
   /** A click or Space: pick when there is a pane, else open. */
   const activate = useCallback((row: T) => {
@@ -211,17 +221,18 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
   // Escape clears first; with nothing to clear it goes on to the console (one layer up).
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key !== 'Escape' || e.defaultPrevented) return;
-    if (query || filterValue) { e.preventDefault(); clear(); }
+    if (query || filterValue) { e.preventDefault(); clear(); return; }
+    if (gridRef.current?.clearFilters()) e.preventDefault();
   };
 
-  const summary = listShowing(shown.length, rows.length, formatTally);
+  const summary = listShowing(isGrid && gridShown !== null ? Math.min(gridShown, shown.length) : shown.length, rows.length, formatTally);
   const hintId = useId();
   return (
     <section className={`le${side ? ' side' : hasDetail ? ' stack' : ''}${p.className ? ` ${p.className}` : ''}`} aria-label={p.label} onKeyDown={onKeyDown}>
       {twoStep ? <p className="sr-only" id={hintId}>{LIST_TWO_STEP}</p> : null}
       {toolbar ? (
         <div className="le-tools">
-          {hasSearch ? (
+          {hasSearch && !isGrid ? (
             <span className="le-search">
               <Field search type="search" value={query} placeholder={LIST_SEARCH_PLACEHOLDER} aria-label={LIST_SEARCH} onChange={(e) => setQuery(e.currentTarget.value)} />
             </span>
@@ -241,7 +252,7 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
           ) : null}
           <span className="ui-spacer" />
           <span className="le-summary" role="status">{summary}</span>
-          {sorts && sorts.length > 1 ? (
+          {sorts && sorts.length > 1 && !isGrid ? (
             <label className="le-sort">
               <span>{LIST_SORT}</span>
               <select className="ui-field" value={sortValue ?? ''} onChange={(e) => setSortValue(e.currentTarget.value)}>
@@ -254,7 +265,12 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
       <div className="le-main">
         {rows.length === 0 ? <p className="le-empty">{p.empty}</p>
           : shown.length === 0 ? <p className="le-empty">{p.noMatch ?? LIST_NO_MATCH} <Btn sm kind="plain" onClick={clear}>{LIST_CLEAR}</Btn></p>
-            : (
+            : grid ? (
+              <div className="le-col">
+                <DataGrid<T> label={p.label} rows={shown} getKey={getKey} columns={grid} rowLabel={p.rowLabel} onActivate={activate} onEnter={enter}
+                  onDisplayed={setGridShown} noMatch={typeof p.noMatch === 'string' ? p.noMatch : LIST_NO_MATCH} autoHeight={rows.length <= FEW_ROWS} handle={gridRef} />
+              </div>
+            ) : (
               <div className="le-col">
               <div ref={list.scrollRef} onKeyDown={onListKey} className="le-scroll" role="list" aria-label={p.label} aria-describedby={twoStep ? hintId : undefined}>
                 <div className="le-space" style={{ height: list.totalSize }}>
