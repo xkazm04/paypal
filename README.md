@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/xkazm04/paypal/actions/workflows/ci.yml"><img src="https://github.com/xkazm04/paypal/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/xkazm04/signet/actions/workflows/ci.yml"><img src="https://github.com/xkazm04/signet/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"></a>
   <img src="https://img.shields.io/badge/desktop-Windows-informational" alt="Desktop: Windows">
   <img src="https://img.shields.io/badge/status-alpha%20%C2%B7%20sandbox%20only-orange" alt="Status: alpha, sandbox only">
@@ -45,8 +45,8 @@ Three promises, enforced in code rather than by a prompt:
 See the whole app in a browser, on sample data, with no account or key. You need Node 24 and pnpm 11.
 
 ```sh
-git clone https://github.com/xkazm04/paypal.git
-cd paypal
+git clone https://github.com/xkazm04/signet.git
+cd signet
 pnpm --dir apps/desktop/client install
 pnpm --dir apps/desktop/client dev
 ```
@@ -267,7 +267,7 @@ Start with [`AGENTS.md`](AGENTS.md) for repository conventions. Changes that tou
 the three promises above and include tests.
 
 **Security:** please report vulnerabilities through a private
-[GitHub security advisory](https://github.com/xkazm04/paypal/security/advisories/new), not a public issue.
+[GitHub security advisory](https://github.com/xkazm04/signet/security/advisories/new), not a public issue.
 
 ## License
 
