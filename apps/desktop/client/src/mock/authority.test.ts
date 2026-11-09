@@ -222,6 +222,17 @@ describe('authority table (browser mock)', () => {
     await expect(main.invoke('agent_start', { deal_id: id })).rejects.toMatchObject({ code: 'UNAVAILABLE' });
   });
 
+  it('locks at exactly the idle limit, as auth.rs does', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: 1_800_000_000_000 });
+    try {
+      const main = mockBackend('main');
+      vi.setSystemTime(1_800_000_000_000 + 900_000);
+      expect((await main.invoke('get_settings', null)).locked).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('tells each window what the Rust table says, from the generated audiences', () => {
     // Who hears each event is a row in the Rust authority table; the mock delivers by it.
     const audience: Record<EventName, WindowLabel[]> = EVENT_AUDIENCE;

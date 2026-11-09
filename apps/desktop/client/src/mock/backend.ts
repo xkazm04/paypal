@@ -540,7 +540,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
   }));
   // ?locked=1 starts the window idle-locked, for screenshots of the LOCKED states.
   const forceLocked = params.get('locked') === '1';
-  const isLocked = () => forceLocked || state.settings.locked || nowUnix() - lastPrivileged > IDLE_LOCK_SECONDS;
+  const isLocked = () => forceLocked || state.settings.locked || nowUnix() - lastPrivileged >= IDLE_LOCK_SECONDS;
 
   /** The authority table's gate, in the runtime's order: label, token, idle lock, selected deal. */
   function gate(cmd: CommandName, args: unknown, opts: InvokeOptions | undefined): void {
