@@ -3,8 +3,9 @@
 // when the deal needs the owner, the one decision. Review & approve / Review & release only hand
 // off to the approval window (approval_open {deal_id}, the lock glyph and the locked title while
 // idle-locked, disabled while it opens, a notice on error); Let it lapse sends the real
-// deal_let_lapse; Withdraw asks once and sends the real signed withdraw. There is never a money
-// button in Main, and a mismatch has no pay action.
+// deal_let_lapse, then offers its undo until the deadline (LapseUndo.tsx); Withdraw asks once and
+// sends the real signed withdraw. There is never a money button in Main, and a mismatch has no pay
+// action.
 import { Fragment, useState } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
@@ -18,10 +19,13 @@ import { Btn, Chip, DecisionCard, Icon, Sheet, Silence, type DecisionOption } fr
 import { milestones, stateTone, withdrawWhat, type ClauseReading, type MirrorStrip } from '../../../deal/model';
 import { decisionQuestion, decisionWhy, reviewMeans } from '../../../deal/story';
 import { shortTitle } from '../../../home/model';
-import { amountNote, amountTone, dealTotal, isTerminal, moneyNow } from '../../../logic';
+import { amountNote, amountTone, dealTotal, isSettled, isTerminal, moneyNow } from '../../../logic';
+import { useChangeMotion } from '../../../../../design/presets';
 import { releasable, releaseCase } from '../../../modules/shield/matrix';
 import { useToast } from '../../../ui';
 import { useDisplayOf, useLocked, useSettings } from '../../../world';
+import { markLapsed } from './lapsed';
+import { LapseUndo } from './LapseUndo';
 
 export function Summary({ deal, strip, deadline, check }: { deal: Deal; strip: MirrorStrip; deadline: number | null; check?: MoneyCheck | null }) {
   const settings = useSettings().data;
@@ -32,9 +36,14 @@ export function Summary({ deal, strip, deadline, check }: { deal: Deal; strip: M
   const ended = isTerminal(deal);
   const pill = check ? moneyCheckPill(check, ended) : null;
   const state = strip.term ? strip.term.label : (strip.steps.find((s) => s.status === 'cur')?.label ?? null);
+  // Money landing while the owner looks at the deal plays the "settled" preset once on the figures
+  // (design/presets.ts): only on the change into paid, never on opening a paid deal, never while
+  // PayPal is still being asked (an unknown answer is never shown as paid).
+  const settled = isSettled(deal) && !check;
+  const landed = useChangeMotion(deal.id, settled, 'settled');
   return (
     <div className="dv-figs">
-      <div className="dv-hero">
+      <div key={settled ? 'paid' : 'open'} className={`dv-hero${settled && landed ? ` ${landed}` : ''}`}>
         <span className={`dv-amt ${amountTone(deal)}`} title={check ? moneyCheckNow(ended) : amountNote(deal)}><MinorMoney minor={t.minor} currency={t.currency} /></span>
         <span className="dv-pills">
           {pill ? <Chip tone="dashed" title={pill.means}>{pill.text}</Chip> : state ? <Chip tone={stateTone(strip)}>{state}</Chip> : null}
@@ -133,7 +142,10 @@ export function DealDecision({ deal, need, canWithdraw, theirName, them, reading
   }
   if (need && mayLapse) {
     options.push({
-      onClick: async () => { const r = await lapse.run({ deal_id: deal.id }); if (r === null) toast(DEAL_DECIDE.lapsed(label), 'ok'); },
+      onClick: async () => {
+        const r = await lapse.run({ deal_id: deal.id });
+        if (r === null) { markLapsed(deal.id, need.deadline ?? deadline); toast(DEAL_DECIDE.lapsed(label), 'ok'); }
+      },
       disabled: lapse.pending, label: DEAL_DECIDE.lapse, means: DEAL_DECIDE.lapseMeans,
     });
   }
@@ -148,6 +160,8 @@ export function DealDecision({ deal, need, canWithdraw, theirName, them, reading
       ) : need && silence ? (
         <p className="dv-need-sil"><span className="dv-need-k"><Icon name="you" size={14} />{DEAL_DECIDE.context}</span> <Silence text={silence} deadline={deadline} /></p>
       ) : null}
+      {/* After "Let it lapse" the item is gone from the list; until its deadline the owner may take it back. */}
+      {!need ? <LapseUndo dealId={deal.id} title={title || label} ended={isTerminal(deal)} /> : null}
       {!need && canWithdraw ? (
         <p className="dv-quiet"><Btn sm kind="danger" onClick={() => setAsking(true)} title={wText}>{DEAL_DECIDE.withdraw}</Btn></p>
       ) : null}

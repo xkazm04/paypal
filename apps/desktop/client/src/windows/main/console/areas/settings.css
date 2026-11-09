@@ -63,6 +63,8 @@
 .pf .st-rt small.okc { color: var(--ok); }
 .pf .st-rt small.red { color: var(--red-l); }
 .pf .st-chips { display: inline-flex; align-items: center; gap: var(--sp-2); }
+/* A refused pause or resume, under its agent's row (AgentPause.tsx): the row's full width. */
+.pf .st-list > li > .st-fail { grid-column: 1 / -1; }
 .pf .st-small { font-size: var(--fs-small); color: var(--muted); }
 .pf .st-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-4); align-items: center; padding: var(--sp-3) var(--sp-1); border-bottom: 1px solid var(--line); max-width: 52rem; }
 

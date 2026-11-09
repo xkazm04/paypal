@@ -236,6 +236,11 @@ Events: `pairing:pinned` → main; `settings:changed` carries `HouseState`.
     the same browser's earlier looks.
 - **Left.**
   - Pending pairings do not survive a restart (a fresh code is needed).
+  - Cutting a wallet off (`counterparty_revoke`) is held in the approval window, owner configuration
+    › Connections › Connected wallets; Connections in Signet only opens that window. The wallet then
+    lists the key as "Unpaired counterparty": the counterparty list has no revoked state, so the
+    name and the "cut off" mark show only in the approval window that cut it, while it stays open.
+    Open deals with that wallet are not closed; they end by their deadline or the owner's decision.
   - A wallet seller refuses below-floor offers rather than countering.
   - During the 15-minute grace, a house-paired buyer deal can show a passed deadline. A capture
     confirmed after the grace can leave the buyer EXPIRED.

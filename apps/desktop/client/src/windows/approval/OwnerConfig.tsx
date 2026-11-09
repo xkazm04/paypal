@@ -22,6 +22,7 @@ import { AnswerBar, Btn, Chip, Group, Hint, Popover, Row, Section, type ChipTone
 import { clauseText, footerNoticeText, isMandateActive } from './model';
 import { PairingConfirm } from './PairingConfirm';
 import { WalletLimits } from './owner/WalletLimits';
+import { ConnectedRow, ConnectedSheet } from './owner/Connected';
 import { rescueRules } from './owner/replay';
 import { TableSheet, type TableSeed } from './owner/TableSheet';
 import { tableCounterparties } from './tableDraft';
@@ -123,6 +124,8 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   const [watchingOpen, setWatchingOpen] = useState(false);
   /** The "Open a table" / "Join the house seller's table" sheet, with The Table's draft if one came along. */
   const [table, setTable] = useState<{ seed: TableSeed } | null>(null);
+  /** The "Connected wallets" sheet, where a wallet is cut off (held, owner decision). */
+  const [connectedOpen, setConnectedOpen] = useState(false);
   // The owner's watch list (rescue_book), read here for its count and rows.
   const rescueBook = useQuery('rescue_book', null, { refreshOn: ['deal:changed', 'settings:changed'] });
   const watching = rescueBook.data?.watching ?? [];
@@ -344,6 +347,8 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
                 <Chip tone="line">none</Chip>
               </Row>
             )}
+            {/* The wallets already connected, and cutting one off (owner/Connected.tsx). */}
+            <ConnectedRow list={connections.data} error={connections.error} onOpen={() => setConnectedOpen(true)} />
           </Group>
         </Section>
 
@@ -357,6 +362,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
         </Section>
       </main>
       {watchingOpen ? <Suspense fallback={null}><RescueWatch entries={list} watching={watching} locked={locked} onClose={() => setWatchingOpen(false)} onChanged={() => void rescueBook.refetch()} /></Suspense> : null}
+      {connectedOpen && connections.data ? <ConnectedSheet list={connections.data} locked={locked} onClose={() => setConnectedOpen(false)} onChanged={() => void connections.refetch()} /> : null}
       {table ? <TableSheet seed={table.seed} entries={list} counterparties={connections.data ?? []} locked={locked} onClose={() => setTable(null)} /> : null}
       {replaying ? <Suspense fallback={null}><RescueReplay entries={list} locked={locked} onClose={() => setReplaying(false)} onReplayed={(deal) => { setReplaying(false); onReplayed?.(deal); }} /></Suspense> : null}
       {info ? (

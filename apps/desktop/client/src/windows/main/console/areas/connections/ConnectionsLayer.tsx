@@ -29,6 +29,7 @@ import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
 import { WhoChip } from '../../rows';
 import { fitHeight, PlaceFrame, type CallLine, type LensCard } from '../settings/frame';
 import { ToApproval } from '../settings/handoff';
+import { CutOffHandoff } from './CutOff';
 import { PairingDesk } from './PairingDesk';
 import { explained } from './say';
 import '../../../../../shared/ownerKey.css';
@@ -121,6 +122,8 @@ function Connections({ nav }: { nav: LayerProps['nav'] }) {
         <header className="cn-ph"><h2 className="cs-h3">{CONNECTIONS_PEOPLE.view}</h2><span className="dim">{peopleSaid}</span>
           {/* A seller opens a table in the approval window (owner configuration › Tables); nothing is paid. */}
           {list?.some((c) => !c.house && c.pairing === 'words_confirmed') ? <ToApproval label={CONNECTIONS_PEOPLE.openTable} kind="default" sm title={CONNECTIONS_PEOPLE.openTableTitle} /> : null}
+          {/* Cutting a wallet off is an owner decision held in the approval window; main only opens it. */}
+          <CutOffHandoff list={list} />
         </header>
         <PeopleView rows={list} error={!!cps.error} failure={cps.error} onRetry={cps.refetch} />
       </section>

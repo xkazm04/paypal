@@ -107,4 +107,4 @@ Dropped, and why: withdrawing an offer cannot be undone and the other side sees 
 - The week mark is derived from each deal's last update, not from the history read.
 - The provenance row records the consent box, not the reply that proposed it.
 - The scripted engine does not propose the safe acts yet; only a live engine (or a test engine) can.
-- The console has no buttons of its own for the one-agent pause or the lapse undo yet.
+- The console's own buttons for the same acts do not go through `assistant_act`, so they write no `assistant.act` row: Settings › Your agents has a Pause / Resume per agent (`agent_pause` / `agent_resume`), and the deal page and a purchase offer Undo after "Let it lapse" (`deal_lapse_undo`) until the deadline. That Undo shows only in the window where the lapse was chosen, while it stays open: no read carries the wallet's lapse mark back to the client.

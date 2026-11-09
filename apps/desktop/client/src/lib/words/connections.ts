@@ -153,6 +153,9 @@ export const CONNECTIONS_PEOPLE = {
   noPayee: 'no payee declared',
   openTable: 'Open a table',
   openTableTitle: 'Opens the approval window: pick who to sell to, your rules and an asking price. Opening pays nothing.',
+  /** Cutting a wallet off is an owner decision: this only opens the approval window, where it is held. */
+  cutOff: 'Cut off a wallet',
+  cutOffTitle: 'Opens the approval window: Connections, Connected wallets. You confirm there with a hold. Cutting off moves no money.',
 } as const;
 
 /** The pairing desk (Connect a wallet), moved from setup/PairingDesk.tsx. */

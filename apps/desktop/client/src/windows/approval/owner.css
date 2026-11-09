@@ -233,3 +233,6 @@
 
 /* Details: the owner key, shown on request inside its group (src/shared/ownerKey.tsx). */
 .ow-key { padding: var(--sp-2) var(--sp-3) var(--sp-3); border-top: 1px solid var(--line); }
+
+/* Connected wallets and cutting one off (owner/Connected.tsx): room between the facts and the line under them. */
+.ow-cut .ui-kv { margin-bottom: var(--sp-3); }

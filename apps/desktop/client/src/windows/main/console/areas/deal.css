@@ -21,6 +21,8 @@
 .ar-deal .dv-lead .dv-ms { margin: 0; }
 .ar-deal .dv-lead .dv-shown { margin: 0; }
 .ar-deal .dv-consequence, .ar-deal .dv-quiet, .ar-deal .dv-need-sil { margin: 0; }
+/* Undo a "Let it lapse" (deal/LapseUndo.tsx): the line and its button, a refusal under them. */
+.ar-deal .lu-undo { display: flex; flex-direction: column; gap: var(--sp-2); margin: 0; }
 .ar-deal .dv-consequence .ui-silence, .ar-deal .dv-need-sil .ui-silence { white-space: normal; }
 .ar-deal .dv-need-k { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--gold-l); font-weight: var(--fw-semibold); }
 .ar-deal .dv-decision { margin: 0; max-width: 72rem; }

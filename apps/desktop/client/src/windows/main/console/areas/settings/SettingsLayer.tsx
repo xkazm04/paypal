@@ -6,10 +6,12 @@
 // disturb). Below: the charter, the other places, the first visit (preview only) and Quit. PayPal
 // keys, the agent app and the house seller live in Connections now; agent rules in Rules.
 // Commands: reads, engine-free pause_all_agents / resume_all_agents (one click, no confirmation),
+// agent_pause / agent_resume for one agent beside its row (AgentPause.tsx, one click, starts nothing),
 // agent_start (only from the owner's Restart click, one per table Resume reported waiting, within
 // the run limit: resume.ts), settings_write (notices only) and approval_open (unlock, keys, rules).
 // Nothing here moves money.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { AgentSlot } from '@bindings/AgentSlot';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
 import type { WaitingTable } from '@bindings/WaitingTable';
@@ -25,7 +27,7 @@ import { backend } from '../../../../../lib/runtime';
 import { currentTheme, onThemeChange, setTheme, type Theme } from '../../../../../lib/theme';
 import {
   CONNECTIONS_ENGINE, CONNECTIONS_HOUSE, CONNECTIONS_PAYPAL, fingerprintGroups, LATEST_OF, modeWord, NOTICE_WHAT, READING_WHAT, PERMISSIONS_FINGERPRINT, SETTINGS_FACTS, PERMISSIONS_FINGERPRINT_MEANS, rulesName, SETTINGS_AGENTS, SETTINGS_CARD, SETTINGS_IF, SETTINGS_KICKER, SETTINGS_LOCK, SETTINGS_LOOK, SETTINGS_MORE,
-  SETTINGS_ACT, SETTINGS_NOTIFY, SETTINGS_OPEN_CHARTER, SETTINGS_PROTECT, SETTINGS_TO_CONNECTIONS,
+  SETTINGS_ACT, SETTINGS_AGENT_ONE, SETTINGS_NOTIFY, SETTINGS_OPEN_CHARTER, SETTINGS_PROTECT, SETTINGS_TO_CONNECTIONS,
 } from '../../../../../lib/words';
 import { ARENA_PLACE } from '../../../../../lib/words/arena';
 import { RunBadge, WalletNotice } from '../../../../../shared/honesty';
@@ -36,6 +38,7 @@ import { useDisplayOf, useLocked, useRuns, useSettings } from '../../../world';
 import { writeCalm } from '../../calm';
 import type { LayerProps } from '../../layers';
 import type { LatestProps } from '../../Latest';
+import { AgentPause, isPausedAlone } from './AgentPause';
 import { PlaceFrame, type CallLine, type LensCard } from './frame';
 import { ToApproval } from './handoff';
 import { restartPlan, restartTables } from './resume';
@@ -111,7 +114,7 @@ export function SettingsLayer({ nav }: LayerProps) {
       view: {
         title: SETTINGS_AGENTS.view, sub: SETTINGS_AGENTS.sub,
         render: () => (
-          <AgentsView paused={paused} known={!!s} running={running} facts={facts.data} factsError={!!facts.error} factsFailure={facts.error} onFactsRetry={facts.refetch} busy={pause.pending || resume.pending} onPause={doPause} onResume={doResume}
+          <AgentsView paused={paused} pausedAgents={s?.paused_agents} known={!!s} running={running} facts={facts.data} factsError={!!facts.error} factsFailure={facts.error} onFactsRetry={facts.refetch} busy={pause.pending || resume.pending} onPause={doPause} onResume={doResume}
             waiting={paused ? [] : waiting} refused={refused} restarting={restarting} onRestart={doRestart} now={now} />
         ),
       },
@@ -242,9 +245,11 @@ function LockView({ s, locked, lockIn, factsError }: { s: SettingsSnapshot | und
   );
 }
 
-function AgentsView({ paused, known, running, facts, factsError, factsFailure, onFactsRetry, busy, onPause, onResume, waiting, refused, restarting, onRestart, now }: {
+function AgentsView({ paused, pausedAgents, known, running, facts, factsError, factsFailure, onFactsRetry, busy, onPause, onResume, waiting, refused, restarting, onRestart, now }: {
   paused: boolean; known: boolean; running: { run: string; deal_id: string; engine: string; state: string; mode: SettingsSnapshot['mode'] }[] | null;
-  facts: { agents: { slot: string; engine: string; does: string; mandates: string[]; running: number }[] } | undefined; factsError: boolean;
+  /** The agents paused one by one (each row's own Pause / Resume). */
+  pausedAgents: readonly AgentSlot[] | null | undefined;
+  facts: { agents: { slot: AgentSlot; engine: string; does: string; mandates: string[]; running: number }[] } | undefined; factsError: boolean;
   factsFailure?: WalletError | null; onFactsRetry?: () => unknown;
   busy: boolean; onPause: () => void; onResume: () => void;
   waiting: WaitingTable[]; refused: { deal_id: string; error: WalletError }[]; restarting: boolean; onRestart: () => void; now: number;
@@ -265,8 +270,10 @@ function AgentsView({ paused, known, running, facts, factsError, factsFailure, o
           {facts.agents.map((a) => (
             <li key={a.slot}>
               <span className="st-rt"><b>{cap(a.slot)} <span className="dim">· {a.engine === 'scripted' ? SETTINGS_AGENTS.practice : a.engine}</span></b>
-                <small>{a.does} · {a.mandates.length ? SETTINGS_AGENTS.follows(rulesName(a.slot).toLowerCase()) : SETTINGS_AGENTS.noRules}</small></span>
-              {a.running ? <Chip tone={paused ? 'coral' : 'teal'}>{SETTINGS_AGENTS.busy(a.running)}</Chip> : <Chip>{SETTINGS_AGENTS.idle}</Chip>}
+                <small>{a.does} · {isPausedAlone(a.slot, pausedAgents) ? SETTINGS_AGENT_ONE.pausedLine : a.mandates.length ? SETTINGS_AGENTS.follows(rulesName(a.slot).toLowerCase()) : SETTINGS_AGENTS.noRules}</small></span>
+              <AgentPause slot={a.slot} paused={isPausedAlone(a.slot, pausedAgents)} known={known}>
+                {a.running ? <Chip tone={paused ? 'coral' : 'teal'}>{SETTINGS_AGENTS.busy(a.running)}</Chip> : <Chip>{SETTINGS_AGENTS.idle}</Chip>}
+              </AgentPause>
             </li>
           ))}
         </ul>

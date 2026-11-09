@@ -3,6 +3,8 @@
    (src/design/tokens.css), text never below --fs-small, motion only through the --dur-* / --ease-* tokens. */
 .mod-spend .sp-pane { display: flex; flex-direction: column; gap: var(--sp-3); }
 .mod-spend .sp-pane .ui-decision { margin: 0; }
+/* Undo a "Let it lapse" (deal/LapseUndo.tsx): the line and its button, a refusal under them. */
+.mod-spend .lu-undo { display: flex; flex-direction: column; gap: var(--sp-2); margin: 0; }
 .mod-spend .sp-bigamt { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
 .mod-spend .sp-bigamt .cs-amt { font-size: var(--fs-title1); }
 .mod-spend .sp-chips { display: inline-flex; flex-wrap: wrap; gap: var(--sp-2); }

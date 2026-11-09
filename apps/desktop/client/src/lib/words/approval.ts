@@ -210,3 +210,48 @@ export const APPROVAL_SHORT = {
   ticksEmpty: 'Deals show here once your wallet has tried these rules.',
   whatIfEmpty: 'Fill in the limits to see how this week would have gone.',
 } as const;
+
+/** Cutting off a connected wallet (owner configuration › Connections). An owner decision: it asks
+ *  for the hold gesture and an unlocked window. What it does is the wallet's own rule: the pin is
+ *  marked, never deleted; messages that wallet signs are refused from then on; open deals are not
+ *  closed, they end by their own deadline or by the owner's decision. Nothing here moves money. */
+export const APPROVAL_CUT_OFF = {
+  row: 'Connected wallets',
+  rowSub: (n: number): string => (n === 0 ? 'Nobody is connected yet' : n === 1 ? '1 wallet you connected with four words' : `${n} wallets you connected with four words`),
+  rowCut: (n: number): string => (n === 1 ? '1 cut off' : `${n} cut off`),
+  reading: 'Reading your connections…',
+  readingChip: 'reading',
+  unread: 'Your connections can’t be read right now',
+  unreadChip: 'not available',
+  deals: (n: number): string => (n === 1 ? '1 deal closed' : `${n} deals closed`),
+  manage: 'Manage…',
+  manageLabel: 'Manage connected wallets',
+  sheet: 'Connected wallets',
+  intro: 'Cut off a wallet you no longer trust. Cutting off moves no money.',
+  none: 'Nobody is connected yet. Connect a wallet in Signet with four words.',
+  connected: 'connected',
+  cutOff: 'cut off',
+  line: (key: string, since: string, deals: string): string => `key ${key} · since ${since} · ${deals}`,
+  act: 'Cut off…',
+  actLabel: (name: string, key: string): string => `Cut off ${name}, key ${key}`,
+  ask: (name: string): string => `Cut off ${name}?`,
+  who: 'Who',
+  key: 'Their key',
+  stops: 'What stops',
+  stopsWhat: 'Messages they sign are no longer accepted: no offer, answer or receipt from them gets through.',
+  open: 'Open deals with them',
+  openWhat: 'Not closed. Nothing they send moves them forward; each ends by its own deadline or by your decision.',
+  after: 'Afterwards',
+  afterWhat: 'They stay in your list, marked as no longer connected, so your record stays whole.',
+  money: 'Cutting off moves no money.',
+  hold: (name: string): string => `Hold to cut off ${name}`,
+  holdHint: 'Press and hold to cut off, or hold Space',
+  cutting: 'Cutting off…',
+  done: (name: string): string => `${name} is cut off. Nothing they sign is accepted now.`,
+  failed: 'Not cut off',
+  keep: 'Keep them',
+  back: 'Back to the list',
+  unlock: 'Unlock…',
+  unlocking: 'Unlocking…',
+  lockedWhy: 'Cutting off asks for your fingerprint, face or PIN first.',
+} as const;

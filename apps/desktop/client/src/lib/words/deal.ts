@@ -105,6 +105,20 @@ export const DEAL_DECIDE = {
   failWithdraw: 'Withdraw',
 } as const;
 
+/** After "Let it lapse": the deal is hidden until its deadline, and the owner may take that back
+ *  until then (the wallet refuses an undo once the deal has ended). Undo starts no agent. */
+export const LAPSE_UNDO = {
+  left: (at: string): string => `Left to lapse at ${at}. Nothing is paid.`,
+  leftNoTime: 'Left to lapse at its deadline. Nothing is paid.',
+  undo: 'Undo',
+  undoing: 'Undoing…',
+  undoLabel: (title: string): string => `Undo letting ${title} lapse`,
+  undoTitle: 'Puts it back on your list. It starts no agent and pays nothing.',
+  undone: (title: string): string => `${title} is back on your list. Nothing restarted.`,
+  failed: 'Not undone',
+  gone: 'Left to lapse. Its deadline has passed, so this can no longer be undone.',
+} as const;
+
 /** Shown only on the seller's own wallet, when its agent accepted exactly at the signed floor. */
 export const DEAL_AT_FLOOR = 'Your agent accepted at your floor (the least you’ll accept), as your rules allow. Raise the floor to hold out for more.';
 

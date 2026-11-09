@@ -11,13 +11,15 @@ import { useMutation } from '../../../../../lib/hooks';
 import { APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, receiptWord, reconWord, RULE_NAME, rulesName, ruleSentence, SPEND, TABLES_TRADE } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, DecisionCard, Disclosure, ExplainHint, Hint, Kv, Section, Sheet, type DecisionOption } from '../../../../../shared/ui';
-import { amountNote, amountTone, canWithdraw, dealTotal, decidedBy } from '../../../logic';
+import { amountNote, amountTone, canWithdraw, dealTotal, decidedBy, isTerminal } from '../../../logic';
 import { CLAUSE_NO, columnValue, outcomeOf, reachedPaypal, ruleLine, type Cell, type GateColumn, type Outcome, type RuleLine } from '../../../modules/spend/gate';
 import { LockGlyph } from '../../../ui';
 import { useLocked, type Display } from '../../../world';
 import { useLayerNav } from '../../layers';
 import { Amount, Countdown } from '../../rows';
 import { TheirWords, useEvidence } from '../tables/parts';
+import { markLapsed } from '../deal/lapsed';
+import { LapseUndo } from '../deal/LapseUndo';
 
 /** A purchase as the Spend layer reads it: its rule cells against the governing rule set, and the agent slot. */
 export type Lane = {
@@ -112,7 +114,10 @@ export function PurchaseDecision({ lane, disp, need, m, who, onToast }: {
   if (need.actions.includes('let_lapse')) {
     options.push({
       label: SPEND.lapse, means: SPEND.lapseMeans, disabled: lapse.pending,
-      onClick: async () => { const r = await lapse.run({ deal_id: deal.id }); if (r === null) onToast(SPEND.lapsed(disp.title), 'ok'); },
+      onClick: async () => {
+        const r = await lapse.run({ deal_id: deal.id });
+        if (r === null) { markLapsed(deal.id, need.deadline); onToast(SPEND.lapsed(disp.title), 'ok'); }
+      },
     });
   }
   if (need.actions.includes('withdraw') && canWithdraw(deal)) {
@@ -238,6 +243,8 @@ export function PurchasePane({ lane, disp, need, who, decision, onRule, note }: 
       <p className="sp-pathline"><PurchasePath lane={lane} checking={!!need?.money_check} /></p>
       {note && rule !== 'pass' ? <p className="tr-note">{note}</p> : null}
       {decision}
+      {/* After "Let it lapse" the purchase leaves Needs you; until its deadline the owner may take it back. */}
+      {need ? null : <LapseUndo dealId={d.id} title={disp.title} ended={isTerminal(d)} />}
       {/* The decision card says the amount, the deadline and what silence does: not said twice. */}
       {decision ? null : <div className="sp-bigamt"><Amount money={t} tone={amountTone(d)} /><span className="tx-dim">{amountNote(d)}</span></div>}
       <Kv items={[

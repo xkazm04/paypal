@@ -105,6 +105,25 @@ export const SETTINGS_AGENTS = {
   restartFailed: (n: number): string => `${n === 1 ? '1 table' : `${n} tables`} did not restart`,
 } as const;
 
+/** Pausing one agent (Settings › Your agents › Who they are). The wallet's rule: pausing stops that
+ *  agent's work now and starts nothing for it; resuming clears the pause and starts nothing. */
+export const SETTINGS_AGENT_ONE = {
+  pause: 'Pause',
+  resume: 'Resume',
+  pausing: 'Pausing…',
+  resuming: 'Resuming…',
+  pauseLabel: (name: string): string => `Pause the ${name}`,
+  resumeLabel: (name: string): string => `Resume the ${name}`,
+  pauseTitle: 'Stops its work now; nothing new starts for it. Deadlines still run. No money moves.',
+  resumeTitle: 'It may work again. Resuming starts nothing by itself: start each deal yourself.',
+  paused: 'paused',
+  pausedLine: 'paused · nothing starts for it',
+  pausedToast: (name: string): string => `${name} paused. Its work stopped; deadlines still run.`,
+  resumedToast: (name: string): string => `${name} may work again. Nothing restarts by itself.`,
+  pauseFailed: (name: string): string => `${name} not paused`,
+  resumeFailed: (name: string): string => `${name} not resumed`,
+} as const;
+
 export const SETTINGS_LOOK = {
   dark: 'Dark',
   light: 'Light',
