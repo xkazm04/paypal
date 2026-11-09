@@ -1321,6 +1321,9 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       if (!changed) fail('INVALID', 'no band clause covers this item');
       const version = state.mandates.filter((m) => m.payload.id === base.payload.id).reduce((v, m) => Math.max(v, m.payload.version), 0) + 1;
       const next = { payload: { ...base.payload, version, clauses }, owner_sig: Array.from(fakeHash(`sig:${base.payload.id}:${version}`)) };
+      // As configuration.rs: the wallet signs only rules its own validate() accepts.
+      const bad = mockValidate(next.payload);
+      if (bad) fail('REFUSED', `mandate clause ${bad.clause}: ${bad.reason}`);
       state.mandates = [...state.mandates, next];
       if (d.display.band) d.display = { ...d.display, band: { ...d.display.band, ceiling, floor } };
       transition(deal_id, d.deal.state, { mandate_version: version }, true);
