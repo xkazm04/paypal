@@ -5,11 +5,10 @@ use table_core::*;
 use table_proto::Body;
 impl Ledger {
     pub fn display_number(&self, id: DealId) -> Result<u32, LedgerError> {
-        Ok(self.conn.query_row(
-            "SELECT number FROM deal_labels WHERE deal_id=?1",
-            [id.to_string()],
-            |r| r.get(0),
-        )?)
+        Ok(self
+            .conn
+            .prepare_cached("SELECT number FROM deal_labels WHERE deal_id=?1")?
+            .query_row([id.to_string()], |r| r.get(0))?)
     }
     /// `now` is the clock the pin gate reads: a revoked or expired pin reads unpaired here, as at the gate.
     pub fn counterparty_list(

@@ -283,11 +283,10 @@ impl Ledger {
     /// matched (the start of the corroboration window); `None` for any other deal.
     pub fn seller_attested_receipt_at(&self, id: DealId) -> Result<Option<Timestamp>, LedgerError> {
         let deal = read_deal(&self.conn, id)?;
-        let evidence: String = self.conn.query_row(
-            "SELECT receipt_evidence FROM deals WHERE id=?1",
-            [id.to_string()],
-            |r| r.get(0),
-        )?;
+        let evidence: String = self
+            .conn
+            .prepare_cached("SELECT receipt_evidence FROM deals WHERE id=?1")?
+            .query_row([id.to_string()], |r| r.get(0))?;
         if deal.side != Side::Buyer
             || deal.state != DealState::Receipted
             || evidence != "seller_attested"
@@ -464,11 +463,10 @@ fn first_receipt_at(
     id: DealId,
 ) -> Result<Option<Timestamp>, LedgerError> {
     Ok(conn
-        .query_row(
+        .prepare_cached(
             "SELECT MIN(CAST(verified_at AS INTEGER)) FROM receipts WHERE deal_id=?1 AND verified_at IS NOT NULL",
-            [id.to_string()],
-            |r| r.get(0),
-        )
+        )?
+        .query_row([id.to_string()], |r| r.get(0))
         .optional()?
         .flatten())
 }

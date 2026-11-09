@@ -128,11 +128,8 @@ impl Ledger {
     ) -> Result<Option<(Timestamp, Option<Timestamp>)>, LedgerError> {
         Ok(self
             .conn
-            .query_row(
-                "SELECT due_at,authorization_at FROM deadlines WHERE deal_id=?1",
-                [id.to_string()],
-                |r| Ok((r.get(0)?, r.get(1)?)),
-            )
+            .prepare_cached("SELECT due_at,authorization_at FROM deadlines WHERE deal_id=?1")?
+            .query_row([id.to_string()], |r| Ok((r.get(0)?, r.get(1)?)))
             .optional()?)
     }
 }

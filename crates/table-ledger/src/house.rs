@@ -60,16 +60,13 @@ impl Ledger {
     pub fn negotiation_status(&self, id: DealId) -> Result<Option<NegotiationStatus>, LedgerError> {
         Ok(self
             .conn
-            .query_row(
-                "SELECT offer_seq,own_accept FROM negotiation WHERE deal_id=?1",
-                [id.to_string()],
-                |r| {
-                    Ok(NegotiationStatus {
-                        offer_seq: r.get(0)?,
-                        own_accept: r.get(1)?,
-                    })
-                },
-            )
+            .prepare_cached("SELECT offer_seq,own_accept FROM negotiation WHERE deal_id=?1")?
+            .query_row([id.to_string()], |r| {
+                Ok(NegotiationStatus {
+                    offer_seq: r.get(0)?,
+                    own_accept: r.get(1)?,
+                })
+            })
             .optional()?)
     }
     /// A declined inbound proposal advances only signed history; it cannot become accepted terms.

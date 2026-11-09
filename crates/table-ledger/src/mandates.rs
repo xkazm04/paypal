@@ -13,11 +13,11 @@ pub(crate) fn read_mandate(
     id: MandateId,
     version: u32,
 ) -> Result<OpenMandate, LedgerError> {
-    let active: bool = conn.query_row(
-        "SELECT EXISTS(SELECT 1 FROM mandates WHERE id=?1 AND version=?2 AND status='active')",
-        params![id.to_string(), version],
-        |r| r.get(0),
-    )?;
+    let active: bool = conn
+        .prepare_cached(
+            "SELECT EXISTS(SELECT 1 FROM mandates WHERE id=?1 AND version=?2 AND status='active')",
+        )?
+        .query_row(params![id.to_string(), version], |r| r.get(0))?;
     if !active {
         return Err(LedgerError::NotFound);
     }
@@ -41,11 +41,12 @@ fn read_mandate_row(
     version: u32,
 ) -> Result<OpenMandate, LedgerError> {
     let (body, hash, sig): (String, Vec<u8>, Vec<u8>) = conn
-        .query_row(
+        .prepare_cached(
             "SELECT body_json,body_hash,owner_sig FROM mandates WHERE id=?1 AND version=?2",
-            params![id.to_string(), version],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-        )
+        )?
+        .query_row(params![id.to_string(), version], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })
         .optional()?
         .ok_or(LedgerError::NotFound)?;
     let mandate = OpenMandate {

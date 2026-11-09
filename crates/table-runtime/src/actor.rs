@@ -676,9 +676,11 @@ async fn run(
 /// What the last publish pass sent, so the next one sends only what changed.
 #[derive(Default)]
 pub(crate) struct Published {
-    deals: std::collections::BTreeMap<DealId, Deal>,
-    /// The ledger's change stamp when `deals` was last read in full (`Ledger::change_stamp`).
-    /// While it still equals the current stamp nothing was written, so no ended deal can differ.
+    /// Each deal as last sent: its state (a receipt follows a change of state) and its JSON, the
+    /// form the comparison has always used, encoded once when it was read.
+    deals: std::collections::BTreeMap<DealId, (DealState, Option<String>)>,
+    /// The ledger's change stamp when `deals` was last read (`Ledger::change_stamp`). While it
+    /// still equals the current stamp nothing was written, so no deal can differ.
     deals_stamp: Option<(u64, i64)>,
     attention: Option<String>,
     attention_faulted: bool,
@@ -695,26 +697,30 @@ pub(crate) fn publish(
     runtime
         .publish_passes
         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    // Every deal is read when anything was written since the last full read (an ended deal still
-    // changes: a refund, a dispute, reporting matching its capture). Otherwise only the live
-    // ones are read, which is the same answer: no write, no row differs. The stamp is taken
-    // before the read, so a write that lands during this pass makes the next one read in full.
+    // Every deal is read when anything was written since the last read (an ended deal still
+    // changes: a refund, a dispute, reporting matching its capture). Otherwise nothing is read:
+    // no write, no row differs, so no deal event is due. The stamp is taken before the read, so
+    // a write that lands during this pass makes the next one read again.
     let stamp = runtime.pipeline.wallet.ledger.change_stamp().ok();
-    let whole = stamp.is_none() || published.deals_stamp != stamp;
-    let read = if whole {
-        runtime.pipeline.wallet.ledger.list_deals()
+    let read = if stamp.is_none() || published.deals_stamp != stamp {
+        Some(runtime.pipeline.wallet.ledger.list_deals())
     } else {
-        runtime.pipeline.wallet.ledger.list_live_deals()
+        None
     };
-    if let Ok(deals) = read {
-        for deal in &deals {
+    if let Some(Ok(deals)) = read {
+        let mut sent = std::collections::BTreeMap::new();
+        for deal in deals {
+            let encoded = serde_json::to_string(&deal).ok();
             let old = published.deals.get(&deal.id);
-            if old.and_then(|d| serde_json::to_string(d).ok()) != serde_json::to_string(deal).ok() {
+            let changed = old.and_then(|(_, e)| e.as_deref()) != encoded.as_deref();
+            let old_state = old.map(|(s, _)| *s);
+            sent.insert(deal.id, (deal.state, encoded));
+            if changed {
                 let _ = events.send(WalletEvent::Deal(Box::new(DealChanged {
                     deal: deal.clone(),
                     mode: deal.mode,
                 })));
-                if old.is_some_and(|d| d.state != deal.state)
+                if old_state.is_some_and(|s| s != deal.state)
                     && (deal.state.terminal() || deal.state == DealState::Receipted)
                 {
                     let _ = events.send(WalletEvent::Receipt(ReceiptEvent {
@@ -754,12 +760,8 @@ pub(crate) fn publish(
                 }
             }
         }
-        if whole {
-            published.deals = deals.into_iter().map(|d| (d.id, d)).collect();
-            published.deals_stamp = stamp;
-        } else {
-            published.deals.extend(deals.into_iter().map(|d| (d.id, d)));
-        }
+        published.deals = sent;
+        published.deals_stamp = stamp;
     }
     if let Some(event) = attention_event(
         runtime.attention(),

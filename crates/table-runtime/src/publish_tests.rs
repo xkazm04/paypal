@@ -548,6 +548,109 @@ fn attaching_the_mcp_server_publishes() {
     assert!(!crate::actor::Message::AttachMcp(server, "http://127.0.0.1:8765/mcp".into()).quiet());
 }
 
+/// The pass's deal and receipt events against the comparison it always made: every deal read,
+/// each one sent when its JSON differs from the one sent before, a receipt when its state moved
+/// to an end (or RECEIPTED). The pass now skips the read when nothing was written and encodes
+/// each deal once; the events must be the same, for no change, a write that changes no deal, one
+/// deal added, one deal changed and one deal reaching a terminal state.
+#[test]
+fn publish_sends_the_same_deal_and_receipt_events_as_the_whole_comparison() {
+    use crate::actor::{Published, publish};
+    use std::collections::{BTreeMap, BTreeSet};
+    let (mut r, _, _, _, _) = counted();
+    let (a, _) = setup(&mut r, Side::Seller);
+    let (events, mut rx) = broadcast::channel(1024);
+    let mut published = Published::default();
+    // What the old comparison held: the last JSON of every deal.
+    let mut before: BTreeMap<DealId, (DealState, String)> = BTreeMap::new();
+    let mut pass = |r: &mut Runtime, rx: &mut broadcast::Receiver<WalletEvent>| {
+        let mut deals_due = BTreeSet::new();
+        let mut receipts_due = BTreeSet::new();
+        let mut next = BTreeMap::new();
+        for deal in r.pipeline.wallet.ledger.list_deals().unwrap() {
+            let json = serde_json::to_string(&deal).unwrap();
+            if let Some((state, old)) = before.get(&deal.id) {
+                if *old != json {
+                    deals_due.insert(deal.id);
+                    if *state != deal.state
+                        && (deal.state.terminal() || deal.state == DealState::Receipted)
+                    {
+                        receipts_due.insert(deal.id);
+                    }
+                }
+            } else {
+                deals_due.insert(deal.id);
+            }
+            next.insert(deal.id, (deal.state, json));
+        }
+        before = next;
+        publish(r, &events, &mut published);
+        let sent = drain(rx);
+        let deals: Vec<DealId> = sent
+            .iter()
+            .filter_map(|e| match e {
+                WalletEvent::Deal(changed) => Some(changed.deal.id),
+                _ => None,
+            })
+            .collect();
+        let receipts: Vec<DealId> = sent
+            .iter()
+            .filter_map(|e| match e {
+                WalletEvent::Receipt(receipt) => Some(receipt.deal_id),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(deals, deals_due.iter().copied().collect::<Vec<_>>());
+        assert_eq!(receipts, receipts_due.iter().copied().collect::<Vec<_>>());
+        sent
+    };
+    // The first pass sends the deal.
+    let sent = pass(&mut r, &mut rx);
+    assert_eq!(deal_events(&sent, a.id).len(), 1);
+    // No change, and a write that changes no deal: no deal event.
+    let sent = pass(&mut r, &mut rx);
+    assert!(deal_events(&sent, a.id).is_empty());
+    r.pipeline
+        .wallet
+        .ledger
+        .set_preference("publish.probe", &true)
+        .unwrap();
+    let sent = pass(&mut r, &mut rx);
+    assert!(deal_events(&sent, a.id).is_empty());
+    // One deal added: that deal only.
+    let (b, _) = setup(&mut r, Side::Buyer);
+    let sent = pass(&mut r, &mut rx);
+    assert_eq!(deal_events(&sent, b.id).len(), 1);
+    assert!(deal_events(&sent, a.id).is_empty());
+    // One deal changed, not to an end: that deal, no receipt.
+    r.pipeline
+        .wallet
+        .ledger
+        .apply_event(b.id, DealEvent::ListingVerified, 100)
+        .unwrap();
+    let sent = pass(&mut r, &mut rx);
+    assert_eq!(deal_events(&sent, b.id).len(), 1);
+    assert!(deal_events(&sent, a.id).is_empty());
+    assert!(!sent.iter().any(|e| matches!(e, WalletEvent::Receipt(_))));
+    // One deal reaching a terminal state: that deal and its receipt.
+    r.pipeline
+        .wallet
+        .ledger
+        .apply_event(a.id, DealEvent::Withdraw, 200)
+        .unwrap();
+    let sent = pass(&mut r, &mut rx);
+    let deals = deal_events(&sent, a.id);
+    assert_eq!(deals.len(), 1);
+    assert_eq!(deals[0].state, DealState::Withdrawn);
+    assert!(deal_events(&sent, b.id).is_empty());
+    assert!(sent.iter().any(
+        |e| matches!(e, WalletEvent::Receipt(receipt) if receipt.deal_id == a.id && receipt.state == DealState::Withdrawn)
+    ));
+    // And quiet again after it.
+    let sent = pass(&mut r, &mut rx);
+    assert!(deal_events(&sent, a.id).is_empty() && deal_events(&sent, b.id).is_empty());
+}
+
 /// Timing probe, not a gate: `CARGO_PROFILE_DEV_OPT_LEVEL=3 cargo test -p table-runtime --lib
 /// -- --ignored --nocapture tick_read_timing_probe`. One 1 s tick's reads at 500 and 5,000 deals,
 /// 90% of them ended: the whole-book read the tick used to make against the reads it makes now.
@@ -620,7 +723,16 @@ fn tick_read_timing_probe() {
             r.forecast(100).unwrap();
         }
         let forecast = ms(t, 5);
-        println!("PROBE {deals} deals: envelope_view {envelope:.2} ms, forecast {forecast:.2} ms");
+        // The first forecast after a write: every fact read again.
+        let t = std::time::Instant::now();
+        for _ in 0..5 {
+            r.forecast_cache = None;
+            r.forecast(100).unwrap();
+        }
+        let forecast_cold = ms(t, 5);
+        println!(
+            "PROBE {deals} deals: envelope_view {envelope:.2} ms, forecast {forecast:.2} ms, forecast after a write {forecast_cold:.2} ms"
+        );
         let (events, _rx) = broadcast::channel(16);
         let mut published = Published::default();
         publish(&mut r, &events, &mut published);
@@ -629,8 +741,20 @@ fn tick_read_timing_probe() {
             publish(&mut r, &events, &mut published);
         }
         let quiet_pass = ms(t, 5);
+        // A pass after one small write (a preference no deal reads): the whole book is read and
+        // compared, and the forecast reads its facts again.
+        let t = std::time::Instant::now();
+        for n in 0..5 {
+            r.pipeline
+                .wallet
+                .ledger
+                .set_preference("publish.probe", &n)
+                .unwrap();
+            publish(&mut r, &events, &mut published);
+        }
+        let written_pass = ms(t, 5);
         println!(
-            "PROBE {deals} deals ({live} live): list_deals {whole:.2} ms, list_live_deals {live_read:.2} ms,              attention over every deal {attention_whole:.2} ms, attention as now {attention_narrow:.2} ms,              whole publish pass with nothing written {quiet_pass:.2} ms"
+            "PROBE {deals} deals ({live} live): list_deals {whole:.2} ms, list_live_deals {live_read:.2} ms,              attention over every deal {attention_whole:.2} ms, attention as now {attention_narrow:.2} ms,              whole publish pass with nothing written {quiet_pass:.2} ms, publish pass after a write {written_pass:.2} ms"
         );
     }
 }

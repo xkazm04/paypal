@@ -181,3 +181,57 @@ the original: 5,000 deals, 42,680 audit rows, 36,717 history steps, about 25 MB 
 (`mock/scaleXl.ts`, `scaleXl.test.ts`). It holds nothing waiting for the owner beyond the large world's own 44 items. Its
 state is larger than the browser's localStorage quota, so a second window does not see the first one's changes (each
 builds its own xl); the first window works as usual.
+
+## The 1 s tick stops scaling with the book (2026-11-09, A1)
+
+The forecast, "the next cost to take" above, is now cached. Same machine and method as the section above: the same two
+probes (`tick_read_timing_probe`, `list_deals_timing_probe`), unoptimised test profile with
+`CARGO_PROFILE_DEV_OPT_LEVEL=3`, in-memory SQLite, the runtime probe's book 90% ended. The runtime probe gained three
+lines (the forecast after a write, and the publish pass after a write). So the "before" column was **measured again**
+with the extended probe on an export of the commit before this change (`git archive HEAD`), not copied from the table
+above. Two runs each, a few minutes apart. Other builds were running on the machine.
+
+| read | 500 deals before | 500 deals after | 5,000 deals before | 5,000 deals after |
+|---|---|---|---|---|
+| whole publish pass with nothing written (the quiet 1 s tick) | 38 to 50 ms | 1.9 to 2.4 ms | 398 to 406 ms | **10.6 to 13.6 ms** |
+| attention as the tick builds it | 32 to 36 ms | 1.1 to 1.8 ms | 345 to 451 ms | 9 to 12 ms |
+| forecast, nothing written since the last read | 32 to 36 ms | 0.33 ms | 349 to 446 ms | 0.36 to 0.40 ms |
+| forecast, first read after a write | 37 ms | 11 to 14 ms | 341 to 437 ms | 147 to 160 ms |
+| publish pass after one small write | 38 to 39 ms | 17 to 21 ms | 442 to 467 ms | 216 to 235 ms |
+| `list_deals` (ledger probe, 48% live) | 3.6 to 4.7 ms | 2.2 to 4.4 ms | 53 to 56 ms | 58 to 59 ms |
+| `list_live_deals` (ledger probe) | 2.4 to 3.2 ms | 2.2 to 2.5 ms | 27 to 28 ms | 28 to 29 ms |
+
+The target was a quiet pass under 50 ms at 5,000 deals: it is 11 to 14 ms. `list_deals` did not move. Its SQL is built
+at run time, so it was left alone.
+
+What changed (table-runtime and table-ledger; no public type, command, event or wire shape):
+
+- **The forecast keeps its ledger reads** (`table-runtime/src/forecast.rs`, `ForecastCache` on `Runtime`). It keeps
+  each open deal's row, deadline, "let it lapse", whether its mandate still stands, label number, amount and
+  seller-attested receipt time, keyed by the ledger's change stamp (`Ledger::change_stamp`, the same signal the
+  publish pass uses) and the owner key. Any write by anyone drops it. It never keeps anything the clock moves. The
+  pipeline's gates (the create gate and the seller-mandate window, which age with the market reference and the mandate)
+  are judged at `now` on every read, with the signer selected first as the scheduler does. The walk-away fold
+  (`table_attention::forecast`, unchanged) places every deadline against `now` on every read. So a deadline that passes
+  between two ticks with no write changes the next tick's lines exactly as an uncached read would. The tests
+  `a_cached_forecast_is_never_served_across_a_deadline` (an offer that lapses, an order waiting on the buyer that
+  expires, with an unchanged change stamp between the reads) and `a_write_between_two_forecast_reads_is_seen_by_the_second`
+  pin this. The signer is now selected only for the seller states that have a gate (Agreed, AwaitingApproval,
+  Approved, Authorized): the other states never used it.
+- **The publish pass reads no deal when nothing was written** (`actor.rs`). It used to read the live deals and
+  serialise each one twice to compare. With no write, no row can differ, so it now skips the read. After a write it
+  reads the book once and encodes each deal once, comparing that JSON with the JSON kept from the last pass. The
+  comparison is the same as before, so the same events go out:
+  `publish_sends_the_same_deal_and_receipt_events_as_the_whole_comparison` runs the old whole-book comparison beside
+  the pass for no change, a write that changes no deal, a deal added, a deal changed and a deal ended.
+- **Cached statements** for the static per-deal reads on the tick (`prepare_cached`): deal by id, deadline, label
+  number, preference, category, mandate (active check and row), open money operations, receipt evidence and first
+  receipt, last proposal, negotiation status. SQL built at run time (`list_deals`, `list_live_deals`) is unchanged.
+
+**What still costs, a recorded limit:** the first tick after a write still reads every open deal's facts again
+(147 to 160 ms at 500 open deals) and the whole book for the diff (about 50 ms). So the tick right after a write costs
+about 0.2 s at 5,000 deals; every quiet tick after it costs about 12 ms. A seller deal in a gated state also pays its
+gate on every tick (one `step_allowed` for Agreed, about 20 for the seller-mandate window's binary search). The probe's
+book has none of those, so that cost is not measured here. It grows with gated seller deals, not with the book. The
+settings read (three keychain reads in the app, a memory vault here) still runs twice per tick: once for the forecast's
+"payment executor configured" and once for the settings event.

@@ -104,7 +104,7 @@ impl Ledger {
         deal: Option<DealId>,
         stale_before: Timestamp,
     ) -> Result<Vec<OpenOperation>, LedgerError> {
-        let mut statement = self.conn.prepare(
+        let mut statement = self.conn.prepare_cached(
             "SELECT o.deal_id,o.attempt,o.operation,o.request_id,o.decided_by,o.status,o.started_at,
              EXISTS(SELECT 1 FROM operation_resolutions r WHERE r.request_id=o.request_id AND r.outcome='resent'),
              EXISTS(SELECT 1 FROM operation_resolutions r WHERE r.request_id=o.request_id AND r.outcome='needs_owner')

@@ -608,3 +608,81 @@ async fn a_deal_with_an_open_operation_is_left_out_of_the_forecast() {
     assert!(lines.iter().all(|l| l.deal_id != lost.id), "{lines:?}");
     assert!(lines.iter().any(|l| l.deal_id == other.id), "{lines:?}");
 }
+
+fn forecast_of(r: &mut Runtime, id: DealId, now: i64) -> Vec<ForecastLine> {
+    r.forecast(now)
+        .unwrap()
+        .into_iter()
+        .filter(|l| l.deal_id == id)
+        .collect()
+}
+
+/// The forecast keeps its ledger reads while nothing is written, never what the clock moves.
+/// Two deals, each read before its deadline and again on the first read after it, with no write
+/// in between (the ledger's change stamp is the same, so the second read is served from the
+/// cache): the offer lapses instead of becoming an order, and the order waiting on the buyer
+/// only expires, its "buyer approves" steps gone.
+#[tokio::test]
+async fn a_cached_forecast_is_never_served_across_a_deadline() {
+    // An offer: a seller deal agreed with a fresh market, due at T0 + 60.
+    let (mut r, vault, _, _, _) = runtime(true);
+    let deal = seller_agreed(&mut r, &vault, Delivery::DigitalNow, true);
+    set_deadline(&mut r, deal.id, T0 + 60);
+    let stamp = r.pipeline.wallet.ledger.change_stamp().unwrap();
+    let before = forecast_of(&mut r, deal.id, T0);
+    assert_eq!(
+        actions(&before),
+        [ForecastAction::CreateOrder, ForecastAction::Expire]
+    );
+    assert_eq!(
+        actions(&forecast_of(&mut r, deal.id, T0 + 59)),
+        [ForecastAction::CreateOrder, ForecastAction::Expire]
+    );
+    let after = forecast_of(&mut r, deal.id, T0 + 61);
+    assert_eq!(r.pipeline.wallet.ledger.change_stamp().unwrap(), stamp);
+    assert!(r.forecast_cache.is_some());
+    assert_eq!(actions(&after), [ForecastAction::Lapse]);
+    assert_eq!(after[0].at, Some(T0 + 60));
+    assert_eq!(after[0].end_state, DealState::Withdrawn);
+
+    // A hold: an order waiting on the buyer's approval, due 6 h after it was created at 100.
+    let (mut r, vault, _, _, _) = runtime(true);
+    let deal = ordered(&mut r, &vault, Delivery::DigitalNow).await;
+    let expires = 100 + 6 * 3600;
+    let stamp = r.pipeline.wallet.ledger.change_stamp().unwrap();
+    assert_eq!(
+        actions(&forecast_of(&mut r, deal.id, expires - 1)),
+        [
+            ForecastAction::Authorize,
+            ForecastAction::Capture,
+            ForecastAction::Expire
+        ]
+    );
+    let after = forecast_of(&mut r, deal.id, expires + 1);
+    assert_eq!(r.pipeline.wallet.ledger.change_stamp().unwrap(), stamp);
+    assert!(r.forecast_cache.is_some());
+    assert_eq!(actions(&after), [ForecastAction::Expire]);
+    assert_eq!(after[0].at, Some(expires));
+}
+
+/// Any write drops what the forecast kept: the owner choosing "let it lapse" between two reads
+/// at the same time removes the order line on the second read.
+#[tokio::test]
+async fn a_write_between_two_forecast_reads_is_seen_by_the_second() {
+    let (mut r, vault, _, _, _) = runtime(true);
+    let deal = seller_agreed(&mut r, &vault, Delivery::DigitalNow, true);
+    set_deadline(&mut r, deal.id, T0 + 3600);
+    assert_eq!(
+        actions(&forecast_of(&mut r, deal.id, T0)),
+        [ForecastAction::CreateOrder, ForecastAction::Expire]
+    );
+    r.pipeline
+        .wallet
+        .ledger
+        .set_preference(&format!("lapse.{}", deal.id), &true)
+        .unwrap();
+    assert_eq!(
+        actions(&forecast_of(&mut r, deal.id, T0)),
+        [ForecastAction::Lapse]
+    );
+}

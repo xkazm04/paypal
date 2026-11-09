@@ -172,6 +172,8 @@ pub struct Runtime {
     /// Rungs already in the audit log (deal, deadline, rung), so the 1 s attention read asks the
     /// ledger once per rung; the ledger's own check keeps them unique across restarts.
     pub(crate) rungs_recorded: std::collections::BTreeSet<(DealId, i64, LadderRung)>,
+    /// The walk-away forecast's ledger reads, kept while nothing is written (`forecast.rs`).
+    pub(crate) forecast_cache: Option<crate::forecast::ForecastCache>,
     /// Test-only: makes every rung write fail, to prove a default never waits on one.
     #[cfg(test)]
     pub(crate) fail_rungs: bool,
@@ -317,6 +319,7 @@ impl Runtime {
             market_watch_retry: BTreeMap::new(),
             market_watch_used_up: BTreeMap::new(),
             rungs_recorded: std::collections::BTreeSet::new(),
+            forecast_cache: None,
             #[cfg(test)]
             fail_rungs: false,
             #[cfg(test)]

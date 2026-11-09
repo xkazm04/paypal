@@ -139,11 +139,12 @@ fn deal_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<DealRow> {
 }
 pub(crate) fn read_deal(conn: &Connection, id: DealId) -> Result<Deal, LedgerError> {
     let row = conn
-        .query_row(
-            concat!("SELECT ", deal_columns!(), " FROM deals WHERE id=?1"),
-            [id.to_string()],
-            deal_row,
-        )
+        .prepare_cached(concat!(
+            "SELECT ",
+            deal_columns!(),
+            " FROM deals WHERE id=?1"
+        ))?
+        .query_row([id.to_string()], deal_row)
         .optional()?
         .ok_or(LedgerError::NotFound)?;
     deal_from_row(id, row)
@@ -415,11 +416,8 @@ impl Ledger {
     ) -> Result<Option<T>, LedgerError> {
         let raw: Option<String> = self
             .conn
-            .query_row(
-                "SELECT value_json FROM local_preferences WHERE key=?1",
-                [key],
-                |r| r.get(0),
-            )
+            .prepare_cached("SELECT value_json FROM local_preferences WHERE key=?1")?
+            .query_row([key], |r| r.get(0))
             .optional()?;
         raw.map(|v| serde_json::from_str(&v).map_err(Into::into))
             .transpose()
@@ -447,11 +445,8 @@ impl Ledger {
     pub fn deal_category(&self, id: DealId) -> Result<table_core::Category, LedgerError> {
         let raw: String = self
             .conn
-            .query_row(
-                "SELECT category_json FROM deal_context WHERE deal_id=?1",
-                [id.to_string()],
-                |r| r.get(0),
-            )
+            .prepare_cached("SELECT category_json FROM deal_context WHERE deal_id=?1")?
+            .query_row([id.to_string()], |r| r.get(0))
             .optional()?
             .ok_or(LedgerError::NotFound)?;
         Ok(serde_json::from_str(&raw)?)

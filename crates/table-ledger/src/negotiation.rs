@@ -34,9 +34,9 @@ fn last_proposal(
     conn: &Connection,
     id: DealId,
 ) -> Result<(u32, H256, Direction, bool), LedgerError> {
-    let (seq, hash, dir, typ): (u32, Vec<u8>, String, String) = conn.query_row(
+    let (seq, hash, dir, typ): (u32, Vec<u8>, String, String) = conn.prepare_cached(
         "SELECT seq,hash,dir,typ FROM envelopes WHERE deal_id=?1 AND typ IN ('OFFER','COUNTER') ORDER BY rowid DESC LIMIT 1",
-        [id.to_string()], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?)),
+    )?.query_row([id.to_string()], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?)),
     ).optional()?.ok_or(LedgerError::NotFound)?;
     let direction = match dir.as_str() {
         "in" => Direction::Inbound,

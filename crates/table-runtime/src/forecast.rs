@@ -1,6 +1,7 @@
 //! Walk-away forecast inputs: what the scheduler would do to every open deal if the owner does
 //! nothing, read from the ledger and the pipeline's own gates.
 use crate::{Runtime, app};
+use std::sync::Arc;
 use table_app::{Authority, MoneyStep};
 use table_attention::{ForecastContext, ForecastLine, ForecastSource};
 use table_client::CommandError;
@@ -8,6 +9,36 @@ use table_core::*;
 
 /// The forecast looks this far ahead.
 pub(crate) const FORECAST_HORIZON_SECS: i64 = 72 * 3600;
+
+/// What the forecast reads of one open deal that only a ledger write can change: the row, its
+/// deadline, the owner's "let it lapse", whether its mandate still stands, its label number, its
+/// amount and its seller-attested receipt time. Nothing here depends on the clock.
+#[derive(Debug, Clone)]
+pub(crate) struct ForecastFacts {
+    deal: Deal,
+    deadline: Option<Timestamp>,
+    lapse_chosen: bool,
+    mandate_retired: bool,
+    display_number: u32,
+    amount: Money,
+    receipt_at: Option<Timestamp>,
+}
+
+/// The facts of every deal the forecast covers, as read at one ledger change stamp
+/// (`Ledger::change_stamp`) under one owner key. While both still hold nothing was written, so
+/// every fact is the same and the reads are skipped.
+///
+/// What depends on the clock is never kept here: the pipeline's gates (judged at `now` on every
+/// read, with the signer selected first as the scheduler does) and the walk-away fold itself
+/// (`table_attention::forecast`, which places every deadline against `now`). So a deadline that
+/// passes between two reads with no write changes the second read's lines exactly as an
+/// uncached read would.
+#[derive(Debug, Clone)]
+pub(crate) struct ForecastCache {
+    stamp: (u64, i64),
+    owner: [u8; 32],
+    facts: Arc<[ForecastFacts]>,
+}
 
 impl Runtime {
     /// Built from every deal, not from the attention sources: those skip lapse-chosen and
@@ -23,7 +54,28 @@ impl Runtime {
             paused: self.paused,
             executor_configured: self.settings()?.payment_executor_configured,
         };
-        let mut sources = Vec::new();
+        let facts = self.forecast_facts()?;
+        let mut sources = Vec::with_capacity(facts.len());
+        for fact in facts.iter() {
+            sources.push(self.forecast_source(fact, now, ctx.horizon_secs)?);
+        }
+        Ok(table_attention::forecast(&sources, &ctx))
+    }
+    /// The facts of every open deal, from the cache while the ledger's change stamp and the owner
+    /// key are the ones it was read at; otherwise read again. The stamp is taken before the
+    /// reads, so a write landing during them makes the next call read again. A failed read keeps
+    /// nothing.
+    fn forecast_facts(&mut self) -> Result<Arc<[ForecastFacts]>, CommandError> {
+        let stamp = self.pipeline.wallet.ledger.change_stamp().ok();
+        let owner = self.pipeline.wallet.owner_public_key().to_bytes();
+        if let (Some(stamp), Some(cache)) = (stamp, &self.forecast_cache)
+            && cache.stamp == stamp
+            && cache.owner == owner
+        {
+            return Ok(cache.facts.clone());
+        }
+        self.forecast_cache = None;
+        let mut facts = Vec::new();
         for deal in app(self.pipeline.wallet.ledger.list_live_deals())? {
             // A deal whose money step is being checked with PayPal is forecast nothing: no step
             // runs and no default is promised until PayPal's record settles it (T10).
@@ -33,29 +85,56 @@ impl Runtime {
             {
                 continue;
             }
-            sources.push(self.forecast_source(&deal, now, ctx.horizon_secs)?);
+            facts.push(self.forecast_fact(deal)?);
         }
-        Ok(table_attention::forecast(&sources, &ctx))
+        let facts: Arc<[ForecastFacts]> = facts.into();
+        if let Some(stamp) = stamp {
+            self.forecast_cache = Some(ForecastCache {
+                stamp,
+                owner,
+                facts: facts.clone(),
+            });
+        }
+        Ok(facts)
     }
+    fn forecast_fact(&self, deal: Deal) -> Result<ForecastFacts, CommandError> {
+        let ledger = &self.pipeline.wallet.ledger;
+        Ok(ForecastFacts {
+            deadline: app(ledger.deadline(deal.id))?.map(|d| d.0),
+            lapse_chosen: app(ledger.preference::<bool>(&format!("lapse.{}", deal.id)))?
+                .unwrap_or(false),
+            mandate_retired: self.mandate_retired(&deal)?,
+            display_number: app(ledger.display_number(deal.id))?,
+            amount: deal.terms.amount().map_err(table_app::Error::from)?,
+            receipt_at: app(ledger.seller_attested_receipt_at(deal.id))?,
+            deal,
+        })
+    }
+    /// One deal's forecast input at `now`: its cached facts, and the pipeline's gates judged at
+    /// `now` (never cached: a market reference ages, a mandate expires, a window closes).
     fn forecast_source(
         &mut self,
-        deal: &Deal,
+        fact: &ForecastFacts,
         now: Timestamp,
         horizon_secs: i64,
     ) -> Result<ForecastSource, CommandError> {
-        let deadline = app(self.pipeline.wallet.ledger.deadline(deal.id))?.map(|d| d.0);
-        let lapse_chosen = app(self
-            .pipeline
-            .wallet
-            .ledger
-            .preference::<bool>(&format!("lapse.{}", deal.id)))?
-        .unwrap_or(false);
-        let mandate_retired = self.mandate_retired(deal)?;
+        let deal = &fact.deal;
+        let deadline = fact.deadline;
+        let lapse_chosen = fact.lapse_chosen;
+        let mandate_retired = fact.mandate_retired;
         let mut policy_create_allowed = false;
         let mut seller_mandate_until = None;
         // The scheduler selects the deal's signer before its pipeline calls; without one every
-        // gate refuses, and so does the scheduler.
+        // gate refuses, and so does the scheduler. Only the states below have a gate, so the
+        // signer is selected only for them.
         if deal.side == Side::Seller
+            && matches!(
+                deal.state,
+                DealState::Agreed
+                    | DealState::AwaitingApproval
+                    | DealState::Approved
+                    | DealState::Authorized
+            )
             && !lapse_chosen
             && !mandate_retired
             && self.select_signer(deal.id).is_ok()
@@ -84,23 +163,19 @@ impl Runtime {
         }
         Ok(ForecastSource {
             deal_id: deal.id,
-            display_number: app(self.pipeline.wallet.ledger.display_number(deal.id))?,
+            display_number: fact.display_number,
             state: deal.state,
             side: deal.side,
             kind: deal.kind,
             delivery: deal.terms.delivery.clone(),
-            amount: deal.terms.amount().map_err(table_app::Error::from)?,
+            amount: fact.amount,
             deadline,
             mode: deal.mode,
             lapse_chosen,
             mandate_retired,
             policy_create_allowed,
             seller_mandate_until,
-            receipt_at: app(self
-                .pipeline
-                .wallet
-                .ledger
-                .seller_attested_receipt_at(deal.id))?,
+            receipt_at: fact.receipt_at,
         })
     }
     /// The end of the window `[now, until)` in which authorize and capture under the seller
