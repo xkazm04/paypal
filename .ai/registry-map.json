@@ -2240,8 +2240,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "apps/desktop/client/src/lib/contract.ts:20 The 'memory' and 'forget' hits here concern how long a token is held or clearing the demo fallback choice from sessionStorage. I searched apps/desktop/client for episodic, consolidat, belief and agent_memory and found nothing, so no agent memory pipeline exists in this context.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "module-design",
@@ -2416,8 +2420,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:1 The Counter and Tables modules are pure page logic for deals, floors and price ladders. I searched the modules, words and mock directories for episodic, consolidat, belief and agent_memory and found nothing, so the subject has nothing to govern here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "cost-metering",
@@ -3645,8 +3653,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "apps/desktop/client/scripts/takes.mjs:2 This is a Playwright capture rig for the demo: its 'capture' is screenshots and video, not episodic capture by an agent. I searched apps/desktop/client/scripts for episodic, consolidat, belief and agent_memory and found nothing (no memory or remember hits either).",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "demo-data-plane",
@@ -9694,8 +9706,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "crates/table-app/tests/gauntlet.rs:5 I searched crates/table-app/tests for episodic, consolidat, belief and agent_memory and found nothing. Every 'memory' hit is an in-memory ledger or transport used by the tests, and the hostile agent in the gauntlet carries no durable memory store, so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         }
       ],
       "governance": "governed"
@@ -10188,8 +10204,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 5
+          "state": "not-applicable",
+          "priorNotApplicable": 5,
+          "evidence": "apps/desktop/client/src/windows/main/console/calm.ts:13 I searched the console directory for episodic, consolidat, belief and agent_memory and found nothing. The only 'remember' and 'forget' code here keeps UI state (the calm-motion preference, revealed parts and skeleton sizes), so the context has no layered agent memory (working, episodic or consolidated) for this subject to govern.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "transactions-over-a-replicated-log",

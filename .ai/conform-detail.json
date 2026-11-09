@@ -11556,6 +11556,80 @@
       "evaluatedTs": "2026-11-09T23:47:24.076Z",
       "worker": "e66370fb-6d7b-4877-a66c-6ca8ef49184a",
       "techniques": []
+    },
+    "7e6e9781-1ef3-439c-ae2d-00619d2cb1d9/agent-memory": {
+      "context": "console-navigation-and-lists",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:54:00.520Z",
+      "worker": "b25f8893-6f75-40ab-b23a-94cf08a09200",
+      "techniques": [
+        {
+          "technique": "decay-and-forgetting",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/stagger.tsx:237 This 'forget' clears a UI cache of parts already revealed. It is not decay of an agent's beliefs."
+        }
+      ]
+    },
+    "dca763f0-8645-4f2a-a617-a0be91dfdff7/agent-memory": {
+      "context": "wallet-app-tests",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:54:00.520Z",
+      "worker": "b25f8893-6f75-40ab-b23a-94cf08a09200",
+      "techniques": [
+        {
+          "technique": "working-memory",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-app/tests/gauntlet.rs:2043 Isolating state per session is test hygiene. It is not agent working memory."
+        }
+      ]
+    },
+    "a1a41cac-6c94-418e-8740-5d1188336cb0/agent-memory": {
+      "context": "director-takes-rig",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:54:00.520Z",
+      "worker": "b25f8893-6f75-40ab-b23a-94cf08a09200",
+      "techniques": []
+    },
+    "9a4f1dcb-2f71-4b8d-835c-a38862a5c22a/agent-memory": {
+      "context": "client-runtime-foundation",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:54:00.520Z",
+      "worker": "b25f8893-6f75-40ab-b23a-94cf08a09200",
+      "techniques": [
+        {
+          "technique": "durable-store-failure-posture",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:41 This is a sessionStorage key for a UI runtime choice, not a durable agent memory store."
+        }
+      ]
+    },
+    "d477836b-8d3f-42dd-93ce-bf0a9f5bbf53/agent-memory": {
+      "context": "counter-and-tables-modules",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:54:00.520Z",
+      "worker": "b25f8893-6f75-40ab-b23a-94cf08a09200",
+      "techniques": [
+        {
+          "technique": "memory-value-model",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:1 The ladder ranks prices, not memories to recall."
+        }
+      ]
     }
   }
 }
