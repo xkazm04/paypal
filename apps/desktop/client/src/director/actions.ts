@@ -53,7 +53,11 @@ export type Action =
   | { do: 'look'; at: LookAt }
   /** Presentation only: a window's onboarding tour shows this stop (null: the tour is put away).
    *  It points; it never presses Next, Back or Skip inside a window. */
-  | { do: 'tour'; win: TourWindow; at: TourStopId | null };
+  | { do: 'tour'; win: TourWindow; at: TourStopId | null }
+  /** Presentation only: Break The Table (the console's place "Try to break it") shows these recorded
+   *  attacks landed, in order, and the closing card when `finale`. Each answer is the wallet's recording
+   *  (src/arena/record.ts); nothing is clicked, and no attack can move money (src/arena/stage.ts). */
+  | { do: 'arena'; played: readonly string[]; finale?: boolean };
 
 /** Where the camera looks in The Table's Rewind: the Say it box, the chips it read, the timeline, the open tables. */
 export type LookAt = 'say' | 'chips' | 'track' | 'tables';
@@ -78,6 +82,8 @@ export interface Stage {
   say?(text: string, answers?: Record<string, string>): void;
   /** Scroll The Table's Rewind to a part of it. A stage without a main window leaves it out. */
   look?(at: LookAt): void;
+  /** Stage Break The Table's recorded attacks (and its closing card). A stage without a main window leaves it out. */
+  arena?(played: readonly string[], finale: boolean): void;
 }
 
 const dealId = (w: MockWorld, label: string): string | null => w.deal(label)?.deal.id ?? null;
@@ -178,6 +184,9 @@ export function runAction(stage: Stage, a: Action): void {
     case 'tour':
       pointTour(a.win, a.at);
       return;
+    case 'arena':
+      stage.arena?.(a.played, a.finale === true);
+      return;
   }
 }
 
@@ -214,12 +223,14 @@ export type Scene = {
   say: { text: string; answers: Record<string, string> };
   /** The stop each window's tour was pointed at (null: put away; missing: never pointed). */
   tour: Partial<Record<TourWindow, TourStopId | null>>;
+  /** What Break The Table shows: the recorded attacks landed, in order, and whether the closing card is open. */
+  arena: { played: readonly string[]; finale: boolean };
   form: Form;
   selected: string | null;
   visual: VisualState | null;
 };
 
-export const INITIAL_SCENE: Scene = { main: { open: true, route: null }, approval: null, owner: false, ownerRules: null, say: { text: '', answers: {} }, tour: {}, form: 'rest', selected: null, visual: null };
+export const INITIAL_SCENE: Scene = { main: { open: true, route: null }, approval: null, owner: false, ownerRules: null, say: { text: '', answers: {} }, tour: {}, arena: { played: [], finale: false }, form: 'rest', selected: null, visual: null };
 
 export function foldScene(scene: Scene, actions: readonly Action[]): Scene {
   let s = scene;
@@ -234,6 +245,7 @@ export function foldScene(scene: Scene, actions: readonly Action[]): Scene {
       case 'owner': s = { ...s, approval: null, owner: true, ownerRules: a.rules ? { text: a.rules, answers: a.answers ?? {} } : null }; break;
       case 'say': s = { ...s, say: { text: a.text, answers: a.answers ?? {} } }; break;
       case 'tour': s = { ...s, tour: { ...s.tour, [a.win]: a.at } }; break;
+      case 'arena': s = { ...s, arena: { played: [...a.played], finale: a.finale === true } }; break;
       default: break;
     }
   }

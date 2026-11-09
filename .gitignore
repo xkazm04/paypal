@@ -42,3 +42,5 @@ dist/
 .spark/
 /demo-film-latest.mp4
 target-house/
+# e2e runs (apps/desktop/client/e2e/*): results, friction logs and screenshots stay local
+/e2e-out/

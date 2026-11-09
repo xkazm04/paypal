@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import { clockLabel, countdown, countdownWords, formatMinor, shortHash, shortId } from './format';
+import { clockLabel, countdown, countdownWords, formatMinor, parseMoneyText, shortHash, shortId } from './format';
 import { WalletError, toWalletError } from './contract';
 import { mockBackend, resetMockState } from '../mock/backend';
 import { fakeHash, fakeUlid } from '../mock/fixtures';
@@ -28,6 +28,18 @@ describe('money formatting (display only - Rust owns the arithmetic)', () => {
     expect(clockLabel(now + 4 * 86400, now)).toBe('Sun 23:09');
     expect(clockLabel(now + 27 * 86400, now)).toMatch(/^3 Nov \d\d:\d\d$/); // a daylight-saving change may move the hour
     expect(clockLabel(now - 9 * 86400, now)).toMatch(/^28 Sep\w* \d\d:\d\d$/);
+  });
+  it('reads a typed amount only in the field\x27s own currency: another currency\x27s symbol is not an amount', () => {
+    // A EUR wallet limit typed as "$500" is not 500 EUR, and "€58" in a USD floor is not $58.
+    expect(parseMoneyText('$500', 'EUR')).toBeNull();
+    expect(parseMoneyText('£ 58', 'USD')).toBeNull();
+    expect(parseMoneyText('€58', 'USD')).toBeNull();
+    expect(parseMoneyText('$58', 'CHF')).toBeNull();
+    // The field's own symbol (and a space after it) is still welcome.
+    expect(parseMoneyText('€500', 'EUR')).toBe(50000);
+    expect(parseMoneyText('£ 58.50', 'GBP')).toBe(5850);
+    expect(parseMoneyText(' $1,058.07 ', 'USD')).toBe(105807);
+    expect(parseMoneyText('58', 'CHF')).toBe(5800);
   });
   it('shortens ids and hashes', () => {
     expect(shortId('01JDABCDEFGHJKMNPQRSTVWX7Q')).toBe('01JD…7Q');

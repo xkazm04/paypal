@@ -34,7 +34,7 @@ export function Suit({ title, sub, cards, suit, played, hint, held, h, keys = tr
           const lifted = held?.id === a.id;
           return (
             <li key={a.id} className={lifted ? 'lifted' : undefined}>
-              <button type="button" className={`ar-card${n ? ' played' : ''}${hint === a.id ? ' hint' : ''}`} aria-keyshortcuts={key ?? undefined}
+              <button type="button" className={`ar-card${n ? ' played' : ''}${hint === a.id ? ' hint' : ''}`} data-attack={a.id} aria-keyshortcuts={key ?? undefined}
                 aria-describedby={hint === a.id ? 'ar-start' : undefined}
                 onPointerDown={(e) => h.onDown(a.id, e)} onPointerMove={h.onMove} onPointerUp={h.onUp} onPointerCancel={h.onCancel}
                 onClick={() => { if (!h.wasDrag()) h.onPlay(a); }}>

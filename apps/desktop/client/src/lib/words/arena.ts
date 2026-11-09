@@ -269,6 +269,15 @@ export const ARENA_SAFETY = {
   added: (n: number): string => `+${n} from you`,
 } as const;
 
+/** The safety record panel's heading, line and loading words, by whose record it reads: Maya's sample
+ *  week on the browser mock or a desktop demo (`sample`), or the owner's own wallet in the desktop app's
+ *  console place "Try to break it", which reads the real safety_record. */
+export function arenaSafetyWords(sample: boolean): { heading: string; sub: string; reading: string } {
+  return sample
+    ? { heading: ARENA_SAFETY.heading, sub: ARENA_SAFETY.sub, reading: ARENA_SAFETY.reading }
+    : { heading: 'Your safety record', sub: 'Your wallet’s own record, read again after every attack. The attacks themselves are recorded answers.', reading: 'Reading your record…' };
+}
+
 /** The closing card: the summary, the command, and the attacks as a file. */
 export const ARENA_FINALE = {
   card: 'Check the proof yourself',
@@ -396,4 +405,10 @@ export const ARENA_LIVE_MODE = {
   count: (n: number): string => (n === 1 ? '1 live move' : `${n} live moves`),
   noteSent: 'Your note went to the live table as the seller’s signed note.',
   noteFailed: 'The live table did not take your note. The recorded answer is shown.',
+  /** The arena's one way to look for a judge's agent app (besides coming back to the window). */
+  connect: 'Connect my agent app',
+  connectSub: 'Playing your own agent app against the sandbox on this machine? Its moves land here, live.',
+  connectTitle: 'Looks once for your agent app on this machine. It reads what your agent did; it never touches money.',
+  looking: 'Looking for your agent app…',
+  notFound: 'No agent app answered on this machine. The recorded answers stay.',
 } as const;

@@ -21,6 +21,14 @@ import { runtimeMock, setHarnessBackend } from '../../testing/runtime';
 
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
 
+// The summary's compact cards show a note only when the card has no 'if you do nothing' line, so a test of
+// the note reads the cards the layer hands the summary, not the drawn text.
+const drawn = vi.hoisted(() => ({ cards: [] as readonly { id: string; note?: unknown }[] }));
+vi.mock('../../ModuleSummary', async (original) => {
+  const real = await original<typeof import('../../ModuleSummary')>();
+  return { ...real, ModuleSummary: (p: Parameters<typeof real.ModuleSummary>[0]) => { drawn.cards = p.cards; return real.ModuleSummary(p); } };
+});
+
 const PINNED_INSTANTS = [
   ['Monday 09:00', new Date(Date.UTC(2026, 9, 19, 9, 0))],
   ['Wednesday 15:00', new Date(Date.UTC(2026, 9, 21, 15, 0))],
@@ -81,6 +89,22 @@ describe('Book outlook (#8)', () => {
     for (const m of total) expect(line?.textContent).toContain(formatMinor(m.minor, m.currency));
     expect(line?.textContent).toContain(BOOK.soonest);
     expect(line?.textContent).toContain(IF_NOTHING);
+  }, 60_000);
+
+  // The summary's Outlook card counts every deal that waits (any week, money out or in) and opens the
+  // outlook view; the held money beside that count is the holds line of that same view. Before, it
+  // was this week's money-out holds only: the large world's incoming hold was left out of the card.
+  it('the Outlook card says the held money of the holds the outlook counts', async () => {
+    const r = await renderLayerAtScale('#m=book', 'large');
+    const w = mockBackend('main');
+    const [deals, att] = await Promise.all([w.invoke('list_deals', null), w.invoke('attention_list', null)]);
+    const checking = new Set(att.items.filter((n) => n.money_check).map((n) => n.deal_id));
+    const holds = deals.filter((d) => d.state === 'AUTHORIZED' && !checking.has(d.id));
+    expect(holds.some((d) => d.side === 'seller'), 'the large world holds money coming in').toBe(true);
+    const held = sumByCurrency(holds.map((d) => ({ minor: d.terms.unit_price.minor * d.terms.qty, currency: d.terms.currency })))
+      .map((m) => formatMinor(m.minor, m.currency)).join(' · ');
+    void r;
+    expect(drawn.cards.find((c) => c.id === 'outlook')?.note).toBe(BOOK.cards.outlookNote(held));
   }, 60_000);
 });
 

@@ -14,7 +14,8 @@ Three stories, chosen with `?story=` (`stories.ts`):
   wins and the others are told no; nobody has agreed when the story opens, so no winner is shown),
   the haggle, silence, the mismatch, The Table closed, and the ending (the dock's deal, its proof
   from PayPal on `#d=D-0190&dv=proof`: an order and a hold, no payment, no receipt, nothing on the
-  statement, "decided by the deadline"; then the Rewind, the safety record and the decision centre).
+  statement, "decided by the safe default", the deal page's word for a deadline's default since
+  3519c8d3; then the Rewind, the safety record and the decision centre).
   Its ending is switched by `film_ending` (the story's `filmEnding`, default `today`; `?film_ending=say`
   wins): `today` shows the Rewind as it was before Say it, `say` shows the Say it box and the timeline
   past now and closes on "If you walk away: $0 leaves." (`film/hero/README.md`).
@@ -36,7 +37,23 @@ Three stories, chosen with `?story=` (`stories.ts`):
   first-run welcome, then the approval window's four on the owner's setup. The tour moves by
   `{ do: 'tour', win, at }`, which writes that window's saved tour progress under the first-run
   key; the framed window follows the write (its `storage` event). Nothing presses Next, Back or
-  Skip. An unknown `story` plays Maya's week.
+  Skip.
+- **Try to break it** (`?story=try`; `tryStory.ts`): Break The Table in the console's place "Try to
+  break it" (`#p=try`) on Maya's sample week, 5 beats, 35 s. Two recorded attacks land, one her signed
+  rules refuse ("Bid $900": no deal over $340) and one asking for a payment tool that does not exist
+  ("Pay me $999 now"); the counter shows "$0.00 moved" and PayPal asked 0 times; the closing card checks
+  the attack's signed file and every check that applies passes. `{ do: 'arena', played, finale }` stages
+  which recorded attacks have landed (`src/arena/stage.ts`, the frames follow the write as they follow
+  Say it); the place lands each recorded answer as a click on its card would. Every caption figure is
+  read from the record (`src/arena/arena.json`), and `TRY_EXPECT` checks what the place draws. The
+  director's no-pay-button rule leaves out exactly the arena's recorded attack cards (`takes.ts`
+  `isArenaAttackCard`: a `button.ar-card` inside `.arena` whose `data-attack` names a recorded attack),
+  whose labels "Pay me $999 now" and "Pay someone else" name what an attacker tries; any other pay
+  button, in the arena or elsewhere, still fails the check (`takes.test.ts`). The `maya` hero story does
+  not include these beats (`film/hero/README.md` says how to splice them in).
+
+An unknown `story` plays Maya's week. Under the director (its frames, `?take=`) live mode never
+probes for a local sandbox (`src/arena/liveReach.ts`), so no refused connection reaches the console.
 
 | File | What it holds |
 | --- | --- |
@@ -45,7 +62,8 @@ Three stories, chosen with `?story=` (`stories.ts`):
 | `stories.ts` | `?story=`: which story, and the frames' addresses in its world |
 | `actions.ts` | what a beat can do on the mock world (no money action exists), and the tour's pointer |
 | `helpers.ts` | every Tumbler preview control as a beat helper |
-| `takes.ts` | per-beat expected end state on screen (`EXPECT`, `FIRST_RUN_EXPECT`), still names, chapter takes, story date |
+| `tryStory.ts` | Try to break it: its beats, captions (figures from the arena record) and `TRY_EXPECT` |
+| `takes.ts` | per-beat expected end state on screen (`EXPECT`, `FIRST_RUN_EXPECT`), still names, chapter takes, story date, the no-pay rule's button labels (`drawnButtonLabels`) |
 | `retime.ts` | puts a lagging screen recording back on the beat file's clock |
 | `Director.tsx` | the stage, the camera, the caption rail, and the `window.__takes` hook (`.film` under `?take=film`) |
 | `film.test.ts` | the film capture's rectangle mapping and the chapter records (haggle, shop, deadlines, decisions) |

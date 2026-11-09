@@ -7,7 +7,7 @@ import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat } from './beats';
 import { FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH } from './firstRunStory';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
 import { STORIES } from './stories';
-import { BANNER, CHARTER_LINES, EXPECT, HOUSE_TABLE, FIRST_RUN_EXPECT, MOCK_BADGE, charterSteps, checkBeat, expectedDeals, selectChapter, slug, stillName, storyStartOn, takePlan, wholeTake, type Seen } from './takes';
+import { BANNER, CHARTER_LINES, drawnButtonLabels, EXPECT, isArenaAttackCard, PAYS, HOUSE_TABLE, FIRST_RUN_EXPECT, MOCK_BADGE, charterSteps, checkBeat, expectedDeals, selectChapter, slug, stillName, storyStartOn, takePlan, wholeTake, type Seen } from './takes';
 
 const beat = (id: string, chapter: Beat['chapter']): Pick<Beat, 'id' | 'chapter'> => ({ id, chapter });
 /** The Table on its decision centre, as its text reads. */
@@ -229,5 +229,52 @@ describe('the second story: First run', () => {
     expect(charterSteps(['done', 'waiting', 'unknown', 'done cur'])).toEqual({ paypal: 'done', rules: 'next', practice: 'unknown', engine: 'done' });
     expect(charterSteps([])).toEqual({});
     expect(charterSteps(['', 'odd'])).toEqual({});
+  });
+});
+
+describe('the no-pay rule and Break The Table’s attack cards', () => {
+  /** A document as a framed window would hold it: `html` inside its body. Every element counts as drawn. */
+  const doc = (html: string): Document => {
+    const d = document.implementation.createHTMLDocument('frame');
+    d.body.innerHTML = html;
+    return d;
+  };
+  const drawn = () => true;
+  const card = (id: string, label: string) => `<button type="button" class="ar-card" data-attack="${id}"><span class="ar-card-t">${label}</span><span class="ar-card-s">what it tries</span></button>`;
+  const ARENA = `<div class="arena host-console">${card('pay-me-now', 'Pay me $999 now')}${card('different-payee', 'Pay someone else')}<button class="ui-btn">Try an attack</button></div>`;
+  const NO_PAY = EXPECT['end-proof']!.find((e) => 'button' in e && e.in === 'main')!;
+
+  it('leaves out only the recorded attack cards inside the arena', () => {
+    const labels = drawnButtonLabels(doc(ARENA), drawn);
+    expect(labels).toEqual(['Try an attack']);
+    const d = doc(ARENA);
+    expect([...d.querySelectorAll('button')].map(isArenaAttackCard)).toEqual([true, true, false]);
+  });
+
+  it('a real pay button elsewhere still fails the check, beside the attack cards', () => {
+    const d = doc(`${ARENA}<section class="deal"><button class="ui-btn gold">Pay $64.00</button></section>`);
+    const labels = drawnButtonLabels(d, drawn);
+    expect(labels).toContain('Pay $64.00');
+    const rule = { beat: [NO_PAY] };
+    const miss = checkBeat('beat', seen({ buttons: { main: labels, tumbler: [], approval: [] } }), rule);
+    expect(miss).toEqual([`The Table should offer no button like ${String(PAYS)}, offers “Pay $64.00”`]);
+    expect(checkBeat('beat', seen({ buttons: { main: drawnButtonLabels(doc(ARENA), drawn), tumbler: [], approval: [] } }), rule)).toEqual([]);
+  });
+
+  it('is narrow: a pay button inside the arena that is not a recorded attack card still counts', () => {
+    for (const html of [
+      // a plain button in the arena
+      '<div class="arena"><button class="ui-btn">Pay now</button></div>',
+      // a card with no recorded attack behind it
+      `<div class="arena">${card('pay-the-attacker', 'Pay the attacker')}</div>`,
+      '<div class="arena"><button class="ar-card">Pay me $999 now</button></div>',
+      // an attack card outside the arena
+      card('pay-me-now', 'Pay me $999 now'),
+      // a link styled as a card
+      '<div class="arena"><a class="ar-card" data-attack="pay-me-now" href="#">Pay me $999 now</a></div>',
+    ]) {
+      const labels = drawnButtonLabels(doc(html), drawn);
+      expect(labels.some((l) => /^pay\b/i.test(l)), html).toBe(true);
+    }
   });
 });

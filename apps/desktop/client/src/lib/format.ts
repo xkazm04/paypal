@@ -39,11 +39,14 @@ export function formatMinor(minor: number, currency: Currency, opts: { code?: bo
 const GROUPED = /^\d{1,3}(?:,\d{3})+(?:\.\d*)?$/;
 
 /** "58", "58.", "$ 58", "$1,058.50" -> integer minor units in `currency`; null when it is not an amount
- *  (a comma that is not a thousands group, too many decimals, 10+ whole digits). String arithmetic only:
- *  no float ever touches the amount. The one parser for every owner-typed price. */
+ *  (a comma that is not a thousands group, too many decimals, 10+ whole digits, another currency's
+ *  symbol: "$500" in a EUR field is not 500 EUR). String arithmetic only: no float ever touches the
+ *  amount. The one parser for every owner-typed price. */
 export function parseMoneyText(text: string, currency: Currency): number | null {
   const exp = EXPONENT[currency];
-  const t = text.trim().replace(/^[$€£]\s*/, '');
+  const typed = text.trim();
+  const sym = SYMBOL[currency];
+  const t = sym && typed.startsWith(sym) ? typed.slice(sym.length).trimStart() : typed;
   if (t.includes(',') && !GROUPED.test(t)) return null; // "58,50" is not 5850
   const s = t.replace(/,/g, '');
   const m = exp ? s.match(new RegExp(`^(\\d{1,9})(?:\\.(\\d{0,${exp}}))?$`)) : s.match(/^(\d{1,9})$/);

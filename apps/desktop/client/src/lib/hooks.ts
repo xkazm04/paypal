@@ -59,21 +59,25 @@ export type Mutation<K extends CommandName> = {
   reset: () => void;
 };
 
-/** A command with side effects. Failures are kept as typed state for honest rendering. */
+/** A command with side effects. Failures are kept as typed state for honest rendering. `pending`
+ *  and `error` are the latest run's: a run started again before the last one settled replaces it,
+ *  and the older run still answers its own caller but no longer moves this state. */
 export function useMutation<K extends CommandName>(cmd: K): Mutation<K> {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<WalletError | null>(null);
+  const latest = useRef(0);
   const run = useCallback(
     async (args: ArgsOf<K>, opts?: InvokeOptions) => {
+      const mine = ++latest.current;
       setPending(true);
       setError(null);
       try {
         return await backend().invoke(cmd, args, opts);
       } catch (e) {
-        setError(toWalletError(e));
+        if (mine === latest.current) setError(toWalletError(e));
         return undefined;
       } finally {
-        setPending(false);
+        if (mine === latest.current) setPending(false);
       }
     },
     [cmd],
@@ -91,7 +95,11 @@ const clock = (() => {
   const subs = new Set<() => void>();
   let timer: ReturnType<typeof setInterval> | null = null;
   let offJump: (() => void) | null = null;
-  const tick = () => { now = nowUnix(); void now; subs.forEach((s) => s()); };
+  /** Set while a quiet read's value holds: until the current task ends (a render, with React's
+   *  repeated getSnapshot calls, is one task) or the last countdown that read it goes away, so a
+   *  second boundary inside one render cannot change it. */
+  let held = false;
+  const tick = () => { now = nowUnix(); held = false; subs.forEach((s) => s()); };
   return {
     subscribe(cb: () => void) {
       subs.add(cb);
@@ -101,14 +109,28 @@ const clock = (() => {
         subs.delete(cb);
         if (!subs.size && timer) { clearInterval(timer); timer = null; }
         if (!subs.size && offJump) { offJump(); offJump = null; }
+        // The last countdown left: the next one drawn is a new screen and reads the clock again.
+        if (!subs.size) held = false;
       };
     },
-    // Always the clock itself (whole seconds, so the snapshot is stable within a second): a cached
-    // value from the last tick made a first paint up to a second behind the surfaces that read the
-    // clock directly, so "4 days" showed where they said "3 days 23 h".
-    get: () => (now = nowUnix()),
+    // Always the clock itself (whole seconds): a value cached from the last tick made a first paint
+    // up to a second behind the surfaces that read the clock directly, so "4 days" showed where they
+    // said "3 days 23 h". The read is held for the rest of the task: useSyncExternalStore calls
+    // getSnapshot more than once per render and requires the same value each time ("The result of
+    // getSnapshot should be cached"), which a fresh read failed whenever a second ended between two
+    // calls (seen in the director's takes).
+    get: () => {
+      if (held) return now;
+      now = nowUnix();
+      held = true;
+      queueMicrotask(() => { held = false; });
+      return now;
+    },
   };
 })();
+
+/** The snapshot useNow reads (exported for its tests). */
+export const nowSnapshot = (): number => clock.get();
 
 export function useNow(): number {
   return useSyncExternalStore(clock.subscribe, clock.get, clock.get);
