@@ -6233,39 +6233,53 @@
       "subject": "standards-layered-runtime",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-22",
-      "evaluatedTs": "2026-10-22T04:10:31.503Z",
-      "worker": "cbbd6cdb-deab-4763-82ea-721302fe6a88",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T22:02:54.374Z",
+      "worker": "7d67fd5d-042a-48d5-932d-16154b486dd3",
       "techniques": [
-        {
-          "technique": "backend-parameterised-web-api",
-          "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/console/DemoSwitch.tsx:128 These replaceable callbacks control demo UI behavior; they do not implement a standards-defined guest API over host I/O."
-        },
         {
           "technique": "baseline-plus-extension-tuple",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/console/ModuleSummary.tsx:32 Registration supplies navigation labels, with no guest API baseline or embedder extension entry point."
+          "evidence": "apps/desktop/client/src/windows/main/console/layers/core.tsx:49 defineLayer registers a UI screen for a route; there is no guest context, no baseline standard API set and no outside embedder adding extensions"
+        },
+        {
+          "technique": "backend-parameterised-web-api",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/DemoSwitch.tsx:128 These replaceable callbacks control demo UI behavior; they do not implement a standards-defined guest API over host I/O.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "cli-as-thin-assembler",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/console/Console.tsx:384 The console hosts React screens; it is not the command-line front end of an embeddable language runtime."
+          "evidence": "apps/desktop/client/src/windows/main/console/Console.tsx:384 The console hosts React screens; it is not the command-line front end of an embeddable language runtime.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "crate-per-standards-body",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/console/layers.registry.ts:24 The assembled layers follow wallet functional areas rather than packages asserting external runtime standards."
+          "evidence": "apps/desktop/client/src/windows/main/console/layers.registry.ts:24 The assembled layers follow wallet functional areas rather than packages asserting external runtime standards.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "re-export-preserves-import-path",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/console/route.test.ts:23 The compatibility cases preserve wallet URL routes; no API migration between extras and standards packages was found."
+          "evidence": "apps/desktop/client/src/windows/main/console/route.test.ts:23 The compatibility cases preserve wallet URL routes; no API migration between extras and standards packages was found.",
+          "carriedFrom": "2026-10-22"
         },
         {
           "technique": "status-header-per-api",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/console/ModuleLayer.tsx:85 These modules render application views, with no partially implemented runtime standards package requiring per-API conformance headers."
+          "evidence": "apps/desktop/client/src/windows/main/console/ModuleLayer.tsx:85 These modules render application views, with no partially implemented runtime standards package requiring per-API conformance headers.",
+          "carriedFrom": "2026-10-22"
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/layers/core.tsx:49 This registry installs wallet UI screens, and context and repository searches found no realm, polyfill or cross-runtime constructs establishing the embeddable language-runtime precondition.",
+          "evaluatedAt": "2026-10-22T04:10:31.503Z",
+          "worker": "cbbd6cdb-deab-4763-82ea-721302fe6a88",
+          "reason": "replaced by 7d67fd5d-042a-48d5-932d-16154b486dd3"
         }
       ]
     },
