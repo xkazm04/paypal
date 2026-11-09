@@ -147,6 +147,15 @@ describe('generated client requests and mock gates', () => {
     expect((await approval.invoke('mandate_list', null)).filter((m) => m.payload.id === target.id).map((m) => m.payload.version)).toEqual([target.version + 1]);
   });
 
+  it('band_set refuses a band the wallet would not sign, and signs nothing', async () => {
+    store(buildMockState(NOW));
+    const approval = approvalFor(ID);
+    const token = await approval.invoke('approval_token', null);
+    const before = await approval.invoke('mandate_list', null);
+    await expect(approval.invoke('band_set', { deal_id: ID, floor: null, ceiling: null }, { token })).rejects.toMatchObject({ code: 'REFUSED' });
+    expect(await approval.invoke('mandate_list', null)).toEqual(before);
+  });
+
   it('band_set re-signs the deal\'s own mandate and rebinds the deal to the new version', async () => {
     const state = buildMockState(NOW);
     const d = state.deals.find((d) => d.deal.id === ID)!;

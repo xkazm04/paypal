@@ -710,6 +710,23 @@ async fn a_create_paypal_cannot_find_stays_parked_and_lapses_without_a_second_in
 }
 
 #[tokio::test]
+async fn a_send_confirmed_by_read_back_is_receipted_and_counted_when_paid() {
+    // The answer to the send was lost; the read-back saw it SENT. PAID must still settle the deal:
+    // the confirmation lives in the resolution, not in the operation's own status.
+    let mut r = rig();
+    let id = r.open(1, RescueSource::Paypal).id;
+    r.pp.set(|w| w.cut.push("send"));
+    assert!(r.approve(id, T0).await.is_err());
+    assert!(r.p.rescue_tick(id, T0 + 20).await.unwrap());
+    assert_eq!(r.state(id), DealState::AwaitingApproval);
+    r.pp.pay("PAID");
+    assert!(r.p.rescue_tick(id, T0 + 300).await.unwrap());
+    assert_eq!(r.state(id), DealState::Receipted);
+    assert!(r.p.wallet.ledger.rescue_counted(id).unwrap());
+    assert_eq!(r.writes().len(), 2);
+}
+
+#[tokio::test]
 async fn a_lost_send_is_read_back_and_resent_only_under_its_own_id_on_a_fresh_decision() {
     // PayPal sent it and the answer was lost: read back as sent.
     let mut r = rig();

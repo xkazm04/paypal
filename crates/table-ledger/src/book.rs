@@ -114,6 +114,17 @@ fn compile(query: &BookQuery) -> Result<(String, Vec<Value>), LedgerError> {
             "recovered_sum is not defined on the paypal_calls view",
         ));
     }
+    // One row per call, not per deal: a sum or an average here would count a deal once per call.
+    if query.view == BookView::PaypalCalls
+        && query
+            .metrics
+            .iter()
+            .any(|m| matches!(m, BookMetric::SumAmount | BookMetric::AvgVsMarketPct))
+    {
+        return Err(invalid(
+            "money metrics are not defined on the paypal_calls view",
+        ));
+    }
     let source = match query.view {
         BookView::PaypalCalls => {
             "deals d JOIN paypal_calls p ON p.deal_id=d.id LEFT JOIN receipts r ON r.deal_id=d.id"
@@ -535,8 +546,20 @@ mod tests {
             "subscriptions",
             "reconciliation",
         ] {
-            let q:BookQuery=serde_json::from_value(json!({"view":view,"metrics":["count","sum_amount","avg_vs_market_pct"],"limit":500})).unwrap();
+            let metrics = if view == "paypal_calls" {
+                json!(["count"])
+            } else {
+                json!(["count", "sum_amount", "avg_vs_market_pct"])
+            };
+            let q: BookQuery =
+                serde_json::from_value(json!({"view":view,"metrics":metrics,"limit":500})).unwrap();
             ledger.book_query(&q).unwrap();
+        }
+        // A row per PayPal call: a money metric would count a deal once per call.
+        for metric in ["sum_amount", "avg_vs_market_pct"] {
+            let q: BookQuery =
+                serde_json::from_value(json!({"view":"paypal_calls","metrics":[metric]})).unwrap();
+            assert!(book_query_rejection(&q).is_some(), "{metric}");
         }
         for value in [
             json!({"view":"deals","metrics":[]}),

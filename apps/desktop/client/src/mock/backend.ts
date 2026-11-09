@@ -540,7 +540,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
   }));
   // ?locked=1 starts the window idle-locked, for screenshots of the LOCKED states.
   const forceLocked = params.get('locked') === '1';
-  const isLocked = () => forceLocked || state.settings.locked || nowUnix() - lastPrivileged > IDLE_LOCK_SECONDS;
+  const isLocked = () => forceLocked || state.settings.locked || nowUnix() - lastPrivileged >= IDLE_LOCK_SECONDS;
 
   /** The authority table's gate, in the runtime's order: label, token, idle lock, selected deal. */
   function gate(cmd: CommandName, args: unknown, opts: InvokeOptions | undefined): void {
@@ -777,6 +777,8 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       return null;
     },
     agent_start: ({ deal_id }) => {
+      // engines.rs start_agent: each refusal told as itself, before anything starts.
+      if (state.settings.agents_paused) fail('UNAVAILABLE', 'Agents are paused. Resume them to start one.');
       // engines.rs: a scripted-engine run is a practice run; any other keeps the deal's mode.
       const engine = state.settings.selected_engine;
       const deal = find(deal_id).deal;
@@ -1315,6 +1317,9 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       if (!changed) fail('INVALID', 'no band clause covers this item');
       const version = state.mandates.filter((m) => m.payload.id === base.payload.id).reduce((v, m) => Math.max(v, m.payload.version), 0) + 1;
       const next = { payload: { ...base.payload, version, clauses }, owner_sig: Array.from(fakeHash(`sig:${base.payload.id}:${version}`)) };
+      // As configuration.rs: the wallet signs only rules its own validate() accepts.
+      const bad = mockValidate(next.payload);
+      if (bad) fail('REFUSED', `mandate clause ${bad.clause}: ${bad.reason}`);
       state.mandates = [...state.mandates, next];
       if (d.display.band) d.display = { ...d.display, band: { ...d.display.band, ceiling, floor } };
       transition(deal_id, d.deal.state, { mandate_version: version }, true);
@@ -1653,7 +1658,9 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     for (const d of state.deals) {
       const due = d.display.deadline;
       const to = ON_DEADLINE[d.deal.state];
-      if (due === null || due > now || !to) continue;
+      // A step still being checked with PayPal holds the default: the void could follow a capture
+      // PayPal made (pipeline.rs leaves the hold while the capture is unknown).
+      if (due === null || due > now || !to || d.evidence.money_check) continue;
       const from = d.deal.state;
       d.deal = { ...d.deal, state: to, updated_at: now, decided_by: { type: 'safe_default', deadline: due } };
       d.attention = null;

@@ -198,6 +198,30 @@ describe('authority table (browser mock)', () => {
     expect(seen).toHaveLength(2);
   });
 
+  it('leaves a capture being checked with PayPal alone at its deadline', () => {
+    const main = mockBackend('main');
+    main.world.advance(3 * 86400);
+    expect(main.world.deal('D-0194')!.deal.state).toBe('AUTHORIZED');
+  });
+
+  it('refuses an agent start while agents are paused', async () => {
+    const main = mockBackend('main');
+    const id = main.world.deal('D-0193')!.deal.id;
+    await main.invoke('pause_all_agents', null);
+    await expect(main.invoke('agent_start', { deal_id: id })).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+  });
+
+  it('locks at exactly the idle limit, as auth.rs does', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: 1_800_000_000_000 });
+    try {
+      const main = mockBackend('main');
+      vi.setSystemTime(1_800_000_000_000 + 900_000);
+      expect((await main.invoke('get_settings', null)).locked).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('tells each window what the Rust table says, from the generated audiences', () => {
     // Who hears each event is a row in the Rust authority table; the mock delivers by it.
     const audience: Record<EventName, WindowLabel[]> = EVENT_AUDIENCE;

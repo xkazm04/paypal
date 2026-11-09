@@ -145,7 +145,8 @@ pub(crate) fn project(
                     // The group rule's withdrawal is sent as the agent's signed WITHDRAW.
                     let group =
                         p.kind == HistoryKind::GroupWithdrawn && kind == HistoryKind::WithdrawSent;
-                    if owner_accept || group || p.kind == kind {
+                    // The same fact written twice folds; a refusal under another clause is its own fact.
+                    if owner_accept || group || (p.kind == kind && p.authority == authority) {
                         continue;
                     }
                 }
@@ -204,6 +205,11 @@ pub(crate) fn project(
                         rungs: cited(record, Some(authority), deal_id, &rungs),
                     },
                 );
+            }
+            Row::MoneyAbsent(method) => {
+                if open.get(&deal_id).is_some_and(|o| o.method == method) {
+                    open.remove(&deal_id);
+                }
             }
             Row::MoneyDone {
                 method,
@@ -950,6 +956,30 @@ mod tests {
         assert_eq!(project(&owner, |_, _| Vec::new())[0].rungs, None);
     }
 
+    #[test]
+    fn a_step_paypal_showed_absent_leaves_no_step_behind() {
+        let opened = json!({"operation":"capture","decided_by":{"type":"human","at":90}});
+        let resolved = json!({"operation":"capture","outcome":"absent"});
+        let open = row(1, 100, "money.authorized", opened.clone());
+        let unresolved = project(std::slice::from_ref(&open), |_, _| Vec::new());
+        assert!(matches!(
+            unresolved[0].paypal,
+            HistoryPaypal::Call {
+                outcome: PaypalOutcome::Unknown,
+                ..
+            }
+        ));
+        let steps = project(&[open, row(2, 200, "money.resolved", resolved)], |_, _| {
+            Vec::new()
+        });
+        assert_eq!(steps, Vec::new());
+    }
+    #[test]
+    fn two_refusals_in_one_second_stay_two_steps() {
+        let refused = |seq, clause| row(seq, 100, "intent.refused", json!({"clause":clause}));
+        let steps = project(&[refused(1, 3), refused(2, 5)], |_, _| Vec::new());
+        assert_eq!(steps.len(), 2, "{steps:?}");
+    }
     #[test]
     fn a_money_operation_folds_its_transitions_and_an_unconfirmed_call_says_failed_or_unknown() {
         let policy6 = json!({"type":"policy","clause":6});
