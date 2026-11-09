@@ -1,0 +1,4 @@
+/* ExplainHint (shared/ui/Hint.tsx): the small (i) beside a short line. Tokens only. */
+.ui-hint-i { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; margin-left: 2px; padding: 0; border: 0; background: none; color: var(--teal-l); vertical-align: middle; cursor: pointer; }
+.ui-hint-i > span { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border: 1px solid currentColor; border-radius: 50%; font: italic var(--fw-semibold) var(--fs-small)/1 var(--font); }
+.ui-hint-i:hover, .ui-hint-i[aria-expanded="true"] { color: var(--text); }

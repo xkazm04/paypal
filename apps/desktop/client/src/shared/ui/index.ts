@@ -11,6 +11,7 @@ export * from './story';
 export * from './experiments';
 export { HoldButton, type HoldButtonProps } from './hold';
 export { Why } from './why';
+export { ExplainHint, type ExplainHintProps } from './Hint';
 export { SummaryCard, type SummaryCardProps } from './SummaryCard';
 export { Disclosure } from './Disclosure';
 export { ChromeBackContext, DetailPage, type DetailPageProps } from './DetailPage';

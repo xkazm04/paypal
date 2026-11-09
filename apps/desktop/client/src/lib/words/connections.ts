@@ -19,6 +19,25 @@ export const CONNECTIONS_ANSWER = {
   ifNoKey: 'nothing is saved · PayPal is never called',
 } as const;
 
+/** The short lines of the `?hint=` preview (shared/ui/Hint.tsx); the long text they stand in for is
+ *  unchanged and becomes each Hint's body. */
+export const CONNECTIONS_HINT = {
+  more: 'More about',
+  fold: 'How this works',
+  readyLine: 'Your key is locked in Windows.',
+  readyLabel: 'How your PayPal key is kept',
+  peopleLine: 'Connected with four words, named as they wrote it.',
+  peopleLabel: 'Who is on this list',
+  paypalLine: 'Locked in Windows, never shown here.',
+  paypalLabel: 'Where your keys are kept',
+  engineLine: 'An AI app on this computer. It never touches money.',
+  engineLabel: 'About the agent app',
+  houseLine: 'A practice shop built into the app.',
+  houseLabel: 'About the house seller',
+  payeeLine: 'The short name the other side saves for you.',
+  payeeLabel: 'About your payee name',
+} as const;
+
 export const CONNECTIONS_PAIR = { act: 'Connect a wallet', title: 'Connect with another wallet or the house seller, with four words' } as const;
 
 export const CONNECTIONS_CARD = {

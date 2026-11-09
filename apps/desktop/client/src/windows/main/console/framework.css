@@ -56,6 +56,7 @@
 .ml-crumbs [aria-current] { color: var(--muted); font-weight: var(--fw-medium); }
 .ml-say { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
 .ml-say .cs-title, .ml-vhead .cs-title { margin: 0; }
+.ml-purpose { margin: 0; color: var(--text); font-size: var(--fs-title3); max-width: 48rem; line-height: 1.45; }
 .ml-sub { margin: 0; color: var(--muted); font-size: var(--fs-title3); max-width: 48rem; line-height: 1.45; }
 .ml-setup { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); margin: var(--sp-2) 0 0; color: var(--muted); font-size: var(--fs-small); }
 .ml-setup-btn { height: var(--ctl); padding: 0 var(--sp-4); border: 1px solid var(--gold); border-radius: var(--r-pill); background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold-l); font: var(--fw-semibold) var(--fs-body)/1 var(--font); cursor: pointer; }

@@ -14,7 +14,7 @@ import { clockLabel } from '../../../../../lib/format';
 import { useMutation, useQuery } from '../../../../../lib/hooks';
 import { watchLine } from '../../../../../lib/marketWatch';
 import {
-  CONNECTIONS_ANSWER, CONNECTIONS_CARD, CONNECTIONS_ENGINE, CONNECTIONS_HOUSE, CONNECTIONS_KICKER, CONNECTIONS_PAIR, CONNECTIONS_PAYPAL, CONNECTIONS_PEOPLE, houseWords, KEEP_PRACTICE_AGENT, LATEST_OF, modeWord, NOTICE_WHAT, PRICE_CHECKS_USED_UP, reasonWords,
+  CONNECTIONS_ANSWER, CONNECTIONS_CARD, CONNECTIONS_ENGINE, CONNECTIONS_HINT, CONNECTIONS_HOUSE, CONNECTIONS_KICKER, CONNECTIONS_PAIR, CONNECTIONS_PAYPAL, CONNECTIONS_PEOPLE, houseWords, KEEP_PRACTICE_AGENT, LATEST_OF, modeWord, NOTICE_WHAT, PRICE_CHECKS_USED_UP, reasonWords,
 } from '../../../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../../../shared/honesty';
 import { OwnerKey } from '../../../../../shared/ownerKey';
@@ -29,6 +29,7 @@ import { WhoChip } from '../../rows';
 import { fitHeight, PlaceFrame, type CallLine, type LensCard } from '../settings/frame';
 import { ToApproval } from '../settings/handoff';
 import { PairingDesk } from './PairingDesk';
+import { explained } from './say';
 import '../../../../../shared/ownerKey.css';
 
 const dateLabel = (unix: number) => new Date(unix * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -68,11 +69,17 @@ function Connections({ nav }: { nav: LayerProps['nav'] }) {
 
   const answer = !s ? { title: CONNECTIONS_ANSWER.reading, sub: CONNECTIONS_ANSWER.readingSub }
     : !s.payment_executor_configured ? { title: CONNECTIONS_ANSWER.noKey, sub: CONNECTIONS_ANSWER.noKeySub }
-      : { title: CONNECTIONS_ANSWER.ready(modeWord(s.mode)), sub: CONNECTIONS_ANSWER.readySub };
+      : { title: CONNECTIONS_ANSWER.ready(modeWord(s.mode)), sub: CONNECTIONS_ANSWER.readySub, line: CONNECTIONS_HINT.readyLine };
   const call: CallLine | null = s && !s.payment_executor_configured
     ? { ifNothing: CONNECTIONS_ANSWER.ifNoKey, action: <ToApproval label={<>{CONNECTIONS_PAYPAL.save}<span className="sr-only"> {CONNECTIONS_PAYPAL.forKey(CONNECTIONS_PAYPAL.paypalKey)}</span></>} target="credentials" title={CONNECTIONS_PAYPAL.saveTitle} /> }
     : null;
 
+  // Only the settled "connected" sentence is an explanation; "not saved" says what silence does and stays whole.
+  const said = 'line' in answer ? explained(answer.sub, answer.line, CONNECTIONS_HINT.readyLabel) : answer.sub;
+  const peopleSaid = explained(CONNECTIONS_PEOPLE.sub, CONNECTIONS_HINT.peopleLine, CONNECTIONS_HINT.peopleLabel);
+  const paypalSaid = explained(CONNECTIONS_PAYPAL.sub, CONNECTIONS_HINT.paypalLine, CONNECTIONS_HINT.paypalLabel, <><p>{CONNECTIONS_PAYPAL.sub}</p><p>{CONNECTIONS_PAYPAL.keptIn}</p></>);
+  const engineSaid = explained(CONNECTIONS_ENGINE.sub, CONNECTIONS_HINT.engineLine, CONNECTIONS_HINT.engineLabel);
+  const houseSaid = explained(CONNECTIONS_HOUSE.sub, CONNECTIONS_HINT.houseLine, CONNECTIONS_HINT.houseLabel);
   const picked = engines.data?.find((e) => e.id === s?.selected_engine);
   const engineReady = !!picked?.available;
   const list = cps.data ?? null;
@@ -84,20 +91,19 @@ function Connections({ nav }: { nav: LayerProps['nav'] }) {
       value: !s ? null : s.payment_executor_configured ? CONNECTIONS_PAYPAL.saved : CONNECTIONS_PAYPAL.notSaved,
       note: s ? <>{modeWord(s.mode)} · {CONNECTIONS_PAYPAL.notTested}</> : undefined,
       ifNothing: s && !s.payment_executor_configured ? CONNECTIONS_ANSWER.ifNoKey : undefined,
-      view: { title: CONNECTIONS_PAYPAL.view, sub: CONNECTIONS_PAYPAL.sub, render: () => <PaypalView keyAt={keyAt} marketAt={marketAt} ownerKey={facts.data?.owner_key_id} factsError={facts.error} watch={facts.data?.market_watch ?? []} /> },
+      view: { title: CONNECTIONS_PAYPAL.view, sub: paypalSaid, render: () => <PaypalView keyAt={keyAt} marketAt={marketAt} ownerKey={facts.data?.owner_key_id} factsError={facts.error} watch={facts.data?.market_watch ?? []} /> },
     },
     {
       id: 'engine', label: CONNECTIONS_CARD.engine,
       value: !s || !engines.data ? null : engineReady && s ? CONNECTIONS_ENGINE.valueReady(engineName(s.selected_engine)) : CONNECTIONS_ENGINE.valueOff,
       note: engines.data ? (engineReady ? CONNECTIONS_ENGINE.noteReady : CONNECTIONS_ENGINE.noteOff) : undefined,
-      chip: engines.data && !engineReady ? CONNECTIONS_ENGINE.chipOff : undefined, chipTone: 'dashed',
-      view: { title: CONNECTIONS_ENGINE.view, sub: CONNECTIONS_ENGINE.sub, render: () => <EngineView /> },
+      view: { title: CONNECTIONS_ENGINE.view, sub: engineSaid, render: () => <EngineView /> },
     },
     {
       id: 'house', label: CONNECTIONS_CARD.house,
       value: s ? CONNECTIONS_HOUSE.value[s.house] : null,
       note: s ? <>{CONNECTIONS_HOUSE.note[s.house]} · {s.house_connected ? CONNECTIONS_HOUSE.connected : CONNECTIONS_HOUSE.notConnected}</> : undefined,
-      view: { title: CONNECTIONS_HOUSE.view, sub: CONNECTIONS_HOUSE.sub, render: () => <HouseView house={s?.house} onOpen={() => nav.place('pairing', { pair: 'house' })} /> },
+      view: { title: CONNECTIONS_HOUSE.view, sub: houseSaid, render: () => <HouseView house={s?.house} onOpen={() => nav.place('pairing', { pair: 'house' })} /> },
     },
     {
       id: 'people', label: CONNECTIONS_CARD.people,
@@ -107,11 +113,11 @@ function Connections({ nav }: { nav: LayerProps['nav'] }) {
   ];
 
   return (
-    <PlaceFrame root="ar-connections" place="connections" kicker={CONNECTIONS_KICKER} answer={answer.title} sub={answer.sub} call={call} cards={cards}
+    <PlaceFrame root="ar-connections" place="connections" kicker={CONNECTIONS_KICKER} answer={answer.title} sub={said} call={call} cards={cards}
       action={<Btn kind={call ? 'default' : 'primary'} data-fk="to-pairing" title={CONNECTIONS_PAIR.title} onClick={() => nav.place('pairing')}>{CONNECTIONS_PAIR.act} ›</Btn>}>
       {settings.error && !s ? <WalletNotice error={settings.error} what={NOTICE_WHAT.settings} /> : null}
       <section className="cn-people-sec" aria-label={CONNECTIONS_PEOPLE.view}>
-        <header className="cn-ph"><h2 className="cs-h3">{CONNECTIONS_PEOPLE.view}</h2><span className="dim">{CONNECTIONS_PEOPLE.sub}</span>
+        <header className="cn-ph"><h2 className="cs-h3">{CONNECTIONS_PEOPLE.view}</h2><span className="dim">{peopleSaid}</span>
           {/* A seller opens a table in the approval window (owner configuration › Tables); nothing is paid. */}
           {list?.some((c) => !c.house && c.pairing === 'words_confirmed') ? <ToApproval label={CONNECTIONS_PEOPLE.openTable} kind="default" sm title={CONNECTIONS_PEOPLE.openTableTitle} /> : null}
         </header>
@@ -144,7 +150,7 @@ export function PaypalView({ keyAt, marketAt, ownerKey, factsError, watch }: { k
         [CONNECTIONS_CARD.paypal, <Chip tone="dashed" title={CONNECTIONS_PAYPAL.notTestedTitle}>{CONNECTIONS_PAYPAL.notTested}</Chip>],
         [CONNECTIONS_PAYPAL.relay, s ? (s.relay_available ? CONNECTIONS_PAYPAL.relayOn : CONNECTIONS_PAYPAL.relayOff) : <Chip tone="dashed">{CONNECTIONS_ENGINE.unknown}</Chip>],
       ]} />
-      <p className="st-note">{CONNECTIONS_PAYPAL.keptIn} {CONNECTIONS_PAYPAL.marketWhy}</p>
+      <p className="st-note">{CONNECTIONS_PAYPAL.marketWhy}</p>
       {/* The one key this page shows whole: public, and the anchor for anyone checking a proof file. */}
       <OwnerKey id={ownerKey} error={factsError} cols={4} />
       <p className="st-foot"><Silence text={s?.payment_executor_configured ? CONNECTIONS_PAYPAL.ifSaved : CONNECTIONS_PAYPAL.ifNone} /></p>
@@ -270,7 +276,8 @@ function PersonRow({ c }: { c: CounterpartyDisplay }) {
         <b><WhoChip name={c.display_name} /></b>
         <small>{c.declared_payee ? CONNECTIONS_PEOPLE.paysTo(houseWords(c.declared_payee)) : CONNECTIONS_PEOPLE.noPayee} · {CONNECTIONS_PEOPLE.since(dateLabel(c.first_seen))} · {CONNECTIONS_PEOPLE.deals(c.deals_closed)}</small>
       </span>
-      <Chip tone={pf.tone} title={pf.why}>{pf.text}</Chip>
+      {/* A plain word when all is well (never nothing: a missing mark must not mean trusted); a pill for what is not. */}
+      {c.pairing === 'words_confirmed' ? <span className="dim cn-ok-word" title={pf.why}>{pf.text}</span> : <Chip tone={pf.tone} title={pf.why}>{pf.text}</Chip>}
     </span>
   );
 }

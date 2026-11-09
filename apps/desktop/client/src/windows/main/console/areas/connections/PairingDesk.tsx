@@ -14,9 +14,10 @@ import type { Side } from '@bindings/Side';
 import type { ArgsOf, WalletError } from '../../../../../lib/contract';
 import { clockLabel, formatMoney, shortHash } from '../../../../../lib/format';
 import { useEvent, useMutation, useQuery } from '../../../../../lib/hooks';
-import { PAIR } from '../../../../../lib/words';
+import { CONNECTIONS_HINT, PAIR } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { AnswerBar, Btn, Chip, Field, Icon, Kv, Seg, Silence, useToast } from '../../../../../shared/ui';
+import { explained } from './say';
 import { Handoff, Info } from '../../../setup/common';
 import {
   allTicked, canSubmit, submitBlocker, houseWords, joinCode, mirrorStage, mirrorText, modeLocked, newTicks, pairAnswer, pairPhase, payeeProblem, tickLabel, tickProgress, toggleTick, wizardSteps,
@@ -454,6 +455,7 @@ function HouseChip({ state }: { state: 'unavailable' | 'idle' | 'waking' | 'read
 function Fields({ side, setSide, fixed, payee, setPayee }: { side: Side; setSide: (s: Side) => void; fixed?: boolean; payee: string; setPayee: (s: string) => void }) {
   // The wallet refuses a payee outside its rule before anything starts: say why here, at the field.
   const problem = payeeProblem(payee);
+  const why = explained(PAIR.paidToWhy, CONNECTIONS_HINT.payeeLine, CONNECTIONS_HINT.payeeLabel);
   return (
     <div className="wz-fields">
       <div className="wz-f">
@@ -466,7 +468,7 @@ function Fields({ side, setSide, fixed, payee, setPayee }: { side: Side; setSide
         <span><label htmlFor="pp-payee">{PAIR.paidTo}</label></span>
         <Field id="pp-payee" value={payee} onChange={(e) => setPayee(e.target.value)} placeholder={PAIR.paidToPlaceholder} autoComplete="off" spellCheck={false}
           aria-invalid={problem ? true : undefined} aria-describedby={problem ? 'pp-payee-why' : undefined} />
-        {problem ? <span id="pp-payee-why" className="ui-hint" role="alert">{PAIR.payeeProblem[problem]}</span> : <span className="ui-hint">{PAIR.paidToWhy}</span>}
+        {problem ? <span id="pp-payee-why" className="ui-hint" role="alert">{PAIR.payeeProblem[problem]}</span> : <span className="ui-hint">{why}</span>}
       </div>
     </div>
   );

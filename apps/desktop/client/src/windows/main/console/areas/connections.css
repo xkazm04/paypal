@@ -29,6 +29,7 @@
 .ar-connections .cn-person .cs-who-chip { max-width: 100%; font-weight: var(--fw-semibold); }
 .ar-connections .cn-person .st-rt { flex-direction: row; align-items: baseline; gap: var(--sp-3); }
 .ar-connections .cn-person .st-rt > b { flex: 0 1 auto; min-width: min(9rem, 100%); }
+.ar-connections > details.ui-hint-fold { margin-top: calc(-1 * var(--sp-4)); }
 .ar-connections .le-row { container-type: inline-size; }
 @container (max-width: 28rem) { .ar-connections .cn-person .st-rt > small { display: none; } }
 .ar-connections .cn-person .st-rt > small { flex: 1 1 0; min-width: 0; }

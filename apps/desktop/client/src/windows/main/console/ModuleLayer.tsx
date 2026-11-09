@@ -42,6 +42,8 @@ export type ModuleLayerProps = {
   answer: ReactNode;
   /** Retired: the line above the answer is now the page's breadcrumb row. Accepted, not drawn. */
   kicker?: ReactNode;
+  /** What this module does for the owner, in one permanent line under the answer. */
+  purpose?: ReactNode;
   /** One line under the answer. */
   sub?: ReactNode;
   /** The decision chip. Defaults to the module's own open decisions (World needs); `null` hides it. */
@@ -112,6 +114,7 @@ export function ModuleLayer(p: ModuleLayerProps) {
         <div className="ml-say">
           {crumbs}
           <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{p.answer}</h1>
+          {p.purpose ? <p className="ml-purpose">{p.purpose}</p> : null}
           {p.sub ? <p className="ml-sub">{p.sub}</p> : null}
           {firstRun && !route.view ? <p className="ml-setup"><button type="button" className="ml-setup-btn" onClick={() => nav.setup()}>{MODULE_FINISH_SETUP.label}</button><span>{MODULE_FINISH_SETUP.why}</span></p> : null}
           {call || p.action ? (
