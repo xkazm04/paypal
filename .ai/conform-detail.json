@@ -11485,6 +11485,77 @@
       "worker": "13d89969-495d-46e6-92cd-e40cf34f3915",
       "techniques": [],
       "registryProposal": "The subject's matcher picked this context on 'agent', 'tool' and 'session'. A product's runtime MCP tool surface is the inverse case the golden path itself describes (prompt-assembly), so the use_when grounding should exclude runtime tool servers."
+    },
+    "065d4555-d9ad-478c-b637-3d8eb494f76c/prompt-assembly": {
+      "context": "runtime-actor-and-engines",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:47:24.076Z",
+      "worker": "e66370fb-6d7b-4877-a66c-6ca8ef49184a",
+      "techniques": [
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/engines.rs:308 'Record what was sent, at the send site' says to persist a fingerprint, size and content digest per prompt. Only a playbook name is recorded, and the playbook's compiled-in text can change under the same name. A grep of table-engine also found no prompt digest."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:256 The call site gives the engine typed inputs: a serialized projection or brief plus a Playbook enum. It never concatenates prompt text, and the system layer is chosen by table_engine::system_prompt."
+        },
+        {
+          "technique": "variable-interpolation",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/agent_surface_tests.rs:115 Trust is settled when the input is declared: the task input is a closed typed projection that cannot represent counterparty prose. The test checks that leak strings are absent and that the prompt parses back into AgentProjection."
+        },
+        {
+          "technique": "context-reachability",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:255 The injected table is reachable material (the same projection table_view returns), so it saves tool calls and cannot disagree with what the agent would fetch itself."
+        },
+        {
+          "technique": "context-ownership-regimes",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:131 The engines are external agent harnesses (claude-code, codex-cli) that hold their own transcript. The runtime sends only the opening job and never edits or compacts history, which matches the agent-held regime."
+        },
+        {
+          "technique": "pinned-prompt-clock",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/engines.rs:263 The clock is read once per run into the one-shot task layer, not into a cached system layer that is re-sent across a long session."
+        }
+      ]
+    },
+    "bd6a5a80-3506-4c9d-bd06-06e18f3dd015/prompt-assembly": {
+      "context": "native-shell",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:47:24.076Z",
+      "worker": "e66370fb-6d7b-4877-a66c-6ca8ef49184a",
+      "techniques": []
+    },
+    "7e6e9781-1ef3-439c-ae2d-00619d2cb1d9/prompt-assembly": {
+      "context": "console-navigation-and-lists",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:47:24.076Z",
+      "worker": "e66370fb-6d7b-4877-a66c-6ca8ef49184a",
+      "techniques": []
+    },
+    "ed618215-bf0a-4dfc-8c2c-3c3a805321b1/prompt-assembly": {
+      "context": "prototype-dial-shell-and-design-system",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:47:24.076Z",
+      "worker": "e66370fb-6d7b-4877-a66c-6ca8ef49184a",
+      "techniques": []
     }
   }
 }

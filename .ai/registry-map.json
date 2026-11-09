@@ -5632,8 +5632,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/src-tauri/src/native.rs:51 The shell composes no prompt bytes. It hands the assistant door a pinned spec built in table-client. Searching apps/desktop/src-tauri and crates/table-os for system_prompt, systemPrompt, compaction and contextWindow found nothing. The 'prompt' hits are the OS credential prompt and this doc comment about the pinned assistant spec.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "mcp-tools",
@@ -6363,8 +6367,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "prototype/shared/shell.js:2 This is a static HTML/JS prototype gallery on sandbox fixtures with no model calls. Searching prototype/ for system_prompt, systemPrompt, compaction and contextWindow found nothing. The only 'prompt' and 'LLM' mentions are UI copy saying the core, not the prompt, enforces the band.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "eval-harness",
@@ -7379,8 +7387,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "deviation",
+          "priorNotApplicable": 8,
+          "evidence": "crates/table-runtime/src/engines.rs:308 The run.start audit is the only call record the runtime writes for an agent job. It stores the engine, the mode and the playbook's enum name, but no digest or size of the opening prompt or the playbook text actually sent, so 'what was this run told?' cannot be answered from artifacts once prompts/*.md changes between builds.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "fleet-orchestration",
@@ -10155,8 +10167,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/windows/main/console/findIndex.ts:1 These are client list and wayfinding surfaces (a local substring index, windowed rows, crumbs) and never build a model prompt. Searching the console directory for system_prompt, systemPrompt, compaction and contextWindow found nothing.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-memory",
