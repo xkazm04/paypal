@@ -120,6 +120,28 @@ describe('useWindowedRows', () => {
     expect(document.querySelector('[data-focused]')?.getAttribute('data-row')).toBe('R3');
   });
 
+  it('moves real focus to the row now at its place when the focused row is removed, never to <body>', async () => {
+    const base = rowsOf(30);
+    const r = render(<List rows={base} />);
+    await frame();
+    act(() => { screen.getByText('R row 2').focus(); });
+    expect(focusedRow()).toBe('R2');
+    r.rerender(<List rows={base.filter((x) => x.id !== 'R2')} />);
+    await frame();
+    expect(focusedRow()).toBe('R3');
+  });
+
+  it('does not pull focus into the list when a row is removed while focus is elsewhere', async () => {
+    const base = rowsOf(30);
+    const r = render(<><button>outside</button><List rows={base} /></>);
+    await frame();
+    act(() => { screen.getByText('R row 2').focus(); });
+    act(() => { screen.getByText('outside').focus(); });
+    r.rerender(<><button>outside</button><List rows={base.filter((x) => x.id !== 'R2')} /></>);
+    await frame();
+    expect(document.activeElement?.textContent).toBe('outside');
+  });
+
   it('keeps a focused row rendered after it is scrolled far out of view', async () => {
     render(<List rows={rowsOf(1000)} />);
     await frame();

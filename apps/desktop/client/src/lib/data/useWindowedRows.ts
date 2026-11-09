@@ -14,7 +14,7 @@
 // render. Tests stub the scroll element's size (offsetHeight/offsetWidth, which the virtualizer
 // reads) and ResizeObserver; see useWindowedRows.test.tsx. In the shell the real sizes are used.
 import { defaultRangeExtractor, useVirtualizer, type Range } from '@tanstack/react-virtual';
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 
 export const WINDOW_OVERSCAN = 8;
 
@@ -62,6 +62,7 @@ export function useWindowedRows<T>(o: WindowedRowsOptions<T>): WindowedRows<T> {
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
   const lastIndex = useRef(0);
   const wantFocus = useRef(false);
+  const droppedFocus = useRef(false);
   const nodes = useRef(new Map<string, HTMLElement>());
 
   const keys = useMemo(() => rows.map(getKey), [rows, getKey]);
@@ -90,6 +91,15 @@ export function useWindowedRows<T>(o: WindowedRowsOptions<T>): WindowedRows<T> {
     getItemKey: (i) => keys[i] ?? i,
     overscan,
     rangeExtractor,
+  });
+
+  // The element that held DOM focus went away with its row (a refetch removed it): focus moves to
+  // the row now at its place, and only if focus really fell to <body>, not if it moved elsewhere.
+  useLayoutEffect(() => {
+    if (!droppedFocus.current) return;
+    droppedFocus.current = false;
+    if (effectiveKey === null || document.activeElement !== document.body) return;
+    nodes.current.get(effectiveKey)?.focus({ preventScroll: true });
   });
 
   // Focus follows the focused key after it is rendered, but only if the list had focus: a refetch
@@ -146,7 +156,11 @@ export function useWindowedRows<T>(o: WindowedRowsOptions<T>): WindowedRows<T> {
     return {
       ref: (el) => {
         if (el) nodes.current.set(item.key, el);
-        else nodes.current.delete(item.key);
+        else {
+          // Read before the node leaves the DOM; a plain re-render clears this in the layout effect.
+          if (nodes.current.get(item.key) === document.activeElement) droppedFocus.current = true;
+          nodes.current.delete(item.key);
+        }
         if (measure && el) measureEl(el);
       },
       tabIndex: isFocused ? 0 : -1,
