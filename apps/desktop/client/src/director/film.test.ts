@@ -23,7 +23,7 @@ import { pricesOf, RECORDED } from '../mock/haggle';
 
 // The Signet film is cut from several sources (film/signet/capture.mjs): director stories, and adapters
 // of its own that drive the real app, the sandbox and recorded pages, which no story knows.
-const SIGNET_ADAPTER_BEATS = ['live-home', 'live-say', 'live-sign', 'live-pair', 'sandbox-order', 'sandbox-refused', 'arena-note', 'proof-tamper', 'montage-modules'];
+const SIGNET_ADAPTER_BEATS = ['live-home', 'live-say', 'live-sign', 'live-pair', 'sandbox-order', 'sandbox-refused', 'arena-note', 'proof-tamper', 'module-spend', 'module-counter', 'module-rescue', 'module-book'];
 const SIGNET_BEATS = [...[STORIES.watch, STORIES.say, STORIES.maya].flatMap((s) => s.beats.map((b) => b.id)), ...SIGNET_ADAPTER_BEATS];
 
 const DAN = pricesOf(RECORDED.dan);

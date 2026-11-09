@@ -1,5 +1,5 @@
 // The Spend layer (rebuild WP3a): what the owner's agents bought. One answer ("did my agents buy
-// anything I need to look at?"), the "Your call" chip, and up to four cards: Needs you, Recent
+// anything I need to look at?"), the "Your call" chip (the way into Needs you), and three cards: Recent
 // purchases, Rule check, Rules in force. Each opens a nested view: a searchable list and the picked
 // purchase beside it. Main never moves money: paying and releasing a hold hand off to the approval
 // window (`approval_open`); letting a purchase lapse and withdrawing it move no money. Per-deal proof
@@ -27,7 +27,7 @@ import { Amount, Countdown, Row1 } from '../../rows';
 import { SplitView, usePick } from '../tables/parts';
 import { GateView } from './Gate';
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
-import { ClauseList, PurchaseDecision, PurchasePane, type Lane } from './Purchase';
+import { ClauseList, PurchaseDecision, PurchasePane, PurchasePath, type Lane } from './Purchase';
 
 const selModuleOf = (w: World) => w.moduleOfDeal;
 const selDisplay = (w: World) => w.display;
@@ -48,7 +48,7 @@ const ALL_SORTS: readonly ListSort<Lane>[] = [
 ];
 
 /** The answer line and the sentence under it, from the purchases and the attention queue. */
-function answerOf(deals: readonly Deal[], needs: ReadonlyArray<{ d: Deal; need: AttentionItem }>, hasRules: boolean, title: (d: Deal) => string): { answer: string; sub?: ReactNode } {
+function answerOf(deals: readonly Deal[], needs: ReadonlyArray<{ d: Deal; need: AttentionItem }>, hasRules: boolean, title: (d: Deal) => string, path: ReactNode): { answer: string; sub?: ReactNode } {
   const needIds = new Set(needs.map((x) => x.d.id));
   const tally = { paid: 0, refused: 0, voided: 0, other: 0 };
   for (const d of deals) {
@@ -67,7 +67,7 @@ function answerOf(deals: readonly Deal[], needs: ReadonlyArray<{ d: Deal; need: 
     const held = needs.every((x) => x.d.state === 'AUTHORIZED' && !x.need.money_check);
     return {
       answer: needs.length === 1 ? SPEND.oneNeeds(title(lead.d), formatMinor(t.minor, t.currency)) : SPEND.manyNeed(needs.length),
-      sub: held ? <ExplainHint label={SPEND.heldLabel} line={`${SPEND.heldLine}${rest ? ` ${rest}` : ''}`}>{SPEND.heldSub}</ExplainHint> : rest || undefined,
+      sub: held ? <ExplainHint label={SPEND.heldLabel} line={path ?? `${SPEND.heldLine}${rest ? ` ${rest}` : ''}`}>{SPEND.heldSub}{path && rest ? ` ${rest}` : ''}</ExplainHint> : rest || undefined,
     };
   }
   if (!hasRules) return { answer: SPEND.noRules, sub: SPEND.noRulesSub };
@@ -129,7 +129,7 @@ export function SpendLayer({ nav }: LayerProps) {
 
   const firstNeed = needs[0]?.need;
   const ifNothing = firstNeed ? silenceParts(firstNeed.on_silence).head : null;
-  const yourCall: YourCall | null = needs.length ? { count: needs.length, ifNothing, onOpen: () => route.open('need', 'need') } : null;
+  const yourCall: YourCall | null = needs.length ? { count: needs.length, ifNothing, onOpen: () => route.open('need', 'your-call') } : null;
 
   if (!all) {
     return (
@@ -140,10 +140,9 @@ export function SpendLayer({ nav }: LayerProps) {
 
   const refused = deals.filter((d) => outcomeOf(d).kind === 'refused').length;
   const paid = deals.filter((d) => outcomeOf(d).kind === 'paid').length;
-  const { answer, sub } = answerOf(deals, needs, !!m || !mq.data, (d) => tablesClip(display(d).title));
+  const { answer, sub } = answerOf(deals, needs, !!m || !mq.data, (d) => tablesClip(display(d).title), needLanes.length === 1 && needLanes[0] ? <PurchasePath lane={needLanes[0]} /> : null);
   const ruleCount = m?.payload.clauses.length ?? null;
   const cards: ModuleCard[] = [];
-  if (needs.length) cards.push({ id: 'need', view: 'need', label: SPEND_VIEWS.need, value: SPEND.needValue(needs.length), note: SPEND.needNote, ifNothing });
   cards.push({ id: 'week', view: 'week', label: SPEND_VIEWS.week, value: SPEND.recentValue(deals.length), note: SPEND.recentNote(paid, deals.length > 0) });
   cards.push({ id: 'gate', view: 'gate', label: SPEND_VIEWS.gate, value: SPEND.gateValue(refused), note: SPEND.gateNote(refused) });
   cards.push({ id: 'rules', view: 'rules', label: SPEND_VIEWS.rules, value: mq.data ? SPEND.rulesValue(ruleCount) : '—', note: SPEND.rulesNote,
@@ -160,7 +159,7 @@ export function SpendLayer({ nav }: LayerProps) {
     const at = l.deal.created_at;
     return (
       <Row1 className={`${need ? 'needs ' : ''}${picked ? 'picked' : ''}`.trim() || undefined} title={text}
-        note={<span className={`sp-rl ${line.kind}`}>{line.text}</span>}>
+        note={line.kind === 'pass' ? <span /> : <span className={`sp-rl ${line.kind}`}>{line.text}</span>}>
         <span className="c-who">
           <span className="dot" aria-hidden="true" />
           <b title={disp.title}>{disp.title}</b>
@@ -212,7 +211,10 @@ export function SpendLayer({ nav }: LayerProps) {
       views={{
         need: {
           title: SPEND_VIEWS.need, sub: needs.length ? SPEND.needSub(needs.length) : undefined,
-          render: () => <SplitView label={SPEND.needList} count={needLanes.length} list={list(needLanes, SPEND.needList, pickedNeed, pickNeed, SPEND.needEmpty)} pane={pane(pickedNeed)} />,
+          // One decision needs no list beside it: the decision takes the page.
+          render: () => needLanes.length === 1
+            ? <div className="sp-solo"><section className="tr-pane" aria-label={SPEND.needList}>{pane(pickedNeed)}</section></div>
+            : <SplitView label={SPEND.needList} count={needLanes.length} list={list(needLanes, SPEND.needList, pickedNeed, pickNeed, SPEND.needEmpty)} pane={pane(pickedNeed)} />,
         },
         week: {
           title: SPEND_VIEWS.week, sub: SPEND.allSub(deals.length),

@@ -19,10 +19,10 @@ describe('Spend at scale', () => {
     const r = await renderLayerAtScale({ level: 'module', module: 'spend' }, scale);
     expect(r.layer.dataset.layer).toBe('spend');
     expectLayerHealthy(r);
-    expect(r.layer.querySelectorAll('.ml-cards .ui-sumcard').length).toBe(4);
-    // A purchase waits in both worlds: the chip and the card say what silence does.
+    expect(r.layer.querySelectorAll('.ml-cards .ui-sumcard').length).toBe(3);
+    // A purchase waits in both worlds: the chip is the way in, and says what silence does.
     expect(r.layer.querySelector('[data-fk="your-call"]')).toBeTruthy();
-    expect(r.layer.querySelector('.ui-sumcard.needs')?.textContent).toMatch(/If you do nothing/);
+    expect(r.layer.querySelector('.ml-silence')?.textContent).toMatch(/If you do nothing/);
     expect(reads(r, 'deal_evidence')).toBe(0);
   }, 60_000);
 

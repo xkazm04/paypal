@@ -56,3 +56,32 @@
 .mod-spend .sp-gatefoot .ui-hint { margin: 0; }
 .mod-spend .sp-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); color: var(--muted); }
 .mod-spend .sp-legend .g { display: inline-block; width: 1.4rem; text-align: center; font-weight: var(--fw-bold); color: var(--text); }
+
+/* the path: asked, checked, held, then paid or released (only `paid` is ever green) */
+.mod-spend .sp-pathline { margin: 0; }
+.mod-spend .ml-sub:has(.sp-path) { display: flex; align-items: center; gap: var(--sp-2); }
+.mod-spend .sp-path { display: inline-flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); font-size: var(--fs-small); color: var(--muted); }
+.mod-spend .sp-path .s { display: inline-flex; align-items: center; gap: var(--sp-1); white-space: nowrap; }
+.mod-spend .sp-path .arrow { margin-right: var(--sp-1); color: var(--dim); }
+.mod-spend .sp-path .g { font-weight: var(--fw-bold); }
+.mod-spend .sp-path .todo { color: var(--dim); }
+.mod-spend .sp-path .no { color: var(--red-l); }
+.mod-spend .sp-path .paid { color: var(--ok); font-weight: var(--fw-semibold); }
+.mod-spend .sp-path .now { color: var(--gold-l); font-weight: var(--fw-semibold); }
+.mod-spend .sp-path .next { color: var(--text); font-weight: var(--fw-semibold); }
+
+/* the summary: the decision first, three calm doors beside it */
+.mod-spend .ml-head .ml-cards { grid-template-columns: minmax(8rem, 10rem); }
+.mod-spend .ml-say .cs-title { max-width: none; overflow-wrap: normal; }
+.mod-spend .ml-call { background: var(--gold); color: var(--on-gold); border-color: var(--gold); font-weight: var(--fw-semibold); }
+.mod-spend .ml-call:hover { background: var(--gold-l); }
+.mod-spend .ml-call .led { background: var(--on-gold); box-shadow: none; }
+.mod-spend .lt-item:has(.row1.needs) { background: color-mix(in srgb, var(--gold) 9%, transparent); }
+
+/* one decision alone takes the page; a list beside a pane gives the name the room */
+.mod-spend .sp-solo { max-width: 46rem; }
+.mod-spend .tr-split { grid-template-columns: minmax(26rem, 1fr) minmax(0, 1fr); }
+@container trlist (min-width: 31.01rem) {
+  .mod-spend .tr-list .row1:not(.sp-lane) { grid-template-columns: minmax(0, 1fr) 7rem 5.25rem 7rem; }
+  .mod-spend .tr-list .row1:not(.sp-lane) .cs-who-chip { display: none; }
+}

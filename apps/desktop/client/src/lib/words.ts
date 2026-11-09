@@ -1009,7 +1009,9 @@ export const stripLabel = (deals: number, needs: number): string => `Your deals:
 
 /** The waiting layer. */
 export const WAITING_KICKER = 'What needs you · soonest first';
-export const waitingTitle = (n: number): string => (n === 1 ? 'One thing waits for you. It moves no money while it waits.' : `${n} things wait for you. None of them moves money while it waits.`);
+export const waitingTitle = (n: number): string => (n === 1 ? 'One thing waits for you.' : `${n} things wait for you.`);
+/** The line under the waiting title: what waiting costs. */
+export const waitingSub = (n: number): string => (n === 1 ? 'It moves no money while it waits.' : 'None of them moves money while it waits.');
 export const WAITING_EMPTY = 'Nothing waits for you. If you do nothing, no money moves.';
 export const WAITING_FILTER = 'Show';
 export const EVERY_MODULE = 'Every module';

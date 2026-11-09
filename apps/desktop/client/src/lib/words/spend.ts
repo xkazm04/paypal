@@ -45,6 +45,24 @@ export const SPEND = {
   rulesValue: (n: number | null): string => (n === null ? 'None signed' : plural(n, 'rule')),
   rulesChip: 'Purchases refused',
   rulesNote: 'Signed by you, changed in the approval window',
+  // where a purchase is: asked, checked, held, then paid or released
+  pathLabel: 'Where this purchase is',
+  path: {
+    asked: 'Agent asked',
+    rulesOk: 'Rules passed',
+    rulesAsk: 'Rules asked you',
+    rulesOther: 'Other rules apply',
+    rulesNo: 'Refused by your rules',
+    held: 'On hold at PayPal, not paid',
+    heldDone: 'Held at PayPal',
+    holdTodo: 'Hold at PayPal',
+    neverAsked: 'PayPal never asked',
+    you: 'You pay or release',
+    endTodo: 'Paid or released',
+    paid: 'Paid',
+    released: 'Released, nothing paid',
+    nothing: 'Nothing paid',
+  },
   // explanation
   whyTitle: 'How buying works',
   why: [

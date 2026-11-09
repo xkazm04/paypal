@@ -12,7 +12,7 @@ import { APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, receiptWord, reconWord, RUL
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, DecisionCard, Disclosure, ExplainHint, Hint, Kv, Section, Sheet, type DecisionOption } from '../../../../../shared/ui';
 import { amountNote, amountTone, canWithdraw, dealTotal, decidedBy } from '../../../logic';
-import { CLAUSE_NO, columnValue, outcomeOf, reachedPaypal, type Cell, type GateColumn } from '../../../modules/spend/gate';
+import { CLAUSE_NO, columnValue, outcomeOf, reachedPaypal, ruleLine, type Cell, type GateColumn, type Outcome, type RuleLine } from '../../../modules/spend/gate';
 import { LockGlyph } from '../../../ui';
 import { useLocked, type Display } from '../../../world';
 import { useLayerNav } from '../../layers';
@@ -32,6 +32,41 @@ export type Lane = {
 };
 
 const cap = (s: string) => `${s.charAt(0).toUpperCase()}${s.slice(1)}`;
+
+export type PathStep = { key: string; text: string; state: 'done' | 'now' | 'next' | 'todo' | 'no' | 'paid' };
+
+/** Where a purchase is, in the order money meets it: asked, checked by the rules, held at PayPal, then
+ *  paid or released. A hold is never drawn as paid: only the last step of a paid purchase is `paid`, and
+ *  a purchase with no PayPal hold on record does not claim one. Pure. */
+export function pathSteps(kind: Outcome['kind'], rule: RuleLine['kind'], o: { checking?: boolean; hadHold?: boolean } = {}): PathStep[] {
+  const w = SPEND.path;
+  const asked: PathStep = { key: 'asked', text: w.asked, state: 'done' };
+  if (kind === 'refused') return [asked, { key: 'rules', text: w.rulesNo, state: 'no' }, { key: 'hold', text: w.neverAsked, state: 'todo' }, { key: 'end', text: w.nothing, state: 'todo' }];
+  const rules: PathStep = { key: 'rules', text: rule === 'pass' ? w.rulesOk : rule === 'ask' ? w.rulesAsk : w.rulesOther, state: rule === 'unknown' ? 'todo' : 'done' };
+  const heldDone: PathStep[] = o.hadHold ? [{ key: 'hold', text: w.heldDone, state: 'done' }] : [];
+  if (kind === 'paid') return [asked, rules, ...heldDone, { key: 'end', text: w.paid, state: 'paid' }];
+  if (kind === 'voided') return [asked, rules, ...heldDone, { key: 'end', text: w.released, state: 'todo' }];
+  if (o.checking) return [asked, rules, { key: 'hold', text: SPEND.checking, state: 'now' }, { key: 'end', text: w.endTodo, state: 'todo' }];
+  if (kind === 'held') return [asked, rules, { key: 'hold', text: w.held, state: 'now' }, { key: 'end', text: w.you, state: 'next' }];
+  return [asked, rules, { key: 'hold', text: w.holdTodo, state: 'todo' }, { key: 'end', text: w.endTodo, state: 'todo' }];
+}
+
+const PATH_GLYPH: Record<PathStep['state'], string> = { done: '✓', now: '■', next: '◆', todo: '·', no: '✕', paid: '✓' };
+
+/** A purchase's path as one short line of steps. */
+export function PurchasePath({ lane, checking }: { lane: Lane; checking?: boolean }) {
+  const line = lane.cols.length ? ruleLine(lane.cells, lane.cols).kind : 'unknown';
+  return (
+    <span className="sp-path" role="list" aria-label={SPEND.pathLabel}>
+      {pathSteps(outcomeOf(lane.deal).kind, line, { checking, hadHold: !!lane.deal.paypal.authorization }).map((s, i) => (
+        <span key={s.key} role="listitem" className={`s ${s.state}`}>
+          {i ? <span className="arrow" aria-hidden="true">→</span> : null}
+          <span className="g" aria-hidden="true">{PATH_GLYPH[s.state]}</span>{s.text}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 /** Why the owner is asked, in a sentence: the rule the attention item names, in plain words. Without
  *  one, a purchase waits because no rule can pay for it (Rust refuses Policy authority for every
@@ -191,6 +226,7 @@ export function PurchasePane({ lane, disp, need, who, decision, onRule, note }: 
   const p = d.paypal;
   const refs = [p.order && SPEND.refOrder(p.order), p.authorization && SPEND.refHold(p.authorization), p.capture && SPEND.refPayment(p.capture)].filter((x): x is string => !!x);
   const held = out.kind === 'held' && !need?.money_check;
+  const rule = cols.length ? ruleLine(lane.cells, cols).kind : 'unknown';
   return (
     <div className="sp-pane">
       <header className="tr-phead">
@@ -199,16 +235,18 @@ export function PurchasePane({ lane, disp, need, who, decision, onRule, note }: 
         <span className="ui-spacer" />
         <Btn sm kind="plain" onClick={() => nav.deal(d.id)} title={TABLES_TRADE.openDealTitle}>{TABLES_TRADE.openDeal}</Btn>
       </header>
-      {note ? <p className="tr-note">{note}</p> : null}
+      <p className="sp-pathline"><PurchasePath lane={lane} checking={!!need?.money_check} /></p>
+      {note && rule !== 'pass' ? <p className="tr-note">{note}</p> : null}
       {decision}
-      <div className="sp-bigamt"><Amount money={t} tone={amountTone(d)} /><span className="tx-dim">{amountNote(d)}</span></div>
+      {/* The decision card says the amount, the deadline and what silence does: not said twice. */}
+      {decision ? null : <div className="sp-bigamt"><Amount money={t} tone={amountTone(d)} /><span className="tx-dim">{amountNote(d)}</span></div>}
       <Kv items={[
         [SPEND.paying, who],
         [SPEND.asked(null), `${d.created_at ? clockLabel(d.created_at) : '—'}${lane.slot ? SPEND.byAgent(lane.slot) : ''}`],
-        [SPEND.decidedBy, <span className={by.who === 'none' ? 'tx-dim' : undefined} title={by.why}>{cap(by.text)}</span>],
-        held && disp.deadline ? [SPEND.timeLeft, <><Countdown deadline={disp.deadline} />{SPEND.toPay}</>] : null,
-        need ? [SPEND.ifWait, need.on_silence] : null,
-        [SPEND.item, <>{d.terms.qty > 1 ? `${d.terms.qty} × ` : ''}{disp.title}</>],
+        decision ? null : [SPEND.decidedBy, <span className={by.who === 'none' ? 'tx-dim' : undefined} title={by.why}>{cap(by.text)}</span>],
+        !decision && held && disp.deadline ? [SPEND.timeLeft, <><Countdown deadline={disp.deadline} />{SPEND.toPay}</>] : null,
+        !decision && need ? [SPEND.ifWait, need.on_silence] : null,
+        d.terms.qty > 1 ? [SPEND.item, <>{d.terms.qty} × {disp.title}</>] : null,
         [SPEND.proof, <ProofPills deal={d} />],
       ]} />
       <Section title={m ? SPEND.rulesOf(rulesName(m.agent)) : SPEND.yourRules}>
