@@ -9,11 +9,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import { useQuery } from '../../../../../lib/hooks';
-import { headlineWords, LATEST_OF, OPEN_THE_DEAL, TABLES, TABLES_TRADE, TABLES_VIEWS, TABLES_WATCH, tablesClip, tablesItem, tablesShortWho } from '../../../../../lib/words';
+import { headlineWords, LATEST_OF, OPEN_THE_DEAL, READING_WHAT, TABLES, TABLES_TRADE, TABLES_VIEWS, TABLES_WATCH, tablesClip, tablesItem, tablesShortWho } from '../../../../../lib/words';
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import type { GridColumn } from '../../../../../shared/DataGrid';
-import { WalletNotice } from '../../../../../shared/honesty';
-import { Btn, Chip, ExplainHint, useLayer, useToast } from '../../../../../shared/ui';
+import { Btn, Chip, ExplainHint, Placeholder, ReadFailed, useLayer, useToast } from '../../../../../shared/ui';
 import { silenceParts, shortTitle } from '../../../home/model';
 import { amountTone, dealTotal, isLive, isOwnerAccept, isSettled } from '../../../logic';
 import { bandOf, fenceKey, LIMIT_WORD, sameBand, short, type BandDraft } from '../../../modules/tables/ladder';
@@ -190,8 +189,9 @@ export function TablesLayer({ nav }: LayerProps) {
 
   if (!all) {
     return (
-      <ModuleLayer module="tables" kicker={TABLES.kicker} answer={dq.error ? TABLES_TRADE.dealsWhat : TABLES.reading} yourCall={null}
-        empty={dq.error ? <WalletNotice error={dq.error} what={TABLES_TRADE.dealsWhat} message={TABLES_TRADE.unread} /> : TABLES.reading} />
+      <ModuleLayer module="tables" kicker={TABLES.kicker} answer={dq.error ? TABLES_TRADE.dealsWhat : TABLES.reading} yourCall={null}>
+        {dq.error ? <ReadFailed error={dq.error} what={TABLES_TRADE.dealsWhat} message={TABLES_TRADE.unread} onRetry={dq.refetch} /> : <Placeholder what={READING_WHAT.deals} shape="cards" />}
+      </ModuleLayer>
     );
   }
 
@@ -264,7 +264,7 @@ export function TablesLayer({ nav }: LayerProps) {
           actions: <ShopAroundButton groups={groupList} deals={deals} display={display} onGrouped={() => void groups.refetch()} onToast={say} />,
           render: () => (
             <>
-              {groups.error ? <WalletNotice error={groups.error} what={TABLES.groupsWhat} message={TABLES_TRADE.unread} /> : null}
+              {groups.error ? <ReadFailed error={groups.error} what={TABLES.groupsWhat} message={TABLES_TRADE.unread} onRetry={groups.refetch} /> : null}
               <ShopView groups={groupList} deals={deals} display={display} />
             </>
           ),

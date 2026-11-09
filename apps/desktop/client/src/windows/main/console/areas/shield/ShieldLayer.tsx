@@ -8,11 +8,10 @@
 import { useMemo } from 'react';
 import { LATEST_OF, OPEN_THE_DEAL, SHIELD, SHIELD_VIEWS_TITLE, shieldReleased, shieldRuleWord, shieldWord } from '../../../../../lib/words';
 import type { GridColumn } from '../../../../../shared/DataGrid';
-import { WalletNotice } from '../../../../../shared/honesty';
-import { Chip, ExplainHint, Icon, Silence } from '../../../../../shared/ui';
+import { Chip, ExplainHint, Icon, Placeholder, ReadFailed, Silence } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
-import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
+import { useDeals } from '../../../world';
 import { useLayerNav, type LayerProps } from '../../layers';
 import { fewRows, ListEngine } from '../../ListEngine';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
@@ -112,12 +111,14 @@ function latestOf(s: ShieldWorld, open: (v: string) => void, deal: (id: string) 
 
 export function ShieldLayer({ nav }: LayerProps) {
   const s = useShieldWorld();
+  // The shield is read from the world's deals: Try again asks for them again.
+  const dealsQ = useDeals();
   const route = useModuleRoute();
   if (!s.loaded) {
     return (
       <div className="ar-shield">
         <ModuleLayer module="shield" answer={SHIELD.title} yourCall={null}>
-          {s.error ? <WalletNotice error={s.error} what={SHIELD.ledgerWhat} /> : <Loading what={SHIELD.loading} />}
+          {s.error ? <ReadFailed error={s.error} what={SHIELD.ledgerWhat} onRetry={dealsQ.refetch} /> : <Placeholder what={SHIELD.loading} shape="cards" />}
         </ModuleLayer>
       </div>
     );

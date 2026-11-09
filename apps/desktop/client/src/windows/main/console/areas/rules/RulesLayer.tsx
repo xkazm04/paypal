@@ -15,11 +15,10 @@ import { shortHash, shortId } from '../../../../../lib/format';
 import { useNow, useQuery } from '../../../../../lib/hooks';
 import { readLimits } from '../../../../../lib/limits';
 import {
-  kindWord, LIMIT_WORDS, LOADING_WHAT, NOTICE_WHAT, LIMITS_LAYER, LIMITS_PLACE, RULE_NAME, RULES_ACT, RULES_CARD, RULES_CATEGORY, RULES_DOC, RULES_EXPLAIN, RULES_IF, RULES_KICKER, RULES_LIST, RULES_STATE,
+  kindWord, LIMIT_WORDS, LOADING_WHAT, NOTICE_WHAT, READING_WHAT, LIMITS_LAYER, LIMITS_PLACE, RULE_NAME, RULES_ACT, RULES_CARD, RULES_CATEGORY, RULES_DOC, RULES_EXPLAIN, RULES_IF, RULES_KICKER, RULES_LIST, RULES_STATE,
   NO_WALLET_LIMIT, ruleSentence, WALLET_LIMITS_ABOUT,
 } from '../../../../../lib/words';
-import { WalletNotice } from '../../../../../shared/honesty';
-import { Chip, Disclosure, ExplainHint, Kv, Loading, Meter, Silence, UNKNOWN, type ChipTone } from '../../../../../shared/ui';
+import { Chip, Disclosure, ExplainHint, Kv, Meter, Placeholder, ReadFailed, Silence, UNKNOWN, type ChipTone } from '../../../../../shared/ui';
 import { ruleInForce } from '../../../../../lib/firstRun';
 import { agentTitle, limitLines, rulesAnswer, ruleState } from '../../../setup/limits';
 import { useAttention, useDeals, useNeeds, useSettings } from '../../../world';
@@ -107,7 +106,7 @@ function Rules({ nav }: { nav: LayerProps['nav'] }) {
     : null;
   const cards: LensCard[] = [
     { id: 'in', label: RULES_CARD.inForce, value: q.data ? RULES_CARD.inForceValue(nIn) : null, note: q.data ? RULES_CARD.inForceNote(agents) : undefined },
-    { id: 'off', label: RULES_CARD.off, value: q.data ? RULES_CARD.offValue(rows.length - nIn) : null, note: rows.length - nIn ? RULES_CARD.offNote : RULES_CARD.offNoteNone, chip: rows.length - nIn ? RULES_STATE.again : undefined, chipTone: 'gold' },
+    { id: 'off', label: RULES_CARD.off, value: q.data ? RULES_CARD.offValue(rows.length - nIn) : null, note: !q.data ? undefined : rows.length - nIn ? RULES_CARD.offNote : RULES_CARD.offNoteNone, chip: rows.length - nIn ? RULES_STATE.again : undefined, chipTone: 'gold' },
     { id: 'ask', label: RULES_CARD.ask, value: q.data ? (ask ? <Amount money={ask} /> : RULES_CARD.askNone) : null, note: RULES_CARD.askNote },
     {
       id: 'limits', label: RULES_CARD.limits, value: out ? <>{out.value}{out.of ? <small className="rl-of"> {out.of}</small> : null}</> : reading ? RULES_CARD.limitsNone : null,
@@ -118,8 +117,8 @@ function Rules({ nav }: { nav: LayerProps['nav'] }) {
   return (
     <PlaceFrame root="ar-rules" place="rules" tone="var(--gold)" kicker={RULES_KICKER} answer={answer?.title ?? RULES_LIST.label} sub={answer ? <ExplainHint label={RULES_EXPLAIN.summary} line={answer.sub}>{RULES_EXPLAIN.body.map((p) => <p key={p}>{p}</p>)}</ExplainHint> : undefined} call={call} cards={cards}
       action={!call && q.data && list.length ? <ToApproval label={RULES_ACT.change} kind="default" target="mandate" title={RULES_ACT.title} /> : null}>
-      {q.error ? <WalletNotice error={q.error} what={NOTICE_WHAT.agentRules} /> : null}
-      {!q.data && !q.error ? <Loading what={LOADING_WHAT.rules} /> : null}
+      {q.error ? <ReadFailed error={q.error} what={NOTICE_WHAT.agentRules} onRetry={q.refetch} /> : null}
+      {!q.data && !q.error ? <Placeholder what={LOADING_WHAT.rules} count={4} /> : null}
       {q.data ? (
         <div className="rl-grid">
           <div className="rl-list" style={{ height: fitHeight(rows.length, 76, '36rem') }}>
@@ -230,7 +229,8 @@ function LimitsPlace() {
   return (
     <PlaceFrame root="ar-rules" place="limits" tone="var(--gold)" kicker={LIMITS_PLACE.kicker} answer={answer} sub={<ExplainHint label={LIMITS_PLACE.aboutLabel} line={LIMITS_PLACE.about}>{WALLET_LIMITS_ABOUT}</ExplainHint>} latest={latest}
       action={<ToApproval label={LIMITS_LAYER.change} kind="default" title={LIMITS_LAYER.changeTitle} />}>
-      {att.error ? <WalletNotice error={att.error} what={NOTICE_WHAT.walletLimits} /> : null}
+      {att.error ? <ReadFailed error={att.error} what={NOTICE_WHAT.walletLimits} onRetry={att.refetch} /> : null}
+      {!att.data && !att.error ? <Placeholder what={READING_WHAT.limits} count={3} /> : null}
       {reading ? (
         <section className="rl-meters" aria-label={LIMITS_PLACE.meters}>
           <h2 className="cs-h3">{LIMITS_PLACE.meters}</h2>

@@ -9,10 +9,9 @@ import type { Deal } from '@bindings/Deal';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { clockLabel, formatMinor, formatMoney } from '../../../../../lib/format';
 import { useNow, useQuery } from '../../../../../lib/hooks';
-import { COUNTER, COUNTER_VIEWS, LATEST_OF, OPEN_THE_DEAL, stateWord, TABLES_TRADE, timeLeftWords } from '../../../../../lib/words';
-import { WalletNotice } from '../../../../../shared/honesty';
+import { COUNTER, COUNTER_VIEWS, LATEST_OF, OPEN_THE_DEAL, READING_WHAT, stateWord, TABLES_TRADE, timeLeftWords } from '../../../../../lib/words';
 import type { GridColumn } from '../../../../../shared/DataGrid';
-import { Btn, Chip, ExplainHint, Kv, Loading, useLayer, useLayerCount, useToast } from '../../../../../shared/ui';
+import { Btn, Chip, Empty, ExplainHint, Kv, Placeholder, ReadFailed, ReadState, useLayer, useLayerCount, useToast } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { chipClass, dealTotal, isLive, PENDING_BACKEND, stripFor, sumByCurrency } from '../../../logic';
 import {
@@ -171,8 +170,9 @@ export function CounterLayer({ nav }: LayerProps) {
 
   if (!all) {
     return (
-      <ModuleLayer module="counter" kicker={COUNTER.kicker} answer={dq.error ? TABLES_TRADE.dealsWhat : COUNTER.reading} yourCall={null}
-        empty={dq.error ? <WalletNotice error={dq.error} what={TABLES_TRADE.dealsWhat} message={TABLES_TRADE.unread} /> : COUNTER.reading} />
+      <ModuleLayer module="counter" kicker={COUNTER.kicker} answer={dq.error ? TABLES_TRADE.dealsWhat : COUNTER.reading} yourCall={null}>
+        {dq.error ? <ReadFailed error={dq.error} what={TABLES_TRADE.dealsWhat} message={TABLES_TRADE.unread} onRetry={dq.refetch} /> : <Placeholder what={READING_WHAT.deals} shape="cards" />}
+      </ModuleLayer>
     );
   }
 
@@ -260,8 +260,8 @@ export function CounterLayer({ nav }: LayerProps) {
           title: COUNTER_VIEWS.prices, sub: COUNTER.pricesSub(rows.length),
           render: () => (
             <>
-              {mq.error ? <WalletNotice error={mq.error} what={COUNTER.rulesWhat} message={TABLES_TRADE.unread} /> : null}
-              {!mq.data && !mq.error ? <Loading what={COUNTER.rulesReading} /> : (
+              {mq.error ? <ReadFailed error={mq.error} what={COUNTER.rulesWhat} message={TABLES_TRADE.unread} onRetry={mq.refetch} /> : null}
+              {!mq.data ? (mq.error ? null : <Placeholder what={COUNTER.rulesReading} />) : (
                 <SplitView label={COUNTER.itemsList} count={rows.length}
                   list={(
                     <ListEngine<CatalogRow> label={COUNTER.itemsList} rows={rows} getKey={(r) => r.itemRef} filters={itemFilters} columns={itemCols} estimateSize={36}
@@ -291,7 +291,11 @@ export function CounterLayer({ nav }: LayerProps) {
         rules: {
           title: COUNTER_VIEWS.rules, sub: <ExplainHint label={COUNTER.rulesSubLabel} line={COUNTER.rulesSubLine}>{COUNTER.rulesSub}</ExplainHint>,
           actions: <Btn onClick={() => nav.place('rules')}>{COUNTER.openRules}</Btn>,
-          render: () => (mq.error ? <WalletNotice error={mq.error} what={COUNTER.rulesWhat} message={TABLES_TRADE.unread} /> : !mq.data ? <Loading what={COUNTER.rulesReading} /> : <ShopRules mandate={mandate} count={seller.length} floors={signedFloors} />),
+          render: () => (
+            <ReadState q={mq} what={COUNTER.rulesReading} failWhat={COUNTER.rulesWhat} message={TABLES_TRADE.unread} count={4}>
+              {() => <ShopRules mandate={mandate} count={seller.length} floors={signedFloors} />}
+            </ReadState>
+          ),
         },
         earlier: {
           title: COUNTER_VIEWS.earlier, sub: COUNTER.earlierSub(past.length),
@@ -303,7 +307,7 @@ export function CounterLayer({ nav }: LayerProps) {
 
 /** The shop rules: the promise, what is set, how long, for which agent, and where they change. */
 function ShopRules({ mandate, count, floors }: { mandate: MandateListEntry | null; count: number; floors: number }) {
-  if (!mandate) return <p className="le-empty">{COUNTER.rulesNone}</p>;
+  if (!mandate) return <Empty art="counter">{COUNTER.rulesNone}</Empty>;
   return (
     <Reveal className="ctr-rules">
       <Kv items={[

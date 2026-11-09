@@ -134,6 +134,16 @@ export const NOTICE_WHAT = {
 export const NOTICE_UNREAD = 'The wallet has not answered yet. If you do nothing, no money moves.';
 export const WALLET_FAULT_TOAST = 'The wallet ran into a problem just now. If you do nothing, no money moves.';
 export const LOADING_WHAT = { rules: 'your rules', deal: 'the deal' } as const;
+/** What a layer's placeholder announces while its first answer is on its way ("Reading your deals…"),
+ *  and the plain line a failed deal page says (one place, so every layer says it the same way). */
+export const READING_WHAT = {
+  deals: 'your deals', week: 'the week', record: 'your record', people: 'who you deal with', engines: 'your agent apps',
+  limits: 'your wallet limits', agents: 'your agents', settings: 'your settings', stage: 'the stage', picture: 'the picture',
+} as const;
+export const DEAL_FAILED = {
+  what: 'This deal',
+  line: 'The wallet did not answer when this page asked for it. The deal is still stored; ask again, or go back.',
+} as const;
 /** The quit confirmation and the shortcuts sheet (moved from QuitSheet.tsx / Shortcuts.tsx). */
 export const QUIT_SHEET = { title: 'Quit Signet?', keep: 'Keep it running' } as const;
 export const SHORTCUTS_TRIAL = 'New layouts on trial';
@@ -290,6 +300,9 @@ export const UI_WORDS = {
   /** After a Meter's label when the value is unknown: "Wallet limit: not available yet". */
   notAvailable: 'not available yet',
   reading: (what: string): string => `Reading ${what}…`,
+  /** A failed read's one button: it asks the wallet the same question again. */
+  tryAgain: 'Try again',
+  tryAgainTitle: 'Ask the wallet again',
   why: 'Why?',
   /** A button's hover title when Esc does the same: "Book (Esc)". */
   escHint: (what: string): string => `${what} (Esc)`,

@@ -11,7 +11,6 @@ import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
 import type { JsonValue } from '@bindings/serde_json/JsonValue';
 import { WalletError } from '../../../../../lib/contract';
-import { formatMinor } from '../../../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../../../lib/hooks';
 import { BOOK, modeWord } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
@@ -26,7 +25,7 @@ import {
 import { compose, isUnsure, knownParties, lensAsRun, lensQuery, MAX_ASK, understand, type AskCtx, type ReadingChip, type Understood, type Unsure } from '../../../modules/book/understand';
 import { useLayerNav } from '../../layers';
 import { fewRows, ListEngine } from '../../ListEngine';
-import { DealRow, dealRowSay } from '../../rows';
+import { Amount, DealRow, dealRowSay } from '../../rows';
 import { useEvidenceOf } from './evidence';
 import { useExport } from './Ledger';
 import { outsideSpan } from './model';
@@ -205,8 +204,8 @@ function ReadBody({ lens, rows }: { lens: Lens; rows: number }) {
 }
 
 function SumCell({ out, inn, bucket }: { out: { minor: number; currency: Currency }[]; inn: { minor: number; currency: Currency }[]; bucket: Bucket }) {
-  const parts = [...out.map((m) => <span key={`o${m.currency}`} className={`bk-${bucket}`}>{formatMinor(m.minor, m.currency)}</span>),
-    ...inn.map((m) => <span key={`i${m.currency}`}><span className={`bk-${bucket}`}>{formatMinor(m.minor, m.currency)}</span><span className="bk-dim"> {BOOK.in}</span></span>)];
+  const parts = [...out.map((m) => <Amount key={`o${m.currency}`} money={m} className={`bk-${bucket}`} />),
+    ...inn.map((m) => <span key={`i${m.currency}`}><Amount money={m} className={`bk-${bucket}`} /><span className="bk-dim"> {BOOK.in}</span></span>)];
   if (!parts.length) return <span className="bk-dim">{BOOK.dash}</span>;
   return <>{parts.flatMap((p, i) => (i ? [<span key={`s${i}`} className="bk-dim"> · </span>, p] : [p]))}</>;
 }
@@ -243,7 +242,7 @@ function Pivot({ res, statements, read }: { res: Result; statements: boolean; re
               {m.includes('count') ? <td className="num">{g.count}</td> : null}
               {m.includes('sum_amount') ? BUCKETS.map((bk) => <td key={bk} className="num"><SumCell out={g.sums[bk].out} inn={g.sums[bk].in} bucket={bk} /></td>) : null}
               {m.includes('avg_vs_market_pct') ? <td className="num">{g.pct ? <>{g.pct.avg > 0 ? '+' : ''}{g.pct.avg}% <span className="bk-dim">{BOOK.ask.ofN(g.pct.n)}</span></> : <span className="bk-dim">{BOOK.ask.noMarket}</span>}</td> : null}
-              {m.includes('recovered_sum') ? <td className="num">{g.recovered.length ? g.recovered.map((x) => formatMinor(x.minor, x.currency)).join(' · ') : <span className="bk-dim">{BOOK.ask.noneWord}</span>}</td> : null}
+              {m.includes('recovered_sum') ? <td className="num">{g.recovered.length ? g.recovered.flatMap((x, i) => [i ? <span key={`s${i}`} className="bk-dim"> · </span> : null, <Amount key={x.currency} money={x} />]) : <span className="bk-dim">{BOOK.ask.noneWord}</span>}</td> : null}
               {statements ? <td><StmtSummary c={g.stmt} read={read} /></td> : null}
             </tr>
           ))}
@@ -265,8 +264,8 @@ export function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (
   const money = (row: Record<string, JsonValue>, k: string) => {
     const v = cell(row, k);
     if (typeof v !== 'number') return <span className="bk-dim">{BOOK.dash}</span>;
-    const text = formatMinor(v, row.currency as Currency);
-    return cell(row, 'direction') === 'out' ? text : <>{text}<span className="bk-dim"> {BOOK.in}</span></>;
+    const amount = <Amount minor={v} currency={row.currency as Currency} />;
+    return cell(row, 'direction') === 'out' ? amount : <>{amount}<span className="bk-dim"> {BOOK.in}</span></>;
   };
   const groupText = (g: string, v: JsonValue): string => {
     if (g === 'decided_by' && typeof v === 'string') { try { return decidedBy({ decided_by: JSON.parse(v) as Deal['decided_by'] }).text; } catch { return BOOK.dash; } }

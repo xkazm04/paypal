@@ -5,8 +5,9 @@
 // frame-src 'none'): the tab is not offered there, the hash does not parse there (logic.ts
 // placeAvailable), and this layer refuses on its own as the last guard. `?story=` passes through.
 import { useState } from 'react';
-import { Skeleton, useRevealed } from '../../stagger';
-import { DIRECTOR_PLACE } from '../../../../../lib/words';
+import { useRevealed } from '../../stagger';
+import { DIRECTOR_PLACE, READING_WHAT } from '../../../../../lib/words';
+import { Placeholder } from '../../../../../shared/ui';
 import { previewPagesAvailable } from '../../../../../lib/preview';
 import type { LayerProps } from '../../layers';
 
@@ -26,7 +27,7 @@ export function DirectorLayer(_: LayerProps) {
     <div className="pv-stage">
       <h1 className="sr-only" tabIndex={-1} data-layer-title="">{DIRECTOR_PLACE.title}</h1>
       {revealed ? <iframe className={`pv-frame${loaded ? ' on' : ''}`} src={url} title={DIRECTOR_PLACE.frame} onLoad={() => setLoaded(true)} /> : null}
-      {loaded ? null : <Skeleton className="pv-skel" h="60vh" />}
+      {loaded ? null : <Placeholder what={READING_WHAT.stage} shape="pane" className="pv-skel" />}
     </div>
   );
 }

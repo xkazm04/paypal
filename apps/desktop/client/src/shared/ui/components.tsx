@@ -1,9 +1,12 @@
 // Layer-1 building blocks: thin React wrappers over the `ui-*` classes in src/design/ui.css.
 // They add no colours or sizes of their own; style a page by composing these and, where needed,
 // a page CSS file scoped under the page's root class.
-import { useEffect, useRef, type ButtonHTMLAttributes, type CSSProperties, type InputHTMLAttributes, type MouseEvent, type ReactNode, type Ref } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type InputHTMLAttributes, type MouseEvent, type ReactNode, type Ref } from 'react';
+import type { Module } from '@bindings/Module';
+import type { WalletError } from '../../lib/contract';
 import { CRUMBS_LABEL, IF_NOTHING, UI_WORDS } from '../../lib/words';
-import { Countdown } from '../honesty';
+import { KeyArt } from '../brand/KeyArt';
+import { Countdown, WalletNotice } from '../honesty';
 import { Depth } from './console';
 
 const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(' ');
@@ -82,8 +85,81 @@ export function Card({ children, className }: { children: ReactNode; className?:
   return <div className={cx('ui-card', className)}>{children}</div>;
 }
 
-export function Empty({ children }: { children: ReactNode }) {
-  return <div className="ui-empty">{children}</div>;
+// ---- async states: one family for loading, empty and failed (registry: async-ui-states) ----------
+// Only a layer's content region has states; its chrome (title, tabs, filters) stays drawn in every one.
+//  - Placeholder: before the first answer. Quiet bars shaped like what will arrive, shown only after
+//    --placeholder-delay so a warm read never flashes them. One status region, announced once.
+//  - Empty: only after an answer came back with nothing in it. Says why, offers the next step.
+//  - ReadFailed: the read never answered. What could not be read, and Try again (the same read).
+//  - ReadState: the three in the one order that keeps them apart, for a single read. A held answer is
+//    never swapped for a placeholder or a failure: a refresh that fails keeps it and says so above it.
+
+export type PlaceholderShape = 'rows' | 'cards' | 'pane';
+
+export function Placeholder({ what, shape = 'rows', count, className }: { what: string; shape?: PlaceholderShape; count?: number; className?: string }) {
+  const n = count ?? (shape === 'cards' ? 4 : shape === 'pane' ? 3 : 5);
+  return (
+    <div className={cx('ui-ph', shape, className)} role="status" aria-busy="true">
+      <span className="sr-only">{UI_WORDS.reading(what)}</span>
+      {Array.from({ length: n }, (_, i) => <i key={i} className="ui-ph-b" aria-hidden="true" />)}
+    </div>
+  );
+}
+
+/** "Nothing here", earned by an answer. `art` is the module's key-art plate, drawn small and quiet;
+ *  `action` the one next step, when a real one exists. */
+export function Empty({ children, art, action, className }: { children: ReactNode; art?: Module; action?: ReactNode; className?: string }) {
+  return (
+    <div className={cx('ui-empty', art && 'art', className)}>
+      {art ? <KeyArt module={art} className="ui-empty-art" /> : null}
+      <span className="ui-empty-t">{children}</span>
+      {action ? <span className="ui-empty-act">{action}</span> : null}
+    </div>
+  );
+}
+
+/** Retrying cannot help these: the wallet is locked, the window may not ask, or it never will. */
+const NO_RETRY: ReadonlySet<WalletError['code']> = new Set(['LOCKED', 'PERMISSION', 'UNSUPPORTED']);
+export const canRetry = (e: WalletError): boolean => !NO_RETRY.has(e.code);
+
+/** A read that did not answer: the calm notice (what, and the plain words) and Try again, which asks
+ *  the same read again (busy while it runs). Distinct from Empty in look, words and role. */
+export function ReadFailed({ error, what, message, onRetry, className }: { error: WalletError; what: string; message?: string; onRetry?: () => unknown; className?: string }) {
+  const [busy, setBusy] = useState(false);
+  const retry = onRetry && canRetry(error)
+    ? async () => { setBusy(true); try { await onRetry(); } finally { setBusy(false); } }
+    : null;
+  return (
+    <div className={cx('ui-failed', className)}>
+      <WalletNotice error={error} what={what} message={message} />
+      {retry ? (
+        <Btn sm onClick={() => void retry()} disabled={busy} aria-busy={busy || undefined} title={UI_WORDS.tryAgainTitle}>
+          {busy ? <span className="ui-spin" aria-hidden="true" /> : null}{UI_WORDS.tryAgain}
+        </Btn>
+      ) : null}
+    </div>
+  );
+}
+
+/** The part of a read ReadState needs (lib/hooks Query, lib/data CommandRead). */
+export type ReadOf<T> = { data: T | undefined; error: WalletError | null; refetch: () => Promise<void> };
+
+export function ReadState<T>({ q, what, failWhat, message, shape, count, children }: {
+  q: ReadOf<T>;
+  /** What the placeholder says is being read ("your rules"). */
+  what: string;
+  /** What the failure names ("Your rules"). */
+  failWhat: string;
+  message?: string;
+  shape?: PlaceholderShape;
+  count?: number;
+  children: (data: T) => ReactNode;
+}) {
+  if (q.data !== undefined) {
+    return <>{q.error ? <ReadFailed error={q.error} what={failWhat} message={message} onRetry={q.refetch} /> : null}{children(q.data)}</>;
+  }
+  if (q.error) return <ReadFailed error={q.error} what={failWhat} message={message} onRetry={q.refetch} />;
+  return <Placeholder what={what} shape={shape} count={count} />;
 }
 
 export function Hint({ children, className }: { children: ReactNode; className?: string }) {

@@ -14,11 +14,12 @@ import { clockLabel } from '../../../../../lib/format';
 import { useMutation, useQuery } from '../../../../../lib/hooks';
 import { watchLine } from '../../../../../lib/marketWatch';
 import {
-  CONNECTIONS_ANSWER, CONNECTIONS_CARD, CONNECTIONS_ENGINE, CONNECTIONS_HINT, CONNECTIONS_HOUSE, CONNECTIONS_KICKER, CONNECTIONS_PAIR, CONNECTIONS_PAYPAL, CONNECTIONS_PEOPLE, houseWords, KEEP_PRACTICE_AGENT, LATEST_OF, modeWord, NOTICE_WHAT, PRICE_CHECKS_USED_UP, reasonWords,
+  CONNECTIONS_ANSWER, CONNECTIONS_CARD, CONNECTIONS_ENGINE, CONNECTIONS_HINT, CONNECTIONS_HOUSE, CONNECTIONS_KICKER, CONNECTIONS_PAIR, CONNECTIONS_PAYPAL, CONNECTIONS_PEOPLE, houseWords, KEEP_PRACTICE_AGENT, LATEST_OF, modeWord, NOTICE_WHAT, PRICE_CHECKS_USED_UP, READING_WHAT, reasonWords,
 } from '../../../../../lib/words';
+import type { WalletError } from '../../../../../lib/contract';
 import { ModeBadge, WalletNotice } from '../../../../../shared/honesty';
 import { OwnerKey } from '../../../../../shared/ownerKey';
-import { Btn, Chip, Kv, Silence, useToast } from '../../../../../shared/ui';
+import { Btn, Chip, Kv, Placeholder, ReadFailed, Silence, useToast } from '../../../../../shared/ui';
 import { pairingFact } from '../../../logic';
 import type { PairMode } from '../../../setup/pairing';
 import { useSettings } from '../../../world';
@@ -115,13 +116,13 @@ function Connections({ nav }: { nav: LayerProps['nav'] }) {
   return (
     <PlaceFrame root="ar-connections" place="connections" kicker={CONNECTIONS_KICKER} answer={answer.title} sub={said} call={call} cards={cards}
       action={<Btn kind={call ? 'default' : 'primary'} data-fk="to-pairing" title={CONNECTIONS_PAIR.title} onClick={() => nav.place('pairing')}>{CONNECTIONS_PAIR.act} ›</Btn>}>
-      {settings.error && !s ? <WalletNotice error={settings.error} what={NOTICE_WHAT.settings} /> : null}
+      {settings.error && !s ? <ReadFailed error={settings.error} what={NOTICE_WHAT.settings} onRetry={settings.refetch} /> : null}
       <section className="cn-people-sec" aria-label={CONNECTIONS_PEOPLE.view}>
         <header className="cn-ph"><h2 className="cs-h3">{CONNECTIONS_PEOPLE.view}</h2><span className="dim">{peopleSaid}</span>
           {/* A seller opens a table in the approval window (owner configuration › Tables); nothing is paid. */}
           {list?.some((c) => !c.house && c.pairing === 'words_confirmed') ? <ToApproval label={CONNECTIONS_PEOPLE.openTable} kind="default" sm title={CONNECTIONS_PEOPLE.openTableTitle} /> : null}
         </header>
-        <PeopleView rows={list} error={!!cps.error} />
+        <PeopleView rows={list} error={!!cps.error} failure={cps.error} onRetry={cps.refetch} />
       </section>
     </PlaceFrame>
   );
@@ -187,9 +188,9 @@ export function EngineView() {
   const practicePicked = s?.selected_engine === 'scripted';
   return (
     <div className="cn-view">
-      {engines.error ? <WalletNotice error={engines.error} what={CONNECTIONS_ENGINE.picker} /> : null}
+      {engines.error ? <ReadFailed error={engines.error} what={CONNECTIONS_ENGINE.picker} onRetry={engines.refetch} /> : null}
+      {!engines.data && !engines.error ? <Placeholder what={READING_WHAT.engines} count={3} /> : null}
       <div className="cn-engines" role="radiogroup" aria-label={CONNECTIONS_ENGINE.picker}>
-        {!engines.data ? <p className="dim"><Chip tone="dashed">{CONNECTIONS_ENGINE.unknown}</Chip> {engines.loading ? CONNECTIONS_ENGINE.looking : CONNECTIONS_ENGINE.notChecked}</p> : null}
         {(engines.data ?? []).map((e) => (
           <label key={e.id} className={`cn-engine${e.available ? '' : ' off'}${s?.selected_engine === e.id ? ' on' : ''}`} title={e.available ? undefined : e.reason ? reasonWords(e.reason) : undefined}>
             <input type="radio" name="cn-engine" value={e.id} checked={s?.selected_engine === e.id} disabled={!e.available || select.pending || !s} onChange={() => void pick(e.id)} />
@@ -254,9 +255,12 @@ const PEOPLE_SORTS: readonly ListSort<CounterpartyDisplay>[] = [
   { value: 'new', label: CONNECTIONS_PEOPLE.newest, compare: (a, b) => b.first_seen - a.first_seen },
 ];
 
-function PeopleView({ rows, error }: { rows: CounterpartyDisplay[] | null; error: boolean }) {
+function PeopleView({ rows, error, failure, onRetry }: { rows: CounterpartyDisplay[] | null; error: boolean; failure?: WalletError | null; onRetry?: () => unknown }) {
   const list = useMemo(() => rows ?? [], [rows]);
+  // Before the first answer the list is not empty, it is unknown: a placeholder, never "nobody yet".
+  if (!rows && failure) return <ReadFailed error={failure} what={CONNECTIONS_PEOPLE.view} message={CONNECTIONS_PEOPLE.unread} onRetry={onRetry} />;
   if (error && !rows) return <p className="dim">{CONNECTIONS_PEOPLE.unread}</p>;
+  if (!rows) return <Placeholder what={READING_WHAT.people} count={3} />;
   return (
     <div className="cn-people" style={{ height: fitHeight(list.length, 56) }}>
       <ListEngine<CounterpartyDisplay> label={CONNECTIONS_PEOPLE.list} rows={list} getKey={(c) => c.key_id}

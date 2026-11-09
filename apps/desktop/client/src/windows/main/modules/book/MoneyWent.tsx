@@ -5,6 +5,7 @@
 import type { Deal } from '@bindings/Deal';
 import { formatMinor } from '../../../../lib/format';
 import { unconfirmedMeans } from '../../../../lib/words';
+import { MinorMoney } from '../../../../shared/honesty';
 import { Icon, Section, Why } from '../../../../shared/ui';
 import type { Statement } from './model';
 import {
@@ -32,7 +33,7 @@ function BarRowView({ r, max }: { r: BarRow; max: number }) {
         </div>
         <div className="wm-vals">
           {FLOWS.filter((f) => r.minor[f] > 0).map((f) => (
-            <span key={f} className={`wm-v v-${f}`}><Swatch kind={f} /><b>{formatMinor(r.minor[f], r.currency)}</b> {FLOW_WORD[f]}</span>
+            <span key={f} className={`wm-v v-${f}`}><Swatch kind={f} /><b><MinorMoney minor={r.minor[f]} currency={r.currency} /></b> {FLOW_WORD[f]}</span>
           ))}
           {!r.total ? <span className="wm-v v-none">nothing paid, held or stopped yet</span> : null}
           {r.replays ? <span className="wm-v v-note" title="A replay is a rerun of something that happened before. It is never counted as money recovered.">{plural(r.replays, 'replay', 'replays')} not counted</span> : null}

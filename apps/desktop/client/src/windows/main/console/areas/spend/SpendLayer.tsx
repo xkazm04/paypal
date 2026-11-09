@@ -9,10 +9,9 @@ import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import { clockLabel, formatMinor } from '../../../../../lib/format';
 import { useQuery } from '../../../../../lib/hooks';
-import { joinWords, LATEST_OF, OPEN_THE_DEAL, SPEND, SPEND_VIEWS, TABLES_TRADE, tablesClip } from '../../../../../lib/words';
+import { joinWords, LATEST_OF, OPEN_THE_DEAL, READING_WHAT, SPEND, SPEND_VIEWS, TABLES_TRADE, tablesClip } from '../../../../../lib/words';
 import type { GridColumn } from '../../../../../shared/DataGrid';
-import { WalletNotice } from '../../../../../shared/honesty';
-import { Btn, Chip, ExplainHint, Hint, Loading, useToast } from '../../../../../shared/ui';
+import { Btn, Chip, Empty, ExplainHint, Hint, Placeholder, ReadFailed, useToast } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { amountTone, dealTotal, mandatesGoverning } from '../../../logic';
 import { gateColumns, laneCells, outcomeOf, ruleLine, type GateColumn, type Outcome } from '../../../modules/spend/gate';
@@ -162,8 +161,9 @@ export function SpendLayer({ nav }: LayerProps) {
 
   if (!all) {
     return (
-      <ModuleLayer module="spend" kicker={SPEND.kicker} answer={dq.error ? TABLES_TRADE.dealsWhat : SPEND.reading} yourCall={null}
-        empty={dq.error ? <WalletNotice error={dq.error} what={TABLES_TRADE.dealsWhat} message={TABLES_TRADE.unread} /> : SPEND.reading} />
+      <ModuleLayer module="spend" kicker={SPEND.kicker} answer={dq.error ? TABLES_TRADE.dealsWhat : SPEND.reading} yourCall={null}>
+        {dq.error ? <ReadFailed error={dq.error} what={TABLES_TRADE.dealsWhat} message={TABLES_TRADE.unread} onRetry={dq.refetch} /> : <Placeholder what={READING_WHAT.deals} shape="cards" />}
+      </ModuleLayer>
     );
   }
 
@@ -177,7 +177,9 @@ export function SpendLayer({ nav }: LayerProps) {
   cards.push({ id: 'rules', view: 'rules', label: SPEND_VIEWS.rules, value: mq.data ? SPEND.rulesValue(ruleCount) : '—', note: SPEND.rulesNote,
     chip: mq.data && !m ? SPEND.rulesChip : undefined, chipTone: 'red' });
 
-  const rulesState = mq.error ? <WalletNotice error={mq.error} what={SPEND.rulesWhat} message={TABLES_TRADE.unread} /> : !mq.data ? <Loading what={SPEND.rulesReading} /> : null;
+  // The rule set's read, before it first answers: a placeholder, or the failure with Try again. Once
+  // held, the views draw it (a later failed refresh never takes it off the screen).
+  const rulesState = mq.data ? null : mq.error ? <ReadFailed error={mq.error} what={SPEND.rulesWhat} message={TABLES_TRADE.unread} onRetry={mq.refetch} /> : <Placeholder what={SPEND.rulesReading} />;
   // The same purchase on one line for the lists: the old rule line trails as the note.
   const row1 = (l: Lane, picked: boolean) => {
     const disp = display(l.deal);
@@ -257,7 +259,7 @@ export function SpendLayer({ nav }: LayerProps) {
               <Reveal><ClauseList m={m} lane={null} /></Reveal>
               <Reveal><Hint><ExplainHint label={SPEND.changeHintLabel} line={SPEND.changeHintLine}>{SPEND.changeHint}</ExplainHint></Hint></Reveal>
             </RevealGroup>
-          ) : <p className="le-empty">{SPEND.rulesNone}</p>),
+          ) : <Empty art="spend">{SPEND.rulesNone}</Empty>),
         },
       }} />
   );

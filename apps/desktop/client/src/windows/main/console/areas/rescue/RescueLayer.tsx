@@ -11,16 +11,16 @@ import type { Deal } from '@bindings/Deal';
 import type { RescueBook } from '@bindings/RescueBook';
 import { clockLabel, formatMinor } from '../../../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../../../lib/hooks';
-import { LATEST_OF, OPEN_THE_DEAL, RESCUE, RESCUE_REPLAY_ABOUT, RESCUE_WATCH_HOLD, RESCUE_WATCH_STATE, RESCUE_VIEWS_TITLE, RESCUE_WATCH_ABOUT, ruleSentence, stateWord, watchingWords } from '../../../../../lib/words';
+import { LATEST_OF, LOADING_WHAT, OPEN_THE_DEAL, RESCUE, RESCUE_REPLAY_ABOUT, RESCUE_WATCH_HOLD, RESCUE_WATCH_STATE, RESCUE_VIEWS_TITLE, RESCUE_WATCH_ABOUT, ruleSentence, stateWord, watchingWords } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import type { GridColumn } from '../../../../../shared/DataGrid';
-import { Btn, Chip, ExplainHint, Kv, Silence } from '../../../../../shared/ui';
+import { Btn, Chip, ExplainHint, Kv, Placeholder, ReadFailed, ReadState, Silence } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { dealTotal, sumByCurrency } from '../../../logic';
 import { atRiskOf, COLS, ifNothingOf, isReplay, recovered, refusalLine, recoveredThisMonth, watchStatus, type Col, type NotCountedWhy } from '../../../modules/rescue/model';
 import { moneyList, rescueStrip } from '../../../modules/rescue/preview';
-import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
+import { useDeals } from '../../../world';
 import { useLayerNav, type LayerProps } from '../../layers';
 import { fewRows, ListEngine, type ListFilter } from '../../ListEngine';
 import { Countdown } from '../../rows';
@@ -293,7 +293,7 @@ function Watch({ r }: { r: RescueWorld }) {
       </section></Reveal>
       <Reveal><section className="rs-wbox">
         <h2 className="rs-h2">{RESCUE.rules.title}</h2>
-        {q.error ? <WalletNotice error={q.error} what={RESCUE.rules.what} /> : (
+        <ReadState q={q} what={LOADING_WHAT.rules} failWhat={RESCUE.rules.what} count={3}>{() => (
           <Kv items={[
             [RESCUE.rules.signed, rules.length ? RESCUE.rules.cover(rules.length) : RESCUE.rules.noneSigned],
             [RESCUE.rules.fixes, lever ? ruleSentence(lever) : <span className="rs-dim">{RESCUE.rules.noFixes}</span>],
@@ -301,7 +301,7 @@ function Watch({ r }: { r: RescueWorld }) {
             [RESCUE.rules.never, RESCUE.rules.neverText],
             [RESCUE.rules.invoice, RESCUE.rules.invoiceText],
           ]} />
-        )}
+        )}</ReadState>
         <div className="cs-acts"><Btn sm onClick={() => nav.place('rules')}>{RESCUE.rules.open}</Btn></div>
       </section></Reveal>
     </RevealGroup>
@@ -338,6 +338,8 @@ function latestOf(r: RescueWorld, open: (v: string) => void, deal: (id: string) 
 
 export function RescueLayer({ nav }: LayerProps) {
   const r = useRescueWorld();
+  // The rescues are read from the world's deals: Try again asks for them again.
+  const dealsQ = useDeals();
   const route = useModuleRoute();
   const now = useNow();
   const [picked, setPicked] = useState<Record<string, Col>>({});
@@ -346,7 +348,7 @@ export function RescueLayer({ nav }: LayerProps) {
     return (
       <div className="ar-rescue">
         <ModuleLayer module="rescue" answer={RESCUE.title} yourCall={null}>
-          {r.error ? <WalletNotice error={r.error} what={RESCUE.ledgerWhat} /> : <Loading what={RESCUE.loading} />}
+          {r.error ? <ReadFailed error={r.error} what={RESCUE.ledgerWhat} onRetry={dealsQ.refetch} /> : <Placeholder what={RESCUE.loading} shape="cards" />}
         </ModuleLayer>
       </div>
     );

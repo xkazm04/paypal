@@ -20,12 +20,14 @@ import { SayPanel } from '../../../setup/SayIt';
 import { bringIn } from '../../../setup/bringIn';
 import { lazyPart } from '../../../../../lib/lazy';
 import { filmEndingPreview } from '../../../../../lib/preview';
+import { keyOf } from '../../../../../lib/data/keys';
+import { useDataClient } from '../../../../../lib/data/provider';
 import {
-  LAYER_LOADING, REWIND_ANSWER, REWIND_BAR, REWIND_CARD, REWIND_KICKER, REWIND_SAY, REWIND_TAPE, REWIND_THIS_WEEK, REWIND_TRUNCATED,
+  READING_WHAT, REWIND_ANSWER, REWIND_BAR, REWIND_CARD, REWIND_KICKER, REWIND_SAY, REWIND_TAPE, REWIND_THIS_WEEK, REWIND_TRUNCATED,
 } from '../../../../../lib/words';
 import { weekLabel } from '../../../home/model';
 import { endingCtx, isMoneyCall, isRefusal, laneSteps, narrate, stepSentence, stepTime, tickTone, type TickTone } from '../../../logic';
-import { Btn, ExplainHint } from '../../../../../shared/ui';
+import { Btn, ExplainHint, Placeholder, ReadFailed } from '../../../../../shared/ui';
 import type { LayerProps } from '../../layers';
 import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
 import { fitHeight, PlaceFrame, type LensCard } from '../settings/frame';
@@ -107,18 +109,23 @@ export function RewindLayer({ nav, state }: LayerProps) {
   }, [want, start, end, weekBack, seek, shiftWeek]);
 
   const tape = useTape(r, labelOf);
+  // Try again on a week that never answered: the same read (this week's range) asked again.
+  const client = useDataClient();
+  const retry = () => client.refetchQueries({ queryKey: keyOf('deal_history', { deal_id: null, from: r.start, to: r.end }).key });
   const lane = laneSteps(r.steps);
   const calls = lane.filter((s) => !isRefusal(s)).length;
   const refused = r.steps.filter(isRefusal).length;
   const count = (t: TickTone) => lane.filter((s) => tickTone(s) === t).length;
   // A week cut to its latest steps (truncated) counts a floor and says why, never "nothing moved".
   const answer = r.loading ? REWIND_ANSWER.reading : r.error && !r.steps.length ? REWIND_ANSWER.unread : r.truncated ? REWIND_ANSWER.steps(calls, refused, true) : !calls && !refused ? REWIND_ANSWER.quiet : REWIND_ANSWER.steps(calls, refused);
-  const figure = (n: number) => (r.loading ? null : n ? REWIND_CARD.steps(formatCount(n)) : REWIND_CARD.none);
+  // Not read yet, or never answered: the figures are unknown (a dash), never "None".
+  const unknown = r.loading || (!!r.error && !r.steps.length);
+  const figure = (n: number) => (unknown ? null : n ? REWIND_CARD.steps(formatCount(n)) : REWIND_CARD.none);
   const cards: LensCard[] = [
     { id: 'owner', label: REWIND_CARD.owner, value: figure(count('owner')), note: REWIND_CARD.ownerNote },
     { id: 'rule', label: REWIND_CARD.rule, value: figure(count('rule') + count('buyer')), note: count('buyer') ? `${REWIND_CARD.ruleNote} · ${REWIND_CARD.buyerNote}` : REWIND_CARD.ruleNote },
     { id: 'default', label: REWIND_CARD.default, value: figure(count('default')), note: REWIND_CARD.defaultNote },
-    { id: 'refused', label: REWIND_CARD.refused, value: r.loading ? null : refused ? formatCount(refused) : REWIND_CARD.none, note: REWIND_CARD.refusedNote },
+    { id: 'refused', label: REWIND_CARD.refused, value: unknown ? null : refused ? formatCount(refused) : REWIND_CARD.none, note: REWIND_CARD.refusedNote },
   ];
 
   return (
@@ -133,7 +140,7 @@ export function RewindLayer({ nav, state }: LayerProps) {
         {sayIt && sayOpen ? <SayPanel said={said} compact /> : null}
         <Reveal wave={3} sizeKey="rewind:hub" skeleton={<Skeleton className="rw-host" h="23rem" />}>
           <div className="rw-host" ref={picture}>
-            <Suspense fallback={<p className="layer-loading" role="status">{LAYER_LOADING}</p>}>
+            <Suspense fallback={<Placeholder what={READING_WHAT.picture} shape="pane" />}>
               {/* A one-time sweep-in when the picture mounts; the Reveals animate on mount only, so scrubbing never replays it. */}
               <Sweep><div className="rw-stage"><RewindHub r={r} labelOf={labelOf} onOpenDeal={nav.deal} ahead={ahead} /></div></Sweep>
               <Sweep><RewindBar r={r} labelOf={labelOf} onOpenDeal={nav.deal} ahead={ahead} /></Sweep>
@@ -144,10 +151,15 @@ export function RewindLayer({ nav, state }: LayerProps) {
       )}>
       <section className="rw-tape" aria-label={REWIND_TAPE.title} style={{ height: `calc(${fitHeight(Math.min(tape.length, TAPE_PAGE), 38, '70vh')} + 2rem)` }}>
         <h2 className="cs-h3">{REWIND_TAPE.title}</h2>
+        {/* The tape's states: unknown until the week's first answer (never "nothing happened"), a
+            failure with Try again when it never came; once read, the list (a refresh keeps it). */}
+        {!r.steps.length && r.error ? <ReadFailed error={r.error} what={REWIND_TAPE.title} onRetry={retry} />
+          : !r.steps.length && r.loading ? <Placeholder what={READING_WHAT.week} count={TAPE_PAGE / 2} /> : (
         <ListEngine<TapeRow> label={REWIND_TAPE.label} rows={tape} getKey={(t) => t.key} filters={FILTERS} filterLabel={REWIND_TAPE.filter} sorts={SORTS}
           searchText={(t) => `${t.title} ${t.said}`} estimateSize={36} pageSize={TAPE_PAGE}
           renderRow={(t) => <TapeLine t={t} />} rowLabel={(t) => `${stepTime(t.s.at)} · ${t.said}`} onOpen={(t) => nav.deal(t.s.deal_id)}
           empty={REWIND_TAPE.empty} noMatch={REWIND_TAPE.noMatch} />
+        )}
       </section>
     </PlaceFrame>
   );

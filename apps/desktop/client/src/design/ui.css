@@ -159,7 +159,29 @@ button.ui-row { width: 100%; border: 0; background: none; color: inherit; font: 
 .ui-kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 
 .ui-hint { font-size: var(--fs-small); color: var(--dim); }
+/* --- async states (components.tsx Placeholder / Empty / ReadFailed): one look in every layer --- */
 .ui-empty { padding: var(--sp-6) var(--sp-4); text-align: center; color: var(--dim); }
+.ui-empty.art { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); padding: var(--sp-5) var(--sp-4); }
+.ui-empty .ui-empty-t { display: block; max-width: 52ch; margin-inline: auto; }
+.ui-empty .ui-empty-art { width: 7.5rem; height: auto; opacity: .38; color: var(--steel); }
+.ui-empty .ui-empty-act { display: inline-flex; gap: var(--sp-2); margin-top: var(--sp-1); }
+.ui-failed { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-2); }
+.ui-failed > .notice { flex: 1 1 22rem; margin: 0; }
+.ui-failed > .ui-btn { flex: none; align-self: center; }
+.ui-failed > .ui-btn .ui-spin { margin-right: var(--sp-1); }
+/* the placeholder: shaped like what will arrive, faded in only after a beat so a warm read never flashes */
+.ui-ph { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-1) 0; pointer-events: none;
+  animation: ui-ph-in var(--dur-med) var(--ease) var(--placeholder-delay, var(--dur-fast)) both; }
+.ui-ph .ui-ph-b { display: block; height: var(--row); border-radius: var(--r-card); background: color-mix(in srgb, var(--line2) 45%, transparent); }
+.ui-ph.rows .ui-ph-b:nth-of-type(even) { background: color-mix(in srgb, var(--line2) 30%, transparent); }
+.ui-ph.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: var(--sp-3); }
+.ui-ph.cards .ui-ph-b { height: calc(var(--sp-16) + var(--sp-4)); background: color-mix(in srgb, var(--panel) 70%, transparent); border: 1px solid var(--line); }
+.ui-ph.pane .ui-ph-b:nth-of-type(1) { width: 40%; height: var(--sp-6); }
+.ui-ph.pane .ui-ph-b:nth-of-type(2) { width: 64%; height: var(--sp-3); }
+.ui-ph.pane .ui-ph-b:nth-of-type(n+3) { height: calc(var(--sp-16) * 3); background: color-mix(in srgb, var(--line2) 22%, transparent); }
+@keyframes ui-ph-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ui-ph { animation-duration: 1ms; } }
+:root.calm .ui-ph { animation-duration: 1ms; }
 .ui-sep { height: 1px; background: var(--line); margin: var(--sp-3) 0; border: 0; }
 
 details.ui-disclosure > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; height: var(--row); color: var(--muted); font-weight: var(--fw-medium); }

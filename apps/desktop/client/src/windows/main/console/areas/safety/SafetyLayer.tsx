@@ -9,10 +9,10 @@ import type { SafetyRecord } from '@bindings/SafetyRecord';
 import { clockLabel } from '../../../../../lib/format';
 import { useQuery } from '../../../../../lib/hooks';
 import {
-  AUDIT_BROKEN, NOTICE_WHAT, SAFETY_CARD, SAFETY_FOUND, SAFETY_KICKER, SAFETY_LAYER, SAFETY_READING, SAFETY_READING_SUB, SAFETY_UNREAD, SAFETY_UNREAD_SUB, SAFETY_VIEW,
+  AUDIT_BROKEN, NOTICE_WHAT, READING_WHAT, SAFETY_CARD, SAFETY_FOUND, SAFETY_KICKER, SAFETY_LAYER, SAFETY_READING, SAFETY_READING_SUB, SAFETY_UNREAD, SAFETY_UNREAD_SUB, SAFETY_VIEW,
 } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
-import { Btn, Kv, Silence } from '../../../../../shared/ui';
+import { Btn, Kv, Placeholder, ReadFailed, Silence } from '../../../../../shared/ui';
 import { authorityParts, count, FAMILY_WORDS, headGroups, moneySteps, plural, safetyWords, scopeWords, VIOLATION_WORDS } from '../../../safety/model';
 import { shortTitle } from '../../../home/model';
 import { useDeals, useWorldSelector, type World } from '../../../world';
@@ -63,7 +63,8 @@ export function SafetyLayer({ nav }: LayerProps) {
     return (
       <PlaceFrame root="ar-safety" place="safety" tone="var(--teal)" kicker={SAFETY_KICKER(null)} answer={q.error ? SAFETY_UNREAD : SAFETY_READING}
         sub={q.error ? SAFETY_UNREAD_SUB : SAFETY_READING_SUB} action={again}>
-        {q.error ? <WalletNotice error={q.error} what={NOTICE_WHAT.safety} /> : null}
+        {/* The page's own "Check again" (the action above) is this failure's retry: one button, not two. */}
+        {q.error ? <ReadFailed error={q.error} what={NOTICE_WHAT.safety} /> : <Placeholder what={READING_WHAT.record} count={3} />}
       </PlaceFrame>
     );
   }

@@ -24,12 +24,12 @@ import { switchDemo } from '../../DemoSwitch';
 import { backend } from '../../../../../lib/runtime';
 import { currentTheme, onThemeChange, setTheme, type Theme } from '../../../../../lib/theme';
 import {
-  CONNECTIONS_ENGINE, CONNECTIONS_HOUSE, CONNECTIONS_PAYPAL, fingerprintGroups, LATEST_OF, modeWord, NOTICE_WHAT, PERMISSIONS_FINGERPRINT, SETTINGS_FACTS, PERMISSIONS_FINGERPRINT_MEANS, rulesName, SETTINGS_AGENTS, SETTINGS_CARD, SETTINGS_IF, SETTINGS_KICKER, SETTINGS_LOCK, SETTINGS_LOOK, SETTINGS_MORE,
+  CONNECTIONS_ENGINE, CONNECTIONS_HOUSE, CONNECTIONS_PAYPAL, fingerprintGroups, LATEST_OF, modeWord, NOTICE_WHAT, READING_WHAT, PERMISSIONS_FINGERPRINT, SETTINGS_FACTS, PERMISSIONS_FINGERPRINT_MEANS, rulesName, SETTINGS_AGENTS, SETTINGS_CARD, SETTINGS_IF, SETTINGS_KICKER, SETTINGS_LOCK, SETTINGS_LOOK, SETTINGS_MORE,
   SETTINGS_ACT, SETTINGS_NOTIFY, SETTINGS_OPEN_CHARTER, SETTINGS_PROTECT, SETTINGS_TO_CONNECTIONS,
 } from '../../../../../lib/words';
 import { ARENA_PLACE } from '../../../../../lib/words/arena';
 import { RunBadge, WalletNotice } from '../../../../../shared/honesty';
-import { Btn, Chip, Kv, layerCount, Seg, Silence, UNKNOWN, useToast } from '../../../../../shared/ui';
+import { Btn, Chip, Empty, Kv, layerCount, Placeholder, ReadFailed, Seg, Silence, UNKNOWN, useToast } from '../../../../../shared/ui';
 import { deriveCircuit, settingsAnswer, type Circuit, type MandateLite } from '../../../setup/circuit';
 import { shortTitle } from '../../../home/model';
 import { useDisplayOf, useLocked, useRuns, useSettings } from '../../../world';
@@ -111,7 +111,7 @@ export function SettingsLayer({ nav }: LayerProps) {
       view: {
         title: SETTINGS_AGENTS.view, sub: SETTINGS_AGENTS.sub,
         render: () => (
-          <AgentsView paused={paused} known={!!s} running={running} facts={facts.data} factsError={!!facts.error} busy={pause.pending || resume.pending} onPause={doPause} onResume={doResume}
+          <AgentsView paused={paused} known={!!s} running={running} facts={facts.data} factsError={!!facts.error} factsFailure={facts.error} onFactsRetry={facts.refetch} busy={pause.pending || resume.pending} onPause={doPause} onResume={doResume}
             waiting={paused ? [] : waiting} refused={refused} restarting={restarting} onRestart={doRestart} now={now} />
         ),
       },
@@ -145,7 +145,7 @@ export function SettingsLayer({ nav }: LayerProps) {
   return (
     <PlaceFrame root="ar-settings" place="settings" kicker={SETTINGS_KICKER} answer={answer.title} sub={answer.sub} call={call} cards={cards} latest={latest}
       explain={{ summary: SETTINGS_PROTECT.summary, body: <Protect locked={locked} /> }}>
-      {settings.error && !s ? <WalletNotice error={settings.error} what={NOTICE_WHAT.settings} /> : null}
+      {settings.error && !s ? <ReadFailed error={settings.error} what={NOTICE_WHAT.settings} onRetry={settings.refetch} /> : null}
       {pause.error ? <WalletNotice error={pause.error} what={NOTICE_WHAT.pause} /> : null}
       {resume.error ? <WalletNotice error={resume.error} what={NOTICE_WHAT.resume} /> : null}
       <section className="st-more" aria-label={SETTINGS_MORE.title}>
@@ -242,9 +242,10 @@ function LockView({ s, locked, lockIn, factsError }: { s: SettingsSnapshot | und
   );
 }
 
-function AgentsView({ paused, known, running, facts, factsError, busy, onPause, onResume, waiting, refused, restarting, onRestart, now }: {
+function AgentsView({ paused, known, running, facts, factsError, factsFailure, onFactsRetry, busy, onPause, onResume, waiting, refused, restarting, onRestart, now }: {
   paused: boolean; known: boolean; running: { run: string; deal_id: string; engine: string; state: string; mode: SettingsSnapshot['mode'] }[] | null;
   facts: { agents: { slot: string; engine: string; does: string; mandates: string[]; running: number }[] } | undefined; factsError: boolean;
+  factsFailure?: WalletError | null; onFactsRetry?: () => unknown;
   busy: boolean; onPause: () => void; onResume: () => void;
   waiting: WaitingTable[]; refused: { deal_id: string; error: WalletError }[]; restarting: boolean; onRestart: () => void; now: number;
 }) {
@@ -269,7 +270,9 @@ function AgentsView({ paused, known, running, facts, factsError, busy, onPause, 
             </li>
           ))}
         </ul>
-      ) : <p className="dim">{factsError ? SETTINGS_AGENTS.rosterUnread : SETTINGS_AGENTS.rosterEmpty}</p>}
+      ) : facts ? <Empty>{SETTINGS_AGENTS.rosterEmpty}</Empty>
+        : factsFailure ? <ReadFailed error={factsFailure} what={SETTINGS_AGENTS.roster} message={SETTINGS_AGENTS.rosterUnread} onRetry={onFactsRetry} />
+          : factsError ? <p className="dim">{SETTINGS_AGENTS.rosterUnread}</p> : <Placeholder what={READING_WHAT.agents} count={2} />}
       <h3 className="cs-h3">{SETTINGS_AGENTS.now}</h3>
       {running === null ? <p className="dim">{SETTINGS_AGENTS.nowUnread}</p> : !running.length ? <p className="dim">{SETTINGS_AGENTS.nowEmpty}</p> : (
         <ul className="st-list">

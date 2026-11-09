@@ -5,12 +5,10 @@
 // (totals and every deal; "Recent payments" is the same list, newest first), the outlook, the
 // record, the questions and the proof check. Book only reads: nothing here can move money.
 import { useMemo, useState, type ReactNode } from 'react';
-import { useAttention, useNeeds } from '../../../world';
+import { useAttention, useDeals, useNeeds } from '../../../world';
 import { BOOK, BOOK_VIEWS_TITLE, LATEST_OF, OPEN_THE_DEAL } from '../../../../../lib/words';
-import { Btn, ExplainHint } from '../../../../../shared/ui';
-import { WalletNotice } from '../../../../../shared/honesty';
+import { Btn, ExplainHint, Placeholder, ReadFailed } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
-import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
 import type { LayerProps } from '../../layers';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
@@ -39,6 +37,8 @@ function answerOf(b: BookWorld): { answer: string; sub: ReactNode } {
 
 export function BookLayer({ nav }: LayerProps) {
   const b = useBookWorld();
+  // The book is read from the world's deals: Try again asks for them again.
+  const dealsQ = useDeals();
   const route = useModuleRoute();
   const att = useAttention().data;
   const needs = useNeeds();
@@ -59,7 +59,7 @@ export function BookLayer({ nav }: LayerProps) {
   if (!b.loaded) {
     return (
       <ModuleLayer module="book" answer={BOOK.title} yourCall={null}>
-        {b.error ? <WalletNotice error={b.error} what={BOOK.ledgerWhat} /> : <Loading what={BOOK.loading} />}
+        {b.error ? <ReadFailed error={b.error} what={BOOK.ledgerWhat} onRetry={dealsQ.refetch} /> : <Placeholder what={BOOK.loading} shape="cards" />}
       </ModuleLayer>
     );
   }
