@@ -111,7 +111,15 @@ pub(crate) fn append_verified(
     if expected != e.seq {
         return Err(LedgerError::Conflict);
     }
-    let mandate = read_mandate(conn, deal.mandate_id, deal.mandate_version)?;
+    // A receipt is evidence of a payment that already happened: a rule revoked or re-signed since
+    // does not refuse it (DECISIONS 55). Every other body, and everything outbound, needs an
+    // active mandate.
+    let evidence = direction == Direction::Inbound && matches!(e.body, Body::Receipt { .. });
+    let mandate = if evidence {
+        read_mandate_evidence(conn, deal.mandate_id, deal.mandate_version)?
+    } else {
+        read_mandate(conn, deal.mandate_id, deal.mandate_version)?
+    };
     let own = key_id(
         &VerifyingKey::from_bytes(&mandate.payload.agent_key)
             .map_err(|_| ProtocolError::Signature)?,
@@ -216,7 +224,10 @@ impl Ledger {
                 .map_err(|_| LedgerError::Integrity("peer key"))?,
         )
         .map_err(|_| ProtocolError::Signature)?;
-        let mandate = read_mandate(&self.conn, deal.mandate_id, deal.mandate_version)?;
+        // Only names the audience, before the body is known; it grants nothing. Whether the
+        // mandate must be active is decided per body in `append_verified`, where the message is
+        // recorded, and by each body's own check before that.
+        let mandate = read_mandate_evidence(&self.conn, deal.mandate_id, deal.mandate_version)?;
         let audience = key_id(
             &VerifyingKey::from_bytes(&mandate.payload.agent_key)
                 .map_err(|_| ProtocolError::Signature)?,

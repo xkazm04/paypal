@@ -698,6 +698,11 @@ impl Pipeline {
         if deal.kind == DealKind::Rescue {
             return self.rescue_deadline(id, now).await;
         }
+        // Before the deadline read below: a CAPTURED deal has nothing left to lapse, and may have
+        // no deadline at all.
+        if self.repair_receipt(id, now)? {
+            return Ok(true);
+        }
         // A HOUSE-paired buyer deal out for approval waits a grace past its deadline for the
         // HOUSE's RECEIPT (table-ledger `lapse_at`); every other deal lapses at its deadline.
         let Some(due) = self.wallet.ledger.lapse_at(id)? else {

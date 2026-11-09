@@ -930,6 +930,11 @@ impl Seller {
         if deal.state.terminal() {
             return Ok(());
         }
+        // A confirmed capture left without its receipt; the deadline default below runs only
+        // when a deadline is due. Signs with the house's one agent key and calls PayPal for nothing.
+        if self.pipeline.repair_receipt(deal.id, now)? {
+            return Ok(());
+        }
         if deal.state == DealState::Authorized {
             self.bound_capture(deal.id, now)?;
         }

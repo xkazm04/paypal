@@ -1323,6 +1323,69 @@ async fn house_restart_mid_capture_reserves_no_second_request_id_and_reports_it(
     seller.pipeline.wallet.ledger.verify_audit().unwrap();
 }
 
+/// The house's own loop (`advance`) reaches the repair with no deadline due: a capture confirmed
+/// before the process stopped gets its one receipt, and PayPal is not asked again.
+#[tokio::test]
+async fn house_receipts_a_capture_left_without_one_before_any_deadline() {
+    let house = FileHouse::new(1);
+    let id = house.deals[0];
+    let mut api = house.api();
+    api.hangs = "capture";
+    let api = Arc::new(api);
+    let mut seller = house.open(api.clone());
+    let ticking = async {
+        for _ in 0..10 {
+            let _ = seller.tick().await;
+        }
+    };
+    tokio::select! {
+        () = ticking => panic!("capture never started"),
+        () = api.hung.notified() => {}
+    }
+    drop(seller);
+    let mut seller = house.open(Arc::new(house.api()));
+    let ledger = &mut seller.pipeline.wallet.ledger;
+    let deal = ledger.get_deal(id).unwrap();
+    let mut refs = deal.paypal.clone();
+    refs.capture = Some("CAPTURE1".to_owned());
+    ledger
+        .finish_operation(table_ledger::OperationOutcome {
+            id,
+            attempt: 1,
+            operation: "capture",
+            calls: &[],
+            refs: &refs,
+            event: Some(DealEvent::CaptureConfirmed),
+            at: deal.updated_at,
+        })
+        .unwrap();
+    let sent = ledger
+        .envelope_count(id, table_ledger::Direction::Outbound)
+        .unwrap();
+    for _ in 0..2 {
+        seller.tick().await.unwrap();
+    }
+    let ledger = &seller.pipeline.wallet.ledger;
+    assert_eq!(ledger.get_deal(id).unwrap().state, DealState::Receipted);
+    assert_eq!(
+        ledger
+            .envelope_count(id, table_ledger::Direction::Outbound)
+            .unwrap(),
+        sent + 1
+    );
+    let captures = house
+        .http
+        .0
+        .lock()
+        .unwrap()
+        .paths
+        .iter()
+        .filter(|p| p.ends_with("/capture"))
+        .count();
+    assert_eq!(captures, 0, "the capture was never sent again");
+    ledger.verify_audit().unwrap();
+}
+
 /// A HOUSE that cannot reach PayPal's truth keeps saying so: the unresolved operation is logged
 /// again every ten minutes, never more often, and nothing is sent meanwhile.
 #[tokio::test]

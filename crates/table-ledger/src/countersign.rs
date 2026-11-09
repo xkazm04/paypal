@@ -1,11 +1,11 @@
 //! Outbound PayPal call records, countersigned closed mandates and verified receipts.
 use crate::mandates::read_mandate;
-use crate::repositories::{json_text, read_deal};
+use crate::repositories::{Direction, append_verified, apply, json_text, read_deal};
 use crate::{AuditEntry, Ledger, LedgerError, PaypalCall, audit, redact_paypal};
 use ed25519_dalek::{Signature, VerifyingKey};
-use rusqlite::{OptionalExtension, TransactionBehavior, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde_json::{Value, json};
-use table_core::{ClosedMandate, DealId, DealState, H256, Timestamp, invoice_id};
+use table_core::{ClosedMandate, DealEvent, DealId, DealState, H256, Timestamp, invoice_id};
 use table_proto::{Body, ProtocolError, VerifiedEnvelope};
 
 impl Ledger {
@@ -183,58 +183,92 @@ impl Ledger {
             |r| r.get(0),
         )?)
     }
+    /// Our own signed RECEIPT for a confirmed capture: the envelope, the receipt row and the move
+    /// to RECEIPTED in one immediate transaction, so a deal is either CAPTURED with no receipt
+    /// envelope or RECEIPTED, with nothing between. A refused event leaves nothing.
+    pub fn commit_own_receipt(
+        &mut self,
+        verified: &VerifiedEnvelope,
+        at: Timestamp,
+    ) -> Result<(), LedgerError> {
+        self.write(|tx| {
+            append_verified(tx, verified, Direction::Outbound, at)?;
+            record_receipt_in(tx, verified, at)?;
+            apply(
+                tx,
+                verified.envelope().deal_id,
+                DealEvent::ReceiptVerified,
+                at,
+            )
+        })
+    }
+    /// Whether this wallet already holds its own RECEIPT envelope for the deal.
+    pub fn own_receipt_recorded(&self, id: DealId) -> Result<bool, LedgerError> {
+        Ok(self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM envelopes WHERE deal_id=?1 AND dir=?2 AND typ='RECEIPT')",
+            params![id.to_string(), Direction::Outbound.as_str()],
+            |r| r.get(0),
+        )?)
+    }
     pub fn record_receipt(
         &mut self,
         verified: &VerifiedEnvelope,
         at: Timestamp,
     ) -> Result<(), LedgerError> {
-        let e = verified.envelope();
-        let Body::Receipt {
-            capture_id,
-            amount,
-            status: table_proto::ReceiptStatus::Completed,
-            transcript_head,
-        } = &e.body
-        else {
-            return Err(ProtocolError::Body.into());
-        };
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let deal = read_deal(&tx, e.deal_id)?;
-        if !matches!(
-            deal.state,
-            DealState::Approved
-                | DealState::Authorized
-                | DealState::Captured
-                | DealState::Receipted
-        ) || *amount != deal.terms.amount()?
-            || *transcript_head != e.prev
-            || deal.transcript_head != verified.hash()
-        {
-            return Err(LedgerError::Conflict);
-        }
-        let exists: bool = tx.query_row(
-            "SELECT EXISTS(SELECT 1 FROM envelopes WHERE deal_id=?1 AND hash=?2 AND verified=1)",
-            params![e.deal_id.to_string(), &verified.hash().0[..]],
-            |r| r.get(0),
-        )?;
-        if !exists {
-            return Err(LedgerError::Conflict);
-        }
-        tx.execute("INSERT INTO receipts(deal_id,capture_id,amount_minor,issuer_key,raw_jws,transcript_head,verified_at) VALUES (?1,?2,?3,?4,?5,?6,?7)",params![e.deal_id.to_string(),capture_id.as_str(),amount.minor(),e.iss.as_str(),verified.raw(),&transcript_head.0[..],at.to_string()])?;
-        tx.execute("UPDATE deals SET receipt_evidence='paypal_verified',reconciliation='pending_reporting' WHERE id=?1 AND side='seller' AND EXISTS(SELECT 1 FROM operations o WHERE o.deal_id=?1 AND o.operation='capture' AND (o.status='confirmed' OR EXISTS(SELECT 1 FROM operation_resolutions r WHERE r.request_id=o.request_id AND r.outcome='confirmed')))",[e.deal_id.to_string()])?;
-        audit::append(
-            &tx,
-            &AuditEntry {
-                at,
-                actor: format!("peer:{}", e.iss),
-                action: "receipt.verified".into(),
-                deal_id: Some(e.deal_id),
-                detail: json!({"capture_id":capture_id.as_str(),"transcript_head":transcript_head}),
-            },
-        )?;
+        record_receipt_in(&tx, verified, at)?;
         tx.commit()?;
         Ok(())
     }
+}
+
+/// The body of [`Ledger::record_receipt`] inside the caller's transaction.
+fn record_receipt_in(
+    tx: &Connection,
+    verified: &VerifiedEnvelope,
+    at: Timestamp,
+) -> Result<(), LedgerError> {
+    let e = verified.envelope();
+    let Body::Receipt {
+        capture_id,
+        amount,
+        status: table_proto::ReceiptStatus::Completed,
+        transcript_head,
+    } = &e.body
+    else {
+        return Err(ProtocolError::Body.into());
+    };
+    let deal = read_deal(tx, e.deal_id)?;
+    if !matches!(
+        deal.state,
+        DealState::Approved | DealState::Authorized | DealState::Captured | DealState::Receipted
+    ) || *amount != deal.terms.amount()?
+        || *transcript_head != e.prev
+        || deal.transcript_head != verified.hash()
+    {
+        return Err(LedgerError::Conflict);
+    }
+    let exists: bool = tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM envelopes WHERE deal_id=?1 AND hash=?2 AND verified=1)",
+        params![e.deal_id.to_string(), &verified.hash().0[..]],
+        |r| r.get(0),
+    )?;
+    if !exists {
+        return Err(LedgerError::Conflict);
+    }
+    tx.execute("INSERT INTO receipts(deal_id,capture_id,amount_minor,issuer_key,raw_jws,transcript_head,verified_at) VALUES (?1,?2,?3,?4,?5,?6,?7)",params![e.deal_id.to_string(),capture_id.as_str(),amount.minor(),e.iss.as_str(),verified.raw(),&transcript_head.0[..],at.to_string()])?;
+    tx.execute("UPDATE deals SET receipt_evidence='paypal_verified',reconciliation='pending_reporting' WHERE id=?1 AND side='seller' AND EXISTS(SELECT 1 FROM operations o WHERE o.deal_id=?1 AND o.operation='capture' AND (o.status='confirmed' OR EXISTS(SELECT 1 FROM operation_resolutions r WHERE r.request_id=o.request_id AND r.outcome='confirmed')))",[e.deal_id.to_string()])?;
+    audit::append(
+        tx,
+        &AuditEntry {
+            at,
+            actor: format!("peer:{}", e.iss),
+            action: "receipt.verified".into(),
+            deal_id: Some(e.deal_id),
+            detail: json!({"capture_id":capture_id.as_str(),"transcript_head":transcript_head}),
+        },
+    )?;
+    Ok(())
 }

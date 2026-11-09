@@ -4295,3 +4295,331 @@ async fn a_settled_capture_or_void_leaves_no_read_state() {
         assert_eq!(authorization_reads(&api), reads, "{case}");
     }
 }
+
+/// A seller's deal AUTHORIZED through the real path, at the point a capture would be sent.
+async fn authorized_seller() -> (Wallet, Pipeline, Deal, Arc<MockApi>) {
+    let (mut buyer, seller, deal) = agreed();
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    let settle = p
+        .create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+        .await
+        .unwrap();
+    buyer
+        .receive_relay(deal.id, &settle, Category::Parts, 100)
+        .unwrap();
+    mock.approved.store(true, Ordering::SeqCst);
+    p.poll_approval(deal.id, 1, 100).await.unwrap();
+    p.authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+        .await
+        .unwrap();
+    (buyer, p, deal, mock)
+}
+/// What `send_capture` does up to the crash: reserve, PayPal's one capture, `complete`, and the
+/// process dies before the receipt. `capture_id` is what PayPal answered.
+async fn capture_then_crash(p: &mut Pipeline, mock: &MockApi, id: DealId, capture_id: &str) {
+    let deal = p.wallet.ledger.get_deal(id).unwrap();
+    let request = RequestId::for_operation(id, 1, "capture").unwrap();
+    let mandate_hash = p
+        .wallet
+        .ledger
+        .active_mandate(
+            deal.mandate_id,
+            deal.mandate_version,
+            &p.wallet.owner_public_key(),
+        )
+        .unwrap()
+        .payload
+        .hash()
+        .unwrap();
+    p.wallet
+        .ledger
+        .reserve_operation(
+            id,
+            1,
+            "capture",
+            request.as_str(),
+            &DecidedBy::SellerMandate { mandate_hash },
+            100,
+        )
+        .unwrap();
+    let answer = mock
+        .capture(
+            &ResourceId::new("AUTH1").unwrap(),
+            deal.terms.amount().unwrap(),
+            &request,
+        )
+        .await
+        .unwrap();
+    let mut refs = deal.paypal.clone();
+    refs.capture = Some(capture_id.to_owned());
+    let call = PaypalCall {
+        deal_id: id,
+        method: HttpMethod::Post,
+        path: PaypalPath::new(answer.observations[0].path.clone()).unwrap(),
+        request_id: request.as_str().to_owned(),
+        status: 200,
+        debug_id: None,
+        response: answer.observations[0].body.clone(),
+        binding: None,
+        at: 100,
+    };
+    p.wallet
+        .ledger
+        .finish_operation(OperationOutcome {
+            id,
+            attempt: 1,
+            operation: "capture",
+            calls: &[call],
+            refs: &refs,
+            event: Some(DealEvent::CaptureConfirmed),
+            at: 100,
+        })
+        .unwrap();
+    assert_eq!(
+        p.wallet.ledger.get_deal(id).unwrap().state,
+        DealState::Captured
+    );
+}
+fn capture_calls(mock: &MockApi) -> usize {
+    mock.calls
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|path| path.ends_with("/capture"))
+        .count()
+}
+fn outbound(p: &Pipeline, id: DealId) -> u64 {
+    p.wallet
+        .ledger
+        .envelope_count(id, Direction::Outbound)
+        .unwrap()
+}
+#[tokio::test]
+async fn a_capture_confirmed_before_a_crash_is_receipted_by_the_tick_with_no_paypal_call() {
+    // Before the deadline, and past it (where the default has nothing left to do).
+    for at in [101, 100 + 72 * 3600 + 1] {
+        let (_, mut p, deal, mock) = authorized_seller().await;
+        capture_then_crash(&mut p, &mock, deal.id, "CAPTURE1").await;
+        let sent = outbound(&p, deal.id);
+        let calls = p.wallet.ledger.paypal_call_count(deal.id).unwrap();
+        assert_eq!(p.tick(at).await.unwrap(), vec![deal.id], "at {at}");
+        let d = p.wallet.ledger.get_deal(deal.id).unwrap();
+        assert_eq!(d.state, DealState::Receipted, "at {at}");
+        assert_eq!(d.paypal.capture.as_deref(), Some("CAPTURE1"));
+        assert_eq!(outbound(&p, deal.id), sent + 1, "one receipt envelope");
+        assert_eq!(capture_calls(&mock), 1, "PayPal was not asked again");
+        assert_eq!(p.wallet.ledger.paypal_call_count(deal.id).unwrap(), calls);
+        assert_eq!(
+            p.wallet.ledger.deal_evidence(deal.id).unwrap().receipt,
+            ReceiptEvidence::PaypalVerified
+        );
+        // The second tick has nothing to do.
+        assert!(p.tick(at + 1).await.unwrap().is_empty());
+        assert_eq!(outbound(&p, deal.id), sent + 1);
+        assert_eq!(capture_calls(&mock), 1);
+        p.wallet.ledger.verify_transcript(deal.id).unwrap();
+        p.wallet.ledger.verify_audit().unwrap();
+    }
+}
+/// The deal's own key missing (a revoked rule, or another agent's key in hand): the deal stays
+/// CAPTURED, no error, no envelope, tick after tick. Revocation is the known limit in STATUS.
+#[tokio::test]
+async fn without_the_deals_own_agent_key_the_repair_does_nothing() {
+    for revoke in [true, false] {
+        let (_, mut p, deal, mock) = authorized_seller().await;
+        capture_then_crash(&mut p, &mock, deal.id, "CAPTURE1").await;
+        let sent = outbound(&p, deal.id);
+        if revoke {
+            p.wallet
+                .ledger
+                .revoke_mandate(deal.mandate_id, 100)
+                .unwrap();
+        } else {
+            p.wallet.select_signer(support::signer());
+        }
+        for at in [101, 102] {
+            assert!(p.tick(at).await.unwrap().is_empty(), "revoke {revoke}");
+        }
+        assert_eq!(
+            p.wallet.ledger.get_deal(deal.id).unwrap().state,
+            DealState::Captured
+        );
+        assert_eq!(outbound(&p, deal.id), sent);
+        assert_eq!(capture_calls(&mock), 1);
+    }
+}
+/// `signer_missing`, the runtime's word that no key could be selected, holds the repair too.
+#[tokio::test]
+async fn the_runtimes_signer_missing_flag_holds_the_repair() {
+    let (_, mut p, deal, mock) = authorized_seller().await;
+    capture_then_crash(&mut p, &mock, deal.id, "CAPTURE1").await;
+    p.signer_missing = true;
+    assert!(!p.repair_receipt(deal.id, 101).unwrap());
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Captured
+    );
+    p.signer_missing = false;
+    assert!(p.repair_receipt(deal.id, 101).unwrap());
+}
+/// A step still unsettled on the deal (a parked or unknown operation) holds the repair.
+#[tokio::test]
+async fn an_open_operation_blocks_the_repair() {
+    let (_, mut p, deal, mock) = authorized_seller().await;
+    capture_then_crash(&mut p, &mock, deal.id, "CAPTURE1").await;
+    let request = RequestId::for_operation(deal.id, 1, "void").unwrap();
+    p.wallet
+        .ledger
+        .reserve_operation(
+            deal.id,
+            1,
+            "void",
+            request.as_str(),
+            &DecidedBy::SafeDefault { deadline: 100 },
+            100,
+        )
+        .unwrap();
+    assert!(p.has_open_operation(deal.id).unwrap());
+    let sent = outbound(&p, deal.id);
+    assert!(!p.repair_receipt(deal.id, 101).unwrap());
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Captured
+    );
+    assert_eq!(outbound(&p, deal.id), sent);
+}
+/// One deal's repair failing (its stored capture id cannot go in a RECEIPT) does not starve the
+/// next: every live deal is walked and the first error is returned afterwards.
+#[tokio::test]
+async fn a_failed_repair_does_not_starve_the_next_deal() {
+    let (_, mut p, deal, mock) = authorized_seller().await;
+    capture_then_crash(&mut p, &mock, deal.id, "CAPTURE1").await;
+    // Sorted before the real deal: walked first.
+    let mut bad = p.wallet.ledger.get_deal(deal.id).unwrap();
+    bad.id = "00000000000000000000000000".parse().unwrap();
+    bad.state = DealState::Pairing;
+    bad.transcript_head = H256::ZERO;
+    bad.paypal = PaypalRefs::default();
+    p.wallet.ledger.create_deal(&bad, 100).unwrap();
+    for event in [
+        DealEvent::ListingVerified,
+        DealEvent::OfferVerified,
+        DealEvent::TwoAcceptsVerified,
+        DealEvent::BeginSettlement,
+        DealEvent::SettleVerified,
+        DealEvent::OrderApproved,
+        DealEvent::AuthorizationConfirmed,
+    ] {
+        p.wallet.ledger.apply_event(bad.id, event, 100).unwrap();
+    }
+    capture_then_crash(&mut p, &mock, bad.id, &"X".repeat(200)).await;
+    assert!(p.tick(101).await.is_err());
+    assert_eq!(
+        p.wallet.ledger.get_deal(bad.id).unwrap().state,
+        DealState::Captured
+    );
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Receipted
+    );
+}
+#[tokio::test]
+async fn a_normal_capture_still_receipts_at_once_with_one_envelope() {
+    let (_, mut p, deal, mock) = authorized_seller().await;
+    let sent = outbound(&p, deal.id);
+    p.capture(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+        .await
+        .unwrap();
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Receipted
+    );
+    assert_eq!(outbound(&p, deal.id), sent + 1);
+    assert_eq!(capture_calls(&mock), 1);
+    assert!(p.tick(101).await.unwrap().is_empty());
+    assert_eq!(outbound(&p, deal.id), sent + 1);
+}
+
+/// Buyer and seller at the point the buyer opened the PayPal link and the seller captured.
+async fn handed_off_with_a_receipt() -> (Wallet, String, DealId) {
+    let (mut buyer, mut p, deal, _) = authorized_seller().await;
+    buyer
+        .ledger
+        .set_deal_category(deal.id, Category::Parts)
+        .unwrap();
+    buyer.ledger.handoff(deal.id).unwrap();
+    let receipt = p
+        .capture(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+        .await
+        .unwrap();
+    (buyer, receipt, deal.id)
+}
+#[tokio::test]
+async fn a_sellers_receipt_is_accepted_after_the_buyers_rule_was_revoked() {
+    let (mut buyer, receipt, id) = handed_off_with_a_receipt().await;
+    let mandate = buyer.ledger.get_deal(id).unwrap().mandate_id;
+    buyer.ledger.revoke_mandate(mandate, 100).unwrap();
+    buyer
+        .receive_relay(id, &receipt, Category::Parts, 100)
+        .unwrap();
+    let d = buyer.ledger.get_deal(id).unwrap();
+    assert_eq!(d.state, DealState::Receipted);
+    assert_eq!(
+        buyer.ledger.deal_evidence(id).unwrap().receipt,
+        ReceiptEvidence::SellerAttested
+    );
+    assert_eq!(buyer.ledger.paypal_call_count(id).unwrap(), 0);
+    buyer.ledger.verify_transcript(id).unwrap();
+}
+/// The controls, through the path the relay takes: on a revoked rule a SETTLE, a WITHDRAW and a
+/// NOTE are refused, and nothing of them stays.
+#[tokio::test]
+async fn on_a_revoked_rule_every_other_inbound_body_is_refused_with_no_effect() {
+    for case in ["settle", "withdraw", "note"] {
+        let (mut buyer, seller, deal) = agreed();
+        let mock = Arc::new(MockApi::default());
+        let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+        let raw = match case {
+            "settle" => p
+                .create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+                .await
+                .unwrap(),
+            "withdraw" => p.wallet.withdraw(deal.id, ReasonCode::Price, 100).unwrap(),
+            _ => p
+                .wallet
+                .note(deal.id, ShortText::new("hello".into()).unwrap(), 100)
+                .unwrap(),
+        };
+        buyer.ledger.revoke_mandate(deal.mandate_id, 100).unwrap();
+        let before = buyer.ledger.get_deal(deal.id).unwrap();
+        let inbound = buyer
+            .ledger
+            .envelope_count(deal.id, Direction::Inbound)
+            .unwrap();
+        assert!(
+            buyer
+                .receive_relay(deal.id, &raw, Category::Parts, 100)
+                .is_err(),
+            "{case}"
+        );
+        let after = buyer.ledger.get_deal(deal.id).unwrap();
+        assert_eq!(after.state, before.state, "{case}");
+        assert_eq!(after.transcript_head, before.transcript_head, "{case}");
+        assert_eq!(after.paypal, before.paypal, "{case}");
+        assert_eq!(
+            buyer
+                .ledger
+                .envelope_count(deal.id, Direction::Inbound)
+                .unwrap(),
+            inbound,
+            "{case}"
+        );
+        assert_eq!(
+            buyer.ledger.paypal_call_count(deal.id).unwrap(),
+            0,
+            "{case}"
+        );
+        buyer.ledger.verify_audit().unwrap();
+    }
+}

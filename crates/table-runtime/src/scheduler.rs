@@ -91,8 +91,11 @@ impl Runtime {
         // Without the deal's own agent key (its mandate revoked, or the key gone) nothing PayPal
         // confirms could be signed: the read-back still settles what needs no signature and the
         // deadline still applies its safe default, but no capture is confirmed and nothing but a
-        // void is sent until the key is available again.
-        self.pipeline.signer_missing = unresolved && self.select_signer(deal.id).is_err();
+        // void is sent until the key is available again. A capture left without its receipt
+        // needs the same key, so it is selected for it too.
+        let unreceipted = deal.state == DealState::Captured && deal.paypal.capture.is_some();
+        self.pipeline.signer_missing =
+            (unresolved || unreceipted) && self.select_signer(deal.id).is_err();
         let result = self.tick_steps(deal, now, unresolved).await;
         self.pipeline.signer_missing = false;
         result
@@ -103,6 +106,11 @@ impl Runtime {
         now: i64,
         unresolved: bool,
     ) -> Result<(), CommandError> {
+        // Here, not only in the deadline default: that runs only when a deadline is due, and a
+        // confirmed capture must not wait for it. The key was selected in `tick_deal`.
+        if self.pipeline.repair_receipt(deal.id, now)? {
+            return Ok(());
+        }
         let due = app(self.pipeline.wallet.ledger.deadline(deal.id))?;
         if due.is_some_and(|d| d.0 <= now) {
             // The default reads an unknown authorize or capture back before it voids or

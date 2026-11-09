@@ -398,3 +398,221 @@ async fn failed_void_does_not_starve_another_deadline_or_retry_unknown_money() {
         MoneyCheckState::Parked
     );
 }
+
+/// A seller's AUTHORIZED deal whose capture is recorded as PayPal confirmed it, with no receipt:
+/// a crash between the capture's commit and its receipt, as `send_capture` writes them.
+async fn captured_with_no_receipt(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, at: i64) {
+    agree(r, deal, peer);
+    let token = unlock_runtime(r);
+    r.selected = Some(deal.id);
+    let args = decision(r, deal.id);
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::Decision(args, Decision::Countersign),
+    )
+    .await
+    .unwrap();
+    r.tick().await.unwrap();
+    let ledger = &mut r.pipeline.wallet.ledger;
+    let current = ledger.get_deal(deal.id).unwrap();
+    assert_eq!(current.state, DealState::Authorized);
+    let request = format!("{}-1-capture", deal.id);
+    ledger
+        .reserve_operation(
+            deal.id,
+            1,
+            "capture",
+            &request,
+            &DecidedBy::Human { at },
+            at,
+        )
+        .unwrap();
+    let mut refs = current.paypal.clone();
+    refs.capture = Some("CAPTURE1".to_owned());
+    ledger
+        .finish_operation(table_ledger::OperationOutcome {
+            id: deal.id,
+            attempt: 1,
+            operation: "capture",
+            calls: &[],
+            refs: &refs,
+            event: Some(DealEvent::CaptureConfirmed),
+            at,
+        })
+        .unwrap();
+}
+fn outbound_count(r: &Runtime, id: DealId) -> u64 {
+    r.pipeline
+        .wallet
+        .ledger
+        .envelope_count(id, table_ledger::Direction::Outbound)
+        .unwrap()
+}
+/// The scheduler reaches the repair with no deadline due, selects the deal's own key whichever
+/// was in hand, and calls PayPal for nothing.
+#[tokio::test]
+async fn the_scheduler_receipts_a_capture_left_without_one_using_the_deals_own_key() {
+    let (mut r, vault, http, clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, peer) = setup_delivery(&mut r, Side::Seller, Delivery::ShipThenCapture { days: 1 });
+    captured_with_no_receipt(&mut r, &deal, &peer, clock.now()).await;
+    let (due, _) = r.pipeline.wallet.ledger.deadline(deal.id).unwrap().unwrap();
+    assert!(due > clock.now(), "no deadline is due");
+    // Another agent's key in hand: the tick must not sign with it.
+    r.pipeline.wallet.select_signer(AgentSigner::from_key(
+        ed25519_dalek::SigningKey::from_bytes(&[42; 32]),
+    ));
+    let sent = outbound_count(&r, deal.id);
+    let paths = http.0.lock().unwrap().paths.len();
+    r.tick().await.unwrap();
+    r.tick().await.unwrap();
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Receipted
+    );
+    assert_eq!(outbound_count(&r, deal.id), sent + 1);
+    r.pipeline.wallet.ledger.verify_transcript(deal.id).unwrap();
+    let new = http.0.lock().unwrap().paths[paths..].to_vec();
+    assert!(new.is_empty(), "no PayPal call: {new:?}");
+}
+/// With the rule revoked the scheduler leaves the deal CAPTURED: no fault, no envelope.
+#[tokio::test]
+async fn the_scheduler_leaves_a_capture_with_no_key_to_sign_its_receipt() {
+    let (mut r, vault, _http, clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, peer) = setup_delivery(&mut r, Side::Seller, Delivery::ShipThenCapture { days: 1 });
+    captured_with_no_receipt(&mut r, &deal, &peer, clock.now()).await;
+    r.pipeline
+        .wallet
+        .ledger
+        .revoke_mandate(deal.mandate_id, clock.now())
+        .unwrap();
+    assert!(r.select_signer(deal.id).is_err());
+    let sent = outbound_count(&r, deal.id);
+    for _ in 0..3 {
+        r.tick().await.unwrap();
+    }
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Captured
+    );
+    assert_eq!(outbound_count(&r, deal.id), sent);
+    assert!(!r.pipeline.signer_missing);
+}
+/// The inbox path: a staged seller's RECEIPT reaches the deal under a revoked mandate, where no
+/// signer is selected for it; a staged NOTE is still rejected.
+#[tokio::test]
+async fn a_staged_receipt_reaches_a_deal_whose_rule_was_revoked_and_a_note_does_not() {
+    let (mut r, ..) = runtime(true);
+    let (deal, peer) = setup(&mut r, Side::Buyer);
+    for event in [
+        DealEvent::ListingVerified,
+        DealEvent::OfferVerified,
+        DealEvent::TwoAcceptsVerified,
+    ] {
+        r.pipeline
+            .wallet
+            .ledger
+            .apply_event(deal.id, event, 100)
+            .unwrap();
+    }
+    let aud = table_proto::key_id(&r.pipeline.wallet.agent_public_key()).unwrap();
+    let envelope = |seq: u32, prev: H256, nonce: u8, body: Body| Envelope {
+        v: 1,
+        typ: body.typ(),
+        deal_id: deal.id,
+        seq,
+        prev,
+        iss: peer.key_id().unwrap(),
+        aud: aud.clone(),
+        iat: 100,
+        exp: 700,
+        nonce: [nonce; 16],
+        body,
+    };
+    let settle = peer
+        .sign(&envelope(
+            1,
+            H256::ZERO,
+            1,
+            Body::Settle {
+                order_id: ShortText::new("ORDER1".into()).unwrap(),
+                approve_url: ShortText::new(
+                    "https://www.sandbox.paypal.com/checkoutnow?token=ORDER1".into(),
+                )
+                .unwrap(),
+                amount: deal.terms.amount().unwrap(),
+                invoice_id: ShortText::new(invoice_id(deal.id, 1).unwrap()).unwrap(),
+                intent: table_proto::Intent::Authorize,
+                attempt: 1,
+            },
+        ))
+        .unwrap();
+    r.pipeline
+        .wallet
+        .receive_relay(deal.id, &settle, Category::Parts, 100)
+        .unwrap();
+    r.pipeline.wallet.ledger.handoff(deal.id).unwrap();
+    r.pipeline
+        .wallet
+        .ledger
+        .revoke_mandate(deal.mandate_id, 100)
+        .unwrap();
+    let head = r
+        .pipeline
+        .wallet
+        .ledger
+        .get_deal(deal.id)
+        .unwrap()
+        .transcript_head;
+    let note = peer
+        .sign(&envelope(
+            2,
+            head,
+            2,
+            Body::Note {
+                text: ShortText::new("hello".into()).unwrap(),
+            },
+        ))
+        .unwrap();
+    let receipt = peer
+        .sign(&envelope(
+            2,
+            head,
+            3,
+            Body::Receipt {
+                capture_id: ShortText::new("CAPTURE1".into()).unwrap(),
+                amount: deal.terms.amount().unwrap(),
+                status: table_proto::ReceiptStatus::Completed,
+                transcript_head: head,
+            },
+        ))
+        .unwrap();
+    let ledger = &mut r.pipeline.wallet.ledger;
+    ledger
+        .bind_relay(deal.id, H256::digest(b"mailbox"), 100)
+        .unwrap();
+    ledger
+        .stage_relay_batch(
+            deal.id,
+            "0123456789abcdef0123456789abcdef",
+            0,
+            &[note, receipt],
+            100,
+        )
+        .unwrap();
+    r.relay_finished(vec![]).unwrap();
+    let ledger = &r.pipeline.wallet.ledger;
+    assert_eq!(
+        ledger.get_deal(deal.id).unwrap().state,
+        DealState::Receipted
+    );
+    assert_eq!(
+        ledger
+            .envelope_count(deal.id, table_ledger::Direction::Inbound)
+            .unwrap(),
+        2,
+        "the SETTLE and the RECEIPT; the NOTE was rejected"
+    );
+    assert!(ledger.pending_inbox().unwrap().is_empty());
+}

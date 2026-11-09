@@ -91,7 +91,11 @@ flowchart LR
 6. **Finish atomically.** `finish_operation` stores the outcome, PayPal references, the state
    event and the redacted call (`paypal_calls.body_redacted`, plus identifier-only
    `binding_json`) in one transaction with its audit rows. A seller's create also signs a SETTLE
-   envelope for the buyer. A capture issues the signed RECEIPT (`issue_receipt`).
+   envelope for the buyer. A capture issues the signed RECEIPT (`send_receipt`,
+   `Ledger::commit_own_receipt`: one transaction). If the process stops before it, the next tick
+   signs it from the stored capture id and asks PayPal nothing (`Pipeline::repair_receipt`, run by
+   `tick_steps`, the house's `advance` and `deadline_default`); it waits while a step of the deal is
+   open or the deal's own agent key is not in hand.
 7. **Deadlines default safely.** `Pipeline::deadline_default` runs every tick. An AUTHORIZED
    deal is voided under `SafeDefault`. Any earlier state lapses through
    `Ledger::apply_deadline_default`: WITHDRAWN up to and including Agreed, EXPIRED from
@@ -161,6 +165,8 @@ flowchart LR
      (`crates/table-runtime/src/service.rs`). A receipt on a deal with no recorded handoff is
      refused: one `receipt.refused` row per distinct receipt (actor `peer:<iss>`, reason
      `no_handoff`), nothing else changes, and the deal lapses by its own approval countdown.
+   - A receipt is evidence of a payment that already happened, so a mandate revoked or re-signed
+     since does not refuse it (DECISIONS.md section 55); the handoff and state guards here still do.
    - An accepted receipt moves the deal to RECEIPTED with `receipt_evidence = seller_attested`
      and `reconciliation = pending_reporting`. Only the owner's reporting read (`Pipeline::reconcile`,
      `crates/table-app/src/reconciliation.rs`) can promote it: a match makes it
@@ -279,6 +285,16 @@ results: `deal_evidence` and `deal_reconcile` (main), `approval_summary` (approv
   records the handoff); `crates/table-app/tests/pipeline.rs`
   `own_account_reporting_requires_success_exact_capture_amount_currency_direction_and_complete_pages`
   (an UNCONFIRMED deal reconciles; an unmatched read is recorded).
+- A receipt's commit and repair, and evidence after revocation (DECISIONS.md section 55):
+  `crates/table-ledger/src/tests.rs` `own_receipt_is_one_transaction_and_a_refused_event_leaves_no_envelope`,
+  `a_receipt_for_money_handed_off_is_accepted_after_the_rule_was_retired_and_counts`,
+  `after_the_rule_was_revoked_a_wrong_or_unearned_receipt_is_still_refused`,
+  `after_the_rule_was_revoked_every_other_inbound_body_is_refused_with_no_effect`;
+  `crates/table-app/tests/pipeline.rs` `a_capture_confirmed_before_a_crash_is_receipted_by_the_tick_with_no_paypal_call`,
+  `without_the_deals_own_agent_key_the_repair_does_nothing`, `an_open_operation_blocks_the_repair`,
+  `a_failed_repair_does_not_starve_the_next_deal`; `crates/table-runtime/src/payment_tests.rs`
+  `the_scheduler_receipts_a_capture_left_without_one_using_the_deals_own_key`,
+  `a_staged_receipt_reaches_a_deal_whose_rule_was_revoked_and_a_note_does_not`.
 - `crates/table-app/src/auth.rs`: `owner_tickets_bind_terms_deal_attempt_expiry_and_session_generation`.
 - `crates/table-paypal/tests/client.rs`: `retries_reuse_request_id_and_oauth_is_not_evidence`,
   `h4_truth_binding_and_host_allowlist`.
@@ -315,8 +331,12 @@ results: `deal_evidence` and `deal_reconcile` (main), `approval_summary` (approv
     `deadline_default` → `resolve_deal`), with no throttle, and `paypal_calls` rows are written at that rate.
   - economics-2: per-tick queries (`list_deals`, `open_operations`) scale with the lifetime ledger.
   - A parked authorize at the deadline is still read on every tick, for up to 72 h, and the reads are not recorded.
-- Recovery of a missing SETTLE or RECEIPT after a confirmed money write (crash between writes)
-  is deferred. External anchoring of the audit head is deferred, so removal of the newest
+- Recovery of a missing SETTLE after a confirmed money write (crash between writes) is deferred.
+  The RECEIPT half is done: `Ledger::commit_own_receipt` makes the envelope, the receipt row and
+  the move to RECEIPTED one transaction, and `Pipeline::repair_receipt` re-signs a capture left
+  without one from its stored id, with no PayPal call (DECISIONS.md section 55). A deal already torn
+  by the old three-write path (its RECEIPT envelope recorded, still CAPTURED) is left as it is, so
+  no second envelope is ever signed. External anchoring of the audit head is deferred, so removal of the newest
   audit rows cannot be detected from the wallet alone.
 - A revoked mandate leaves a confirmed capture or a paid rescue invoice waiting for the agent
   key (STATUS "Liveness fixes").

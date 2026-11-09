@@ -231,12 +231,51 @@ impl Pipeline {
             },
             now,
         )?;
-        self.wallet.ledger.record_outbound(&receipt, now)?;
-        self.wallet.ledger.record_receipt(&receipt, now)?;
-        self.wallet
-            .ledger
-            .apply_event(id, DealEvent::ReceiptVerified, now)?;
+        self.wallet.ledger.commit_own_receipt(&receipt, now)?;
         Ok(receipt.raw().into())
+    }
+    /// A capture PayPal confirmed whose receipt was never recorded (the process stopped after
+    /// `complete`): signs and records it from the stored capture id. No PayPal call. Does nothing
+    /// for any other deal, while a step of the deal is open, or without the deal's own agent key
+    /// in hand (its mandate retired, or the key gone: STATUS "Liveness fixes"); the deal then
+    /// stays CAPTURED with no error, and later ticks ask again. Returns whether it receipted.
+    pub fn repair_receipt(&mut self, id: DealId, now: Timestamp) -> Result<bool, Error> {
+        let deal = self.wallet.ledger.get_deal(id)?;
+        let Some(capture_id) = deal.paypal.capture.clone() else {
+            return Ok(false);
+        };
+        if deal.state != DealState::Captured
+            || deal.mode == Mode::Replay
+            || deal.kind == DealKind::Rescue
+            || self.signer_missing
+            || self.has_open_operation(id)?
+            || !self.holds_deal_key(&deal)?
+            // A crash inside the old three-write receipt left this envelope: never a second one.
+            || self.wallet.ledger.own_receipt_recorded(id)?
+        {
+            return Ok(false);
+        }
+        self.send_receipt(id, capture_id, now)?;
+        Ok(true)
+    }
+    /// Whether the signer in hand is the agent key the deal's active mandate pins. A retired or
+    /// refused mandate is `false`; a fault of the ledger itself is an error.
+    fn holds_deal_key(&self, deal: &Deal) -> Result<bool, Error> {
+        match self.wallet.ledger.active_mandate(
+            deal.mandate_id,
+            deal.mandate_version,
+            &self.wallet.owner_public_key(),
+        ) {
+            Ok(mandate) => {
+                Ok(mandate.payload.agent_key == self.wallet.agent_public_key().to_bytes())
+            }
+            Err(
+                e @ (table_ledger::LedgerError::Sql(_)
+                | table_ledger::LedgerError::Json(_)
+                | table_ledger::LedgerError::Integrity(_)),
+            ) => Err(e.into()),
+            Err(_) => Ok(false),
+        }
     }
     /// The order check's half of the payee rule: an order PayPal shows paying another payee than
     /// the agreed one is a scam shield BLOCK on the deal (rule `payee_mismatch`), raised before the

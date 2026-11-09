@@ -3461,3 +3461,260 @@ fn a_busy_write_reruns_whole_and_any_other_error_returns_at_once() {
     assert!(exhausted.as_ref().is_err_and(super::busy));
     assert_eq!((runs, rows(&ledger)), (WRITE_ATTEMPTS, 1));
 }
+
+/// One receipt of our own, signed for a deal whose transcript is still empty.
+fn own_receipt(ledger: &Ledger, deal: &Deal, own: &AgentSigner) -> VerifiedEnvelope {
+    let e = Envelope {
+        v: 1,
+        typ: MsgType::Receipt,
+        deal_id: deal.id,
+        seq: 1,
+        prev: H256::ZERO,
+        iss: own.key_id().unwrap(),
+        aud: deal.counterparty.clone(),
+        iat: 100,
+        exp: 700,
+        nonce: [7; 16],
+        body: Body::Receipt {
+            capture_id: ShortText::new("CAPTURE1".into()).unwrap(),
+            amount: deal.terms.amount().unwrap(),
+            status: ReceiptStatus::Completed,
+            transcript_head: H256::ZERO,
+        },
+    };
+    verify(
+        &own.sign(&e).unwrap(),
+        &own.public_key(),
+        &VerifyContext {
+            deal_id: deal.id,
+            audience: &deal.counterparty,
+            next_sender_seq: 1,
+            previous: H256::ZERO,
+            now: 100,
+            nonces: ledger,
+        },
+    )
+    .unwrap()
+}
+/// The event step refuses (AUTHORIZED has no ReceiptVerified), after the envelope and the receipt
+/// row were written in the same transaction: none of it stays.
+#[test]
+fn own_receipt_is_one_transaction_and_a_refused_event_leaves_no_envelope() {
+    let (mut ledger, deal, _, own, _) = setup();
+    advance(&mut ledger, deal.id, true);
+    ledger
+        .apply_event(deal.id, DealEvent::AuthorizationConfirmed, 100)
+        .unwrap();
+    let verified = own_receipt(&ledger, &deal, &own);
+    assert!(ledger.commit_own_receipt(&verified, 100).is_err());
+    let after = ledger.get_deal(deal.id).unwrap();
+    assert_eq!(after.state, DealState::Authorized);
+    assert_eq!(after.transcript_head, H256::ZERO);
+    assert_eq!(
+        ledger.envelope_count(deal.id, Direction::Outbound).unwrap(),
+        0
+    );
+    assert_eq!(receipt_rows(&ledger, deal.id), 0);
+    assert!(!ledger.contains(&own.key_id().unwrap(), &[7; 16]).unwrap());
+    ledger.verify_audit().unwrap();
+    // From CAPTURED the same envelope lands whole, once.
+    ledger
+        .apply_event(deal.id, DealEvent::CaptureConfirmed, 100)
+        .unwrap();
+    ledger.commit_own_receipt(&verified, 100).unwrap();
+    assert_eq!(
+        ledger.get_deal(deal.id).unwrap().state,
+        DealState::Receipted
+    );
+    assert_eq!(
+        ledger.envelope_count(deal.id, Direction::Outbound).unwrap(),
+        1
+    );
+    assert_eq!(receipt_rows(&ledger, deal.id), 1);
+    assert!(ledger.commit_own_receipt(&verified, 100).is_err());
+    assert_eq!(receipt_rows(&ledger, deal.id), 1);
+    ledger.verify_transcript(deal.id).unwrap();
+    ledger.verify_audit().unwrap();
+}
+
+fn handed_off_buyer_deal() -> (Ledger, Deal, AgentSigner, AgentSigner, AgentSigner) {
+    let (mut ledger, deal, owner, own, peer) = setup();
+    advance(&mut ledger, deal.id, true);
+    ledger.set_deal_category(deal.id, Category::Parts).unwrap();
+    ledger.handoff(deal.id).unwrap();
+    set_order(&ledger, deal.id);
+    (ledger, deal, owner, own, peer)
+}
+fn set_order(ledger: &Ledger, id: DealId) {
+    ledger
+        .conn
+        .execute(
+            "UPDATE deals SET pp_order_id='ORDER1',attempt=1 WHERE id=?1",
+            [id.to_string()],
+        )
+        .unwrap();
+}
+fn peer_receipt(deal: &Deal, own: &AgentSigner, peer: &AgentSigner, amount: Money) -> String {
+    let mut e = inbound(deal, own, peer);
+    e.typ = MsgType::Receipt;
+    e.body = Body::Receipt {
+        capture_id: ShortText::new("CAPTURE1".into()).unwrap(),
+        amount,
+        status: ReceiptStatus::Completed,
+        transcript_head: H256::ZERO,
+    };
+    peer.sign(&e).unwrap()
+}
+/// DECISIONS 55: a receipt is evidence of a payment that already happened. The rule revoked or
+/// re-signed after the handoff no longer refuses it, and the money counts as spent.
+#[test]
+fn a_receipt_for_money_handed_off_is_accepted_after_the_rule_was_retired_and_counts() {
+    for resign in [false, true] {
+        let (mut ledger, deal, owner, own, peer) = handed_off_buyer_deal();
+        let mut other = deal.clone();
+        other.id = "00000000000000000000000009".parse().unwrap();
+        ledger.create_deal(&other, 100).unwrap();
+        if resign {
+            let mut payload = ledger
+                .active_mandate(deal.mandate_id, 1, &owner.public_key())
+                .unwrap()
+                .payload;
+            payload.version = 2;
+            let mandate = OpenMandate {
+                owner_sig: owner.sign_payload(&payload).unwrap(),
+                payload,
+            };
+            ledger
+                .insert_mandate(&mandate, &owner.public_key(), 100)
+                .unwrap();
+        } else {
+            ledger.revoke_mandate(deal.mandate_id, 100).unwrap();
+        }
+        assert!(matches!(
+            ledger.active_mandate(deal.mandate_id, 1, &owner.public_key()),
+            Err(LedgerError::NotFound)
+        ));
+        let raw = peer_receipt(&deal, &own, &peer, deal.terms.amount().unwrap());
+        let verified = ledger.preview_inbound(deal.id, &raw, 100).unwrap();
+        ledger.accept_seller_receipt(&verified, 100).unwrap();
+        assert_eq!(
+            ledger.get_deal(deal.id).unwrap().state,
+            DealState::Receipted
+        );
+        assert_eq!(
+            ledger.deal_evidence(deal.id).unwrap().receipt,
+            ReceiptEvidence::SellerAttested
+        );
+        assert_eq!(receipt_rows(&ledger, deal.id), 1);
+        // Counted: the wallet's exposure fold and the mandate's daily usage.
+        let exposure = fold_exposure(&ledger.exposure_deals().unwrap(), 100).unwrap();
+        assert_eq!(exposure[0].paid_today, deal.terms.amount().unwrap());
+        let usage = ledger.usage_for(&other, 100).unwrap();
+        assert_eq!(usage.deals_today, 1);
+        assert_eq!(usage.total_today, deal.terms.amount().unwrap());
+        ledger.verify_transcript(deal.id).unwrap();
+        ledger.verify_audit().unwrap();
+    }
+}
+#[test]
+fn after_the_rule_was_revoked_a_wrong_or_unearned_receipt_is_still_refused() {
+    // A tampered amount, signed by the peer: the state guards refuse it, nothing is written.
+    let (mut ledger, deal, _, own, peer) = handed_off_buyer_deal();
+    ledger.revoke_mandate(deal.mandate_id, 100).unwrap();
+    let wrong = Money::new(deal.terms.amount().unwrap().minor() + 1, Currency::USD).unwrap();
+    let raw = peer_receipt(&deal, &own, &peer, wrong);
+    let verified = ledger.preview_inbound(deal.id, &raw, 100).unwrap();
+    assert!(matches!(
+        ledger.accept_seller_receipt(&verified, 100),
+        Err(LedgerError::Conflict)
+    ));
+    assert_eq!(ledger.get_deal(deal.id).unwrap().state, DealState::Approved);
+    assert_eq!(receipt_rows(&ledger, deal.id), 0);
+    assert_eq!(
+        ledger.envelope_count(deal.id, Direction::Inbound).unwrap(),
+        0
+    );
+    // Altered after signing: refused at the signature.
+    let mut forged = peer_receipt(&deal, &own, &peer, deal.terms.amount().unwrap());
+    let last = forged.pop().unwrap();
+    forged.push(if last == 'A' { 'B' } else { 'A' });
+    assert!(ledger.preview_inbound(deal.id, &forged, 100).is_err());
+
+    // Never handed off: refused and recorded once, as with an active rule.
+    let (mut ledger, deal, _, own, peer) = setup();
+    advance(&mut ledger, deal.id, true);
+    ledger.set_deal_category(deal.id, Category::Parts).unwrap();
+    set_order(&ledger, deal.id);
+    ledger.revoke_mandate(deal.mandate_id, 100).unwrap();
+    let raw = peer_receipt(&deal, &own, &peer, deal.terms.amount().unwrap());
+    let verified = ledger.preview_inbound(deal.id, &raw, 100).unwrap();
+    assert!(matches!(
+        ledger.accept_seller_receipt(&verified, 100),
+        Err(LedgerError::Conflict)
+    ));
+    assert_eq!(action_rows(&ledger, deal.id, "receipt.refused"), 1);
+    assert_eq!(ledger.get_deal(deal.id).unwrap().state, DealState::Approved);
+    assert_eq!(receipt_rows(&ledger, deal.id), 0);
+
+    // A state money was never handed off in (AGREED, before any order): refused.
+    let (mut ledger, deal, _, own, peer) = setup();
+    advance(&mut ledger, deal.id, false);
+    ledger.revoke_mandate(deal.mandate_id, 100).unwrap();
+    let raw = peer_receipt(&deal, &own, &peer, deal.terms.amount().unwrap());
+    let verified = ledger.preview_inbound(deal.id, &raw, 100).unwrap();
+    assert!(matches!(
+        ledger.accept_seller_receipt(&verified, 100),
+        Err(LedgerError::Conflict)
+    ));
+    assert_eq!(ledger.get_deal(deal.id).unwrap().state, DealState::Agreed);
+    assert_eq!(receipt_rows(&ledger, deal.id), 0);
+}
+/// The preview reads the mandate only to name the audience; every body but a RECEIPT is still
+/// refused where it is recorded, and nothing of it stays. An outbound RECEIPT needs an active
+/// rule too.
+#[test]
+fn after_the_rule_was_revoked_every_other_inbound_body_is_refused_with_no_effect() {
+    let (mut ledger, deal, _, own, peer) = handed_off_buyer_deal();
+    ledger.revoke_mandate(deal.mandate_id, 100).unwrap();
+    for (typ, body, event) in [
+        (
+            MsgType::Note,
+            Body::Note {
+                text: ShortText::new("hello".into()).unwrap(),
+            },
+            None,
+        ),
+        (
+            MsgType::Withdraw,
+            Body::Withdraw {
+                reason: ReasonCode::Price,
+            },
+            Some(DealEvent::Withdraw),
+        ),
+    ] {
+        let mut e = inbound(&deal, &own, &peer);
+        e.typ = typ;
+        e.body = body;
+        let verified = ledger
+            .preview_inbound(deal.id, &peer.sign(&e).unwrap(), 100)
+            .unwrap();
+        assert!(matches!(
+            ledger.commit_negotiation(&verified, Direction::Inbound, None, event, 100),
+            Err(LedgerError::NotFound)
+        ));
+        let after = ledger.get_deal(deal.id).unwrap();
+        assert_eq!(after.state, DealState::Approved);
+        assert_eq!(after.transcript_head, H256::ZERO);
+        assert_eq!(
+            ledger.envelope_count(deal.id, Direction::Inbound).unwrap(),
+            0
+        );
+        assert!(!ledger.contains(&e.iss, &e.nonce).unwrap());
+    }
+    let outbound = own_receipt(&ledger, &deal, &own);
+    assert!(matches!(
+        ledger.record_outbound(&outbound, 100),
+        Err(LedgerError::NotFound)
+    ));
+    ledger.verify_audit().unwrap();
+}

@@ -2278,3 +2278,14 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   another, would bend the layering more than the duplication costs.
 - **Evidence:** the wave-3 belay lane that moved the clock into `table-core` was rejected on review for breaking
   `table-core`'s purity (`.belay/runs/paypal/3.review.md` in afterlife).
+
+## 55. Evidence survives revocation; a receipt is one transaction and a lost one is repaired
+
+- **Decided by:** the operator, 2026-11-09, on the stabilize findings of the money pipeline (`.claude/scan-sweep/findings/stabilize-2026-11-09-money.jsonl`, findings 1 and 2).
+- **Decision:**
+  1. **Evidence survives revocation.** A RECEIPT is evidence of a payment that already happened. An inbound RECEIPT is read against the deal's mandate as recorded (integrity checked, status ignored), so a rule revoked or re-signed since does not refuse it. Revocation stops future authority; it does not erase history. Every other inbound body and every outbound envelope still needs an active mandate. `preview_inbound` reads the mandate as recorded only to name the audience, and grants nothing. `accept_seller_receipt`'s guards are unchanged (buyer side, an order out, a recorded handoff, the deal's amount), so a receipt lands only where money was handed off.
+  2. **One transaction.** The envelope, the receipt row and the move to RECEIPTED are written together (`Ledger::commit_own_receipt`): a deal is CAPTURED with no receipt envelope, or RECEIPTED.
+  3. **A repair, with no PayPal call.** A live deal, not Replay or Rescue, CAPTURED with a stored capture id and no open step gets its receipt signed on the next tick (`Pipeline::repair_receipt`). It runs in the deadline default and, because that runs only once a deadline is due, in the scheduler's `tick_steps` and the house's `advance`.
+  4. **The signer.** The repair needs the deal's own agent key: the scheduler selects it for such a deal, and the repair also checks the key in hand against the deal's active mandate. With a retired mandate or no key it does nothing: the deal stays CAPTURED, with no error and no envelope (the known limit in STATUS "Liveness fixes"; item 1 does not change it, since outbound still needs an active mandate).
+- **Still open:** recovery of a missing SETTLE. A deal already torn by the old three writes (its RECEIPT envelope recorded, still CAPTURED) is left alone so no second envelope is signed.
+- **Evidence:** the tests named under "A receipt's commit and repair" in `docs/features/money-pipeline.md`.
