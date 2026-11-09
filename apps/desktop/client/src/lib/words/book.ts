@@ -287,3 +287,27 @@ export const BOOK = {
     checks: 'What is checked',
   },
 } as const;
+
+/** The ledger's "Save proof files": a signed proof file for each deal in view, or in one month. */
+export const BOOK_PROOFS = {
+  head: 'Save proof files',
+  intro: 'One signed proof file per deal, for your accountant or anyone you choose. Anyone can check each file on its own. Saving moves no money.',
+  which: 'Which deals',
+  inView: (n: number) => `The ${plural(n, 'deal', 'deals')} in view`,
+  month: (label: string, n: number) => `${label} · ${plural(n, 'deal', 'deals')}`,
+  save: (n: number) => `Save ${plural(n, 'proof file', 'proof files')}`,
+  none: 'No deals to save here.',
+  progress: (done: number, total: number) => `Saving ${done} of ${total}…`,
+  stop: 'Stop',
+  stopping: 'Stopping after the save window that is open now.',
+  written: (n: number, of: number) => `${plural(n, 'proof file', 'proof files')} saved, of ${plural(of, 'deal', 'deals')}.`,
+  closed: (n: number) => `${plural(n, 'deal was', 'deals were')} not saved because the save window was closed.`,
+  missing: (n: number, why: string) => `${plural(n, 'deal has', 'deals have')} no proof file: ${why}`,
+  stopped: (n: number) => `Stopped before ${plural(n, 'deal', 'deals')}. Nothing was saved for them.`,
+  /** Said before starting: each file asks where to save it. */
+  windows: (n: number) => (n === 1 ? 'This saves 1 file, in one save window.' : `This saves ${n} files, one save window each.`),
+  confirm: (n: number) => `That is ${n} save windows, one after another. Closing two in a row stops it.`,
+  confirmYes: (n: number) => `Yes, save ${n} files`,
+  confirmNo: 'Not now',
+  closedTwice: 'You closed two save windows in a row, so it stopped there.',
+} as const;

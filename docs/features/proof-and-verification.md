@@ -319,10 +319,12 @@ IPC commands (from `crates/table-client/src/authority_table.rs`):
   order record saved before migration 0007 reads "not checked" and holds the file back.
 - **Closed (2026-11-09): a month of proofs.** The Book's ledger has "Save proof files": one file
   per deal for the rows in view or a chosen month, through the deal page's own per-deal export
-  (`deal_export_proof`, no new command), at most eight at once, with progress, a stop, and a count
-  of saved files, closed save windows and deals with no proof file and why. **Still open:** the
-  shell's export asks where to save each file, so a month is one save window per deal; one folder
-  for the whole month needs a new command. There is no archive: the client has no zip helper.
+  (`deal_export_proof`, no new command). That export opens a save window per deal, so the files
+  are saved strictly one at a time (never two windows open, the same path in the preview), the
+  count of windows is said before it starts and confirmed above ten, two windows closed in a row
+  stop it, and it shows progress, a stop, and a count of saved files, closed save windows and
+  deals with no proof file and why.
+- **Still open:** a one-folder or single-archive export needs a new wallet command and is not built.
 - Since inbound NOTE envelopes are committed to the transcript, a bundle can carry the other
   side's note text inside a signed message. It is never printed or parsed. Selective disclosure
   (T13) is not built.
