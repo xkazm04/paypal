@@ -6013,7 +6013,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/templates.ts:2 The 'templates' here are spending-rule presets a person signs, and a case-insensitive search of the approval window tree found no CLAUDE.md, AGENTS.md, GEMINI.md, SKILL.md or 'instruction file' (the only 'prompt' hits are a credential dialog and a face-scan prompt, and the only 'instruction' hit is a test string in replay.test.ts), so no agent instruction file exists for this UI context to own, load or write.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9b02cf004a7ce444",
+          "evaluatedRevision": 32
         },
         {
           "subject": "test-harness",
