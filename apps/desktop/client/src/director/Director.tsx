@@ -641,15 +641,15 @@ export function Director({ story }: { story: Story }) {
         {take || film ? null : <a className="dir-arena" href="proof.html">Check a proof ›</a>}
       </header>
 
-      <main className="dir-stage" ref={stageRef} aria-label="The three windows of The Table, on sample data">
+      <main className="dir-stage" ref={stageRef} aria-label="The three windows of Signet, on sample data">
         <div className="dir-desk" ref={deskRef} style={{ width: DESK.w, height: DESK.h, ...deskStyle }}>
-          <section className={`dir-win w-main${mainOpen ? '' : ' closed'}`} style={win(WIN.main)} aria-label="The Table (main window)" aria-hidden={!mainOpen}>
-            <WinBar title="The Table" />
-            <iframe key={`m${frames.epoch}`} ref={mainRef} name="the-table-main" title="The Table" src={frames.mainSrc}
+          <section className={`dir-win w-main${mainOpen ? '' : ' closed'}`} style={win(WIN.main)} aria-label="Signet (main window)" aria-hidden={!mainOpen}>
+            <WinBar title="Signet" />
+            <iframe key={`m${frames.epoch}`} ref={mainRef} name="the-table-main" title="Signet" src={frames.mainSrc}
               width={WIN.main.w} height={WIN.main.h} onLoad={(e) => { watchInput(e.currentTarget); onMainLoad(frames.epoch); }} />
           </section>
           <div className={`dir-ghost${mainOpen || shot !== 'desk' ? '' : ' on'}`} style={win(WIN.main)} aria-hidden={mainOpen}>
-            <span>The Table is closed</span>
+            <span>Signet is closed</span>
           </div>
 
           <section className={`dir-win w-approval${approvalOpen ? '' : ' closed'}`} style={win(WIN.approval)} aria-label="The approval window" aria-hidden={!approvalOpen}>
