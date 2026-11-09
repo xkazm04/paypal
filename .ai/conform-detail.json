@@ -10865,6 +10865,46 @@
       "evaluatedTs": "2026-11-09T03:27:23.496Z",
       "worker": "f4c14ca4-21b0-4546-876b-e444e9ac0e4c",
       "techniques": []
+    },
+    "82440528-c2ad-4c04-b22b-0874f0723589/agent-instruction-files": {
+      "context": "money-guidance-and-onboarding",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:39:34.929Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "19a862ca-186b-4478-ba34-756e82623ae7",
+        "state": "not-applicable",
+        "at": "2026-11-09T03:39:54.884451+00:00",
+        "reason": "reviewer (sonnet): The evidence says a search of apps/desktop/client/src/lib found nothing, but lib/format.test.ts:7 cites AGENTS.md and lib/assistant/bridge/assistantBridge.test.ts sets CLAUDE_BIN and launches the claude CLI, so the search claim is false."
+      }
+    },
+    "e89814cc-f4e5-4bd4-bc27-9f356e7de9d4/agent-instruction-files": {
+      "context": "wallet-domain-primitives",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:39:34.929Z",
+      "worker": "19a862ca-186b-4478-ba34-756e82623ae7",
+      "techniques": []
+    },
+    "04d7429b-17dd-4b81-8210-ee2f93b5fa49/agent-instruction-files": {
+      "context": "design-theme-and-copy",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:39:34.929Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "19a862ca-186b-4478-ba34-756e82623ae7",
+        "state": "not-applicable",
+        "at": "2026-11-09T03:39:54.915916+00:00",
+        "reason": "reviewer (sonnet): The evidence repeats the claim that a search of apps/desktop/client/src/lib found nothing. That is contradicted by the AGENTS.md reference in format.test.ts and the agent-launch bridge under lib/assistant. The words.ts:786-796 labels do fit the verdict, but the repo-wide search claim does not."
+      }
     }
   }
 }
