@@ -97,7 +97,7 @@ const fn source_text(source: RescueSource) -> &'static str {
 }
 
 /// The recovered-money predicate, over `deals d` (the one place it is written).
-pub(crate) const COUNTED: &str = "d.kind='rescue' AND d.mode='sandbox' AND d.state IN ('RECEIPTED','RECONCILED') AND d.receipt_evidence='paypal_verified' AND EXISTS(SELECT 1 FROM rescue_cases c WHERE c.deal_id=d.id AND c.source='paypal') AND EXISTS(SELECT 1 FROM receipts r WHERE r.deal_id=d.id AND r.verified_at IS NOT NULL AND r.capture_id=d.pp_order_id) AND EXISTS(SELECT 1 FROM operations o WHERE o.deal_id=d.id AND o.operation='invoice-send' AND o.status='confirmed')";
+pub(crate) const COUNTED: &str = "d.kind='rescue' AND d.mode='sandbox' AND d.state IN ('RECEIPTED','RECONCILED') AND d.receipt_evidence='paypal_verified' AND EXISTS(SELECT 1 FROM rescue_cases c WHERE c.deal_id=d.id AND c.source='paypal') AND EXISTS(SELECT 1 FROM receipts r WHERE r.deal_id=d.id AND r.verified_at IS NOT NULL AND r.capture_id=d.pp_order_id) AND EXISTS(SELECT 1 FROM operations o WHERE o.deal_id=d.id AND o.operation='invoice-send' AND (o.status='confirmed' OR EXISTS(SELECT 1 FROM operation_resolutions r2 WHERE r2.request_id=o.request_id AND r2.outcome='confirmed')))";
 
 impl Ledger {
     /// Write a failed renewal and the rescue deal it opens, in one transaction: the subscriber's
@@ -273,7 +273,9 @@ impl Ledger {
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let deal = read_deal(&tx, e.deal_id)?;
         let sent: bool = tx.query_row(
-            "SELECT EXISTS(SELECT 1 FROM operations WHERE deal_id=?1 AND operation='invoice-send' AND status='confirmed')",
+            // A send whose answer was lost is confirmed by its read-back, in operation_resolutions: the
+            // operation's own status stays as it was written (as countersign.rs reads it).
+            "SELECT EXISTS(SELECT 1 FROM operations o WHERE o.deal_id=?1 AND o.operation='invoice-send' AND (o.status='confirmed' OR EXISTS(SELECT 1 FROM operation_resolutions r WHERE r.request_id=o.request_id AND r.outcome='confirmed')))",
             [deal.id.to_string()],
             |r| r.get(0),
         )?;
