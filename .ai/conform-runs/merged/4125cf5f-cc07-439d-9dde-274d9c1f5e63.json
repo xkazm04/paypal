@@ -1,0 +1,166 @@
+{
+ "schema": "conform-run/1",
+ "worker": "4125cf5f-cc07-439d-9dde-274d9c1f5e63",
+ "subject": "agent-runtime-assembly",
+ "evaluatedAt": "2026-11-09T23:26:20.581000+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "agent-tool-surface",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "crates/table-mcp/src/lib.rs:693 The tools a session is shown (tools/list, line 648) and the tools it may call (line 693) both come from one catalog keyed on the role stored on the session, so the model is never shown a tool the server then refuses for that reason.",
+   "techniques": [
+    {
+     "technique": "session-scoped-capability",
+     "verdict": "conformant",
+     "evidence": "crates/table-mcp/src/lib.rs:693 The tool list comes from the session's own scope.role, not from a process environment variable. The listing at line 648 and the call-time refusal use the same catalog() function."
+    },
+    {
+     "technique": "guard-input-custody",
+     "verdict": "conformant",
+     "evidence": "crates/table-mcp/src/lib.rs:673 The per-session call limit is a constant the server sets, and the count lives in server memory, so the agent can use up its calls but cannot raise the limit. The search budget at line 519 works the same way."
+    },
+    {
+     "technique": "indeterminate-closure-on-interruption",
+     "verdict": "conformant",
+     "evidence": "crates/table-mcp/src/lib.rs:716 A timed-out call is recorded with its own typed outcome (Abandoned), not as a failure. The model is told the outcome is unknown and to read the table rather than retry. The code sent to the model is still Unavailable (see notes)."
+    },
+    {
+     "technique": "bounded-projection-of-external-work",
+     "verdict": "conformant",
+     "evidence": "crates/table-mcp/src/lib.rs:398 The model can only submit a proposal; no tool lets it poll for status. Later state is read back as a fixed-size view (table_view) from the wallet's records."
+    },
+    {
+     "technique": "nested-run-is-not-its-parent",
+     "verdict": "conformant",
+     "evidence": "crates/table-mcp/src/lib.rs:217 Every grant, including each per-run grant from grant_for_run, gets a newly generated token, and the run id comes from Rust code, never from tool arguments. An unknown token is refused (line 625) rather than matched to another session."
+    },
+    {
+     "technique": "operator-tier-code-loading",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-mcp/src/lib.rs:332 The tools are a fixed list compiled into the server; nothing loads outside code into it."
+    },
+    {
+     "technique": "host-routes-win",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-mcp/src/lib.rs:266 The server mounts a single route of its own; no outside contribution adds routes."
+    },
+    {
+     "technique": "observer-and-mutator-surfaces",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-mcp/src/lib.rs:195 The only thing plugged in is a search backend the host supplies; there is no surface for registering outside callbacks."
+    },
+    {
+     "technique": "checkpoint-mode-custody",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-mcp/src/lib.rs:117 Sessions are short-lived, in-memory grants. No conversation checkpoints are stored here."
+    },
+    {
+     "technique": "rewrite-before-the-gate",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-mcp/src/lib.rs:696 Arguments are decoded exactly as sent and are never rewritten before the checks run."
+    },
+    {
+     "technique": "semantic-hook-placement",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-mcp/src/lib.rs:669 There is no chain of hooks to place. The rule behind the technique still holds, though: refusals at the outer layer are written to the audit log before the agent hears about them, so the log has no gaps."
+    }
+   ]
+  },
+  {
+   "context": "shared-surfaces-onboarding-honesty",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/shared/honesty.tsx:1 These are display components (badges, money, countdowns, tour, owner key). A case-insensitive search of shared/ found no hook chain, no loading of outside code, and no checkpoint, plugin, compaction, subagent or middleware constructs, so the subject's precondition does not hold.",
+   "techniques": [],
+   "absenceTerms": [
+    "checkpoint",
+    "plugin",
+    "compaction",
+    "subagent",
+    "middleware"
+   ]
+  },
+  {
+   "context": "console-framework",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/console/layers.registry.ts:1 The only registry here is a fixed, compile-time list of UI view imports, not an agent runtime. A case-insensitive search of windows/main/console found no checkpoint, plugin, compaction, subagent or middleware constructs.",
+   "techniques": [],
+   "absenceTerms": [
+    "checkpoint",
+    "plugin",
+    "compaction",
+    "subagent",
+    "middleware"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "wallet-app-services",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "spend-firewall-and-agent-policy",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T23:26:20.581000+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [
+    "bounded-projection-of-external-work",
+    "checkpoint-mode-custody",
+    "guard-input-custody",
+    "host-routes-win",
+    "indeterminate-closure-on-interruption",
+    "nested-run-is-not-its-parent",
+    "observer-and-mutator-surfaces",
+    "operator-tier-code-loading",
+    "rewrite-before-the-gate",
+    "semantic-hook-placement",
+    "session-scoped-capability"
+   ],
+   "deviations": 0,
+   "context": "agent-tool-surface",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T23:26:20.581000+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shared-surfaces-onboarding-honesty",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T23:26:20.581000+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "console-framework",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

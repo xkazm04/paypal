@@ -395,22 +395,18 @@
       "context": "shared-surfaces-onboarding-honesty",
       "subject": "agent-runtime-assembly",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T00:23:16.419Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:26:20.581Z",
+      "worker": "4125cf5f-cc07-439d-9dde-274d9c1f5e63",
       "techniques": [
         {
           "technique": "session-scoped-capability",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/shared/honesty.tsx:25 Chooses a preview badge from the UI backend kind. Not a tool roster resolved from a session source."
+          "evidence": "apps/desktop/client/src/shared/honesty.tsx:25 Chooses a preview badge from the UI backend kind. Not a tool roster resolved from a session source.",
+          "carriedFrom": "2026-10-15"
         }
-      ],
-      "withdrawn": {
-        "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
-        "state": "not-applicable",
-        "at": "2026-10-15T00:23:50.417433+00:00",
-        "reason": "reviewer (sonnet): The anchor honesty.tsx:16 is only a mode tooltip string and does not itself show runtime assembly is absent; the context also has an 'agent app' engine-choice step in start.tsx that the evidence does not address."
-      }
+      ]
     },
     "78691638-b912-45fd-98f8-083cec08e3a9/agent-memory": {
       "context": "tumbler-window",
@@ -11392,6 +11388,82 @@
           "evidence": "apps/desktop/client/scripts/export-scale-fixtures.mjs:13 The exported fixture names its generator and its fixed clock, so it can be rebuilt deterministically."
         }
       ]
+    },
+    "4a906b90-6f4d-4f72-92fb-1091ca69ebff/agent-runtime-assembly": {
+      "context": "agent-tool-surface",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:26:20.581Z",
+      "worker": "4125cf5f-cc07-439d-9dde-274d9c1f5e63",
+      "techniques": [
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/src/lib.rs:693 The tool list comes from the session's own scope.role, not from a process environment variable. The listing at line 648 and the call-time refusal use the same catalog() function."
+        },
+        {
+          "technique": "guard-input-custody",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/src/lib.rs:673 The per-session call limit is a constant the server sets, and the count lives in server memory, so the agent can use up its calls but cannot raise the limit. The search budget at line 519 works the same way."
+        },
+        {
+          "technique": "indeterminate-closure-on-interruption",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/src/lib.rs:716 A timed-out call is recorded with its own typed outcome (Abandoned), not as a failure. The model is told the outcome is unknown and to read the table rather than retry. The code sent to the model is still Unavailable (see notes)."
+        },
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/src/lib.rs:398 The model can only submit a proposal; no tool lets it poll for status. Later state is read back as a fixed-size view (table_view) from the wallet's records."
+        },
+        {
+          "technique": "nested-run-is-not-its-parent",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/src/lib.rs:217 Every grant, including each per-run grant from grant_for_run, gets a newly generated token, and the run id comes from Rust code, never from tool arguments. An unknown token is refused (line 625) rather than matched to another session."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-mcp/src/lib.rs:332 The tools are a fixed list compiled into the server; nothing loads outside code into it."
+        },
+        {
+          "technique": "host-routes-win",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-mcp/src/lib.rs:266 The server mounts a single route of its own; no outside contribution adds routes."
+        },
+        {
+          "technique": "observer-and-mutator-surfaces",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-mcp/src/lib.rs:195 The only thing plugged in is a search backend the host supplies; there is no surface for registering outside callbacks."
+        },
+        {
+          "technique": "checkpoint-mode-custody",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-mcp/src/lib.rs:117 Sessions are short-lived, in-memory grants. No conversation checkpoints are stored here."
+        },
+        {
+          "technique": "rewrite-before-the-gate",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-mcp/src/lib.rs:696 Arguments are decoded exactly as sent and are never rewritten before the checks run."
+        },
+        {
+          "technique": "semantic-hook-placement",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-mcp/src/lib.rs:669 There is no chain of hooks to place. The rule behind the technique still holds, though: refusals at the outer layer are written to the audit log before the agent hears about them, so the log has no gaps."
+        }
+      ]
+    },
+    "c02a6103-08a3-462b-84a7-23d7c9ec8c58/agent-runtime-assembly": {
+      "context": "console-framework",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:26:20.581Z",
+      "worker": "4125cf5f-cc07-439d-9dde-274d9c1f5e63",
+      "techniques": []
     }
   }
 }

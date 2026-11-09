@@ -786,8 +786,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "conformant",
+          "priorNotApplicable": 4,
+          "evidence": "crates/table-mcp/src/lib.rs:693 The tools a session is shown (tools/list, line 648) and the tools it may call (line 693) both come from one catalog keyed on the role stored on the session, so the model is never shown a tool the server then refuses for that reason.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "hitl-approval",
@@ -8122,8 +8126,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/shared/honesty.tsx:1 These are display components (badges, money, countdowns, tour, owner key). A case-insensitive search of shared/ found no hook chain, no loading of outside code, and no checkpoint, plugin, compaction, subagent or middleware constructs, so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "concurrent-vcs",
@@ -9959,8 +9967,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/windows/main/console/layers.registry.ts:1 The only registry here is a fixed, compile-time list of UI view imports, not an agent runtime. A case-insensitive search of windows/main/console found no checkpoint, plugin, compaction, subagent or middleware constructs.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "windowed-inference-over-oversized-inputs",
