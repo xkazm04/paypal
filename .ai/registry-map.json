@@ -2327,7 +2327,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/tables/Need.tsx:58 The Withdraw option on a table's decision card sends only the deal id, so the owner's refusal of a pending ask carries no reason and the record cannot feed trigger tuning (the wallet stores a constant ReasonCode::Other for it).",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9adc955a19c6822e",
+          "evaluatedRevision": 23
         },
         {
           "subject": "guest-execution-bounding",
@@ -2520,7 +2524,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/Decision.tsx:170 The deal page's Withdraw arm of the decision card records the owner's refusal with no reason from the owner (the wallet hard-codes ReasonCode::Other), so the rejection reasons the record exists to collect are never captured.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9adc955a19c6822e",
+          "evaluatedRevision": 23
         },
         {
           "subject": "fleet-orchestration",
@@ -6392,7 +6400,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "prototype/main/modules.js:725 The prototype only draws an approval experience over illustrative fixtures: every simulated verdict is an in-memory patch, and a search of the whole prototype directory found no gate command, token or backend call, so no machine is paused at a consequence boundary.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9adc955a19c6822e",
+          "evaluatedRevision": 23
         },
         {
           "subject": "mcp-tools",
@@ -10490,7 +10502,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx:73 Resume turns autonomy back up with one unconfirmed click that the wallet stores only as a preference flip, so raising the dial leaves no decision record, whereas the same act proposed through the assistant does write an audit row.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9adc955a19c6822e",
+          "evaluatedRevision": 23
         },
         {
           "subject": "agent-runtime-assembly",

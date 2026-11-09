@@ -10905,6 +10905,216 @@
         "at": "2026-11-09T03:39:54.915916+00:00",
         "reason": "reviewer (sonnet): The evidence repeats the claim that a search of apps/desktop/client/src/lib found nothing. That is contradicted by the AGENTS.md reference in format.test.ts and the agent-launch bridge under lib/assistant. The words.ts:786-796 labels do fit the verdict, but the repo-wide search claim does not."
       }
+    },
+    "d477836b-8d3f-42dd-93ce-bf0a9f5bbf53/hitl-approval": {
+      "context": "counter-and-tables-modules",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:55:51.932Z",
+      "worker": "b4037d2c-f80b-4b99-833e-8129ae98dec4",
+      "techniques": [
+        {
+          "technique": "decision-records",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/tables/Need.tsx:58 The refusal arm of the DecisionCard (Need.tsx:43) has no why field, while the technique makes a reason mandatory on rejection; DealArgs carries only deal_id."
+        },
+        {
+          "technique": "gate-state-machines",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/tables/parts.tsx:28 The shared HandOff button can only open the approval window; the money decisions are approval-labelled and token-gated in the authority table."
+        },
+        {
+          "technique": "consent-gates",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:146 Disclosure is computed from the signed band, the draft and signed prices; moving the draft also clears the hand-off and the read mark (TablesLayer.tsx:161)."
+        },
+        {
+          "technique": "review-queues",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/tables/TablesLayer.tsx:50 Pending items sort first and soonest-expiring first from the wallet's attention set; the need card carries question, why, amount, silence and deadline, and failures stay on it as notices."
+        },
+        {
+          "technique": "resume-after-decision",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/tables/TablesLayer.tsx:148 A hand-off ends only when the wallet has rebound the deal to a newer signed version, not when the window was opened."
+        },
+        {
+          "technique": "oracle-before-gate",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:102 The owner has a concrete comparison for a floor, and a missing or other-currency market reads as none rather than as a calm result."
+        },
+        {
+          "technique": "unattended-mode",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/counter/CounterLayer.tsx:278 Read side only: the standing grant the shop agent works under is shown with its validity window, agent and version."
+        },
+        {
+          "technique": "handoff-is-a-declared-door",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/tables/Need.tsx:32 The owner is pulled in by the wallet's attention item naming a signed clause or state, and counterparty words are quarantined behind TheirWords."
+        },
+        {
+          "technique": "severity-sla-ladder",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/tables/Need.tsx:49 This context renders a wallet-supplied deadline and silence outcome and owns no severity table."
+        },
+        {
+          "technique": "fixed-policy-amendable-plan",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/counter/CounterLayer.tsx:4 Owner drafts of the fixed tier live here; no executor route or amendment record is in this context."
+        }
+      ]
+    },
+    "f4937131-9b2b-4830-92bf-e739e6fbaab4/hitl-approval": {
+      "context": "deal-detail",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:55:51.932Z",
+      "worker": "b4037d2c-f80b-4b99-833e-8129ae98dec4",
+      "techniques": [
+        {
+          "technique": "decision-records",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/Decision.tsx:170 Who, verdict, when and what was shown are realized on the read side (shown.ts, StoryView.tsx), but the why, mandatory on rejection, has no field on the refusal path."
+        },
+        {
+          "technique": "fail-loud-classification-default",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/DealPage.tsx:124 The card reads 'Within your rules' when one check is known and none is an exception, though velocity and payees are always unknown here (model.ts:203, 212) and are required clauses, so unknowns resolve to the calm label; the marker sits one view down in RulesView."
+        },
+        {
+          "technique": "gate-state-machines",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/Decision.tsx:122 The approve path only opens the approval window; this page has no write that can open a gate."
+        },
+        {
+          "technique": "consent-gates",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/deal/story.ts:110 The question binds the real amount and counterparty from the deal rather than an agent's description; reviewMeans adds that nothing moves until confirmed."
+        },
+        {
+          "technique": "review-queues",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/Decision.tsx:146 The item decides in place with question, trigger reason, options, silence outcome and deadline; failed writes stay as WalletNotices (lines 154-155)."
+        },
+        {
+          "technique": "resume-after-decision",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/deal/shown.ts:24 A deadline ending is a recorded outcome with its own authority and what the owner was offered, not a silent disappearance."
+        },
+        {
+          "technique": "oracle-before-gate",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/deal/model.ts:203 Per-clause readings compare the signed mandate with the signed terms, and a fact this screen cannot establish is recorded as unknown with the reason."
+        },
+        {
+          "technique": "unattended-mode",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/decided.ts:13 Steps taken under the standing grant are attributed to the rule, the shop mandate or the safe default, distinct from the owner."
+        },
+        {
+          "technique": "handoff-is-a-declared-door",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/deal/story.ts:122 The owner is asked because a signed clause named by the wallet's attention item says so, not because an agent or counterparty requested it."
+        },
+        {
+          "technique": "severity-sla-ladder",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/Decision.tsx:115 The page words a silence outcome the wallet supplied and owns no severity-to-deadline table."
+        },
+        {
+          "technique": "truncated-verdict-space",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/deal/model.ts:219 No assessor admits to a trust boundary in this context; the market watch is display input with no verdict."
+        },
+        {
+          "technique": "fixed-policy-amendable-plan",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/words/deal.ts:194 The page only reads the fixed tier; no executor route or amendment record is surfaced here."
+        }
+      ],
+      "registryProposal": "decision-records makes a reason mandatory on every rejection, but a single-owner wallet presents refusal as an always-safe walk-away (no money moves); the technique could say whether a safe-direction refusal may carry a closed reason code instead of owner text, since a free-text prompt there adds friction to the option the design most wants to keep cheap."
+    },
+    "cb008556-f52a-4b0f-b095-b677defb4bfd/hitl-approval": {
+      "context": "rules-and-settings-areas",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:55:51.932Z",
+      "worker": "b4037d2c-f80b-4b99-833e-8129ae98dec4",
+      "techniques": [
+        {
+          "technique": "consent-gates",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx:73 The technique requires turning the dial up to be disclosed and recorded; Action::Resume only sets agents_paused to false. The downward ratchet is right (P pauses and never resumes, SettingsLayer.tsx:189), and Resume starts no run by itself, which limits the impact."
+        },
+        {
+          "technique": "gate-state-machines",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/settings/handoff.tsx:16 Owner places only delegate to the approval window; Main does not store, sign, unlock or pin."
+        },
+        {
+          "technique": "unattended-mode",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx:145 Each standing grant shows its expiry and state, its limits are enumerated in RuleDoc, and the lowest human-present threshold is surfaced."
+        },
+        {
+          "technique": "decision-records",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/words/rules.ts:92 Rule changes are superseding signed versions; RulesLayer lists retired versions with their version, validity and signature."
+        },
+        {
+          "technique": "resume-after-decision",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/settings/resume.ts:35 A refused restart stays listed for that table with its error and is not retried; the owner's click drives each start."
+        },
+        {
+          "technique": "fixed-policy-amendable-plan",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx:7 Fixed tier only: the trust boundary is read-only here and writable only in the approval window. The amendable route tier belongs to the agent runtime and was not judged."
+        },
+        {
+          "technique": "fail-loud-classification-default",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx:142 A rule set without a signature is classified first and loudly as allowing nothing, ahead of any date-based state."
+        },
+        {
+          "technique": "handoff-is-a-declared-door",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/settings/handoff.tsx:13 This hand-off is the owner's own navigation to a closed set of targets; no model summons a human here."
+        }
+      ]
+    },
+    "ed618215-bf0a-4dfc-8c2c-3c3a805321b1/hitl-approval": {
+      "context": "prototype-dial-shell-and-design-system",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:55:51.932Z",
+      "worker": "b4037d2c-f80b-4b99-833e-8129ae98dec4",
+      "techniques": [
+        {
+          "technique": "gate-state-machines",
+          "verdict": "not-applicable",
+          "evidence": "prototype/main/modules.js:725 State is a mutation of a fixture object in page memory; there is no durable gate or executor."
+        },
+        {
+          "technique": "decision-records",
+          "verdict": "not-applicable",
+          "evidence": "prototype/shared/shell.js:2 The shared shell declares itself outside the product, and no decision is persisted."
+        },
+        {
+          "technique": "consent-gates",
+          "verdict": "not-applicable",
+          "evidence": "prototype/main/fixtures.js:4 The asks are sample content with no action behind them."
+        }
+      ]
     }
   }
 }
