@@ -205,6 +205,11 @@ pub(crate) fn project(
                     },
                 );
             }
+            Row::MoneyAbsent(method) => {
+                if open.get(&deal_id).is_some_and(|o| o.method == method) {
+                    open.remove(&deal_id);
+                }
+            }
             Row::MoneyDone {
                 method,
                 authority,
@@ -950,6 +955,24 @@ mod tests {
         assert_eq!(project(&owner, |_, _| Vec::new())[0].rungs, None);
     }
 
+    #[test]
+    fn a_step_paypal_showed_absent_leaves_no_step_behind() {
+        let opened = json!({"operation":"capture","decided_by":{"type":"human","at":90}});
+        let resolved = json!({"operation":"capture","outcome":"absent"});
+        let open = row(1, 100, "money.authorized", opened.clone());
+        let unresolved = project(std::slice::from_ref(&open), |_, _| Vec::new());
+        assert!(matches!(
+            unresolved[0].paypal,
+            HistoryPaypal::Call {
+                outcome: PaypalOutcome::Unknown,
+                ..
+            }
+        ));
+        let steps = project(&[open, row(2, 200, "money.resolved", resolved)], |_, _| {
+            Vec::new()
+        });
+        assert_eq!(steps, Vec::new());
+    }
     #[test]
     fn a_money_operation_folds_its_transitions_and_an_unconfirmed_call_says_failed_or_unknown() {
         let policy6 = json!({"type":"policy","clause":6});

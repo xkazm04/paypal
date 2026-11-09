@@ -132,6 +132,8 @@ pub(super) enum Row {
     Step(HistoryKind, HistoryAuthority),
     Transition(DealState, Option<HistoryAuthority>),
     MoneyOpen(PaypalMethod, HistoryAuthority),
+    /// A read-back found this operation never reached PayPal: it is no longer open.
+    MoneyAbsent(PaypalMethod),
     MoneyDone {
         method: PaypalMethod,
         authority: HistoryAuthority,
@@ -293,6 +295,8 @@ pub(super) fn classify(record: &AuditRecord) -> Row {
                 _ => other,
             },
             Some("needs_owner") => Row::Step(K::CheckingWithPaypal, A::None),
+            // PayPal's record shows the step never happened: nothing is left open.
+            Some("absent") => operation(record).map_or(Row::Skip, Row::MoneyAbsent),
             _ => Row::Skip,
         },
         // A re-send reuses the same operation and request id.
