@@ -1230,7 +1230,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-attention/src/forecast.rs:352 A test named for every input runs over a hand-written list holding 2 of the 4 Delivery variants, so a later branch on PickupLocal or ServiceOnDate is outside its claim while it stays green; today forecast.rs:223 only tests for DigitalNow, so the omitted variants currently behave like ShipThenCapture.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "supply-chain",
@@ -5901,7 +5905,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "docs/report/report.css:1 The context's only file is a stylesheet, and a search of docs/report for vitest, #[test], describe( and expect( found no hits, so it holds no test or harness machinery to judge; the sibling index.html reports test counts but contains no tests and is not in this context's file list.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "supply-chain",
@@ -7382,7 +7390,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-runtime/src/house_tests.rs:471 Real-time waits for an actor to reach a step are bounded at 2 s although line 1180 of the same file records 10 s timing out on a busy machine, so these hang guards are set below the file's own loaded observation and can fail with no defect present.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "mcp-tools",

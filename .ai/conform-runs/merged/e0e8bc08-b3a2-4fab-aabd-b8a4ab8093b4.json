@@ -1,0 +1,154 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e0e8bc08-b3a2-4fab-aabd-b8a4ab8093b4",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-09T01:41:30.355396+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "attention-forecast-and-window-placement",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-attention/src/forecast.rs:352 A test named for every input runs over a hand-written list holding 2 of the 4 Delivery variants, so a later branch on PickupLocal or ServiceOnDate is outside its claim while it stays green; today forecast.rs:223 only tests for DigitalNow, so the omitted variants currently behave like ShipThenCapture.",
+   "techniques": [
+    {
+     "technique": "gate-scope-is-not-report-scope",
+     "verdict": "deviation",
+     "evidence": "crates/table-attention/src/forecast.rs:352 This is the technique's single-test form: a list under a claim that says every. PickupLocal and ServiceOnDate are omitted, and the count assertion at line 396 hard-codes the 2, so it cannot notice. DealState::ALL at line 364 is derived correctly."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "crates/table-attention/src/forecast.rs:344 The name claims every input, while deliveries, deadlines and windows are sampled values. The technique asks that an overstated name be renamed to what the test settles."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/dispatcher.rs:327 The production dispatcher calls the tested wording; forecast, quit_message and placement also have non-test callers in table-runtime and the shell."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-attention/src/forecast.rs:127 A pure function of its arguments: the technique excludes pure logic with no setup to fork."
+    }
+   ]
+  },
+  {
+   "context": "runtime-market-and-pairing",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-runtime/src/house_tests.rs:471 Real-time waits for an actor to reach a step are bounded at 2 s although line 1180 of the same file records 10 s timing out on a busy machine, so these hang guards are set below the file's own loaded observation and can fail with no defect present.",
+   "techniques": [
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "deviation",
+     "evidence": "crates/table-runtime/src/house_tests.rs:471 Steps 4 and 5 require a loose bound set from a loaded observation. The same 2 s bound is at relay_tests.rs:194, and no test here uses start_paused. Read, not run, so no flake was observed. Counter-examples in the same area are correct: LIVENESS_SECS, the fixture clock at house_tests.rs:1208 and the 90 s liveness bound at market_watch_tests.rs:634."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/relay_tests.rs:414 Judged for the store only: the name says what it leaves out, and in_memory and open share from_connection with its migrations and pragmas. The scripted OfflineHttp PayPal fake was not judged."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/src-tauri/src/native.rs:332 Production enters through the same with_relay seam the tests use, with only the RelayApi implementation swapped."
+    },
+    {
+     "technique": "recorded-interaction-fixtures",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-runtime/src/relay_tests.rs:223 The rendezvous service is the project's own and its real router is hosted in process, which the technique's when-not section prefers to a recording."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/relay_tests.rs:431 Judged for seed honesty: the hosted fixture creates its mandate through the product's own signing path. Fixtures here are in-memory or per-test files, so no template is built and copied."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/house_tests.rs:957 Each file-backed fixture has a random name and a named reaper. Files left by a crashed run stay in .build/tmp, but the unique names stop them poisoning a later run."
+    }
+   ]
+  },
+  {
+   "context": "overnight-build-report",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "docs/report/report.css:1 The context's only file is a stylesheet, and a search of docs/report for vitest, #[test], describe( and expect( found no hits, so it holds no test or harness machinery to judge; the sibling index.html reports test counts but contains no tests and is not in this context's file list.",
+   "techniques": [],
+   "absenceTerms": [
+    "vitest",
+    "#[test]",
+    "describe(",
+    "expect("
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "book-module",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T01:41:30.355396+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "gate-scope-is-not-report-scope",
+    "proved-off-the-path",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "attention-forecast-and-window-placement",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T01:41:30.355396+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "assert-the-schedule-not-the-stopwatch",
+    "fixture-economics",
+    "isolation-lanes",
+    "proved-off-the-path",
+    "recorded-interaction-fixtures"
+   ],
+   "deviations": 1,
+   "context": "runtime-market-and-pairing",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T01:41:30.355396+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "overnight-build-report",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
