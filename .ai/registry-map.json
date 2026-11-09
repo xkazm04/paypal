@@ -9329,7 +9329,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-app/tests/recorded/mod.rs:23 The arena fixture's record switch is a runtime environment variable with no pipeline refusal and no integrity test, in a compiled suite, so a run with it set rewrites the pinned bundles at line 145 and reports a pass indistinguishable from verification.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "agent-runtime-assembly",

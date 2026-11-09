@@ -10167,6 +10167,32 @@
           "evidence": "apps/desktop/client/src/director/story.test.ts:40 Mock world storage is cleared before each story run."
         }
       ]
+    },
+    "30af9627-32b0-465d-97de-4949dd83af41/test-harness": {
+      "context": "wallet-app-services",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:18:02.404Z",
+      "worker": "8f5449da-f550-4b83-a0e8-b32ba68b694d",
+      "techniques": [
+        {
+          "technique": "approval-snapshots-with-guarded-update",
+          "verdict": "deviation",
+          "evidence": "crates/table-app/tests/recorded/mod.rs:23 Technique names the runtime flag as the weakest shape and prefers a compile-time constant in a compiled suite; no GITHUB_ACTIONS or CI check exists in the recorder files. keep_bundle's verify-and-mask rule mitigates but does not guard the switch."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/tests/rescue.rs:573 The mutation used and its before/after result are recorded in the test's own comment, as the procedure's restore-and-record step asks; gauntlet.rs:701 does the same."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/tests/support/mod.rs:106 The fixture uses the constructor production uses (table-runtime service.rs:268), and Ledger::in_memory goes through the same from_connection setup as Ledger::open (table-ledger lib.rs:71)."
+        }
+      ]
     }
   }
 }
