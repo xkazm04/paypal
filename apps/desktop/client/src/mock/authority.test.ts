@@ -198,6 +198,12 @@ describe('authority table (browser mock)', () => {
     expect(seen).toHaveLength(2);
   });
 
+  it('leaves a capture being checked with PayPal alone at its deadline', () => {
+    const main = mockBackend('main');
+    main.world.advance(3 * 86400);
+    expect(main.world.deal('D-0194')!.deal.state).toBe('AUTHORIZED');
+  });
+
   it('tells each window what the Rust table says, from the generated audiences', () => {
     // Who hears each event is a row in the Rust authority table; the mock delivers by it.
     const audience: Record<EventName, WindowLabel[]> = EVENT_AUDIENCE;

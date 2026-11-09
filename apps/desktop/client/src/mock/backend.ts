@@ -1653,7 +1653,9 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     for (const d of state.deals) {
       const due = d.display.deadline;
       const to = ON_DEADLINE[d.deal.state];
-      if (due === null || due > now || !to) continue;
+      // A step still being checked with PayPal holds the default: the void could follow a capture
+      // PayPal made (pipeline.rs leaves the hold while the capture is unknown).
+      if (due === null || due > now || !to || d.evidence.money_check) continue;
       const from = d.deal.state;
       d.deal = { ...d.deal, state: to, updated_at: now, decided_by: { type: 'safe_default', deadline: due } };
       d.attention = null;
