@@ -10436,6 +10436,83 @@
       "evaluatedTs": "2026-11-09T01:41:30.355Z",
       "worker": "e0e8bc08-b3a2-4fab-aabd-b8a4ab8093b4",
       "techniques": []
+    },
+    "b122a56d-4e5f-4259-959c-b90ba9e1c58e/quality-gates": {
+      "context": "ipc-contract-and-authority-table",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:56:18.711Z",
+      "worker": "9ef799fa-b3f2-4d12-baa1-a379dfb54683",
+      "techniques": [
+        {
+          "technique": "vacuous-by-evaluation",
+          "verdict": "deviation",
+          "evidence": "crates/table-client/src/authority.rs:316 Low severity: the compiler supplies the condition tested, and the technique holds liveness per rule. The hand-written pins at line 341 are the correct anti-vacuity pattern."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "conformant",
+          "evidence": "crates/table-client/src/authority_table.rs:5 One table generates the capability files, mock gate table, event audiences and fingerprint."
+        },
+        {
+          "technique": "chokepoint-tag-registry",
+          "verdict": "conformant",
+          "evidence": "crates/table-client/tests/bindings.rs:71 The contract fields and the command table are compared as sets in both directions; events get the same at line 196. The handler-side check lives in the shell's tests, outside this context."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "conformant",
+          "evidence": "crates/table-client/tests/bindings.rs:20 The expected text comes from the type exporter itself rather than a search of Rust source."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "crates/table-client/tests/bindings.rs:187 The event set parsed out of a declaration string is pinned to an exact count, so a parser that stops matching fails."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "crates/table-client/tests/bindings.rs:56 The remedy is a full in-tree command. The stale-file messages abbreviate it to 'run generate-bindings', which still names the in-tree binary."
+        },
+        {
+          "technique": "blocking-by-input-determinism",
+          "verdict": "conformant",
+          "evidence": "crates/table-client/tests/bindings.rs:21 The drift verdict compares checked-in files to types in the same tree, so it is a function of the commit alone."
+        }
+      ]
+    },
+    "97ce9cef-2512-4583-a3a5-6ee0b27f287d/quality-gates": {
+      "context": "browser-mock-backend",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:56:18.711Z",
+      "worker": "9ef799fa-b3f2-4d12-baa1-a379dfb54683",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/mock/authority.test.ts:210 The control is not normalised to code (raw readFileSync at line 209), which the technique requires; the sibling rustConstants.test.ts line 19 strips comments, and no comment here explains the raw read."
+        },
+        {
+          "technique": "unparseable-form-is-a-finding",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/mock/authority.test.ts:212 Only the single-quoted key form is recognised; a double-quoted hand list does not match (probed), and nothing refuses the unrecognised form in this owned file."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/mock/authority.test.ts:81 The label, lock and token matrix asserts a population floor, so an empty walk fails instead of passing."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:159 The mock's gate is the generated Rust table, not a hand-walked copy."
+        }
+      ]
     }
   }
 }

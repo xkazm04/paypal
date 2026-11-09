@@ -1670,7 +1670,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/mock/authority.test.ts:210 The guard against a hand-kept audience list reads backend.ts as raw text, so a comment satisfies its presence control and a double-quoted map escapes its absence regex; a node probe of that source passed both legs with a hand-written table in place.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "agent-browser-control",
@@ -4284,7 +4288,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-client/src/authority.rs:316 COMMANDS is built from an array typed [&str; AUTHORITY.len()] (authority_table.rs line 306), so this assertion cannot fail on any input; the deviation is narrow because the adjacent drift, bijection and hand-pinned checks are live.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "settings",
