@@ -22,7 +22,7 @@ const fake = {
 };
 vi.mock('../../lib/runtime', () => ({ backend: () => fake }));
 
-import { DISPLAY_BATCH, displayReadOrder, useDisplays } from './displays';
+import { DISPLAY_BATCH, DISPLAY_SWEEP_MS, displayReadOrder, useDisplays } from './displays';
 
 beforeEach(() => { gate.free = Infinity; gate.calls = []; gate.bad = new Set(); opened = new Promise<void>((r) => { gate.release = r; }); });
 afterEach(() => { cleanup(); fake.invoke.mockClear(); });
@@ -59,6 +59,30 @@ describe('useDisplays', () => {
     const none = renderHook(() => useDisplays([]));
     await waitFor(() => expect(none.result.current.ready).toBe(true));
     expect(none.result.current.map.size).toBe(0);
+  });
+
+  it('reads the live deals again on the sweep, with no event and no list change, and leaves the ended ones', async () => {
+    // Only the sweep's interval is faked (waitFor polls on the real timers).
+    let sweep: (() => void) | null = null;
+    const real = globalThis.setInterval;
+    const spy = vi.spyOn(globalThis, 'setInterval').mockImplementation(((fn: () => void, ms?: number) => {
+      if (ms === DISPLAY_SWEEP_MS) { sweep = fn; return 0 as never; }
+      return real(fn, ms);
+    }) as typeof setInterval);
+    try {
+      const ds = [deal('L1', 'NEGOTIATING'), deal('L2', 'AUTHORIZED'), deal('P', 'CAPTURED'), deal('E', 'EXPIRED')];
+      const h = renderHook(() => useDisplays(ds));
+      await waitFor(() => expect(h.result.current.ready).toBe(true));
+      expect(fake.invoke).toHaveBeenCalledTimes(4);
+      expect(sweep).not.toBeNull();
+      gate.calls = [];
+      await new Promise((r) => setTimeout(r, 50));
+      expect(gate.calls).toEqual([]);
+      (sweep as unknown as () => void)();
+      await waitFor(() => expect([...gate.calls].sort()).toEqual(['L1', 'L2', 'P']));
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('a failed read leaves that deal out, sets the error, and the pass still finishes', async () => {

@@ -1,5 +1,7 @@
 // The licence gate: a missing key, an expired trial or a failed chunk leaves Community, untouched.
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { ModuleRegistry } from 'ag-grid-community';
 import { enterpriseAllowed, gridTier, loadEnterprise, resetGridTier, TRIAL_ENDS_AT } from './gridLicence';
 
@@ -8,7 +10,8 @@ const BEFORE = Date.UTC(2026, 10, 9);
 function fakeChunk() {
   const setLicenseKey = vi.fn();
   const module = { moduleName: 'RowGrouping' } as never;
-  return { setLicenseKey, chunk: { LicenseManager: { setLicenseKey }, RowGroupingModule: module } };
+  // The Enterprise package re-exports Community's registry; the fake hands over the real one.
+  return { setLicenseKey, chunk: { LicenseManager: { setLicenseKey }, RowGroupingModule: module, ModuleRegistry } };
 }
 
 afterEach(() => { resetGridTier(); vi.restoreAllMocks(); });
@@ -54,5 +57,16 @@ describe('loadEnterprise', () => {
     await expect(loadEnterprise('k', BEFORE, async () => { throw new Error('no chunk'); })).resolves.toBe('community');
     expect(reg).not.toHaveBeenCalled();
     expect(gridTier()).toBe('community');
+  });
+});
+
+describe('the grid stays its own chunk', () => {
+  // Every list reads the tier and imports the list engine; a value import of the grid in either file
+  // would pull the whole grid library into every list's chunk again.
+  const valueImport = /^import\s+(?!type\b)[^;]*from\s+'(ag-grid-[\w-]+|[./]+shared\/DataGrid|\.\/DataGrid)'/m;
+  it('gridLicence and ListEngine import the grid by type only', () => {
+    const read = (p: string) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8');
+    expect(read('./gridLicence.ts')).not.toMatch(valueImport);
+    expect(read('../windows/main/console/ListEngine.tsx')).not.toMatch(valueImport);
   });
 });

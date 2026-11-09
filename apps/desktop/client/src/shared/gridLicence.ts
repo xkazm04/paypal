@@ -3,8 +3,11 @@
 // operator's untracked .env.local (VITE_AG_LICENSE_KEY). Enterprise is ON only with a key and before
 // the trial's end. It is loaded by dynamic import only when ON: an OFF build registers Community only,
 // shows no watermark and writes no licence error, and every table works, without the group options.
+//
+// No static import of the grid library here: every list reads the tier, and a static import would
+// pull the whole grid into each list's chunk (the grid is its own chunk, console/ListEngine).
 import { useEffect, useSyncExternalStore } from 'react';
-import { ModuleRegistry, type Module } from 'ag-grid-community';
+import type { Module } from 'ag-grid-community';
 
 /** The trial ends at 2026-12-09 00:00 UTC. */
 export const TRIAL_ENDS_AT = Date.UTC(2026, 11, 9);
@@ -14,7 +17,12 @@ export type GridTier = 'community' | 'enterprise' | 'loading';
 
 const KEY = import.meta.env.VITE_AG_LICENSE_KEY as string | undefined;
 
-type EnterpriseChunk = { LicenseManager: { setLicenseKey: (key: string) => void }; RowGroupingModule: Module };
+// The Enterprise package re-exports Community, so its ModuleRegistry is the one the grid registered with.
+type EnterpriseChunk = {
+  LicenseManager: { setLicenseKey: (key: string) => void };
+  RowGroupingModule: Module;
+  ModuleRegistry: { registerModules: (modules: Module[]) => void };
+};
 export type EnterpriseImporter = () => Promise<EnterpriseChunk>;
 
 // Written on the build's constant, so a build without a key has no such chunk to load.
@@ -44,7 +52,7 @@ export async function loadEnterprise(key: string | undefined = KEY, now: number 
   try {
     const chunk = await importer();
     chunk.LicenseManager.setLicenseKey(key as string);
-    ModuleRegistry.registerModules([chunk.RowGroupingModule]);
+    chunk.ModuleRegistry.registerModules([chunk.RowGroupingModule]);
     publish('enterprise');
   } catch {
     // The chunk did not load: every table works on Community, without the group options.

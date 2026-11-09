@@ -7,12 +7,12 @@
 // next decisions, and in any free slot what happened while the owner was away and what the wallet
 // is watching, so the row never stands empty.
 import { NOTICE_UNREAD, NOTICE_WHAT } from '../../../lib/words';
-import { Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ComponentProps, type ReactNode } from 'react';
+import { memo, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ComponentProps, type ReactNode } from 'react';
 import { lazyPart } from '../../../lib/lazy';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import { formatMinor } from '../../../lib/format';
-import { useMutation, useNow } from '../../../lib/hooks';
+import { nowSnapshot, useClock, useMutation } from '../../../lib/hooks';
 import {
   allWaiting, APPROVAL_LOCKED_TITLE, BRAND_NAME, APPROVAL_OPEN_TITLE, AWAY_KICKER, CENTRE_EMPTY, CENTRE_READING, DECISION_OF, decisionOfLabel, IF_NOTHING, LATER, LATER_TITLE,
   houseWords, moneyCheckNow, moneyCheckPill, NEXT_DECISION, NEXT_IN_STACK, NO_COUNTERPARTY, NO_DEADLINE, NOTHING_ELSE_WAITS, OPEN_BOOK, OPEN_THE_DEAL, PREV_DECISION,
@@ -56,12 +56,16 @@ const NO_DEALS: readonly Deal[] = [];
 const CentreHaggle = lazyPart<ComponentProps<typeof import('./areas/tables/Watch').CentreHaggle>>(() => import('./areas/tables/Watch').then((m) => m.CentreHaggle));
 const selModuleOf = (w: World) => w.moduleOfDeal;
 
-export function Centre(p: CentreProps) {
+/** Memoised (measured): the console above re-renders every second (setup/start.ts useStart reads the
+ *  clock) and handed the centre the same props each time; the centre's own clock lives in its leaves. */
+export const Centre = memo(CentreView);
+
+function CentreView(p: CentreProps) {
   const ready = useWorldReady();
   const health = useWorldHealth();
-  const deals = useDeals().data ?? NO_DEALS;
   const top = p.cur >= 0 ? p.queue[p.cur] : undefined;
-  const away = useAway({ active: true, enabled: ready, needs: p.queue.length, deals });
+  // "While you were away" is read by the stack row that shows it: it follows the clock, and the
+  // decision above it must not re-render every second with it.
   const watching = useWatching();
 
   // Left / Right walk the queue while no sheet, popover or Find is open and nothing is being typed.
@@ -93,7 +97,7 @@ export function Centre(p: CentreProps) {
   // The decision (and the seal beside it) is wave 0; the stack row under it takes its turn (stagger.tsx).
   const fill = (
     <Reveal wave={1} sizeKey="centre:stack" skeleton={<Skeleton className="cs-also" h="7rem" />}>
-      <StackRow queue={p.queue} cur={p.cur} away={away.summary} moving={watching.moving} onPick={p.onPick} onDeal={p.onDeal} onWaiting={p.onWaiting} onRewind={p.onRewind} />
+      <StackRow queue={p.queue} cur={p.cur} moving={watching.moving} onPick={p.onPick} onDeal={p.onDeal} onWaiting={p.onWaiting} onRewind={p.onRewind} />
     </Reveal>
   );
 
@@ -110,7 +114,7 @@ export function Centre(p: CentreProps) {
               <Btn kind="plain" onClick={p.onBook}>{OPEN_BOOK}</Btn>
             </div>
           </div>
-          <SealSide presence={p.presence} progress={null} onDeal={p.onDeal} />
+          <SealSide presence={p.presence} onDeal={p.onDeal} />
         </div>
         {fill}
       </div>
@@ -136,14 +140,23 @@ export function Centre(p: CentreProps) {
 
 function DecisionSeal({ item, presence, onDeal }: { item: AttentionItem; presence: Presence; onDeal: (id: string) => void }) {
   const deal = useDeals().data?.find((d) => d.id === item.deal_id);
-  const now = useNow();
-  return <SealSide presence={presence} progress={deadlineProgress(item.deadline, deal?.created_at, now)} onDeal={onDeal} />;
+  return <SealSide presence={presence} deadline={item.deadline} created={deal?.created_at} onDeal={onDeal} />;
 }
 
-function SealSide({ presence, progress, onDeal }: { presence: Presence; progress: number | null; onDeal: (id: string) => void }) {
+/** The ring's share of the time left, to a thousandth: the clock re-renders the seal alone, and only
+ *  when the ring would move. */
+function TimedSeal({ presence, deadline, created }: { presence: Presence; deadline: number | null; created: number | undefined }) {
+  const progress = useClock((now) => {
+    const p = deadlineProgress(deadline, created, now);
+    return p === null ? null : Math.round(p * 1000) / 1000;
+  });
+  return <Seal state={presence.state} progress={progress} label={sealLabel(presence.word, presence.line)} ring={SEAL_RING} />;
+}
+
+function SealSide({ presence, deadline = null, created, onDeal }: { presence: Presence; deadline?: number | null; created?: number; onDeal: (id: string) => void }) {
   return (
     <div className="cs-cseal">
-      <Seal state={presence.state} progress={progress} label={sealLabel(presence.word, presence.line)} ring={SEAL_RING} />
+      <TimedSeal presence={presence} deadline={deadline} created={created} />
       <div className="cs-sealword" aria-hidden="true"><b>{presence.word}</b><span>{presence.line}</span></div>
       <Reveal wave={2} sizeKey="centre:beads" skeleton={<Skeleton className="cs-strip" h="2rem" />}><BeadStrip onDeal={onDeal} /></Reveal>
     </div>
@@ -156,14 +169,11 @@ function Decision({ item, index, count, onLater, onDeal, onWatch }: { item: Atte
   const open = useMutation('approval_open');
   const deal = useDeals().data?.find((d) => d.id === item.deal_id);
   const disp = useDisplayOf(item.deal_id);
-  const now = useNow();
   const amount = formatMinor(item.amount_minor, item.currency);
   const [verb, gold] = splitHeadline(item.headline, amount);
-  const left = timeLeft(item.deadline, now);
   const canReview = item.actions.includes('review');
   const who = item.counterparty ? houseWords(item.counterparty) : null;
   const title = disp ? shortTitle(disp.title) : null;
-  const facts = useMemo(() => centreFacts(item, deal, now), [item, deal, now]);
   const ticks = Math.min(count, 6);
   return (
     <div className="cs-cmain cs-decision">
@@ -174,7 +184,7 @@ function Decision({ item, index, count, onLater, onDeal, onWatch }: { item: Atte
             <span aria-hidden="true">{DECISION_OF(index + 1, count)}</span>
           </span>
           <span className="cs-mod" style={mc(item.module)}><i aria-hidden="true" />{MODULE[item.module].name}</span>
-          {left ? <span className={`cs-left ${left.urgent || item.urgency === 'now' ? 'now' : ''}`}>{left.text}</span> : <span className="cs-left dim">{NO_DEADLINE}</span>}
+          <LeftChip deadline={item.deadline} urgent={item.urgency === 'now'} />
         </div>
         <p className="kicker">{MODULE[item.module].long}</p>
         <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{verb}{gold ? <> <em className="amt">{gold}</em></> : null}</h1>
@@ -201,9 +211,39 @@ function Decision({ item, index, count, onLater, onDeal, onWatch }: { item: Atte
         {open.error ? <WalletNotice error={open.error} what={NOTICE_WHAT.approval} /> : null}
       </div>
       {/* Only the quiet facts rise; the question, "If you do nothing" and the action are on screen at once. */}
-      <Rise><Facts items={facts} className="cs-facts" /></Rise>
+      <Rise><CentreFacts item={item} deal={deal} /></Rise>
     </div>
   );
+}
+
+// ---- the leaves the clock re-renders (the decision around them does not tick) ---------------------
+
+/** What timeLeft says, as one plain value: it changes when the minute left turns, not every second. */
+const leftKey = (deadline: number | null, now: number): string | null => {
+  const l = timeLeft(deadline, now);
+  return l ? `${l.urgent ? '!' : ''}${l.text}` : null;
+};
+
+/** "3 h 12 min left" in the decision's top row. */
+function LeftChip({ deadline, urgent }: { deadline: number | null; urgent: boolean }) {
+  const key = useClock((now) => leftKey(deadline, now));
+  if (key === null) return <span className="cs-left dim">{NO_DEADLINE}</span>;
+  const soon = key.startsWith('!');
+  return <span className={`cs-left ${soon || urgent ? 'now' : ''}`}>{soon ? key.slice(1) : key}</span>;
+}
+
+/** The three facts; the third carries the time left, so they follow the minute. */
+function CentreFacts({ item, deal }: { item: AttentionItem; deal: Deal | undefined }) {
+  const key = useClock((now) => leftKey(item.deadline, now));
+  // `key` is what the clock changes in the facts; the facts are computed again when it turns.
+  const facts = useMemo(() => centreFacts(item, deal, nowSnapshot()), [item, deal, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <Facts items={facts} className="cs-facts" />;
+}
+
+/** " · 3 h left" after a stack card's module name. */
+function CardLeft({ deadline }: { deadline: number | null }) {
+  const key = useClock((now) => leftKey(deadline, now));
+  return key === null ? null : <> · {key.startsWith('!') ? key.slice(1) : key}</>;
 }
 
 /** "⧗ If you do nothing: the offer lapses at 18:00 · no money moves". A payment whose deal already
@@ -279,24 +319,25 @@ function useSlots(): { cols: number; cap: number } {
 
 type Card = { key: string; kicker: ReactNode; body: ReactNode; sub?: ReactNode; color: string; fill: boolean; go: () => void; title?: string };
 
-function StackRow({ queue, cur, away, moving, onPick, onDeal, onWaiting, onRewind }: {
-  queue: readonly AttentionItem[]; cur: number; away: ReturnType<typeof useAway>['summary']; moving: readonly Deal[];
+function StackRow({ queue, cur, moving, onPick, onDeal, onWaiting, onRewind }: {
+  queue: readonly AttentionItem[]; cur: number; moving: readonly Deal[];
   onPick: (id: string) => void; onDeal: (id: string) => void; onWaiting: () => void; onRewind: () => void;
 }) {
+  const deals = useDeals().data ?? NO_DEALS;
+  // Drawn only once the World is ready (Centre), so `enabled` is that.
+  const away = useAway({ active: true, enabled: true, needs: queue.length, deals }).summary;
   const { cols, cap: slots } = useSlots();
-  const now = useNow();
   const moduleOfDeal = useWorldSelector(selModuleOf);
   const next = queue.length > 1 ? Math.min(slots, queue.length - 1) : 0;
   const cards: Card[] = [];
   for (let i = 1; i <= next; i++) {
     const n = queue[(cur + i) % queue.length];
     if (!n) continue;
-    const left = timeLeft(n.deadline, now);
     const amount = formatMinor(n.amount_minor, n.currency);
     const [verb, gold] = splitHeadline(n.headline, amount);
     cards.push({
       key: `n-${n.deal_id}`, color: MODULE[n.module].cssVar, fill: false, go: () => onPick(n.deal_id),
-      kicker: <>{MODULE[n.module].name}{left ? <> · {left.text}</> : null}</>,
+      kicker: <>{MODULE[n.module].name}<CardLeft deadline={n.deadline} /></>,
       body: <>{verb}{gold ? <> <em className="amt">{gold}</em></> : null}</>,
       sub: n.counterparty ? houseWords(n.counterparty) : undefined,
     });

@@ -34,7 +34,9 @@ describe('every layer on the busy merchant, counted', () => {
     const before = r.budget.byCommand.get('list_deals')?.total ?? 0;
     const beforeAll = r.budget.total;
     const commitsBefore = r.commits();
-    const deals = (await import('../../../mock/backend')).mockBackend('main');
+    // The rows as the window's own backend lists them (a second mock built later is a world some
+    // seconds younger: its rows differ, and the window now patches an event's row in as a change).
+    const deals = (await import('./testing/runtime')).runtimeMock.backend();
     const list = (await deals.invoke('list_deals', null)) as Deal[];
     for (const d of list.slice(0, 20)) await r.fire('deal:changed', { deal: d, mode: d.mode });
     await settle();

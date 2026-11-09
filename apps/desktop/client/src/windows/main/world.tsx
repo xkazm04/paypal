@@ -194,10 +194,13 @@ function displayFor(map: ReadonlyMap<string, DealDisplay>, d: Deal): Display {
 
 function WorldState({ children }: { children: ReactNode }) {
   const settings = useQuery('get_settings', null, { refreshOn: ['settings:changed'] });
+  // A deal:changed carries its row: the bus patches it into this list and reads the list again only
+  // for a deal not listed yet (lib/data/bus.ts, invalidation.ts ROW_PATCHES). A receipt reads it.
   const deals = useQuery('list_deals', null, { refreshOn: ['deal:changed', 'receipt:created'] });
   const attention = useQuery('attention_list', null, { refreshOn: ['attention:changed', 'deal:changed', 'settings:changed'] });
   const runs = useQuery('agent_runs', null, { refreshOn: ['agent:changed'] });
-  // Only the live deals and the deals whose row changed are read again (displays.ts).
+  // Only the deals an event named or whose row changed are read again, and the live ones on a slow
+  // sweep (displays.ts).
   const disp = useDisplays(deals.data);
 
   // Each part is derived from its own inputs, so an unrelated change keeps its identity.

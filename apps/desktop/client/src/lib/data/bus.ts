@@ -8,12 +8,19 @@
 //   invalidates each key once. A key already being read is not read twice: it gets one trailing read
 //   once the running one settles (the running answer may predate the last event). So a burst costs
 //   at most one read per key in flight plus one after it, whatever its length.
+// - An event that carries the new row of a cached list (invalidation.ts ROW_PATCHES: deal:changed
+//   and the deal list) patches the list in the same flush instead of reading it again. Where the
+//   patch cannot be exact (a row not listed yet, a list never read or being read), the list is
+//   invalidated as before.
 import type { Query, QueryClient, QueryKey } from '@tanstack/react-query';
-import { hashKey, matchQuery } from '@tanstack/react-query';
+import { hashKey, matchQuery, replaceEqualDeep } from '@tanstack/react-query';
 import type { EventName } from '../contract';
 import { backend } from '../runtime';
-import { MAPPED_EVENTS, eventDealId, targetsFor, type Target } from './invalidation';
+import { MAPPED_EVENTS, eventDealId, rowPatchFor, targetsFor, type Target } from './invalidation';
 import { metaDealId } from './keys';
+
+/** A target an event's row can satisfy: the list is patched with `row` instead of read again. */
+type Pending = Target & { row?: { id: string } };
 
 type Registration = { key: QueryKey; dealId: string | null; count: number };
 
@@ -27,8 +34,9 @@ export type DataBus = {
   /** Apply the map (invalidation.ts) to delivered events. Off by default: a client applies only the
    *  hooks' own `refreshOn` until a provider that holds the mapped events turns it on (retainMapped). */
   mapped: boolean;
-  /** How many invalidations were flushed (for tests and the measurements). */
-  readonly stats: { events: number; flushes: number; invalidated: number; trailing: number };
+  /** How many invalidations were flushed, and how many event rows were patched into a cached list
+   *  instead (for tests and the measurements). */
+  readonly stats: { events: number; flushes: number; invalidated: number; trailing: number; patched: number };
   dispose(): void;
 };
 
@@ -52,20 +60,61 @@ function matches(q: Query, t: Target): boolean {
 function createBus(client: QueryClient): DataBus {
   const listening = new Map<EventName, { count: number; off: (() => void) | null; dead: boolean }>();
   const registered = new Map<EventName, Map<string, Registration>>();
-  const pending: Target[] = [];
+  const pending: Pending[] = [];
   const trailing = new Set<string>();
   let scheduled = false;
-  const stats = { events: 0, flushes: 0, invalidated: 0, trailing: 0 };
+  const stats = { events: 0, flushes: 0, invalidated: 0, trailing: 0, patched: 0 };
 
   const refresh = (q: Query): void => {
     stats.invalidated += 1;
     void client.invalidateQueries({ queryKey: q.queryKey, exact: true }, { cancelRefetch: false });
   };
 
+  /** Writes `rows` into the cached list at `key` by id; false (nothing written) when that would not be
+   *  exactly the list a read would answer: no answer yet, a read under way or owed, or a row the list
+   *  does not have (membership is the shell's to say). An unchanged row keeps its object. */
+  const patchRows = (key: QueryKey, rows: readonly { id: string }[]): boolean => {
+    const q = client.getQueryCache().find({ queryKey: key, exact: true });
+    const list = q?.state.data;
+    if (!q || !Array.isArray(list) || q.state.fetchStatus === 'fetching' || q.state.isInvalidated || trailing.has(q.queryHash)) return false;
+    const at = new Map<unknown, number>();
+    list.forEach((r: unknown, i) => at.set((r as { id?: unknown } | null)?.id, i));
+    if (!rows.every((r) => at.has(r.id))) return false;
+    let next: unknown[] | null = null;
+    for (const r of rows) {
+      const i = at.get(r.id) as number;
+      const cur: unknown = (next ?? list)[i];
+      const merged: unknown = replaceEqualDeep(cur, r);
+      // A row equal on the wire (an absent field and an undefined one are the same answer) keeps its object.
+      if (merged !== cur && JSON.stringify(cur) !== JSON.stringify(r)) {
+        next ??= list.slice();
+        next[i] = merged;
+      }
+    }
+    if (next) client.setQueryData(key, next);
+    stats.patched += rows.length;
+    return true;
+  };
+
   const flush = (): void => {
     scheduled = false;
     stats.flushes += 1;
-    const targets = pending.splice(0);
+    let targets: Pending[] = pending.splice(0);
+    // Rows first: a list the burst's rows patch exactly is not read again; any other is.
+    // One row per id per list: the burst's last word on a row wins.
+    const rows = new Map<string, { key: QueryKey; rows: Map<string, { id: string }> }>();
+    for (const t of targets) {
+      if (!t.row) continue;
+      const h = hashKey(t.key);
+      const g = rows.get(h) ?? { key: t.key, rows: new Map<string, { id: string }>() };
+      g.rows.delete(t.row.id);
+      g.rows.set(t.row.id, t.row);
+      rows.set(h, g);
+    }
+    if (rows.size) {
+      const patched = new Set([...rows].filter(([, g]) => patchRows(g.key, [...g.rows.values()])).map(([h]) => h));
+      targets = targets.filter((t) => !(t.row && patched.has(hashKey(t.key))));
+    }
     const seen = new Set<string>();
     for (const q of client.getQueryCache().getAll()) {
       if (seen.has(q.queryHash) || !targets.some((t) => matches(q, t))) continue;
@@ -91,11 +140,17 @@ function createBus(client: QueryClient): DataBus {
   const deliver = (event: EventName, payload: unknown): void => {
     stats.events += 1;
     const id = eventDealId(event, payload);
-    if (bus.mapped) pending.push(...targetsFor(event, payload));
+    // The row this event carries satisfies the targets on its list's exact key (map or refreshOn).
+    const patch = rowPatchFor(event, payload);
+    const patchKey = patch ? hashKey(patch.key) : null;
+    const add = (t: Target): void => {
+      pending.push(patch && t.dealId === undefined && hashKey(t.key) === patchKey ? { ...t, row: patch.row } : t);
+    };
+    if (bus.mapped) targetsFor(event, payload).forEach(add);
     for (const r of registered.get(event)?.values() ?? []) {
       // A per-deal read follows only the events about its own deal.
       if (r.dealId !== null && id !== null && r.dealId !== id) continue;
-      pending.push({ key: r.key });
+      add({ key: r.key });
     }
     if (!scheduled) {
       scheduled = true;

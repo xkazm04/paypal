@@ -235,3 +235,67 @@ gate on every tick (one `step_allowed` for Agreed, about 20 for the seller-manda
 book has none of those, so that cost is not measured here. It grows with gated seller deals, not with the book. The
 settings read (three keychain reads in the app, a memory vault here) still runs twice per tick: once for the forecast's
 "payment executor configured" and once for the settings event.
+
+## Client perf: the grid chunk, the deal:changed fan-out, the one-second tick (2026-11-09, A6)
+
+Measured on one Windows 11 machine, before and after, with the same method each time. Before is
+HEAD `5111932f`: the three files were put back to HEAD in place, measured, then restored.
+
+### Bundle (`vite build`, scripts in the scratch folder `measure.mjs`)
+
+| | before | after |
+| --- | --- | --- |
+| `index.html` first load (JS + CSS, static closure) | 1,412.9 KB (1,090.4 + 322.5) | 1,412.9 KB, unchanged (the grid was never on first load) |
+| grid chunk | inside `ListEngine-*.js`, 1,012.5 KB + 244.8 KB CSS | `DataGrid-*.js` 1,003.5 KB + `DataGrid-*.css` 244.8 KB, its own chunk |
+| what loads the grid | the first module whose layer imports ListEngine (Tables, Spend, Counter, Book, Shield, Rescue, Connections, Rewind, Rules) | the first list that draws as a grid (`columns`), plus Book's Record view (`areas/book/Record.tsx` imports DataGrid directly) |
+| opening Connections / Rewind / Rules (JS + CSS beyond first load) | 1,028.9 + 244.8 / 1,023.9 + 244.8 / 1,030.4 + 244.8 KB | 17.6 + 0.5 / 21.5 + 0 / 28.0 + 0 KB |
+| opening a grid module, e.g. Tables (layer only) | 1,069.3 + 244.8 KB | 67.0 KB, then the grid chunk behind a skeleton the grid's height |
+| `ListEngine-*.js` | 1,036.8 KB | 9.9 KB |
+
+`gridLicence.ts` no longer imports `ag-grid-community` as a value: it registers the Enterprise row-grouping
+module through the Enterprise package's own re-exported `ModuleRegistry`. A `ModuleRegistry` import there would
+pull the whole grid back into every list (measured: +164 KB total JS with a dynamic `import('ag-grid-community')`,
+because a dynamic import keeps the whole namespace). A test (`shared/gridLicence.test.ts`) forbids a value import
+of the grid in `gridLicence.ts` and `ListEngine.tsx`.
+
+The ten `arena-*` chunks (about 45 KB each) are raw proof bundles (JSON text), not duplicated code: no `manualChunks`.
+
+### Reads fired by one `deal:changed` (a live deal whose row changed; `windows/main/fanout.test.tsx`)
+
+| world | live deals | before: list_deals / attention_list / deal_display | after |
+| --- | --- | --- | --- |
+| `?scale=large`, 500 deals | 51 | 1 / 1 / 299 (301 reads) | 0 / 1 / 1 (2 reads) |
+| `?scale=xl`, 5,000 deals | 51 | 1 / 1 / 2,804 (2,806 reads) | 0 / 1 / 1 (2 reads) |
+
+- The event carries the deal exactly as `list_deals` returns it (table-runtime `actor.rs` publish sends the row from
+  that same read) and the ledger never deletes a deal, so the bus patches that row into the cached list by id
+  (`lib/data/invalidation.ts` `ROW_PATCHES`, `lib/data/bus.ts`). It does not patch, and reads the list again
+  as before, when the row is not listed yet (a new deal: membership stays the shell's answer), when the list was
+  never read, or when it is being read. `receipt:created` still reads the list (it carries no row).
+- `deal_display` is read for the deals an event named (their cache entry was invalidated by the event) or whose
+  row token changed, not for every live deal. deal_display holds no clock (dispatcher.rs: label, title, the
+  deadline as a moment, the on-silence words by state, the band); countdowns are drawn on the client clock. The
+  live and paid deals are swept once every 60 s (`DISPLAY_SWEEP_MS`) to catch ledger changes that move neither
+  the row nor an event (a money check closing on a paid deal, a round counted into the band).
+- perf.test burst of 20 unchanged events per layer: before, list_deals 2 to 5 reads and 6 to 15 reads in all;
+  after, list_deals 0 and 4 to 11 reads in all.
+- Deviations from the registry's invalidation technique, recorded: the 60 s sweep is a refetch floor doing real
+  work (the money-check close has no event); the shell should emit `deal:changed` (or a display event) when a
+  money check closes, after which the sweep is only a backstop. The patch path is a second writer of the cached
+  list: if `list_deals` ever adds a field derived at read time, the patch must go.
+
+### The one-second tick at idle (`windows/main/console/tick.test.tsx`, Maya's world, renders per second)
+
+| | before | after |
+| --- | --- | --- |
+| the decision (Centre's front card) | 1 | 0 |
+| the footer body | 1 | 0 |
+| the stack row (holds `useAway`, which reads the clock) | 1 | 1 |
+| leaves that show minutes (`useClock`: time-left chips, facts, stack-card times, the footer clock) | 0 | 0 inside a minute (4 per second while the stack row still ticks) |
+| leaves that read the second (`useNow`) | 8 | 4 |
+
+`lib/hooks.ts` gains `useClock(select)`: the same one interval, re-rendering only when `select(now)` changes, so a
+"3 h 12 min left" re-renders once a minute. `Centre` is `memo`ised and `Footer` draws through a memoised body
+with stable handlers, because the console above them still re-renders every second: `setup/start.ts` `useStart`
+calls `useNow()` for `rulesInForce`, and `Console` calls `useStart`. That one line re-renders the whole console
+frame and every unmemoised layer each second; it is the first item for the next wave.

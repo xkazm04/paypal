@@ -1,9 +1,10 @@
 // deal_display for the main window, read only for the deals whose display can have changed. A
 // deal_display read does several ledger reads and a mandate-signature check in the one runtime
 // actor, and list_deals holds every deal the wallet ever had, so reading them all on each ledger
-// event made the work grow with the lifetime ledger. Here the width per ledger event is the live
-// deals plus the deals whose row changed, not the lifetime ledger. Read-only: nothing here can
-// move money.
+// event made the work grow with the lifetime ledger. Here the width per ledger event is the deals
+// that event (or its burst) named or whose row changed, not the live deals and not the lifetime
+// ledger; the live deals are read again on a slow sweep of their own (DISPLAY_SWEEP_MS). Read-only:
+// nothing here can move money.
 import { useEffect, useState } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import type { Deal } from '@bindings/Deal';
@@ -28,16 +29,33 @@ export function displayToken(d: Deal): string | null {
 // the display's "if you do nothing" line can change while the token stays the same.
 const CHECKED_AFTER_END: ReadonlySet<DealState> = new Set(['CAPTURED', 'RECEIPTED']);
 
-/** The deals whose display is read again: not read yet, changed since (or no token), or live. A
- *  live deal's display carries the clock-dependent "if you do nothing" line, so it is re-read on
- *  every refetch, as before. */
-export function displaysToRead(deals: readonly Deal[], cache: ReadonlyMap<string, { token: string | null }>): string[] {
+/**
+ * How often the displays a deal's row does not stamp are read again with no event naming them: the
+ * live deals and the paid ones whose money check can still close. deal_display holds no clock (the
+ * shell's own answer: label, title, the deadline as a moment, the "if you do nothing" words by
+ * state, the band; table-runtime dispatcher.rs deal_display), and every countdown on screen is
+ * computed here from that moment on the one client clock, so it keeps ticking without a read. What
+ * this sweep catches is a ledger change that moves neither the deal's row nor an event: a money check
+ * closing on a paid deal (above), a round counted into the band.
+ */
+export const DISPLAY_SWEEP_MS = 60_000;
+
+/** What the runner knows of a display it holds: the token it was read for, and whether an event has
+ *  since marked that deal's display stale (lib/data/invalidation.ts: the event names the deal). */
+export type HeldDisplay = { token: string | null; invalidated?: boolean };
+
+/**
+ * The deals whose display is read again: not read yet, changed since (or no token), or named by an
+ * event since the last read. A deal:changed for deal X therefore reads X and no other deal. On a
+ * `sweep` (every DISPLAY_SWEEP_MS) the live deals and the paid deals are read too.
+ */
+export function displaysToRead(deals: readonly Deal[], cache: ReadonlyMap<string, HeldDisplay>, sweep = false): string[] {
   return deals.filter((d) => {
     const had = cache.get(d.id);
-    if (!had) return true;
+    if (!had || had.invalidated) return true;
     const token = displayToken(d);
     if (token === null || token !== had.token) return true;
-    return !isTerminal(d) || CHECKED_AFTER_END.has(d.state);
+    return sweep && (!isTerminal(d) || CHECKED_AFTER_END.has(d.state));
   }).map((d) => d.id);
 }
 
@@ -88,9 +106,13 @@ function createRunner(client: QueryClient): Runner {
   let listed: readonly Deal[] = [];
   let latest: readonly Deal[] | null = null;
   let running: AbortController | null = null;
+  /** The next pass is a sweep (DISPLAY_SWEEP_MS): it reads the live and paid deals too. */
+  let sweepDue = false;
+  let sweepTimer: ReturnType<typeof setInterval> | null = null;
   const pool = createReadPool(READ_CONCURRENCY);
 
   const answer = (id: string): DealDisplay | undefined => client.getQueryData<DealDisplay>(dealKey('deal_display', id));
+  const invalidated = (id: string): boolean => client.getQueryState(dealKey('deal_display', id))?.isInvalidated === true;
 
   const publish = (patch: Partial<DisplaysState>): void => {
     const map = new Map<string, DealDisplay>();
@@ -127,9 +149,11 @@ function createRunner(client: QueryClient): Runner {
     listed = deals;
     const byId = new Map(deals.map((d) => [d.id, d]));
     for (const id of [...tokens.keys()]) if (!byId.has(id)) tokens.delete(id);
-    const known = new Map<string, { token: string | null }>();
-    for (const [id, token] of tokens) if (answer(id) !== undefined) known.set(id, { token });
-    const ids = displayReadOrder(deals, displaysToRead(deals, known));
+    const known = new Map<string, HeldDisplay>();
+    for (const [id, token] of tokens) if (answer(id) !== undefined) known.set(id, { token, invalidated: invalidated(id) });
+    const sweep = sweepDue;
+    sweepDue = false;
+    const ids = displayReadOrder(deals, displaysToRead(deals, known, sweep));
     const ctl = new AbortController();
     running = ctl;
     void (async () => {
@@ -151,6 +175,8 @@ function createRunner(client: QueryClient): Runner {
         if (ctl.signal.aborted) break;
       }
       running = null;
+      // A sweep cut short by a newer list is owed to that list's pass.
+      if (sweep && ctl.signal.aborted) sweepDue = true;
       pump();
     })();
   };
@@ -175,9 +201,19 @@ function createRunner(client: QueryClient): Runner {
     },
     subscribe(cb) {
       subs.add(cb);
+      // The sweep runs while someone shows the displays, on the list last asked for.
+      sweepTimer ??= setInterval(() => {
+        sweepDue = true;
+        const deals = latest ?? listed;
+        latest = deals;
+        if (!running) pump();
+      }, DISPLAY_SWEEP_MS);
       return () => {
         subs.delete(cb);
-        if (subs.size === 0) running?.abort();
+        if (subs.size > 0) return;
+        running?.abort();
+        if (sweepTimer) clearInterval(sweepTimer);
+        sweepTimer = null;
       };
     },
     get: () => state,

@@ -3,9 +3,9 @@
 // calm motion, the theme, the shortcuts help and the clock; and demo mode's switcher (DemoSwitch.tsx).
 // In a desktop demo the demo badge stands where the browser preview's badge would; after the sample
 // data failed to open (lib/runtime.ts fallback) the footer says so once.
-import { useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { TumblerStatus } from '@bindings/TumblerStatus';
-import { useEvent, useNow } from '../../../lib/hooks';
+import { useClock, useEvent } from '../../../lib/hooks';
 import { demoNow, takeDemoNotice } from '../../../lib/preview';
 import { BOOK_TODAY, CALM, DEMO_FALLBACK_NOTE, METERS, MINI_WINDOW, SAFE_DEFAULT_LINE, SHORTCUTS_LABEL } from '../../../lib/words';
 import { formatMinor } from '../../../lib/format';
@@ -26,7 +26,18 @@ export type FooterProps = {
   onHelp: () => void;
 };
 
-export function Footer({ onSettings, onHelp }: FooterProps) {
+/** The console re-renders every second (setup/start.ts useStart reads the clock) and hands the
+ *  footer new arrow functions each time: the footer keeps the latest in a ref and draws through a
+ *  memoised body with stable handlers, so the tick re-renders this thin shell only (measured). */
+export function Footer(p: FooterProps) {
+  const latest = useRef(p);
+  latest.current = p;
+  const onSettings = useCallback(() => latest.current.onSettings(), []);
+  const onHelp = useCallback(() => latest.current.onHelp(), []);
+  return <FooterBody onSettings={onSettings} onHelp={onHelp} />;
+}
+
+const FooterBody = memo(function FooterBody({ onSettings, onHelp }: FooterProps) {
   const settings = useSettings().data;
   const [tumbler, setTumbler] = useState<TumblerStatus | null>(null);
   useEvent('tumbler:status', (s) => setTumbler(s));
@@ -50,7 +61,7 @@ export function Footer({ onSettings, onHelp }: FooterProps) {
       <Clock />
     </footer>
   );
-}
+});
 
 /** Today's two meters, never one axis: money your agents paid out against the signed wallet limit
  *  (or what they committed), and the agent app's own estimate of its AI usage (never a bill). */
@@ -100,10 +111,14 @@ function CalmToggle() {
   );
 }
 
-function Clock() {
-  const now = useNow();
+/** The day and the minute: re-renders when the minute turns, not every second. */
+const clockText =(now: number): string => {
   const d = new Date(now * 1000);
-  return <span className="cs-clk">{d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>;
+  return `${d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+};
+
+function Clock() {
+  return <span className="cs-clk">{useClock(clockText)}</span>;
 }
 
 function Hourglass() {

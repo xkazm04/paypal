@@ -19,11 +19,12 @@
 //
 // Rows are buttons: a row opens or picks, nothing else. Actions belong to the row's detail (the
 // pane, or the layer it opens), so a row never holds a second control.
-import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react';
+import { Suspense, useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react';
 import { formatCount, formatTally } from '../../../lib/data/counts';
 import { useWindowedRows } from '../../../lib/data/useWindowedRows';
-import { LIST_ALL, LIST_CLEAR, LIST_DETAIL_EMPTY, LIST_FILTER, LIST_GROUP, LIST_GROUP_NONE, LIST_NO_MATCH, LIST_SEARCH, LIST_SEARCH_PLACEHOLDER, LIST_SORT, LIST_TWO_STEP, listShowing } from '../../../lib/words';
-import { DataGrid, type DataGridHandle, type GridColumn } from '../../../shared/DataGrid';
+import { lazyPart } from '../../../lib/lazy';
+import { LIST_ALL, LIST_CLEAR, LIST_DETAIL_EMPTY, LIST_FILTER, LIST_GROUP, LIST_GROUP_NONE, LIST_LOADING, LIST_NO_MATCH, LIST_SEARCH, LIST_SEARCH_PLACEHOLDER, LIST_SORT, LIST_TWO_STEP, listShowing } from '../../../lib/words';
+import type { DataGrid as DataGridFn, DataGridHandle, GridColumn } from '../../../shared/DataGrid';
 import { loadGroup, saveGroup } from '../../../shared/gridState';
 import { useGridTier } from '../../../shared/gridLicence';
 import { Btn, Field } from '../../../shared/ui';
@@ -144,6 +145,26 @@ export const FEW_ROWS = 6;
 export const fewRows = (n: number): string | undefined => (n <= FEW_ROWS ? 'few' : undefined);
 
 const NO_ROWS: readonly never[] = [];
+
+/** The data grid is a chunk of its own (the grid library and its two stylesheets travel with it): it
+ *  loads the first time a list draws as a grid, so a plain list, and the first paint, never carry it.
+ *  Until it has loaded the list holds its place with a calm skeleton the grid's height. */
+export const DataGridPart = lazyPart(() => import('../../../shared/DataGrid').then((m) => m.DataGrid));
+// lazyPart keeps the props but not the generic: the grid is drawn through the real signature.
+const Grid = DataGridPart as unknown as typeof DataGridFn;
+/** The grid's row height (shared/DataGrid GRID_ROW_HEIGHT), for the placeholder only. */
+const WAIT_ROW_PX = 36;
+
+function GridWait({ rows, auto }: { rows: number; auto: boolean }) {
+  // A short list is drawn at its own height (header + rows); a long one at the grid's least height.
+  const h = auto ? `${(rows + 1) * WAIT_ROW_PX}px` : 'min(60vh, 24rem)';
+  return (
+    <>
+      <p className="sr-only" role="status">{LIST_LOADING}</p>
+      <Skeleton h={h} />
+    </>
+  );
+}
 
 export function ListEngine<T>(p: ListEngineProps<T>) {
   const { rows, getKey, filters, sorts, onOpen, onPick } = p;
@@ -291,9 +312,11 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
           : shown.length === 0 ? <p className="le-empty">{p.noMatch ?? LIST_NO_MATCH} <Btn sm kind="plain" onClick={clear}>{LIST_CLEAR}</Btn></p>
             : grid ? (
               <div className="le-col">
-                <DataGrid<T> label={p.label} rows={shown} getKey={getKey} columns={grid} rowLabel={p.rowLabel} onActivate={activate} onEnter={enter}
-                  onDisplayed={setGridShown} noMatch={typeof p.noMatch === 'string' ? p.noMatch : LIST_NO_MATCH} autoHeight={rows.length <= FEW_ROWS} handle={gridRef}
-                  quickFilter={q} quickText={p.searchText} totals={p.totals} onFilteredRows={p.onFilteredRows} groupBy={groupNow} />
+                <Suspense fallback={<GridWait rows={shown.length} auto={rows.length <= FEW_ROWS} />}>
+                  <Grid<T> label={p.label} rows={shown} getKey={getKey} columns={grid} rowLabel={p.rowLabel} onActivate={activate} onEnter={enter}
+                    onDisplayed={setGridShown} noMatch={typeof p.noMatch === 'string' ? p.noMatch : LIST_NO_MATCH} autoHeight={rows.length <= FEW_ROWS} handle={gridRef}
+                    quickFilter={q} quickText={p.searchText} totals={p.totals} onFilteredRows={p.onFilteredRows} groupBy={groupNow} />
+                </Suspense>
               </div>
             ) : (
               <div className="le-col">

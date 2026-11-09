@@ -140,28 +140,30 @@ describe('the read budget on ?scale=large (500 deals)', () => {
     expect(readBudget.byCommand.get('agent_runs')?.total).toBe(1);
     expect(Math.ceil(500 / DISPLAY_BATCH)).toBe(5);
 
-    // An event storm with nothing changed: one list read, no display read.
+    // An event storm with nothing changed: every row is already listed, so the list is patched (and
+    // nothing in it differs): no list read, no display read.
     resetReadBudget();
     await act(async () => { for (const d of deals.slice(0, 20)) fire('deal:changed', { deal: d, mode: d.mode }); });
     await quiet();
-    expect(readBudget.byCommand.get('list_deals')?.total).toBe(1);
+    expect(readBudget.byCommand.get('list_deals')?.total ?? 0).toBe(0);
     expect(readBudget.byCommand.get('deal_display')?.total ?? 0).toBe(0);
 
-    // Ten ended deals change: one list read, then exactly the deals displaysToRead names (the live
-    // deals, the paid ones whose money check can still close, and the ten), live first, 8 at a time.
-    const ended = deals.filter((d) => isTerminal(d) && d.state !== 'CAPTURED' && d.state !== 'RECEIPTED').slice(0, 10);
+    // Ten ended deals change (each event carries the row as list_deals now answers it): the list is
+    // patched, not read, and exactly the deals displaysToRead names are read (the ten the events
+    // named; the twenty above too, which their storm marked stale), 8 at a time. No live deal is
+    // read again for an event that did not name it.
+    const ended = deals.filter((d) => isTerminal(d) && d.state !== 'CAPTURED' && d.state !== 'RECEIPTED' && !deals.slice(0, 20).includes(d)).slice(0, 10);
     expect(ended).toHaveLength(10);
     for (const d of ended) h.bump.add(d.id);
-    const cache = new Map(deals.map((d) => [d.id, { token: displayToken(d) }]));
     const next = deals.map((d) => (h.bump.has(d.id) ? { ...d, updated_at: (d.updated_at ?? 0) + 1 } : d));
+    const named = new Set([...deals.slice(0, 20), ...ended].map((d) => d.id));
+    const cache = new Map(deals.map((d) => [d.id, { token: displayToken(d), invalidated: named.has(d.id) }]));
     const expected = displaysToRead(next, cache).length;
-    const live = deals.filter((d) => !isTerminal(d)).length;
-    expect(expected).toBeGreaterThanOrEqual(live + 10);
-    expect(expected).toBeLessThan(500);
+    expect(expected).toBe(30);
     resetReadBudget();
-    await act(async () => { for (const d of ended) fire('deal:changed', { deal: d, mode: d.mode }); });
+    await act(async () => { for (const d of next.filter((x) => h.bump.has(x.id))) fire('deal:changed', { deal: d, mode: d.mode }); });
     await quiet();
-    expect(readBudget.byCommand.get('list_deals')?.total).toBe(1);
+    expect(readBudget.byCommand.get('list_deals')?.total ?? 0).toBe(0);
     expect(readBudget.byCommand.get('deal_display')?.total).toBe(expected);
     expect(readBudget.byCommand.get('deal_display')?.maxInFlight).toBeLessThanOrEqual(READ_CONCURRENCY);
   }, 60_000);

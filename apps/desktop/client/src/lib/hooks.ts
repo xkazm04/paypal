@@ -132,8 +132,20 @@ const clock = (() => {
 /** The snapshot useNow reads (exported for its tests). */
 export const nowSnapshot = (): number => clock.get();
 
+/** The clock, re-rendering the caller every second. Call it in the smallest leaf that shows a time;
+ *  a component that only shows what the time says ("3 h left", "14:05") is better served by
+ *  useClock, which re-renders only when that changes. */
 export function useNow(): number {
   return useSyncExternalStore(clock.subscribe, clock.get, clock.get);
+}
+
+/** What the clock says to this caller: `select(now)` on the same one interval, re-rendering only when
+ *  its answer changes (Object.is), so a "3 h 12 min left" or a "14:05" re-renders once a minute, not
+ *  once a second. `select` must return a plain value (a string, a number, a boolean or null), never
+ *  a new object, or it would change on every tick. It may be an inline function. */
+export function useClock<T extends string | number | boolean | null>(select: (now: number) => T): T {
+  const read = () => select(clock.get());
+  return useSyncExternalStore(clock.subscribe, read, read);
 }
 
 /** Whether JS-timed motion should be calm: the OS asks for reduced motion OR the owner turned the

@@ -1,6 +1,7 @@
-// deal_display is read again only for the deals whose display can have changed: a live deal always
-// (its "if you do nothing" line follows the clock), a deal whose row changed, a deal with no
-// timestamp and a deal not read yet. An ended deal that did not change is not read again.
+// deal_display is read again only for the deals whose display can have changed: a deal an event
+// named, a deal whose row changed, a deal with no timestamp and a deal not read yet. The live and
+// paid deals are read again on the slow sweep only (the display holds no clock; countdowns are drawn
+// from its deadline on the client clock). An ended deal that did not change is not read again.
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import { buildMockState } from '../../mock/fixtures';
@@ -27,18 +28,28 @@ describe('displaysToRead', () => {
     expect(displaysToRead([e], cached(e))).toEqual([]);
   });
 
-  it('always reads a live deal', () => {
+  it('does not read again a live deal nothing named: the display holds no clock', () => {
     for (const state of ['NEGOTIATING', 'AGREED', 'AWAITING_APPROVAL', 'AUTHORIZED'] as const) {
       const d = deal('A', state);
-      expect(displaysToRead([d], cached(d)), state).toEqual(['A']);
+      expect(displaysToRead([d], cached(d)), state).toEqual([]);
     }
   });
 
-  it('reads a paid deal whose money check can close without its row changing', () => {
-    for (const state of ['CAPTURED', 'RECEIPTED'] as const) {
+  it('reads a live deal, and a paid deal whose money check can close without its row changing, on the sweep', () => {
+    for (const state of ['NEGOTIATING', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED'] as const) {
       const d = deal('A', state);
-      expect(displaysToRead([d], cached(d)), state).toEqual(['A']);
+      expect(displaysToRead([d], cached(d), true), state).toEqual(['A']);
     }
+    // an ended deal that did not change is not swept
+    const e = deal('B', 'EXPIRED');
+    expect(displaysToRead([e], cached(e), true)).toEqual([]);
+  });
+
+  it('reads a deal an event named since its last read, and only that deal', () => {
+    const x = deal('X', 'NEGOTIATING');
+    const y = deal('Y', 'NEGOTIATING');
+    const held = new Map([[x.id, { token: displayToken(x), invalidated: true }], [y.id, { token: displayToken(y) }]]);
+    expect(displaysToRead([x, y], held)).toEqual(['X']);
   });
 
   it('reads an ended deal whose state or moment changed', () => {

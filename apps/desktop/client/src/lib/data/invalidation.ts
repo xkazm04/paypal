@@ -34,7 +34,9 @@ type Rule = (payload: unknown) => Target[];
 /** The map. Order inside a rule does not matter: invalidations of one burst are flushed together. */
 export const INVALIDATION: Partial<Record<EventName, Rule>> = {
   // A deal moved: the ledger list, what needs the owner (a deal change can add or clear an item), and
-  // that deal's own reads. Counterparty names come with deals (a first deal with a new key).
+  // that deal's own reads. Counterparty names come with deals (a first deal with a new key). The
+  // ledger list is patched with the event's deal where it can be (ROW_PATCHES below) and read again
+  // only where it cannot.
   'deal:changed': (p) => [
     { key: WORLD_KEYS.deals },
     { key: WORLD_KEYS.attention },
@@ -54,6 +56,30 @@ export const INVALIDATION: Partial<Record<EventName, Rule>> = {
     ];
   },
 };
+
+/** A row an event carries whole, for a cached list of rows keyed by `id`. */
+export type RowPatch = { key: QueryKey; row: { id: string } };
+
+/**
+ * Events that carry the new row of a cached list: the list is patched with it instead of read again
+ * (the bus, lib/data/bus.ts). `deal:changed` carries the deal exactly as list_deals returns it (the
+ * shell sends it from that same read, table-runtime actor.rs publish), and the ledger never deletes
+ * a deal, so replacing a listed row by id gives the answer a full read would. A row the list does not
+ * have yet (a new deal), a list never read, or one being read when the event comes cannot be patched
+ * exactly: the bus falls back to invalidating the list for those, so membership is always the
+ * shell's own answer.
+ */
+export const ROW_PATCHES: Partial<Record<EventName, (payload: unknown) => RowPatch | null>> = {
+  'deal:changed': (p) => {
+    const deal = (p as PayloadOf<'deal:changed'> | undefined)?.deal;
+    return deal && typeof deal.id === 'string' ? { key: WORLD_KEYS.deals, row: deal } : null;
+  },
+};
+
+/** The row patch an event carries, if any. */
+export function rowPatchFor(event: EventName, payload: unknown): RowPatch | null {
+  return ROW_PATCHES[event]?.(payload) ?? null;
+}
 
 /** The events the map listens to: subscribed once, by the provider, for the window's lifetime. */
 export const MAPPED_EVENTS = Object.keys(INVALIDATION) as EventName[];

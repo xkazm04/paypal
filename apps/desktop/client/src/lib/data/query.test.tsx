@@ -108,6 +108,32 @@ describe('events', () => {
     expect(count('list_deals')).toBe(3);
   });
 
+  it('a deal:changed for a listed deal patches the deal list with its row instead of reading it again', async () => {
+    h.answer = (cmd) => Promise.resolve(cmd === 'list_deals' ? [{ id: 'A', v: 1 }, { id: 'B', v: 1 }] : null);
+    let seen: unknown;
+    const r = inProvider(<Reader cmd="list_deals" refreshOn={['deal:changed', 'receipt:created']} onData={(d) => { seen = d; }} />);
+    await waitFor(() => r.getByText('ready'));
+    await listening('deal:changed');
+    const before = seen as { id: string }[];
+    await act(async () => { fire('deal:changed', { deal: { id: 'A', v: 2 }, mode: 'sandbox' }); fire('deal:changed', { deal: { id: 'A', v: 3 }, mode: 'sandbox' }); });
+    await waitFor(() => expect((seen as { v: number }[])[0]?.v).toBe(3));
+    expect(count('list_deals')).toBe(1);
+    // the row nobody named keeps its object
+    expect((seen as unknown[])[1]).toBe(before[1]);
+    // a receipt carries no row: the list is read again
+    await act(async () => { fire('receipt:created', { deal_id: 'A' }); });
+    await waitFor(() => expect(count('list_deals')).toBe(2));
+  });
+
+  it('a deal:changed for a deal the list does not have reads the list again (membership is the shell’s)', async () => {
+    h.answer = (cmd) => Promise.resolve(cmd === 'list_deals' ? [{ id: 'A' }] : null);
+    const r = inProvider(<Reader cmd="list_deals" refreshOn={['deal:changed']} />);
+    await waitFor(() => r.getByText('ready'));
+    await listening('deal:changed');
+    await act(async () => { fire('deal:changed', { deal: { id: 'NEW' }, mode: 'sandbox' }); });
+    await waitFor(() => expect(count('list_deals')).toBe(2));
+  });
+
   it('a change to one deal re-reads that deal’s transcript only', async () => {
     const r = inProvider(<>
       <Reader cmd="deal_transcript" args={{ deal_id: 'A' }} refreshOn={['deal:changed']} />
