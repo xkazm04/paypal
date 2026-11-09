@@ -374,6 +374,9 @@ impl Fixture {
                     .await
                     .map(|_| ());
             }
+            "market_search" => self.exec(&c, Action::MarketSearchGate).await,
+            "market_lookup" => self.exec(&c, Action::MarketLookupGate).await,
+            "market_comparables" => self.exec(&c, Action::ComparablesPrepare(id)).await,
             "quit_summary" => self.exec(&c, Action::QuitSummary).await,
             "quit_confirm" => {
                 self.exec(
@@ -403,6 +406,8 @@ impl Fixture {
                     Action::AuditPage(AuditPageArgs {
                         before: None,
                         limit: 5,
+                        filter: None,
+                        sort: None,
                     }),
                 )
                 .await

@@ -3,6 +3,10 @@ import type { AuditRow } from "./AuditRow";
 
 export type AuditPage = { rows: Array<AuditRow>, 
 /**
- * Pass as `before` for the next (older) page; null when this page reached the first row.
+ * Pass as `before` for the next page in the chosen order; null when this page was the last.
  */
-next_before: number | null, };
+next_before: number | null, 
+/**
+ * How many rows match the filter in the whole chain, whatever `before` is: the true count.
+ */
+total_matching: number, };

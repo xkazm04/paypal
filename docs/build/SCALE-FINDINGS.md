@@ -84,3 +84,100 @@ Only `src/windows/main/**` (fixes 1 to 7), plus the mock and the preview switch:
 - `src/lib/preview.ts`, `src/mock/{scale,firstRun,backend}.ts`, `src/shared/honesty.tsx`, `src/director/stories.ts`: `?scale=small|large`.
 
 No money action, authority row or IPC command was touched.
+
+## 5,000 deals: the wallet's reads (2026-11-09, sponsor round 2, WP3)
+
+The wallet side of "1000+ rows". Measured on this machine (Windows 11, unoptimised test profile with
+`CARGO_PROFILE_DEV_OPT_LEVEL=3`, so debug assertions stay on; a release build cannot be made here without
+`TABLE_HOUSE_RELEASE_JSON`), in-memory SQLite, one call at a time. Other work was running, so a figure moves by tens of
+percent between runs (two runs are given where they were taken); the ratios are the finding. Probes (ignored, not
+gates): `cargo test -p table-ledger --lib -- --ignored --nocapture list_deals_timing_probe` and
+`cargo test -p table-runtime --lib -- --ignored --nocapture tick_read_timing_probe`.
+
+### The 1 s tick (publish pass and attention)
+
+The reads at 500 and 5,000 deals. The ledger probe's deals cycle through every state (48% live); the runtime probe's are
+90% ended, the realistic book:
+
+| read | 500 deals | 5,000 deals |
+|---|---|---|
+| `list_deals` (the whole book; what the tick read every second) | 3.3 to 5.3 ms | 37 to 63 ms |
+| `list_live_deals`, 48% live (ledger probe) | 1.9 to 2.2 ms | 18 to 23 ms |
+| `list_live_deals`, 10% live (runtime probe) | 0.6 to 0.7 ms | 7 to 8 ms |
+| attention built over every deal (before) | 36 to 73 ms | 584 to 653 ms |
+| attention as it is built now | 35 to 38 ms | 390 to 417 ms |
+| of which `forecast` (per live deal, about 0.8 ms each) | 41 ms | 388 ms |
+| whole publish pass with nothing written (after) | 31 to 46 ms | 490 to 502 ms |
+
+Before, a tick at 5,000 deals read the whole book twice (the publish diff, and the attention fold, which also makes five
+queries per deal): about 710 ms of reads and folds in the 90%-ended book. Now a quiet tick reads only the live deals
+(about 400 ms, nearly all of it the forecast). **What is still slow and not changed here:** `forecast` walks every live
+deal with several queries each, so the tick is O(live deals), about 0.8 ms per live deal; at 500 live deals that is 0.4 s
+of a 1 s tick. It needs its own change (cache by write count, or fold in SQL) and is the next cost to take.
+
+What changed (table-ledger and table-runtime only; no wire shape, no money path):
+
+- `publish` (actor.rs) reads the whole book only when something was written since the last whole read
+  (`Ledger::change_stamp` = this connection's `total_changes` plus SQLite `data_version`, the same signal as the existing
+  `write_count` gate); otherwise `list_live_deals`. No write means no row of an ended deal can differ, so what the client
+  is told is the same.
+- `attention` (dispatcher.rs) reads `list_attention_deals` (below) and `uniform_deal_currency` instead of every deal.
+- The read-schedule prune in scheduler.rs reads `terminal_deal_ids` (ids only, no row decoded) instead of the whole book.
+
+Guarantees that depend on ended deals, traced, and how each is kept:
+
+1. The client is told of changes to an ended deal (a refund, a dispute, reporting matching its capture and a receipt
+   evidence update all land on ended deals). Kept: any write since the last whole read makes the next pass read the whole
+   book; a write by another connection is caught by `data_version`.
+2. The attention snapshot counts REFUSED deals as stopped and lists MISMATCH, shield-held and "being checked with PayPal"
+   deals whatever state they ended in. Kept: `list_attention_deals` returns every non-ended deal, REFUSED and MISMATCH,
+   every deal with a shield verdict and every deal with an open money operation. The rest (ended, no hold, no open step)
+   read as receipts, which the snapshot neither lists nor counts. The attention crate's test
+   `an_ended_deal_with_no_hold_and_no_check_is_a_receipt_unless_refused_or_mismatched` pins that for every state, and
+   `the_narrow_reads_agree_with_the_whole_book_read` pins the set (hold and open step included).
+3. The snapshot's wallet currency is the one every deal shares (an ended deal in another currency makes it none). Kept:
+   `uniform_deal_currency` is a `SELECT DISTINCT currency` over all deals.
+4. The tick's prune of the read schedule drops entries of deals that ended outside its walk. Kept: `terminal_deal_ids`.
+5. Not touched, because they are not on the tick and need the whole book: the client's `list_deals`, `rescue_book`,
+   `quit_summary`, the mandate what-if (`simulate`) and the tests that list every deal.
+
+### The Record (`audit_page`)
+
+| | 500 deals (2,507 rows) | 5,000 deals (25,007 rows) |
+|---|---|---|
+| before: one page of 200, which verified the whole chain first | 21 to 26 ms | 254 to 289 ms |
+| of which the chain walk (`verify_audit` alone) | 25 to 27 ms | 252 to 352 ms |
+| after: first page once something was written (walks the chain) | 35 ms | 396 ms |
+| after: a page with nothing written since (walk skipped), no filter, newest | 0.9 ms | 6.9 ms |
+| after: the same, oldest first | 1.9 ms | 8.9 ms |
+| after: filter `owner` (6,674 matching of 25,007) | 3.3 ms | 36 ms |
+| after: a filter that matches nothing (full scan) | 4.7 ms | 79 ms |
+
+Every "after" figure includes `total_matching`, a second statement over the same filter.
+
+The page costs the chain walk, not the 200 rows. Integrity: `Ledger::audit_search` remembers the (`total_changes`,
+`data_version`) stamp at which the whole chain last verified and walks it again only when that stamp has moved, that is
+after any write to the database by anyone (an audit append, a raw edit with the triggers dropped, a change by another
+process). Nothing is skipped on a guess: while nothing is written the chain is the same bytes. A failed check is never
+cached (test `a_row_altered_after_a_good_read_fails_the_next_read_and_is_never_cached`). **The cost that remains, a
+recorded limit:** while the wallet is writing (a live deal moving), each page after a write walks the chain again, 250 to
+400 ms at 25,000 rows. An incremental verify (walk only the rows after a remembered head) would cut that but would not
+notice an old row edited in place until the next full check; the append rule already accepts that trade at every 500th
+row (owner decision, 2026-10-06), but the Record's "verified" claim is not mine to loosen, so it is left for the owner.
+`history_rows` and the ledger's own `audit_page(before, limit)` are unchanged and still verify on every call.
+
+Filter and sort run in SQL (`audit_search`), so a filtered or reversed list is about every row, with the true count. The
+filter is one substring, ASCII case-insensitive, `_` read as a space, over the action, the actor, the status change
+(`from`, `to`), the decision (`decided_by`) and the deal's stored item (`deals.item_ref`). The owner's words for these
+(the Record shows "Paid" for a row that says `CAPTURED`) belong to the client and Rust does not know them, and a deal's
+title is read from the market and never stored, so it cannot be searched here. The grid package maps typed words to the
+stored vocabulary, or searches the rows it holds for those.
+
+### The xl mock (`?scale=xl`)
+
+`buildScaleState('xl')` is the large world (same first 500 deals and ids) plus 4,500 copies of its settled deals, each
+with its own id, label, PayPal references, history steps, audit rows, category and rescue view, 2 to 89 days older than
+the original: 5,000 deals, 42,680 audit rows, 36,717 history steps, about 25 MB of JSON, built in 86 ms
+(`mock/scaleXl.ts`, `scaleXl.test.ts`). It holds nothing waiting for the owner beyond the large world's own 44 items. Its
+state is larger than the browser's localStorage quota, so a second window does not see the first one's changes (each
+builds its own xl); the first window works as usual.

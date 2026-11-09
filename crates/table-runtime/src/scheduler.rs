@@ -25,10 +25,9 @@ impl Runtime {
         // is not listed live, so its read schedule would wait for the cap. Drop it here; the
         // ledger is read only while the schedule holds something.
         if self.pipeline.read_state_len() != (0, 0, 0) {
-            let ended: Vec<DealId> = app(self.pipeline.wallet.ledger.list_deals())?
+            let ended: Vec<DealId> = app(self.pipeline.wallet.ledger.terminal_deal_ids())?
                 .into_iter()
-                .filter(|deal| deal.state.terminal() && self.pipeline.read_state_of(deal.id) > 0)
-                .map(|deal| deal.id)
+                .filter(|id| self.pipeline.read_state_of(*id) > 0)
                 .collect();
             for id in ended {
                 if let Err(error) = self.pipeline.prune_read_state(id, now) {

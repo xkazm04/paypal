@@ -220,6 +220,16 @@
 .ow-watch .ow-watch-n { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--text); }
 .ow-watch .ow-watch-n .ui-field { width: 52px; text-align: center; font-variant-numeric: tabular-nums; }
 .ow-watch > .ui-btn { justify-self: start; }
+.ow-watch-acts { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.ow-watch-find { grid-column: 1 / -1; }
+.ow-finder { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); min-width: 0; }
+.ow-finder-bar { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.ow-finder-bar .ui-field { flex: 1; min-width: 0; }
+.ow-finder-hits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.ow-finder-hits li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); min-width: 0; }
+.ow-hit-t { display: flex; flex-direction: column; min-width: 0; }
+.ow-hit-t b, .ow-hit-t .ui-hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ow-hit-t b { font-weight: var(--fw-semibold); color: var(--text); font-size: var(--fs-small); }
 
 /* Details: the owner key, shown on request inside its group (src/shared/ownerKey.tsx). */
 .ow-key { padding: var(--sp-2) var(--sp-3) var(--sp-3); border-top: 1px solid var(--line); }

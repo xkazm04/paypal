@@ -187,6 +187,21 @@ pub struct MarketRefreshArgs {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
+pub struct MarketSearchArgs {
+    pub query: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct MarketLookupArgs {
+    pub url: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct MarketComparablesArgs {
+    pub deal_id: DealId,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
 pub struct DealCreateArgs {
     pub kind: table_core::DealKind,
     pub side: table_core::Side,
@@ -347,6 +362,10 @@ pub struct CommandContract {
     pub agent_start: Command<AgentStartArgs, RunSnapshot>,
     pub agent_runs: Command<(), Vec<RunSnapshot>>,
     pub market_refresh: Command<MarketRefreshArgs, table_core::MarketRef>,
+    /// Product finder reads (display only, nothing is stored or audited).
+    pub market_search: Command<MarketSearchArgs, Vec<table_core::ProductHit>>,
+    pub market_lookup: Command<MarketLookupArgs, table_core::ProductHit>,
+    pub market_comparables: Command<MarketComparablesArgs, table_core::MarketComparablesAnswer>,
     pub quit_summary: Command<(), QuitSummary>,
     pub quit_confirm: Command<QuitArgs, ()>,
     pub tumbler_drag: Command<(), ()>,

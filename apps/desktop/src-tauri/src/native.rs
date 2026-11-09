@@ -272,6 +272,9 @@ pub fn run() -> Result<(), tauri::Error> {
             agent_start,
             agent_runs,
             market_refresh,
+            market_search,
+            market_lookup,
+            market_comparables,
             quit_summary,
             quit_confirm,
             counterparty_note,
@@ -312,7 +315,10 @@ pub fn run() -> Result<(), tauri::Error> {
                 .and_then(|dir| table_runtime::market_key_from_environment(&dir));
             let market = Arc::new(table_market::Client::new(
                 Arc::new(table_paypal::http::ReqwestTransport::new()?),
-                Arc::new(table_runtime::VaultMarketKey(vault.clone(), market_env_key.clone())),
+                Arc::new(table_runtime::VaultMarketKey(
+                    vault.clone(),
+                    market_env_key.clone(),
+                )),
                 clock.clone(),
             ));
             let api = Arc::new(table_paypal::Client::sandbox(

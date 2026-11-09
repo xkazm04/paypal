@@ -25,9 +25,10 @@ export type Session = {
   pending: CommandName | null;
   /**
    * Invoke a command. `privileged` attaches the capability header. A LOCKED answer flips the
-   * window into its locked state; every failure comes back typed, never thrown.
+   * window into its locked state; every failure comes back typed, never thrown. `background` is a
+   * read that must never hold the window's buttons: it does not set `pending`.
    */
-  call: <K extends CommandName>(cmd: K, args: ArgsOf<K>, privileged?: boolean) => Promise<CallResult<K>>;
+  call: <K extends CommandName>(cmd: K, args: ArgsOf<K>, privileged?: boolean, opts?: { background?: boolean }) => Promise<CallResult<K>>;
   unlocking: boolean;
   unlockError: WalletError | null;
   unlock: () => Promise<boolean>;
@@ -40,6 +41,12 @@ export function useSession(): Session {
   const s = useContext(Ctx);
   if (!s) throw new Error('useSession outside <SessionProvider>');
   return s;
+}
+
+/** The session when there is one: a component that can also render outside the approval window's
+ *  provider (a rule row in a test, a preview) reads this and shows nothing without it. */
+export function useOptionalSession(): Session | null {
+  return useContext(Ctx);
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
@@ -77,11 +84,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, [fetchToken]);
 
-  const call = useCallback(async <K extends CommandName>(cmd: K, args: ArgsOf<K>, privileged = false): Promise<CallResult<K>> => {
+  const call = useCallback(async <K extends CommandName>(cmd: K, args: ArgsOf<K>, privileged = false, opts?: { background?: boolean }): Promise<CallResult<K>> => {
     if (privileged && !token.current) {
       return { ok: false, error: new WalletError({ code: 'PERMISSION', message: 'the approval capability is not available in this window' }) };
     }
-    setPending(cmd);
+    if (!opts?.background) setPending(cmd);
     try {
       const value = await backend().invoke(cmd, args, privileged && token.current ? { token: token.current } : undefined);
       return { ok: true, value };
@@ -90,7 +97,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (error.code === 'LOCKED') setLockedByError(true);
       return { ok: false, error };
     } finally {
-      setPending(null);
+      if (!opts?.background) setPending(null);
     }
   }, []);
 

@@ -11,7 +11,7 @@ pub mod repositories;
 pub use pin::PinState;
 mod snapshot;
 pub use attention::{RUNG_ACTION, RungRow, SilenceEvidence, rung_chain_hash};
-pub use audit::{AuditEntry, AuditRecord};
+pub use audit::{AuditEntry, AuditQuery, AuditRecord, AuditSearch};
 pub use redaction::*;
 pub use repositories::*;
 mod counterparties;
@@ -65,6 +65,9 @@ const WRITE_ATTEMPTS: usize = 3;
 #[derive(Debug)]
 pub struct Ledger {
     pub(crate) conn: Connection,
+    /// The (write count, data version) at which the whole audit chain last verified, so a read
+    /// repeated with nothing written in between does not walk the chain again (`audit_search`).
+    pub(crate) audit_checked: std::cell::Cell<Option<(u64, i64)>>,
 }
 impl Ledger {
     pub fn in_memory() -> Result<Self, LedgerError> {
@@ -151,7 +154,10 @@ impl Ledger {
         if migrating {
             snapshot::prune(&conn);
         }
-        let ledger = Self { conn };
+        let ledger = Self {
+            conn,
+            audit_checked: std::cell::Cell::new(None),
+        };
         ledger.verify_audit()?;
         Ok(ledger)
     }
@@ -222,6 +228,8 @@ mod market_watch;
 mod shield;
 pub use groups::*;
 pub use shield::ShieldRefusal;
+#[cfg(test)]
+mod audit_search_tests;
 #[cfg(test)]
 mod groups_tests;
 #[cfg(test)]

@@ -452,6 +452,42 @@ pub(super) async fn market_refresh(
         .await
 }
 #[tauri::command]
+pub(super) async fn market_search(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    request: tauri::ipc::Request<'_>,
+    args: MarketSearchArgs,
+) -> Result<Vec<table_core::ProductHit>, CommandError> {
+    state
+        .actor
+        .market_search(caller(&window, Some(&request)), args)
+        .await
+}
+#[tauri::command]
+pub(super) async fn market_lookup(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    request: tauri::ipc::Request<'_>,
+    args: MarketLookupArgs,
+) -> Result<table_core::ProductHit, CommandError> {
+    state
+        .actor
+        .market_lookup(caller(&window, Some(&request)), args)
+        .await
+}
+#[tauri::command]
+pub(super) async fn market_comparables(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    request: tauri::ipc::Request<'_>,
+    args: MarketComparablesArgs,
+) -> Result<table_core::MarketComparablesAnswer, CommandError> {
+    state
+        .actor
+        .market_comparables(caller(&window, Some(&request)), args)
+        .await
+}
+#[tauri::command]
 pub(super) async fn deal_export_proof(
     window: WebviewWindow,
     state: State<'_, DesktopState>,

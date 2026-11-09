@@ -206,7 +206,8 @@ IPC commands granted to the approval window (from `authority_table.rs`):
 | `unlock` | session | yes / no | any |
 | `deal_owner_accept`, `deal_countersign`, `deal_capture`, `deal_void`, `shield_release`, `rescue_approve`, `open_paypal_in_browser` | decision | yes / yes | selected deal |
 | `set_credentials`, `mandate_sign`, `mandate_revoke`, `pairing_confirm`, `deal_create`, `deal_join`, `envelope_sign`, `rescue_replay`, `rescue_watch_add`, `rescue_watch_stop` | owner | yes / yes | any |
-| `band_set`, `market_refresh` | owner | yes / yes | selected deal |
+| `band_set`, `market_refresh`, `market_comparables` | owner | yes / yes | selected deal |
+| `market_search`, `market_lookup` (the rule editor's product finder: display only, nothing stored or audited) | owner | yes / yes | any |
 | `approval_summary` | read | no / no | selected deal |
 | `approval_selection`, `approval_pairing`, `approval_handoff`, `mandate_simulate` | read | no / no | any (approval only) |
 | `deal_display`, `deal_transcript`, `deal_withdraw` | read / act | no / no | its own deal when called from approval |

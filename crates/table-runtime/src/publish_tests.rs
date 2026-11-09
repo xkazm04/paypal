@@ -547,3 +547,90 @@ fn attaching_the_mcp_server_publishes() {
     .unwrap();
     assert!(!crate::actor::Message::AttachMcp(server, "http://127.0.0.1:8765/mcp".into()).quiet());
 }
+
+/// Timing probe, not a gate: `CARGO_PROFILE_DEV_OPT_LEVEL=3 cargo test -p table-runtime --lib
+/// -- --ignored --nocapture tick_read_timing_probe`. One 1 s tick's reads at 500 and 5,000 deals,
+/// 90% of them ended: the whole-book read the tick used to make against the reads it makes now.
+#[test]
+#[ignore = "timing probe"]
+fn tick_read_timing_probe() {
+    use crate::actor::{Published, publish};
+    fn ms(started: std::time::Instant, calls: u32) -> f64 {
+        started.elapsed().as_secs_f64() * 1000.0 / f64::from(calls)
+    }
+    for deals in [500_usize, 5_000] {
+        let (mut r, _, _, _, _) = counted();
+        let (first, peer) = setup(&mut r, Side::Seller);
+        let mut ids = vec![first.id];
+        for _ in 1..deals {
+            let again = r
+                .create_deal(DealCreateArgs {
+                    kind: DealKind::Haggle,
+                    side: Side::Seller,
+                    counterparty: peer.key_id().unwrap(),
+                    mandate_id: first.mandate_id,
+                    mandate_version: 1,
+                    category: Category::Parts,
+                    terms: first.terms.clone(),
+                })
+                .unwrap();
+            ids.push(again.id);
+        }
+        for (n, id) in ids.iter().enumerate() {
+            if n % 10 != 0 {
+                r.pipeline
+                    .wallet
+                    .ledger
+                    .apply_event(*id, DealEvent::Withdraw, 200)
+                    .unwrap();
+            }
+        }
+        let ledger = &r.pipeline.wallet.ledger;
+        let live = ledger.list_live_deals().unwrap().len();
+        let t = std::time::Instant::now();
+        for _ in 0..10 {
+            ledger.list_deals().unwrap();
+        }
+        let whole = ms(t, 10);
+        let t = std::time::Instant::now();
+        for _ in 0..10 {
+            ledger.list_live_deals().unwrap();
+        }
+        let live_read = ms(t, 10);
+        let all = ledger.list_deals().unwrap();
+        let currency = ledger.uniform_deal_currency().unwrap();
+        r.attention().unwrap();
+        let t = std::time::Instant::now();
+        for _ in 0..5 {
+            r.attention_over(&all, currency).unwrap();
+        }
+        let attention_whole = ms(t, 5);
+        let t = std::time::Instant::now();
+        for _ in 0..5 {
+            r.attention().unwrap();
+        }
+        let attention_narrow = ms(t, 5);
+        let t = std::time::Instant::now();
+        for _ in 0..5 {
+            r.envelope_view().unwrap();
+        }
+        let envelope = ms(t, 5);
+        let t = std::time::Instant::now();
+        for _ in 0..5 {
+            r.forecast(100).unwrap();
+        }
+        let forecast = ms(t, 5);
+        println!("PROBE {deals} deals: envelope_view {envelope:.2} ms, forecast {forecast:.2} ms");
+        let (events, _rx) = broadcast::channel(16);
+        let mut published = Published::default();
+        publish(&mut r, &events, &mut published);
+        let t = std::time::Instant::now();
+        for _ in 0..5 {
+            publish(&mut r, &events, &mut published);
+        }
+        let quiet_pass = ms(t, 5);
+        println!(
+            "PROBE {deals} deals ({live} live): list_deals {whole:.2} ms, list_live_deals {live_read:.2} ms,              attention over every deal {attention_whole:.2} ms, attention as now {attention_narrow:.2} ms,              whole publish pass with nothing written {quiet_pass:.2} ms"
+        );
+    }
+}

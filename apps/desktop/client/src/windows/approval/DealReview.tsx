@@ -27,6 +27,7 @@ import { Countdown, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Field, HoldButton, Popover, Sheet, layerCount, useFocusRescue, useToast } from '../../shared/ui';
 import { MarkIcon } from './review/Parts';
 import { BandAdjust } from './BandAdjust';
+import { Comparables } from './Comparables';
 import { PriceCheck } from './PriceCheck';
 import { decisionArgs, deriveGates, isLocked, isTerminal, namesMatch, ownerAcceptArgs, readsLostAuthorize, type Gate, type Gates } from './gating';
 import { buildStrip, dealTotal, derivePhase, OFFER_NOT_HERE, failureShown, footerNoticeText, outcomeText, reachedPaypal, refusalText, stateWord, UNLOCK_HEADING, unconfirmedHeading, type DecisionCmd, type Phase } from './model';
@@ -526,6 +527,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
         {d.kind === 'rescue' && summary.rescue ? <InvoiceCard view={summary.rescue} total={total} sent={!!d.paypal.order} /> : null}
 
         {!terminal && !locked && d.kind !== 'rescue' ? <PriceCheck deal={d} payload={mandate?.payload} onDone={async () => { await refetch(); }} /> : null}
+        {!terminal && !locked && d.kind !== 'rescue' ? <Comparables deal={d} payload={mandate?.payload} /> : null}
 
         {g.bandSet.visible && !locked ? <BandAdjust deal={d} band={display?.band ?? null} gate={g.bandSet} onDone={async () => { await refetch(); }} draft={handoff?.draft?.type === 'band' && handoff.deal_id === d.id ? handoff.draft : null} /> : null}
       </main>

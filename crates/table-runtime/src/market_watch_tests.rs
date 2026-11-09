@@ -172,6 +172,8 @@ async fn trail(actor: &ActorHandle, id: DealId) -> Vec<AuditRow> {
             Action::AuditPage(AuditPageArgs {
                 before: None,
                 limit: 200,
+                filter: None,
+                sort: None,
             }),
         )
         .await
@@ -246,6 +248,8 @@ async fn watch_state(
             Action::AuditPage(AuditPageArgs {
                 before: None,
                 limit: 200,
+                filter: None,
+                sort: None,
             }),
         ),
     )

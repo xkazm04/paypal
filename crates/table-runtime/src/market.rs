@@ -26,6 +26,52 @@ pub(crate) fn record_prices(reference: &MarketRef, product_id: &str) -> bool {
 /// market_refresh's answer when the market has no comparable prices for the item.
 pub(crate) const NO_COMPARABLES: &str =
     "The market has no comparable prices for this item, so no market price was kept.";
+/// The finder's answer when no market key is set: calm, and about the setup.
+pub(crate) const NO_MARKET_KEY: &str = "No market key is set, so products cannot be looked up.";
+/// How many products a finder search asks for.
+const FINDER_HITS: usize = 8;
+/// How many similar products the comparables panel lists.
+const COMPARABLE_HITS: usize = 6;
+
+/// What the comparables read needs about a deal: the product its rules bind and its unit price.
+/// A read: nothing about it is stored.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ComparablesBinding {
+    pub deal_id: DealId,
+    pub product_id: String,
+    pub unit_price: Money,
+    pub side: Side,
+}
+
+/// The agent's `product_search`, answered from the market client. Display-grade hits; nothing is
+/// stored or audited here.
+pub(crate) struct AgentSearch(pub Arc<dyn table_market::MarketApi>);
+#[async_trait::async_trait]
+impl table_mcp::ProductSearch for AgentSearch {
+    async fn search(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<ProductHit>, table_mcp::SearchError> {
+        self.0
+            .search(query, Currency::USD, limit)
+            .await
+            .map_err(|error| match error {
+                table_market::Error::NoKey => table_mcp::SearchError::NoKey,
+                _ => table_mcp::SearchError::Unavailable,
+            })
+    }
+}
+
+fn finder_error(error: table_market::Error) -> CommandError {
+    match error {
+        table_market::Error::NoKey => unavailable(NO_MARKET_KEY),
+        table_market::Error::NoReference => unavailable("The market found nothing for that."),
+        table_market::Error::Invalid => invalid(),
+        _ => unavailable("The market is unavailable right now."),
+    }
+}
+
 /// The market key's name in the process environment and in a `.env` file.
 const MARKET_KEY_NAME: &str = "CHANNEL3_API_KEY";
 /// One value as a `.env` line writes it: quoted, or up to the first whitespace (so a trailing
@@ -81,7 +127,7 @@ impl table_market::ApiKey for VaultMarketKey {
                 .1
                 .as_deref()
                 .map(|key| table_paypal::http::Secret::new(key.into()))
-                .ok_or(table_market::Error::Unavailable);
+                .ok_or(table_market::Error::NoKey);
         };
         let text = std::str::from_utf8(&bytes).map_err(|_| table_market::Error::Unavailable)?;
         Ok(table_paypal::http::Secret::new(text.into()))
@@ -128,6 +174,33 @@ impl Runtime {
             product_id,
         })
     }
+    /// The deal's bound product and unit price for the comparables read. Writes nothing: no
+    /// signer is selected, no row is stored, no audit entry is made.
+    pub(crate) fn prepare_comparables(
+        &mut self,
+        id: DealId,
+    ) -> Result<ComparablesBinding, CommandError> {
+        if self.selected != Some(id) {
+            return Err(permission());
+        }
+        let deal = app(self.pipeline.wallet.ledger.get_deal(id))?;
+        let mandate = app(self.pipeline.wallet.ledger.active_mandate(
+            deal.mandate_id,
+            deal.mandate_version,
+            &self.pipeline.wallet.owner_public_key(),
+        ))?;
+        let product_id = mandate
+            .payload
+            .market_product_for(&deal.terms.item_ref)
+            .ok_or_else(invalid)?
+            .to_owned();
+        Ok(ComparablesBinding {
+            deal_id: id,
+            product_id,
+            unit_price: deal.terms.unit_price,
+            side: deal.side,
+        })
+    }
     pub(crate) fn store_market(
         &mut self,
         binding: MarketBinding,
@@ -152,6 +225,63 @@ impl Runtime {
     }
 }
 impl ActorHandle {
+    fn finder(&self) -> Result<&Arc<dyn table_market::MarketApi>, CommandError> {
+        self.market
+            .as_ref()
+            .ok_or_else(|| unavailable(NO_MARKET_KEY))
+    }
+    /// Products by name. Display only; the caller's permission is checked first.
+    pub async fn market_search(
+        &self,
+        caller: Caller,
+        args: MarketSearchArgs,
+    ) -> Result<Vec<ProductHit>, CommandError> {
+        self.execute::<()>(caller, Action::MarketSearchGate).await?;
+        self.finder()?
+            .search(&args.query, Currency::USD, FINDER_HITS)
+            .await
+            .map_err(finder_error)
+    }
+    /// The product a pasted shop URL shows. Display only.
+    pub async fn market_lookup(
+        &self,
+        caller: Caller,
+        args: MarketLookupArgs,
+    ) -> Result<ProductHit, CommandError> {
+        self.execute::<()>(caller, Action::MarketLookupGate).await?;
+        self.finder()?.lookup(&args.url).await.map_err(finder_error)
+    }
+    /// Similar products and cheaper offers on the deal's own product id, for the review. A
+    /// read: it stores nothing and the deal is neither blocked nor changed by the answer.
+    pub async fn market_comparables(
+        &self,
+        caller: Caller,
+        args: MarketComparablesArgs,
+    ) -> Result<MarketComparablesAnswer, CommandError> {
+        let binding: ComparablesBinding = self
+            .execute(caller, Action::ComparablesPrepare(args.deal_id))
+            .await?;
+        let market = self.finder()?;
+        let currency = binding.unit_price.currency();
+        let comparables = market
+            .similar(&binding.product_id, currency, COMPARABLE_HITS)
+            .await
+            .map_err(finder_error)?;
+        // "Same item" is the deal's bound product id and nothing else; only a buyer is told of a
+        // cheaper shop, and a failed offers read leaves the comparables standing.
+        let cheaper = if binding.side == Side::Buyer {
+            match market.product(&binding.product_id, currency).await {
+                Ok(detail) => table_core::cheaper_offers(binding.unit_price, &detail.offers),
+                Err(_) => Vec::new(),
+            }
+        } else {
+            Vec::new()
+        };
+        Ok(MarketComparablesAnswer {
+            comparables,
+            cheaper,
+        })
+    }
     pub async fn market_refresh(
         &self,
         caller: Caller,

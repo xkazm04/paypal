@@ -58,6 +58,11 @@ pub enum Action {
     Runs,
     MarketPrepare(DealId),
     MarketStore(crate::market::MarketBinding, MarketRef),
+    /// The product finder's permission steps: they answer nothing themselves, the market call is
+    /// made outside the actor, and nothing is written or audited.
+    MarketSearchGate,
+    MarketLookupGate,
+    ComparablesPrepare(DealId),
     Resume,
     Mandates,
     Sign(MandateSignArgs),
@@ -144,6 +149,9 @@ impl Action {
             Action::Runs => "agent_runs",
             // market_refresh binds the deal before the lookup and stores the answer after it.
             Action::MarketPrepare(_) | Action::MarketStore(..) => "market_refresh",
+            Action::MarketSearchGate => "market_search",
+            Action::MarketLookupGate => "market_lookup",
+            Action::ComparablesPrepare(_) => "market_comparables",
             Action::Resume => "resume_all_agents",
             Action::Mandates => "mandate_list",
             Action::Sign(_) => "mandate_sign",
@@ -225,6 +233,10 @@ impl Action {
             | Action::AuditPage(_)
             | Action::OwnerFacts
             | Action::BookQuery(_)
+            // The finder's steps read the deal and write nothing.
+            | Action::MarketSearchGate
+            | Action::MarketLookupGate
+            | Action::ComparablesPrepare(_)
             | Action::ApprovalPairing
             | Action::Runs
             | Action::Mandates
@@ -313,6 +325,7 @@ impl Action {
             | Action::CounterpartyNote(id)
             | Action::Start(id)
             | Action::MarketPrepare(id)
+            | Action::ComparablesPrepare(id)
             | Action::Withdraw(id)
             | Action::LetLapse(id)
             | Action::LapseUndo(id)
@@ -581,6 +594,9 @@ pub async fn spawn_networked(
         ))
         .await
         .map_err(|_| unavailable("Wallet actor stopped"))?;
+    if let Some(market) = handle.market.clone() {
+        server.attach_product_search(Arc::new(crate::market::AgentSearch(market)));
+    }
     let sender = handle.sender.downgrade();
     tokio::spawn(async move {
         let serving = axum::serve(listener, server.router()).with_graceful_shutdown(async move {
@@ -659,15 +675,18 @@ async fn run(
 
 /// What the last publish pass sent, so the next one sends only what changed.
 #[derive(Default)]
-struct Published {
+pub(crate) struct Published {
     deals: std::collections::BTreeMap<DealId, Deal>,
+    /// The ledger's change stamp when `deals` was last read in full (`Ledger::change_stamp`).
+    /// While it still equals the current stamp nothing was written, so no ended deal can differ.
+    deals_stamp: Option<(u64, i64)>,
     attention: Option<String>,
     attention_faulted: bool,
     settings: Option<String>,
 }
 /// The whole-wallet pass: every deal that changed (and its receipt), the attention stack and the
 /// settings, each sent only when it differs from what the last pass sent.
-fn publish(
+pub(crate) fn publish(
     runtime: &mut Runtime,
     events: &broadcast::Sender<WalletEvent>,
     published: &mut Published,
@@ -676,7 +695,18 @@ fn publish(
     runtime
         .publish_passes
         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    if let Ok(deals) = runtime.pipeline.wallet.ledger.list_deals() {
+    // Every deal is read when anything was written since the last full read (an ended deal still
+    // changes: a refund, a dispute, reporting matching its capture). Otherwise only the live
+    // ones are read, which is the same answer: no write, no row differs. The stamp is taken
+    // before the read, so a write that lands during this pass makes the next one read in full.
+    let stamp = runtime.pipeline.wallet.ledger.change_stamp().ok();
+    let whole = stamp.is_none() || published.deals_stamp != stamp;
+    let read = if whole {
+        runtime.pipeline.wallet.ledger.list_deals()
+    } else {
+        runtime.pipeline.wallet.ledger.list_live_deals()
+    };
+    if let Ok(deals) = read {
         for deal in &deals {
             let old = published.deals.get(&deal.id);
             if old.and_then(|d| serde_json::to_string(d).ok()) != serde_json::to_string(deal).ok() {
@@ -724,7 +754,12 @@ fn publish(
                 }
             }
         }
-        published.deals = deals.into_iter().map(|d| (d.id, d)).collect();
+        if whole {
+            published.deals = deals.into_iter().map(|d| (d.id, d)).collect();
+            published.deals_stamp = stamp;
+        } else {
+            published.deals.extend(deals.into_iter().map(|d| (d.id, d)));
+        }
     }
     if let Some(event) = attention_event(
         runtime.attention(),

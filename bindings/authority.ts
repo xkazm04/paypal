@@ -8,7 +8,7 @@ export type AuthorityEnforcer = "runtime" | "shell";
 export type CommandAuthority = { labels: Array<AuthorityLabel>, token: boolean, unlock: boolean, selection: AuthoritySelection, tier: AuthorityTier, release: boolean, enforcer: AuthorityEnforcer, };
 
 /** Lowercase hex SHA-256 of the canonical table; get_settings reports the same value. */
-export const AUTHORITY_MANIFEST = "33b4e591ab30b89d9f9e920ba869de343e089b26338d9c1026aa62f3695f00fd";
+export const AUTHORITY_MANIFEST = "2a6a2ebe09b2ce460097284dda337435619866d919f7bc8ead0e713f93754c3b";
 
 export const AUTHORITY = {
   deal_snooze: { labels: ["tumbler"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
@@ -58,6 +58,9 @@ export const AUTHORITY = {
   agent_start: { labels: ["main"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
   agent_runs: { labels: ["main"], token: false, unlock: false, selection: "none", tier: "read", release: false, enforcer: "runtime" },
   market_refresh: { labels: ["approval"], token: true, unlock: true, selection: "required", tier: "owner", release: true, enforcer: "runtime" },
+  market_search: { labels: ["approval"], token: true, unlock: true, selection: "none", tier: "owner", release: true, enforcer: "runtime" },
+  market_lookup: { labels: ["approval"], token: true, unlock: true, selection: "none", tier: "owner", release: true, enforcer: "runtime" },
+  market_comparables: { labels: ["approval"], token: true, unlock: true, selection: "required", tier: "owner", release: true, enforcer: "runtime" },
   quit_summary: { labels: ["main", "tumbler"], token: false, unlock: false, selection: "none", tier: "read", release: false, enforcer: "runtime" },
   quit_confirm: { labels: ["main", "tumbler"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
   tumbler_drag: { labels: ["tumbler"], token: false, unlock: false, selection: "none", tier: "ui", release: false, enforcer: "shell" },

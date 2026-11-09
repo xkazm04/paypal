@@ -3,8 +3,11 @@ use crate::{AgentSlot, CredentialArgs};
 use serde::{Deserialize, Serialize};
 use table_core::{DealId, Mode};
 use ts_rs::TS;
-/// A page of the audit chain for Book, newest first. `before` is an exclusive sequence number
-/// (absent = from the newest); `limit` is 1 to 200.
+/// A page of the audit chain for Book. `limit` is 1 to 200. `before` is the paging cursor, an
+/// exclusive sequence number: older than it when `sort` is `newest` (the default), newer than it
+/// when `oldest`; absent starts from the first row in that order. `filter` keeps only the rows
+/// whose action, actor, status change, decision or deal item contain it (ASCII case-insensitive,
+/// at most 200 characters; blank = every row). Both run in SQL, so every answer is about all rows.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct AuditPageArgs {
@@ -12,6 +15,19 @@ pub struct AuditPageArgs {
     #[ts(optional = nullable)]
     pub before: Option<u64>,
     pub limit: u16,
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub filter: Option<String>,
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub sort: Option<AuditSort>,
+}
+/// The order of an audit page.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+pub enum AuditSort {
+    Newest,
+    Oldest,
 }
 /// One verified audit row, projected to closed facts: who, what, when, which deal, and the typed
 /// decision and transition the row records. The row's free detail never crosses IPC.
@@ -31,8 +47,10 @@ pub struct AuditRow {
 #[serde(deny_unknown_fields)]
 pub struct AuditPage {
     pub rows: Vec<AuditRow>,
-    /// Pass as `before` for the next (older) page; null when this page reached the first row.
+    /// Pass as `before` for the next page in the chosen order; null when this page was the last.
     pub next_before: Option<u64>,
+    /// How many rows match the filter in the whole chain, whatever `before` is: the true count.
+    pub total_matching: u64,
 }
 /// Read-only owner facts for Settings and Book: nothing here is a secret or a permission.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

@@ -462,6 +462,22 @@ mod tests {
             money_check: None,
         }
     }
+    /// `Ledger::list_attention_deals` leaves out an ended deal that is not REFUSED or MISMATCH,
+    /// has no shield verdict and no open money operation. That is only sound while every such
+    /// deal reads as a receipt, which the snapshot neither lists nor counts.
+    #[test]
+    fn an_ended_deal_with_no_hold_and_no_check_is_a_receipt_unless_refused_or_mismatched() {
+        for state in DealState::ALL.into_iter().filter(|s| s.terminal()) {
+            let mut quiet = source(1, 0);
+            quiet.state = state;
+            let kind = quiet.item(0).kind;
+            match state {
+                DealState::Refused => assert_eq!(kind, AttnKind::Stop),
+                DealState::Mismatch => assert_eq!(kind, AttnKind::Hold),
+                _ => assert_eq!(kind, AttnKind::Receipt, "{state:?}"),
+            }
+        }
+    }
     #[test]
     fn ladder_boundaries_and_w5_one_notification_dnd() {
         for (seconds, expected) in [

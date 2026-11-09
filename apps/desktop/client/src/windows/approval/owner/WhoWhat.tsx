@@ -5,8 +5,10 @@ import type { AgentSlot } from '@bindings/AgentSlot';
 import type { Currency } from '@bindings/Currency';
 import type { DealKind } from '@bindings/DealKind';
 import { MAX_MARKET_CHECKS_DAY, MAX_WATCHED_ITEMS } from '../../../lib/marketWatch';
-import { checksADay, houseWords, kindWord, SAY_EDITOR } from '../../../lib/words';
+import { checksADay, FINDER, houseWords, kindWord, SAY_EDITOR } from '../../../lib/words';
 import { Btn, Popover } from '../../../shared/ui';
+import { useOptionalSession } from '../session';
+import { ProductFinder } from './ProductFinder';
 import { CATEGORIES, CLAUSE_KINDS, CLAUSE_NUMBER, emptyClause, KINDS, missingKinds, ROLES, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from '../mandateDraft';
 
 const CURRENCIES: readonly Currency[] = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CHF', 'CZK', 'PLN', 'SEK', 'NOK', 'DKK', 'NZD', 'HUF', 'JPY'];
@@ -222,6 +224,9 @@ function ClauseEditor({ c, set }: { c: ClauseDraft; set: (c: ClauseDraft) => voi
 function WatchEditor({ c, set }: { c: Extract<ClauseDraft, { type: 'market_watch' }>; set: (c: ClauseDraft) => void }) {
   const row = (i: number, v: { item?: string; product?: string }) => set({ ...c, items: c.items.map((x, j) => (j === i ? { ...x, ...v } : x)) });
   const n = Number(c.checks) || 0;
+  // Which row's finder is open. Without a session (a preview of the editor alone) there is none.
+  const [finding, setFinding] = useState<number | null>(null);
+  const canFind = useOptionalSession() !== null;
   return (
     <div className="ow-form ow-watch">
       <span>Keep prices fresh for</span>
@@ -233,7 +238,11 @@ function WatchEditor({ c, set }: { c: Extract<ClauseDraft, { type: 'market_watch
           <div key={i} className="ow-watch-row">
             <input className="ui-field mono" value={x.item} spellCheck={false} aria-label={`Item ${i + 1}`} placeholder="monitor-27-4k" onChange={(e) => row(i, { item: e.target.value })} />
             <input className="ui-field mono" value={x.product} spellCheck={false} aria-label={`Product for item ${i + 1}`} placeholder="product code" onChange={(e) => row(i, { product: e.target.value })} />
-            <Btn kind="plain" sm icon aria-label={`Remove item ${i + 1}`} disabled={c.items.length <= 1} onClick={() => set({ ...c, items: c.items.filter((_, j) => j !== i) })}>×</Btn>
+            <span className="ow-watch-acts">
+              {canFind ? <Btn kind="plain" sm title={FINDER.openTitle} aria-label={`Find a product for item ${i + 1}`} aria-expanded={finding === i} onClick={() => setFinding(finding === i ? null : i)}>{FINDER.open}</Btn> : null}
+              <Btn kind="plain" sm icon aria-label={`Remove item ${i + 1}`} disabled={c.items.length <= 1} onClick={() => { setFinding(null); set({ ...c, items: c.items.filter((_, j) => j !== i) }); }}>×</Btn>
+            </span>
+            {finding === i ? <div className="ow-watch-find"><ProductFinder n={i + 1} onPick={(id) => row(i, { product: id })} onClose={() => setFinding(null)} /></div> : null}
           </div>
         ))}
       </div>

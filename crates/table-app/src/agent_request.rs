@@ -70,6 +70,15 @@ pub struct AcceptInput {
 pub struct MarketInput {
     pub item_ref: ItemRef,
 }
+/// A product search by words. The MCP layer answers it from the market service; the wallet is
+/// never asked and nothing is recorded for a search that was answered.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SearchInput {
+    pub query: String,
+    #[serde(default)]
+    pub limit: Option<u32>,
+}
 #[derive(Debug, Clone)]
 pub enum AgentRequest {
     Accept(AcceptInput),
@@ -79,6 +88,7 @@ pub enum AgentRequest {
     Purchase(PurchaseInput),
     Market(MarketInput),
     Book(BookQuery),
+    Search(SearchInput),
 }
 impl AgentRequest {
     /// The MCP tool this request came from.
@@ -91,6 +101,7 @@ impl AgentRequest {
             Self::Purchase(_) => "propose_purchase",
             Self::Market(_) => "market_reference",
             Self::Book(_) => "book_query",
+            Self::Search(_) => "product_search",
         }
     }
     pub fn decode(name: &str, value: serde_json::Value) -> Result<Self, Error> {
@@ -102,6 +113,7 @@ impl AgentRequest {
             "propose_purchase" => serde_json::from_value(value).map(Self::Purchase),
             "market_reference" => serde_json::from_value(value).map(Self::Market),
             "book_query" => serde_json::from_value(value).map(Self::Book),
+            "product_search" => serde_json::from_value(value).map(Self::Search),
             _ => return Err(Error::Unavailable),
         }
         .map_err(|_| Error::Invalid)

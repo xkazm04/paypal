@@ -8,6 +8,8 @@
 export const DEMO_WORLD = {
   small: { name: 'Small shop', sub: 'one person, a few deals a week' },
   large: { name: 'Busy merchant', sub: 'hundreds of deals, many of them waiting' },
+  // Only by address (?scale=xl), never in the switcher: five thousand deals to try the lists against.
+  xl: { name: 'Five thousand deals', sub: 'a long-lived wallet, for trying the lists' },
   first_run: { name: 'First run', sub: 'a brand-new wallet, nothing set up yet' },
   sample: { name: 'Sample week', sub: 'Maya’s week, the guided sample' },
 } as const;

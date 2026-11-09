@@ -137,7 +137,7 @@
     "source": "real/buyer-group-agreed"
   },
   {
-    "digest": "a9ea397225f7bb78815891d0363bc402e0d5f6afdf40015d1867da7f45b605ab",
+    "digest": "92c4545fbff65ee816b72187166f1b8cb0ec0f345e4e7a1d9bf96dc3bbc46beb",
     "edits": [
       {
         "op": "set",
@@ -239,7 +239,7 @@
     "source": "real/house-buyer-shorter"
   },
   {
-    "digest": "b12c11703e73fbbd135b85835f34abff5e8fa3e06a8f19414fbd9bf404c42f72",
+    "digest": "518348898cd91d5f508831363377d27ced0e9c29808c1ab73b0d25bd0ccfa822",
     "edits": [
       {
         "op": "set",
@@ -431,7 +431,7 @@
     "source": "real/seller-authorized"
   },
   {
-    "digest": "0f2238914b593670eeec2049c013fa4275d14c7becc0a7ce13a6851e7a465a0b",
+    "digest": "ebc67313ec3623c33eb418a9a9c8dde565f568ec4069b0e6bfffe054574fa85e",
     "edits": [
       {
         "op": "set",
@@ -1157,7 +1157,7 @@
     "source": "real/buyer-group-agreed"
   },
   {
-    "digest": "91520fdc85f5f44f5e86f9fa6f367cdf130945b5ff9f36db4b56227e14d8e777",
+    "digest": "fbd8b7ca859281b65326f44d202484a71a1c06c71b060b9d3bdb610e31afd9cc",
     "edits": [
       {
         "op": "set",
@@ -1408,7 +1408,7 @@
     "source": "real/house-buyer"
   },
   {
-    "digest": "c95dff2af6afd2da9b9eb653f8ad51964590af59886deaee44945ae9b26eabf9",
+    "digest": "9c75fe20e68e726f7dfb63faa7ca52a838eb5ea333612b251014092c69dffb48",
     "edits": [
       {
         "op": "set",
@@ -1446,7 +1446,7 @@
     "source": "real/seller-agreed-market"
   },
   {
-    "digest": "8eaf362ccbf28b4b16a92fce09ae887a5a8de941e221b1b20fbc058e246b79e6",
+    "digest": "6902db162c5d0fd99ab3ccfdf5e4726995f1fe85c1a9fb57f9d93caa624fdb9f",
     "edits": [
       {
         "op": "set",
@@ -1497,7 +1497,7 @@
     "source": "real/house-buyer-shorter"
   },
   {
-    "digest": "276010e5a24a14ee7896da876df5cedb87c2980f0a89827d131f62f0e4be08d1",
+    "digest": "dd49ffbfe34ff5a73d98c9771760233e6d39c2555b61524160f7237ce1495637",
     "edits": [
       {
         "op": "set",
@@ -1790,7 +1790,7 @@
     "source": "real/seller-agreed-market"
   },
   {
-    "digest": "c05173376ab6aab9dd68b5b8f9e707bdbf111c4490614b97325b9246c56a1e6a",
+    "digest": "16b17053120e41aabf5751fc33edc38d4f86fdd7a5e1373ecddc43d1ac8941af",
     "edits": [
       {
         "op": "set",
@@ -2192,7 +2192,7 @@
     "source": "real/house-buyer"
   },
   {
-    "digest": "77288b3f899d1a35150753540ddba69b703deb26d20539af2332e7a671d33336",
+    "digest": "7fa1e2c49266ce44869dd049ed281d17e5103fae72e69e547b6a31c1dc9ee36a",
     "edits": [
       {
         "op": "set",
@@ -2243,7 +2243,7 @@
     "source": "real/house-buyer"
   },
   {
-    "digest": "dca3654e77411b8d3f8716d917412089eaf3f598876cb76432c860765dce497a",
+    "digest": "8b32a2fabb3f27955641604f7cfc98325255b358d9abf647bcc9955d207629af",
     "edits": [
       {
         "op": "set",
@@ -2275,7 +2275,7 @@
     "source": "real/seller-agreed-market"
   },
   {
-    "digest": "3cdeae73b17db7cdb5049e2330040f2da5898ad15b6a77982ced70353cf84976",
+    "digest": "8bf7b1f25be1d2ebca0587cdff397e6abd3fc87e0ee7c20cdf9bd03a167273be",
     "edits": [
       {
         "op": "set",
@@ -2351,7 +2351,7 @@
     "source": "real/seller-authorized"
   },
   {
-    "digest": "6fa17fe387af6d423f75f004748e837678657836f4f3da0190eced361b262c6c",
+    "digest": "a374d50a32bc6c6930fc03979c021a531a359ae9f8cb03bc559fc030e9660aa8",
     "edits": [
       {
         "op": "set",
@@ -2384,7 +2384,7 @@
     "source": "sample/golden"
   },
   {
-    "digest": "f32d735b507a79c8d0182afd08a574fc7ab3fa1d23ca51feed214f81d3510b6b",
+    "digest": "fbd91342b9b52eaeb639017fdfad27428f4998bc380d1162fd4307affe50728e",
     "edits": [
       {
         "op": "set",
@@ -2668,7 +2668,7 @@
     "source": "real/seller-agreed-market"
   },
   {
-    "digest": "59a0be46efd2c5b203a33adbb2031e7d8f61f0c6548b96791795b40e2c4f0da4",
+    "digest": "ad1edbafef9b2256cee917653c04caf4e55e105ec531bb28144dc2d92cf41986",
     "edits": [
       {
         "op": "set",

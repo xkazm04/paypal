@@ -384,16 +384,27 @@ impl Runtime {
                 .map_err(|_| unavailable("Owner key unavailable"))?,
         })
     }
-    /// The audit chain for Book, newest first, projected to closed facts.
+    /// The audit chain for Book, projected to closed facts: filtered and ordered in SQL, one page
+    /// at a time, with the count of every matching row.
     pub(crate) fn audit_page(&self, args: AuditPageArgs) -> Result<AuditPage, CommandError> {
         if !(1..=200).contains(&args.limit) {
             return Err(invalid());
         }
-        let (records, more) = app(self
+        let filter = args.filter.as_deref().unwrap_or_default();
+        if filter.chars().count() > 200 {
+            return Err(invalid());
+        }
+        let found = app(self
             .pipeline
             .wallet
             .ledger
-            .audit_page(args.before, args.limit))?;
+            .audit_search(&table_ledger::AuditQuery {
+                before: args.before,
+                limit: args.limit,
+                filter: Some(filter),
+                newest_first: args.sort != Some(table_client::AuditSort::Oldest),
+            }))?;
+        let (records, more, total_matching) = (found.rows, found.more, found.total_matching);
         let next_before = if more {
             records.last().map(|r| r.seq)
         } else {
@@ -424,7 +435,11 @@ impl Runtime {
                 }
             })
             .collect();
-        Ok(AuditPage { rows, next_before })
+        Ok(AuditPage {
+            rows,
+            next_before,
+            total_matching,
+        })
     }
 
     /// The unsigned payload `mandate_sign` would sign for these args; `mandate_simulate` replays

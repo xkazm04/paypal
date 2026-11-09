@@ -63,6 +63,8 @@ describe('a decision names the checklist it was bound to', () => {
     hoisted.invoke.mockImplementation((cmd: string) =>
       cmd === 'approval_summary' ? Promise.resolve(decided ? after : before) : Promise.reject(new WalletError({ code: 'UNAVAILABLE', message: `${cmd} unavailable` })));
     session.call.mockImplementation(async (cmd: string) => {
+      // The comparables read is not a decision: it answers nothing here.
+      if (cmd === 'market_comparables') return { ok: false, error: new WalletError({ code: 'UNAVAILABLE', message: 'none' }) };
       decided = true;
       return { ok: true, value: cmd === 'deal_owner_accept' ? after.deal : before.deal };
     });

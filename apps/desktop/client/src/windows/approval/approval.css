@@ -149,6 +149,14 @@
 .dr-mkt .mw { font-weight: var(--fw-semibold); color: var(--text); }
 .dr-mkt .mw.ok { color: var(--ok); } .dr-mkt .mw.gold { color: var(--gold-l); } .dr-mkt .mw.red { color: var(--red-l); }
 .dr-mkt .ui-btn { flex: none; }
+.dr-comparables { flex-wrap: wrap; align-items: flex-start; row-gap: var(--sp-1); height: auto; }
+.dr-comparables .t.dim { color: var(--dim); }
+.dr-comparables .dr-cheaper { flex-basis: 100%; white-space: normal; color: var(--text); }
+.dr-comp-list { flex-basis: 100%; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dr-comp-list li { display: flex; justify-content: space-between; gap: var(--sp-3); min-width: 0; }
+.dr-comp-list .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.dr-comp-list .p { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dr-comp-note { flex-basis: 100%; }
 .dr .mini { position: relative; flex: 0 0 88px; height: 10px; }
 .dr .mini::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 2px; background: var(--line2); border-radius: 1px; }
 .dr .mini .b { position: absolute; top: 2px; height: 6px; border-radius: 2px; background: color-mix(in srgb, var(--market) 30%, transparent); }

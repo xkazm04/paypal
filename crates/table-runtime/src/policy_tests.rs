@@ -327,6 +327,8 @@ async fn buyer_policy_above_the_signed_ceiling_is_refused_and_leaves_no_paypal_r
             Action::AuditPage(AuditPageArgs {
                 before: None,
                 limit: 100,
+                filter: None,
+                sort: None,
             }),
         )
         .await

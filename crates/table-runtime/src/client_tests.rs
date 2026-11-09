@@ -1202,7 +1202,9 @@ async fn owner_facts_and_audit_pages_are_read_only_closed_and_label_scoped() {
                     caller(label, None),
                     Action::AuditPage(AuditPageArgs {
                         before: None,
-                        limit: 5
+                        limit: 5,
+                        filter: None,
+                        sort: None
                     })
                 )
                 .await
@@ -1226,7 +1228,9 @@ async fn owner_facts_and_audit_pages_are_read_only_closed_and_label_scoped() {
                     caller("main", None),
                     Action::AuditPage(AuditPageArgs {
                         before: None,
-                        limit
+                        limit,
+                        filter: None,
+                        sort: None
                     })
                 )
                 .await
@@ -1240,7 +1244,12 @@ async fn owner_facts_and_audit_pages_are_read_only_closed_and_label_scoped() {
         let page: AuditPage = actor
             .execute(
                 caller("main", None),
-                Action::AuditPage(AuditPageArgs { before, limit: 3 }),
+                Action::AuditPage(AuditPageArgs {
+                    before,
+                    limit: 3,
+                    filter: None,
+                    sort: None,
+                }),
             )
             .await
             .unwrap();
@@ -1261,6 +1270,8 @@ async fn owner_facts_and_audit_pages_are_read_only_closed_and_label_scoped() {
             Action::AuditPage(AuditPageArgs {
                 before: None,
                 limit: 200,
+                filter: None,
+                sort: None,
             }),
         )
         .await
@@ -1269,6 +1280,43 @@ async fn owner_facts_and_audit_pages_are_read_only_closed_and_label_scoped() {
     assert!(all.rows.iter().any(|row| row.action == "deal.transition"
         && row.deal_id == Some(deal.id)
         && row.to.is_some()));
+    assert_eq!(all.total_matching, total);
+    // Oldest first walks the same rows the other way; the filter and the count cover every row.
+    let page = |before, filter: Option<&str>, sort| {
+        actor.execute::<AuditPage>(
+            caller("main", None),
+            Action::AuditPage(AuditPageArgs {
+                before,
+                limit: 2,
+                filter: filter.map(str::to_owned),
+                sort,
+            }),
+        )
+    };
+    let first = page(None, None, Some(AuditSort::Oldest)).await.unwrap();
+    assert_eq!(first.rows.iter().map(|r| r.seq).collect::<Vec<_>>(), [1, 2]);
+    assert_eq!(first.next_before, Some(2));
+    let second = page(first.next_before, None, Some(AuditSort::Oldest))
+        .await
+        .unwrap();
+    assert_eq!(
+        second.rows.iter().map(|r| r.seq).collect::<Vec<_>>(),
+        [3, 4]
+    );
+    let moves = page(None, Some("DEAL.TRANSITION"), None).await.unwrap();
+    let in_all = all
+        .rows
+        .iter()
+        .filter(|r| r.action == "deal.transition")
+        .count();
+    assert_eq!(moves.total_matching, in_all as u64);
+    assert!(moves.rows.iter().all(|r| r.action == "deal.transition"));
+    let none = page(None, Some("no such step"), None).await.unwrap();
+    assert_eq!(
+        (none.rows.len(), none.total_matching, none.next_before),
+        (0, 0, None)
+    );
+    assert!(page(None, Some(&"x".repeat(201)), None).await.is_err());
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
 
@@ -1347,6 +1395,8 @@ async fn owner_book_query_is_closed_main_only_and_rejections_are_verbatim_invali
             Action::AuditPage(AuditPageArgs {
                 before: None,
                 limit: 200,
+                filter: None,
+                sort: None,
             }),
         )
         .await

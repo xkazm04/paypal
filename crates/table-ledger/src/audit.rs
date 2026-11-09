@@ -185,6 +185,41 @@ pub(crate) fn append(conn: &Connection, entry: &AuditEntry) -> Result<H256, Ledg
     conn.execute("INSERT INTO audit_log(seq,at,actor,action,deal_id,detail_json,prev_hash,hash) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",params![seq,entry.at.to_string(),entry.actor,entry.action,entry.deal_id.map(|id|id.to_string()),detail,&previous.0[..],&hash.0[..]])?;
     Ok(hash)
 }
+/// The text a filter is matched against, one lowercase line per audit row: the action, the
+/// actor, the status change (`from`, `to`) and the decision (`decided_by`) the row's detail
+/// records, and the stored item of the deal it belongs to (`deals.item_ref`; a deal's title is
+/// not stored, it is read from the market). Underscores read as spaces on both sides. `?1` is
+/// the needle: empty matches every row.
+const MATCHES: &str = "(?1='' OR instr(lower(replace(a.action||' '||a.actor||' '||coalesce(json_extract(a.detail_json,'$.from'),'')||' '||coalesce(json_extract(a.detail_json,'$.to'),'')||' '||coalesce(json_extract(a.detail_json,'$.decided_by'),'')||' '||coalesce(d.item_ref,''),'_',' ')),?1)>0)";
+/// One page of the audit chain as the Record asks for it.
+#[derive(Debug, Clone, Copy)]
+pub struct AuditQuery<'a> {
+    /// The cursor, an exclusive sequence number: rows older than it when `newest_first`, newer
+    /// than it otherwise; absent starts from the first row in that order.
+    pub before: Option<u64>,
+    pub limit: u16,
+    /// A substring (ASCII case-insensitive, `_` as a space) a row must contain; blank = all rows.
+    pub filter: Option<&'a str>,
+    pub newest_first: bool,
+}
+impl AuditQuery<'_> {
+    fn needle(&self) -> String {
+        self.filter
+            .unwrap_or_default()
+            .trim()
+            .to_ascii_lowercase()
+            .replace('_', " ")
+    }
+}
+/// A page and how the whole matching set stands.
+#[derive(Debug, Clone)]
+pub struct AuditSearch {
+    pub rows: Vec<AuditRecord>,
+    /// Whether more matching rows follow this page in the chosen order.
+    pub more: bool,
+    /// Every row matching the filter, whatever the cursor.
+    pub total_matching: u64,
+}
 /// The columns a projection reads, as stored: seq, at, actor, action, deal_id, detail_json.
 type RecordRow = (i64, String, String, String, Option<String>, String);
 fn record_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<RecordRow> {
@@ -239,6 +274,71 @@ impl Ledger {
         let more = rows.len() > usize::from(limit);
         rows.truncate(usize::from(limit));
         Ok((rows, more))
+    }
+    /// A stamp that differs between two reads whenever anything was written to the database in
+    /// between: this connection's own writes (`total_changes`) and every other connection's
+    /// commits (`PRAGMA data_version`). Equal stamps mean no row of any table changed.
+    pub fn change_stamp(&self) -> Result<(u64, i64), LedgerError> {
+        let version: i64 = self
+            .conn
+            .query_row("PRAGMA data_version", [], |r| r.get(0))?;
+        Ok((self.write_count(), version))
+    }
+    /// The whole chain verified, unless it already verified and nothing has been written to the
+    /// database (by this connection or any other) since: then no row can have changed, so the
+    /// answer is the same and the walk is skipped. Any write at all, an audit append or a raw
+    /// edit alike, makes the next call walk the whole chain again; a failure is never cached.
+    fn verified_chain(&self) -> Result<(), LedgerError> {
+        let stamp = self.change_stamp()?;
+        if self.audit_checked.get() == Some(stamp) {
+            return Ok(());
+        }
+        self.audit_checked.set(None);
+        verify(&self.conn)?;
+        self.audit_checked.set(Some(stamp));
+        Ok(())
+    }
+    /// A page of the chain for the Record, the filter and the order run in SQL so the answer is
+    /// about every row. See [`AuditQuery`]. The chain is verified first (see `verified_chain`);
+    /// a broken chain is an error, never a page.
+    pub fn audit_search(&self, query: &AuditQuery<'_>) -> Result<AuditSearch, LedgerError> {
+        self.verified_chain()?;
+        let needle = query.needle();
+        let total = self.conn.query_row(
+            &format!("SELECT COUNT(*) FROM audit_log a LEFT JOIN deals d ON d.id=a.deal_id WHERE {MATCHES}"),
+            [&needle],
+            |r| r.get::<_, i64>(0),
+        )?;
+        let (cursor, order) = if query.newest_first {
+            ("a.seq<?2", "DESC")
+        } else {
+            ("a.seq>?2", "ASC")
+        };
+        let after = query.before.map_or(
+            if query.newest_first {
+                i64::MAX
+            } else {
+                i64::MIN
+            },
+            |b| i64::try_from(b).unwrap_or(i64::MAX),
+        );
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT a.seq,a.at,a.actor,a.action,a.deal_id,a.detail_json FROM audit_log a LEFT JOIN deals d ON d.id=a.deal_id WHERE {MATCHES} AND {cursor} ORDER BY a.seq {order} LIMIT ?3"
+        ))?;
+        let mut rows = statement
+            .query_map(
+                params![needle, after, i64::from(query.limit) + 1],
+                record_row,
+            )?
+            .map(|row| record(row?))
+            .collect::<Result<Vec<_>, LedgerError>>()?;
+        let more = rows.len() > usize::from(query.limit);
+        rows.truncate(usize::from(query.limit));
+        Ok(AuditSearch {
+            rows,
+            more,
+            total_matching: u64::try_from(total).unwrap_or(0),
+        })
     }
     /// The latest own-account Transaction Search call and its HTTP status, from paypal_calls.
     pub fn last_reporting_poll(&self) -> Result<Option<(Timestamp, u16)>, LedgerError> {

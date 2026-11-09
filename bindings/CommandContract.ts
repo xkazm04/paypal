@@ -45,8 +45,12 @@ import type { MandateRevokeArgs } from "./MandateRevokeArgs";
 import type { MandateSignArgs } from "./MandateSignArgs";
 import type { MandateSimulateArgs } from "./MandateSimulateArgs";
 import type { MandateSimulation } from "./MandateSimulation";
+import type { MarketComparablesAnswer } from "./MarketComparablesAnswer";
+import type { MarketComparablesArgs } from "./MarketComparablesArgs";
+import type { MarketLookupArgs } from "./MarketLookupArgs";
 import type { MarketRef } from "./MarketRef";
 import type { MarketRefreshArgs } from "./MarketRefreshArgs";
+import type { MarketSearchArgs } from "./MarketSearchArgs";
 import type { OpenMandate } from "./OpenMandate";
 import type { OwnerFacts } from "./OwnerFacts";
 import type { PairingAbortArgs } from "./PairingAbortArgs";
@@ -58,6 +62,7 @@ import type { PairingPollArgs } from "./PairingPollArgs";
 import type { PairingWords } from "./PairingWords";
 import type { PendingPairing } from "./PendingPairing";
 import type { PinArgs } from "./PinArgs";
+import type { ProductHit } from "./ProductHit";
 import type { ProofReport } from "./ProofReport";
 import type { QuitArgs } from "./QuitArgs";
 import type { QuitSummary } from "./QuitSummary";
@@ -81,7 +86,11 @@ export type CommandContract = { approval_selection: Command<null, DealId | null>
 /**
  * Clears the sticky pause and lists the tables waiting on our agent; it starts none of them.
  */
-resume_all_agents: Command<null, ResumeReport>, agent_start: Command<AgentStartArgs, RunSnapshot>, agent_runs: Command<null, Array<RunSnapshot>>, market_refresh: Command<MarketRefreshArgs, MarketRef>, quit_summary: Command<null, QuitSummary>, quit_confirm: Command<QuitArgs, null>, tumbler_drag: Command<null, null>, tumbler_snap: Command<null, Snap>, counterparty_note: Command<DealArgs, CounterpartyNote | null>, pairing_abort: Command<PairingAbortArgs, null>, house_wake: Command<null, HouseState>, approval_handoff: Command<null, ApprovalHandoff>, audit_page: Command<AuditPageArgs, AuditPage>, owner_facts: Command<null, OwnerFacts>, book_query: Command<BookQueryArgs, BookAnswer>, 
+resume_all_agents: Command<null, ResumeReport>, agent_start: Command<AgentStartArgs, RunSnapshot>, agent_runs: Command<null, Array<RunSnapshot>>, market_refresh: Command<MarketRefreshArgs, MarketRef>, 
+/**
+ * Product finder reads (display only, nothing is stored or audited).
+ */
+market_search: Command<MarketSearchArgs, Array<ProductHit>>, market_lookup: Command<MarketLookupArgs, ProductHit>, market_comparables: Command<MarketComparablesArgs, MarketComparablesAnswer>, quit_summary: Command<null, QuitSummary>, quit_confirm: Command<QuitArgs, null>, tumbler_drag: Command<null, null>, tumbler_snap: Command<null, Snap>, counterparty_note: Command<DealArgs, CounterpartyNote | null>, pairing_abort: Command<PairingAbortArgs, null>, house_wake: Command<null, HouseState>, approval_handoff: Command<null, ApprovalHandoff>, audit_page: Command<AuditPageArgs, AuditPage>, owner_facts: Command<null, OwnerFacts>, book_query: Command<BookQueryArgs, BookAnswer>, 
 /**
  * Saves the deal's signed proof bundle through a native save dialog; false if cancelled.
  */

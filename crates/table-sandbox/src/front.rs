@@ -577,6 +577,8 @@ impl App {
                 Action::AuditPage(AuditPageArgs {
                     before: None,
                     limit: 14,
+                    filter: None,
+                    sort: None,
                 }),
             )
             .await

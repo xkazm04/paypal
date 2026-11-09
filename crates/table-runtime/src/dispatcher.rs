@@ -285,9 +285,20 @@ impl Runtime {
         {
             self.attention_builds += 1;
         }
+        // Only the deals the snapshot can take something from are read (`list_attention_deals`);
+        // the one fact it takes from the whole book, the currency they all share, is its own read.
+        let deals = app(self.pipeline.wallet.ledger.list_attention_deals())?;
+        let currency = app(self.pipeline.wallet.ledger.uniform_deal_currency())?;
+        self.attention_over(&deals, currency)
+    }
+    /// The snapshot built from `deals`; `currency` is the one every deal of the book is in.
+    pub(crate) fn attention_over(
+        &mut self,
+        deals: &[Deal],
+        currency: Option<Currency>,
+    ) -> Result<table_attention::AttentionSnapshot, CommandError> {
         let now = self.clock.now();
         let mut sources = Vec::new();
-        let deals = app(self.pipeline.wallet.ledger.list_deals())?;
         // Owner-entered pairing labels only; the projection already withholds URL-shaped text.
         let names: std::collections::HashMap<_, _> = app(self
             .pipeline
@@ -297,17 +308,14 @@ impl Runtime {
         .into_iter()
         .map(|c| (c.key_id, c.display_name))
         .collect();
-        for deal in &deals {
+        for deal in deals {
             if let Some(source) = self.attention_source(deal, &names, now)? {
                 sources.push(source);
             }
         }
         let mut snapshot =
             table_attention::snapshot(&sources, now, 0, 0.0, self.pipeline.approval.locked(now));
-        snapshot.wallet_spend_today_currency = deals
-            .first()
-            .map(|d| d.terms.currency)
-            .filter(|currency| deals.iter().all(|d| d.terms.currency == *currency));
+        snapshot.wallet_spend_today_currency = currency;
         // Real meters (T14): the day's money out from the exposure fold. A failed read leaves
         // the meters off; it never fails the attention snapshot.
         snapshot.exposure = self.envelope_view().ok();
@@ -361,6 +369,8 @@ impl Runtime {
             }
             Action::MarketPrepare(id) => json(self.prepare_market(id)?),
             Action::MarketStore(binding, reference) => json(self.store_market(binding, reference)?),
+            Action::MarketSearchGate | Action::MarketLookupGate => json(()),
+            Action::ComparablesPrepare(id) => json(self.prepare_comparables(id)?),
             Action::ClaimNotification { deal_id, deadline } => {
                 allowed(label, &["tumbler"])?;
                 let now = self.clock.now();

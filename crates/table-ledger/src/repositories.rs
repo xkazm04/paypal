@@ -32,6 +32,15 @@ impl Direction {
         }
     }
 }
+/// The quoted state names `keep` selects from `DealState::ALL`, for an SQL `IN (...)`.
+fn state_list(keep: impl Fn(DealState) -> bool) -> Result<String, LedgerError> {
+    Ok(DealState::ALL
+        .iter()
+        .filter(|state| keep(**state))
+        .map(|state| enum_text(state).map(|text| format!("'{text}'")))
+        .collect::<Result<Vec<_>, _>>()?
+        .join(","))
+}
 pub(crate) fn enum_text<T: Serialize>(value: &T) -> Result<String, LedgerError> {
     serde_json::to_value(value)?
         .as_str()
@@ -705,13 +714,60 @@ impl Ledger {
     /// the tick lapses a buyer's uncorroborated receipt. The state list is `DealState::ALL`
     /// filtered by `terminal()`, not a literal here.
     pub fn list_live_deals(&self) -> Result<Vec<Deal>, LedgerError> {
-        let terminal = DealState::ALL
-            .iter()
-            .filter(|state| state.terminal())
-            .map(|state| enum_text(state).map(|text| format!("'{text}'")))
-            .collect::<Result<Vec<_>, _>>()?
-            .join(",");
+        let terminal = state_list(DealState::terminal)?;
         self.read_deals(&format!("WHERE state NOT IN ({terminal}) ORDER BY id"))
+    }
+    /// The ids of every deal in a terminal state, in id order: no row is decoded and no terms
+    /// hash is checked, so it costs a scan of the state column rather than a read of the book.
+    pub fn terminal_deal_ids(&self) -> Result<Vec<DealId>, LedgerError> {
+        let terminal = state_list(DealState::terminal)?;
+        let mut query = self.conn.prepare(&format!(
+            "SELECT id FROM deals WHERE state IN ({terminal}) ORDER BY id"
+        ))?;
+        query
+            .query_map([], |r| r.get::<_, String>(0))?
+            .map(|id| id?.parse().map_err(|_| LedgerError::Integrity("deal id")))
+            .collect()
+    }
+    /// Every deal the attention snapshot can take something from, in id order: each deal not in
+    /// a terminal state; a REFUSED or MISMATCH one (counted as stopped, or held); any deal with a
+    /// recorded shield verdict (a hold); and any deal with an open money operation (shown as
+    /// being checked with PayPal). Every other ended deal reads as a receipt, which the snapshot
+    /// neither lists nor counts, so it is left out of the read. The attention
+    /// crate's test `an_ended_deal_with_no_hold_and_no_check_is_a_receipt_unless_refused_or_mismatched`
+    /// holds that for every state.
+    pub fn list_attention_deals(&self) -> Result<Vec<Deal>, LedgerError> {
+        let quiet = state_list(|state| {
+            state.terminal() && !matches!(state, DealState::Refused | DealState::Mismatch)
+        })?;
+        let mut deals = self.read_deals(&format!(
+            "WHERE state NOT IN ({quiet}) OR shield_verdict IS NOT NULL ORDER BY id"
+        ))?;
+        let mut extra = Vec::new();
+        for op in self.open_operations(None, Timestamp::MAX)? {
+            let id = op.deal_id;
+            if deals.binary_search_by_key(&id, |d| d.id).is_err() && !extra.contains(&id) {
+                extra.push(id);
+            }
+        }
+        for id in extra {
+            deals.push(self.get_deal(id)?);
+        }
+        deals.sort_by_key(|d| d.id);
+        Ok(deals)
+    }
+    /// The currency every deal is in, when there is at least one deal and all share it.
+    pub fn uniform_deal_currency(&self) -> Result<Option<Currency>, LedgerError> {
+        let mut query = self
+            .conn
+            .prepare("SELECT DISTINCT currency FROM deals LIMIT 2")?;
+        let found = query
+            .query_map([], |r| r.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        match found.as_slice() {
+            [one] => Ok(Some(parse_enum(one.clone())?)),
+            _ => Ok(None),
+        }
     }
     /// Every deal the `tail` (a WHERE/ORDER BY clause, no input) selects, in one statement: the
     /// desktop actor lists the whole wallet on each 1 s tick, so a statement per deal was

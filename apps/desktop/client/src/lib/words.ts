@@ -1086,3 +1086,4 @@ export * from './words/proofcheck';
 export * from './words/say';
 export * from './words/board';
 export * from './words/assistant';
+export * from './words/finder';

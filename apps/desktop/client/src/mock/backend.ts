@@ -2,6 +2,7 @@
 // real shell enforces (approval label + token + unlocked + selected deal) so the UI is built
 // against the same failure modes. It never pretends to be real: every payload says sandbox
 // or replay, and the UI shows a "browser preview · mock backend" badge (see shared/MockBadge).
+import type { AuditRow } from '@bindings/AuditRow';
 import type { ApprovalSummary } from '@bindings/ApprovalSummary';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { ApprovalDecided } from '@bindings/ApprovalDecided';
@@ -32,6 +33,7 @@ import { CLAUSE_NUMBER } from '../lib/mandateRules';
 import { formatMoney, nowUnix } from '../lib/format';
 import { buildMockState, fakeHash, fakeUlid, MOCK_OWNER_KEY_ID, type MockDeal, type MockDecisionRow, type MockGroup, type MockState } from './fixtures';
 import { safetyRecordOf } from './safety';
+import { sampleComparables, sampleLookup, sampleSearch } from './finder';
 import type { DealGroupView } from '@bindings/DealGroupView';
 import { ON_QUIT, mockForecast, mockQuitLines, quitPending, type ForecastDeal } from './forecast';
 import type { ApprovalCheckId } from '@bindings/ApprovalCheckId';
@@ -829,6 +831,28 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       if (product_id !== bound) fail('INVALID', 'that market product does not price this item under its rules');
       return d.deal.market ?? fail('UNAVAILABLE', 'no market reference for this item');
     },
+    // The finder's reads, as Runtime's: owner-only, nothing kept and no audit row. The sample
+    // catalogue stands in for the market (mock/finder.ts); no key is the settings' own word.
+    market_search: ({ query }, opts) => {
+      privileged(opts);
+      if (!state.settings.channel3_configured) fail('UNAVAILABLE', 'No market key is set, so products cannot be looked up.');
+      return sampleSearch(query);
+    },
+    market_lookup: ({ url }, opts) => {
+      privileged(opts);
+      if (!state.settings.channel3_configured) fail('UNAVAILABLE', 'No market key is set, so products cannot be looked up.');
+      return sampleLookup(url) ?? fail('UNAVAILABLE', 'The market found nothing for that.');
+    },
+    market_comparables: ({ deal_id }, opts) => {
+      privileged(opts, deal_id);
+      if (!state.settings.channel3_configured) fail('UNAVAILABLE', 'No market key is set, so products cannot be looked up.');
+      const d = find(deal_id);
+      const latest = activeMandate(d.deal.mandate_id);
+      const watched = latest?.payload.clauses.flatMap((c) => (c.type === 'market_watch' ? c.items : [])).find((i) => i.item_ref === d.deal.terms.item_ref);
+      const bound = watched ? watched.product_id : /^[A-Za-z0-9_-]{1,128}$/.test(d.deal.terms.item_ref) ? d.deal.terms.item_ref : null;
+      if (!bound) fail('INVALID', 'Invalid or stale wallet command');
+      return sampleComparables(bound, d.deal.terms.unit_price.minor, d.deal.side);
+    },
     attention_list: () => attention(),
     main_open: ({ deal_id }) => {
       // Opened from its Tumbler card: the owner's own act (attention-ladder-1).
@@ -936,15 +960,32 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       });
       return { query: q, rows, truncated };
     },
-    // As Runtime::audit_page: newest first, `before` exclusive, 1..=200, closed facts only.
-    audit_page: ({ before, limit }) => {
+    // As Runtime::audit_page: closed facts only, 1..=200 a page. `sort` is newest (default) or oldest;
+    // `before` is the cursor (older than it when newest, newer when oldest). `filter` keeps the rows whose
+    // action, actor, status change, decision or deal item contain it (ASCII case-insensitive, "_" as a
+    // space, at most 200 characters); the count is every such row, whatever the cursor.
+    audit_page: ({ before, limit, filter, sort }) => {
       if (limit < 1 || limit > 200) fail('INVALID', 'limit is 1 to 200');
+      if ((filter ?? '').length > 200) fail('INVALID', 'filter is at most 200 characters');
       // ?records=broken previews a chain that fails its check: Rust verifies the whole chain
       // before every page and answers LEDGER_TRUST with no rows.
       if (params.get('records') === 'broken') fail('LEDGER_TRUST', 'ledger integrity failure: audit sequence/previous hash');
-      const older = (state.audit ?? []).filter((r) => before == null || r.seq < before).sort((a, b) => b.seq - a.seq);
-      const rows = older.slice(0, limit);
-      return { rows, next_before: older.length > limit ? rows[rows.length - 1]?.seq ?? null : null };
+      const newest = sort !== 'oldest';
+      const needle = (filter ?? '').trim().replace(/[A-Z]/g, (c) => c.toLowerCase()).replace(/_/g, ' ');
+      let items: Map<string, string> | null = null;
+      const itemOf = (id: string | null): string => {
+        if (!id) return '';
+        items ??= new Map(state.deals.map((d) => [d.deal.id, d.deal.terms.item_ref] as const));
+        return items.get(id) ?? '';
+      };
+      const text = (r: AuditRow): string => [r.action, r.actor, r.from ?? '', r.to ?? '', r.decided_by ? JSON.stringify(r.decided_by) : '', itemOf(r.deal_id)].join(' ').replace(/[A-Z]/g, (c) => c.toLowerCase()).replace(/_/g, ' ');
+      // state.audit is oldest first (seq ascending): one pass keeps the matches, the cursor then cuts them.
+      const all = state.audit ?? [];
+      const matching = needle ? all.filter((r) => text(r).includes(needle)) : all;
+      const ordered = newest ? [...matching].reverse() : matching;
+      const after = ordered.filter((r) => before == null || (newest ? r.seq < before : r.seq > before));
+      const rows = after.slice(0, limit);
+      return { rows, next_before: after.length > limit ? rows[rows.length - 1]?.seq ?? null : null, total_matching: matching.length };
     },
     // As Runtime::deal_history: one deal or all, [from, to) in Unix seconds, oldest first, the
     // newest 500 steps (truncated says older ones were left out). Closed facts only, main only.

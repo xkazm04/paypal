@@ -252,7 +252,7 @@ mod tests {
     /// up in review as an edit to this line (and to `bindings/authority.ts`). Update it only when
     /// the table change is intended.
     const PINNED_MANIFEST: &str =
-        "33b4e591ab30b89d9f9e920ba869de343e089b26338d9c1026aa62f3695f00fd";
+        "2a6a2ebe09b2ce460097284dda337435619866d919f7bc8ead0e713f93754c3b";
 
     /// Written out by hand: the board assistant's two commands are reads the main window alone
     /// may call, answered by the shell, with no token, unlock or selection. Its reply is text the
@@ -345,6 +345,9 @@ mod tests {
         let release: BTreeSet<&str> = [
             "deal_owner_accept",
             "market_refresh",
+            "market_search",
+            "market_lookup",
+            "market_comparables",
             "unlock",
             "deal_countersign",
             "deal_capture",

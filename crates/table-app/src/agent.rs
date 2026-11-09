@@ -660,6 +660,8 @@ impl Wallet {
                 reference.certificate = None;
                 Ok(serde_json::to_value(reference).map_err(|_| Error::Invalid)?)
             }
+            // Served by the MCP layer from the market service; the wallet has nothing to say.
+            AgentRequest::Search(_) => Err(Error::Unavailable),
             AgentRequest::Book(query) => {
                 if scope.role != AgentRole::Assistant {
                     return Err(out_of_scope);

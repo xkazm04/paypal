@@ -9,6 +9,7 @@ pub const TOOLS: &[&str] = &[
     "withdraw_offer",
     "propose_purchase",
     "book_query",
+    "product_search",
 ];
 pub fn wallet_tool(name: &str) -> bool {
     name.strip_prefix("mcp__wallet__")

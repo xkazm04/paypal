@@ -39,6 +39,11 @@
 //   one mandate with every clause but the rescue-only fixes, 8 counterparty names over the 32 characters a pairing
 //   allows, 60+ character item titles, notes of 300+ characters, markup and instructions in notes.
 //
+// XL - the large world grown to 5,000 deals (`?scale=xl`, scaleXl.ts): the 500 above stay as they are and
+//   4,500 older settled ones (paid, receipted, withdrawn, expired, refused ...) are added behind them, with their
+//   audit rows, history, categories and rescue views, so the lists, the Record and the reads can be tried
+//   at the size a long-lived wallet reaches. Nothing in it waits for the owner beyond the large world's own.
+//
 // Nothing here moves money: these are rows the mock serves, the same shapes Rust returns.
 import type { AgentSlot } from '@bindings/AgentSlot';
 import type { AttentionItem } from '@bindings/AttentionItem';
@@ -68,6 +73,7 @@ import { formatMinor } from '../lib/format';
 import { MONEY_CHECK_SILENCE, RESCUE_SENT_SILENCE, RESCUE_SILENCE } from '../lib/words';
 import { buildMockState, certifiedMarket, fakeHash, fakeUlid, type MockDeal, type MockGroup, type MockState } from './fixtures';
 import { invoiceText, proposeDiscount } from './rescue';
+import { inflateScale, XL_DEALS } from './scaleXl';
 
 export type Scale = ScaleName;
 
@@ -275,7 +281,7 @@ type MandateDef = {
 const WINDOW_DAYS = 89;
 
 function sizes(scale: Scale) {
-  return scale === 'large' ? LARGE : SMALL;
+  return scale === 'small' ? SMALL : LARGE;
 }
 
 type Cfg = {
@@ -356,9 +362,11 @@ const NOTES = [
 
 /** The rows of one fixture world. See the header for the numbers; scale.test.ts pins them. */
 export function buildScaleState(scale: Scale, now: number): MockState {
+  // `xl` is the large world plus 4,500 older, settled deals (scaleXl.ts): the same first 500, the same ids.
+  if (scale === 'xl') return inflateScale(buildScaleState('large', now), now, XL_DEALS);
   const cfg = sizes(scale);
   const r = seeded(`the-table:scale:${scale}`);
-  const large = scale === 'large';
+  const large = scale !== 'small';
 
   // ----- phase 1: specs ------------------------------------------------------------------------
   const specs: Spec[] = [];

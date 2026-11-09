@@ -22,21 +22,22 @@ export function firstRunPreview(search: string = previewSearch()): boolean {
   }
 }
 
-// `?scale=small|large` opens the same sample wallet at two realistic sizes (src/mock/scale.ts):
-// a one-person shop, or a busy merchant. Like first_run it is a world of its own (own storage key
+// `?scale=small|large|xl` opens the same sample wallet at three sizes (src/mock/scale.ts):
+// a one-person shop, a busy merchant, or five thousand deals for the lists to be tried against. Like first_run it is a world of its own (own storage key
 // and broadcast channel), so the default sample week stays untouched. A brand-new wallet
 // (`first_run=1`) has no data to scale, so it wins when both are given.
 
 export const SCALE_PARAM = 'scale';
-export type ScaleName = 'small' | 'large';
+export type ScaleName = 'small' | 'large' | 'xl';
+const SCALE_NAMES: readonly string[] = ['small', 'large', 'xl'];
 
-/** The scale this page was opened at (`?scale=small|large`), or null: the default sample week. */
+/** The scale this page was opened at (`?scale=small|large|xl`), or null: the default sample week. */
 export function scalePreview(search: string = previewSearch()): ScaleName | null {
   try {
     const q = new URLSearchParams(search);
     if (q.get(FIRST_RUN_PARAM) === '1') return null;
     const v = q.get(SCALE_PARAM);
-    return v === 'small' || v === 'large' ? v : null;
+    return v !== null && SCALE_NAMES.includes(v) ? (v as ScaleName) : null;
   } catch {
     return null;
   }
@@ -137,7 +138,7 @@ export function demoFromSearch(search: string): DemoState {
   try {
     const q = new URLSearchParams(search);
     const scale = q.get(SCALE_PARAM);
-    const world: DemoWorld = q.get(FIRST_RUN_PARAM) === '1' ? 'first_run' : scale === 'small' || scale === 'large' ? scale : 'sample';
+    const world: DemoWorld = q.get(FIRST_RUN_PARAM) === '1' ? 'first_run' : scale !== null && SCALE_NAMES.includes(scale) ? (scale as ScaleName) : 'sample';
     return { world, degrade: q.get(DEGRADE_PARAM) === '1', locked: q.get(LOCKED_PARAM) === '1' };
   } catch {
     return { world: 'sample', degrade: false, locked: false };
