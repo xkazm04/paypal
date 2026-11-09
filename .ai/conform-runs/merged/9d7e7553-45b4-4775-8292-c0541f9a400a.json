@@ -1,0 +1,233 @@
+{
+ "schema": "conform-run/1",
+ "worker": "9d7e7553-45b4-4775-8292-c0541f9a400a",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-09T04:11:58.968017+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "ipc-contract-and-authority-table",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-client/tests/bindings.rs:142 CredentialArgs is an enum of unit variants, so any two-key object is refused by its shape, and the assertion stays green even if a variant gained a client_secret field, so the 'must-not-be-an-ipc-field' claim is pinned by nothing.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "crates/table-client/tests/bindings.rs:142 lib.rs:142-145 has only unit variants and line 144 shows the wire form is a bare string; the object input never reaches a decision about fields, and is_err names no producer."
+    },
+    {
+     "technique": "approval-snapshots-with-guarded-update",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/authority.rs:254 The fingerprint is a source constant, so re-baselining is a reviewed diff; the writer is the separate generate-bindings bin and the tests never write."
+    },
+    {
+     "technique": "gate-scope-is-not-report-scope",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/src/authority.rs:530 The grant check takes its population from the type's ALL list and the AUTHORITY table, not a hand-written member list."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/tests/bindings.rs:187 The text parse of the event declaration carries a committed count, so a needle that stops matching goes red instead of comparing two empty sets."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/tests/bindings.rs:55 The verifier restates generate-bindings' roots, but a root it omits leaves an emitted file unclaimed and this check goes red."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "conformant",
+     "evidence": "crates/table-client/tests/bindings.rs:23 The checked-in text comparison normalises line endings, so the verdict does not differ between a Windows and a Linux checkout."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/src-tauri/src/native.rs:85 The shell's real command path calls the tested table, and runtime dispatcher.rs:81 consults the same row."
+    }
+   ]
+  },
+  {
+   "context": "book-module",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/modules/book/model.test.ts:52 The test claims every state lands in one of four buckets, but BUCKETS has five (model.ts:21) and it checks eight hand-picked cases with no UNCONFIRMED, so a state added or misfiled outside those cases stays green.",
+   "techniques": [
+    {
+     "technique": "gate-scope-is-not-report-scope",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/model.test.ts:52 An 'every' claim over a hand-written sample; a 21-state list sits unused for this claim at line 39 of the same file, and the bucket count in the name is stale."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.test.ts:217 Under 'ported rules match Rust's words', it compares the TS port to literals typed in the test and never runs or reads table-core book.rs, so a changed Rust rule stays green."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.test.ts:124 The parameterised table declares a floor, so an emptied table fails rather than running zero cases."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/direction.test.ts:55 Tests that share the mock backend reset its state and browser storage before each test."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/model.test.ts:7 Pure view-model tests use an in-memory builder typed by the generated binding, the cheapest tier that can witness the claim."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/direction.test.ts:52 Only the date is frozen for calendar arithmetic; these files make no concurrency or cutoff claim."
+    }
+   ]
+  },
+  {
+   "context": "table-wire-protocol",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-proto/tests/protocol.rs:220 The test name claims the Hello is agent bound, but it only ever passes the matching agent key and mutates the commitment, so deleting the agent_key check at envelope.rs:226 leaves it green.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "crates/table-proto/tests/protocol.rs:220 No Body::Hello with a foreign agent_key exists in any test (a grep for Body::Hello across crates finds only this test as a builder). Line 76 is the same class: it asserts on nonce [2; 16], which appears nowhere else in that test."
+    },
+    {
+     "technique": "gate-scope-is-not-report-scope",
+     "verdict": "deviation",
+     "evidence": "crates/table-proto/tests/protocol.rs:154 An 'every' claim over four hand-written rewrites of an Offer; the other nine Body variants and OwnerAccept (envelope.rs:97) are never visited. The canonical re-encode at envelope.rs:463 also answers Schema, so the assertion does not name its producer."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "crates/table-proto/tests/protocol.rs:9 Each test owns in-memory keys and envelopes, with no shared mutable fixture."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/tests/protocol.rs:45 Time is an input to verify, so the lifetime rules are decided from data and no test depends on a wall clock."
+    }
+   ]
+  },
+  {
+   "context": "agent-tool-surface",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-shield/src/lib.rs:226 This test exercises table_shield::combine, which no production code calls (the only production use of the crate is explain at shield_gate.rs:109, with its own max at :140), so the S2 safety promise is proved on a path the product does not run.",
+   "techniques": [
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "deviation",
+     "evidence": "crates/table-shield/src/lib.rs:226 A repo-wide search finds combine and evaluate named outside the crate only in doc comments at shield_gate.rs:84 and :136. acceptance.rs:339-361 shows this test name credited to S2 in its own fixture."
+    },
+    {
+     "technique": "gate-scope-is-not-report-scope",
+     "verdict": "deviation",
+     "evidence": "crates/table-mcp/tests/server.rs:708 The body drives 9 hand-listed codes although RefusalCode::ALL holds 20; wallet_limit, group_closed, paused and run_ended appear nowhere in this file."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "crates/table-mcp/tests/server.rs:961 The body (979-987) checks only that descriptions are non-empty, not the old generic text, and equal table_mcp::description; nothing in it asserts that no tool or description moves money."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "crates/table-mcp/tests/server.rs:1359 The cutoff is read from the recorded outcome of a service sleeping far past its deadline, not from elapsed time."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "owner-mandate-config",
+   "reason": "evidence leans on mock/rustConstants.test.ts, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T04:11:58.968017+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "approval-snapshots-with-guarded-update",
+    "derived-selection-must-be-measured",
+    "gate-scope-is-not-report-scope",
+    "pin-the-call-not-the-name",
+    "proved-off-the-path",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "ipc-contract-and-authority-table",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T04:11:58.968017+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "derived-selection-must-be-measured",
+    "fixture-economics",
+    "gate-scope-is-not-report-scope",
+    "isolation-lanes",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "book-module",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T04:11:58.968017+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "fixture-economics",
+    "gate-scope-is-not-report-scope",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "table-wire-protocol",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T04:11:58.968017+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "gate-scope-is-not-report-scope",
+    "proved-off-the-path",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "agent-tool-surface",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

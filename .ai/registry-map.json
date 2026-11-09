@@ -876,7 +876,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-shield/src/lib.rs:226 This test exercises table_shield::combine, which no production code calls (the only production use of the crate is explain at shield_gate.rs:109, with its own max at :140), so the S2 safety promise is proved on a path the product does not run.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "eval-harness",
@@ -1556,7 +1560,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.test.ts:52 The test claims every state lands in one of four buckets, but BUCKETS has five (model.ts:21) and it checks eight hand-picked cases with no UNCONFIRMED, so a state added or misfiled outside those cases stays green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         }
       ],
       "governance": "governed"
@@ -4163,7 +4171,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-client/tests/bindings.rs:142 CredentialArgs is an enum of unit variants, so any two-key object is refused by its shape, and the assertion stays green even if a variant gained a client_secret field, so the 'must-not-be-an-ipc-field' claim is pinned by nothing.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "native-shell-integration",
@@ -9031,7 +9043,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-proto/tests/protocol.rs:220 The test name claims the Hello is agent bound, but it only ever passes the matching agent key and mutates the commitment, so deleting the agent_key check at envelope.rs:226 leaves it green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "table",
