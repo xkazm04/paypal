@@ -155,7 +155,7 @@ export function SettingsLayer({ nav }: LayerProps) {
           <MoreRow name={SETTINGS_MORE.rules} line={SETTINGS_MORE.rulesLine} fk="st-rules" onOpen={() => nav.place('rules')} />
           <MoreRow name={SETTINGS_MORE.connections} line={SETTINGS_MORE.connectionsLine} fk="st-connections" onOpen={() => nav.place('connections')} />
           <MoreRow name={SETTINGS_MORE.safety} line={SETTINGS_MORE.safetyLine} fk="st-safety" onOpen={() => nav.place('safety')} />
-          <MoreRow name={ARENA_PLACE.title} line={ARENA_PLACE.line} fk="st-try" onOpen={() => nav.place('try')} />
+          <MoreRow name={ARENA_PLACE.title} line={SETTINGS_MORE.tryLine} fk="st-try" onOpen={() => nav.place('try')} />
           {backend().kind === 'mock' ? <MoreRow name={SETTINGS_MORE.firstRun} line={SETTINGS_MORE.firstRunLine} fk="st-first" onOpen={showFirstRun} /> : null}
           <MoreRow name={SETTINGS_MORE.quit} line={SETTINGS_MORE.quitLine} fk="st-quit" onOpen={() => nav.quit()} />
         </ul>

@@ -19,7 +19,7 @@ import {
   NO_WALLET_LIMIT, ruleSentence, WALLET_LIMITS_ABOUT,
 } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
-import { Chip, Disclosure, Kv, Loading, Meter, Silence, UNKNOWN, type ChipTone } from '../../../../../shared/ui';
+import { Chip, Disclosure, ExplainHint, Kv, Loading, Meter, Silence, UNKNOWN, type ChipTone } from '../../../../../shared/ui';
 import { ruleInForce } from '../../../../../lib/firstRun';
 import { agentTitle, limitLines, rulesAnswer, ruleState } from '../../../setup/limits';
 import { useAttention, useDeals, useNeeds, useSettings } from '../../../world';
@@ -116,9 +116,8 @@ function Rules({ nav }: { nav: LayerProps['nav'] }) {
   ];
 
   return (
-    <PlaceFrame root="ar-rules" place="rules" tone="var(--gold)" kicker={RULES_KICKER} answer={answer?.title ?? RULES_LIST.label} sub={answer?.sub} call={call} cards={cards}
-      action={!call && q.data && list.length ? <ToApproval label={RULES_ACT.change} kind="default" target="mandate" title={RULES_ACT.title} /> : null}
-      explain={{ summary: RULES_EXPLAIN.summary, body: <>{RULES_EXPLAIN.body.map((p) => <p key={p}>{p}</p>)}</> }}>
+    <PlaceFrame root="ar-rules" place="rules" tone="var(--gold)" kicker={RULES_KICKER} answer={answer?.title ?? RULES_LIST.label} sub={answer ? <ExplainHint label={RULES_EXPLAIN.summary} line={answer.sub}>{RULES_EXPLAIN.body.map((p) => <p key={p}>{p}</p>)}</ExplainHint> : undefined} call={call} cards={cards}
+      action={!call && q.data && list.length ? <ToApproval label={RULES_ACT.change} kind="default" target="mandate" title={RULES_ACT.title} /> : null}>
       {q.error ? <WalletNotice error={q.error} what={NOTICE_WHAT.agentRules} /> : null}
       {!q.data && !q.error ? <Loading what={LOADING_WHAT.rules} /> : null}
       {q.data ? (
@@ -150,7 +149,7 @@ function stateChip(m: MandateListEntry, now: number): { tone: ChipTone; text: st
 /** One rule set as a list row: its agent and what it is for, its limits, its version and state. */
 function RuleRow({ m, now, on }: { m: Row; now: number; on: boolean }) {
   const purpose = purposeOf(m.payload.clauses);
-  const lim = limitLines(m.payload.clauses, 2).map((l) => `${l.value} ${l.label}`).join(' · ');
+  const lim = limitLines(m.payload.clauses, 1).map((l) => `${l.value} ${l.label}`).join(' · ');
   const chip = stateChip(m, now);
   return (
     <span className={`rl-row${on ? ' on' : ''}${m.live ? '' : ' off'}`} style={{ '--c': AGENT_TONE[m.agent] ?? 'var(--steel)' } as CSSProperties}>
@@ -229,7 +228,7 @@ function LimitsPlace() {
     ],
   } : undefined;
   return (
-    <PlaceFrame root="ar-rules" place="limits" tone="var(--gold)" kicker={LIMITS_PLACE.kicker} answer={answer} sub={WALLET_LIMITS_ABOUT} latest={latest}
+    <PlaceFrame root="ar-rules" place="limits" tone="var(--gold)" kicker={LIMITS_PLACE.kicker} answer={answer} sub={<ExplainHint label={LIMITS_PLACE.aboutLabel} line={LIMITS_PLACE.about}>{WALLET_LIMITS_ABOUT}</ExplainHint>} latest={latest}
       action={<ToApproval label={LIMITS_LAYER.change} kind="default" title={LIMITS_LAYER.changeTitle} />}>
       {att.error ? <WalletNotice error={att.error} what={NOTICE_WHAT.walletLimits} /> : null}
       {reading ? (
@@ -242,7 +241,7 @@ function LimitsPlace() {
                 <span className="k">{LIMIT_WORDS[m.key].name}</span>
                 <span className="v"><b className="num">{m.value}</b>{m.of ? <span> {m.of}</span> : null}</span>
                 <Meter value={m.fill} tone={m.near ? 'gold' : undefined} label={`${m.key === 'out' ? LIMITS_PLACE.budget : m.label}${m.of ? ` ${m.of}` : ''}`} />
-                {m.key === 'out' ? <span className="rl-budget"><b>{LIMITS_PLACE.budget}.</b> {LIMITS_PLACE.budgetNote}</span> : null}
+                {m.key === 'out' ? <span className="rl-budget"><b>{LIMITS_PLACE.budget}.</b> <ExplainHint label={LIMITS_PLACE.budget} line={LIMITS_PLACE.budgetLine}>{LIMITS_PLACE.budgetNote}</ExplainHint></span> : null}
               </li>
             ))}
           </ul>

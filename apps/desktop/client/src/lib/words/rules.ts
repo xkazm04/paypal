@@ -35,7 +35,7 @@ export const RULES_CARD = {
   limits: 'Wallet limits',
   limitsNote: 'one cap above every rule',
   /** The Wallet limits card's note: its figure is the day's budget, not the footer's "Paid out today". */
-  limitsBudgetNote: 'budget used today · not the same as “Paid out today”',
+  limitsBudgetNote: 'budget used today',
   limitsNone: 'None signed',
 } as const;
 
@@ -64,7 +64,7 @@ export const RULES_CATEGORY = { office: 'office supplies', parts: 'parts', compu
 
 export const RULES_DOC = {
   kicker: (agent: string, version: number, signed: string): string => `${agent} · version ${version} · valid from ${signed}`,
-  inForce: (left: string, n: number): string => `In force · until ${left} · ${n === 1 ? 'one rule' : `${n} rules`}, signed by you`,
+  inForce: (left: string, n: number): string => `In force until ${left} · ${n === 1 ? 'one signed rule' : `${n} signed rules`}`,
   retired: 'Not in force. Deals made under it stay in the record; it allows nothing new.',
   refused: 'This rule set no longer fits what the wallet accepts, so its agent can’t act under it. Sign it again or withdraw it.',
   limits: 'The limits it can never pass',
@@ -78,7 +78,7 @@ export const RULES_DOC = {
   signature: 'Signature',
   signed: 'signed by you',
   missing: 'missing',
-  changeHint: 'To change a rule, use Change: you read and sign the new version in the approval window.',
+  changeHint: 'You read and sign the new version in the approval window.',
   purpose: {
     covers: (what: string): string => `for ${what}`,
     any: 'for any kind of deal',
@@ -103,6 +103,9 @@ export const LIMITS_PLACE = {
   ifNothing: 'your limits stay as signed',
   /** The daily meter is the day's budget (every payment agreed today), never the footer's figure. */
   budget: 'Budget used today',
+  budgetLine: 'Agreed today, paid or not.',
+  about: 'One cap above all your agents’ rules.',
+  aboutLabel: 'How wallet limits work',
   budgetNote: 'Every payment your agents agreed to today counts here, paid or not. “Paid out today” at the bottom of the window counts only money PayPal collected.',
   factPaid: 'Paid out today (collected by PayPal)',
   factBudget: 'Budget used today (agreed, paid or not)',
