@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import type { Module } from '@bindings/Module';
 import { isTerminal } from '../logic';
-import { OPENING_MS, Reveal, Skeleton, Stagger, StaggerProvider, forgetSeen, setStaggerClock, staggerIsOff, staggerOff, staggerOn, useRevealed } from './stagger';
+import { OPENING_MS, Staged, Skeleton, Stagger, StaggerProvider, forgetSeen, setStaggerClock, staggerIsOff, staggerOff, staggerOn, useRevealed } from './stagger';
 import { manualClock, type ManualClock } from './testing/manualClock';
 import { renderLayerAtScale, settle } from './testing/scaleSmoke';
 
@@ -29,10 +29,10 @@ function Layer({ children }: { children?: ReactNode }) {
   return (
     <Stagger clock={c.clock}>
       <h1>The answer</h1>
-      <Reveal wave={3}><Part name="explain" /></Reveal>
-      <Reveal wave={2}><Part name="latest" /></Reveal>
-      <Reveal wave={1} skeleton={<Skeleton className="cards" blocks={4} />}><Part name="cards" /></Reveal>
-      <Reveal wave={2} priority={5}><Part name="list" /></Reveal>
+      <Staged wave={3}><Part name="explain" /></Staged>
+      <Staged wave={2}><Part name="latest" /></Staged>
+      <Staged wave={1} skeleton={<Skeleton className="cards" blocks={4} />}><Part name="cards" /></Staged>
+      <Staged wave={2} priority={5}><Part name="list" /></Staged>
       {children}
     </Stagger>
   );
@@ -70,7 +70,7 @@ describe('the scheduler', () => {
     c.work(7); // every clock read costs 7 ms: two parts fill a 12 ms slot
     render(
       <Stagger clock={c.clock}>
-        {['a', 'b', 'c', 'd', 'e'].map((n) => <Reveal key={n} wave={1}><Part name={n} /></Reveal>)}
+        {['a', 'b', 'c', 'd', 'e'].map((n) => <Staged key={n} wave={1}><Part name={n} /></Staged>)}
       </Stagger>,
     );
     await c.advance(32);
@@ -99,8 +99,8 @@ describe('the scheduler', () => {
       useEffect(() => { open = () => setSecond(true); }, []);
       return (
         <StaggerProvider>
-          <Stagger clock={c.clock}><Reveal wave={2}><Part name="old" /></Reveal></Stagger>
-          {second ? <Stagger clock={other.clock}><Reveal wave={2}><Part name="new" /></Reveal></Stagger> : null}
+          <Stagger clock={c.clock}><Staged wave={2}><Part name="old" /></Staged></Stagger>
+          {second ? <Stagger clock={other.clock}><Staged wave={2}><Part name="new" /></Staged></Stagger> : null}
         </StaggerProvider>
       );
     }
@@ -146,7 +146,7 @@ describe('the scheduler', () => {
     function Late() {
       const [on, setOn] = useState(false);
       useEffect(() => { show = setOn; }, []);
-      return on ? <Reveal wave={2} skeleton={<Skeleton className="late" />}><Part name="late" /></Reveal> : null;
+      return on ? <Staged wave={2} skeleton={<Skeleton className="late" />}><Part name="late" /></Staged> : null;
     }
     render(<Layer><Late /></Layer>);
     await c.advance(64);
@@ -233,7 +233,7 @@ describe('a later wave’s reads wait for their turn', () => {
 describe('a warm return', () => {
   it('opens every wave on the first frame once the layer has fully revealed before, and never replays the entrance', async () => {
     const mk = () => (
-      <StaggerProvider><Stagger clock={c.clock} warmKey="m:warm"><Reveal wave={2} skeleton={<Skeleton h="1rem" />}><p>late part</p></Reveal></Stagger></StaggerProvider>
+      <StaggerProvider><Stagger clock={c.clock} warmKey="m:warm"><Staged wave={2} skeleton={<Skeleton h="1rem" />}><p>late part</p></Staged></Stagger></StaggerProvider>
     );
     const first = render(mk());
     expect(first.container.querySelector('.stg')?.getAttribute('data-stg')).toBe('wait');

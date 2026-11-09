@@ -19,4 +19,3 @@ export { ChromeBackContext, DetailPage, type DetailPageProps } from './DetailPag
 export { Stack, pileCount, TabStrip, ModuleTab, nextTab, FilterChips, toggleFilter, Facts, ListShell, Depth, shownCount, UNKNOWN,
   type StackProps, type ModuleTabProps, type FilterOption, type Fact, type FactTone, type ListShellProps } from './console';
 export { HoldGesture, holdPhaseWord, shownProgress, type HoldGestureProps, type HoldPhase } from './HoldGesture';
-export { Presence, type PresenceProps } from './Presence';

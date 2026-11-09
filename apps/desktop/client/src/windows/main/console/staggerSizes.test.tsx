@@ -3,7 +3,7 @@
 // was resized belongs to the new size and never overwrites the size the part mounted at.
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { forgetSizes, Reveal, Skeleton, Stagger, staggerOff, staggerOn } from './stagger';
+import { forgetSizes, Staged, Skeleton, Stagger, staggerOff, staggerOn } from './stagger';
 import { manualClock } from './testing/manualClock';
 
 const observers: Array<() => void> = [];
@@ -29,7 +29,7 @@ afterEach(() => { cleanup(); staggerOff(); vi.restoreAllMocks(); vi.unstubAllGlo
 
 const Layer = ({ clock }: { clock: ReturnType<typeof manualClock>['clock'] }) => (
   <Stagger clock={clock}>
-    <Reveal wave={2} sizeKey="part" skeleton={<Skeleton className="sk" />}><p>part</p></Reveal>
+    <Staged wave={2} sizeKey="part" skeleton={<Skeleton className="sk" />}><p>part</p></Staged>
   </Stagger>
 );
 

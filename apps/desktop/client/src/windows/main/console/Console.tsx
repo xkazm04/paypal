@@ -66,7 +66,10 @@ import '../quit.css';
 
 const QuitSheet = lazyPart(() => import('../QuitSheet').then((m) => m.QuitSheet));
 // Idle preload order = likeliest next first (the six modules, then the places), one chunk per idle slot.
-const LATER_PARTS = [...LAYER_PARTS, QuitSheet];
+// Then the data grid's own chunk (ListEngine's DataGridPart, the very part a list draws, reached through
+// the list's chunk so neither joins the first paint): a list's first grid then never shows a skeleton.
+const GRID_PART = { preload: () => import('./ListEngine').then((m) => m.DataGridPart.preload()) };
+const LATER_PARTS = [...LAYER_PARTS, QuitSheet, GRID_PART];
 /** A navigation waits this long at most for the next tab's code, keeping the old screen up meanwhile. */
 const READY_CAP_MS = 300;
 

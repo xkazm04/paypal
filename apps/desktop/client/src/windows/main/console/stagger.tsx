@@ -1,4 +1,5 @@
-// Staggered reveal inside a layer (polish wave A). A layer's first paint is its frame and its answer:
+// Staggered reveal inside a layer (polish wave A); its part is `Staged` (design/Reveal.tsx's `Reveal`
+// is the fade-rise a mounted block appears with: this file decides WHEN a part mounts, that one HOW). A layer's first paint is its frame and its answer:
 // the heading, "Your call" and the one action (wave 0). The rest arrives in a short, orderly
 // sequence by priority, each wave on a frame (or idle slot) of its own:
 //   0  the frame, the answer, Your call and its action (never deferred: a decision is never hidden)
@@ -290,7 +291,7 @@ function rememberHeight(el: HTMLElement, key: string): () => void {
   return () => ro.disconnect();
 }
 
-export type RevealProps = {
+export type StagedProps = {
   wave: Wave;
   /** Inside a wave, higher first. */
   priority?: number;
@@ -301,9 +302,10 @@ export type RevealProps = {
   children: ReactNode;
 };
 
-/** A part of a layer that takes its wave's turn. Its wrapper is `display: contents`, so the frame's
- *  layout (flex gaps, grids) is the same as without it; its children fade in when it shows. */
-export function Reveal({ wave, priority = 0, skeleton, sizeKey, children }: RevealProps) {
+/** A part of a layer that takes its wave's turn (WHEN it mounts). Its wrapper is `display: contents`,
+ *  so the frame's layout (flex gaps, grids) is the same as without it; its children fade in when it
+ *  shows. HOW a mounted block appears is design/Reveal.tsx's job; the two have different names. */
+export function Staged({ wave, priority = 0, skeleton, sizeKey, children }: StagedProps) {
   const open = useRevealed(wave, priority);
   const ref = useRef<HTMLDivElement>(null);
   const shownLate = useRef(false);
@@ -320,6 +322,11 @@ export function Reveal({ wave, priority = 0, skeleton, sizeKey, children }: Reve
     </div>
   );
 }
+
+/** @deprecated The old name of `Staged`, kept only until the last importers outside the motion
+ *  package (arena/BreakTheTable, proof/ProofPage, console/Centre, console/ModuleLayer,
+ *  areas/rewind/RewindLayer, areas/settings/frame, areas/tables/parts) import `Staged`. */
+export const Reveal = Staged;
 
 /** A skeleton with a remembered height: the skeleton's own estimate is the floor until the part has
  *  shown once. */

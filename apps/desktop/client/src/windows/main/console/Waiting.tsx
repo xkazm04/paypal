@@ -8,7 +8,8 @@ import type { Module } from '@bindings/Module';
 import { formatTally } from '../../../lib/data/counts';
 import { useWindowedRows, type RowProps } from '../../../lib/data/useWindowedRows';
 import { formatMinor } from '../../../lib/format';
-import { useNow } from '../../../lib/hooks';
+import { useClock } from '../../../lib/hooks';
+import { useRowMotion } from '../../../design/presets';
 import { EVERY_MODULE, houseWords, IF_NOTHING, LATEST_OF, NO_DEADLINE, OPEN_THE_DEAL, WAITING_COLS, WAITING_EMPTY, WAITING_FILTER, WAITING_KICKER, WAITING_TITLE, waitingShown, waitingSub, waitingTitle } from '../../../lib/words';
 import { MODULE, MODULES } from '../../../shared/modules';
 import { ListShell, type FilterOption } from '../../../shared/ui';
@@ -19,7 +20,7 @@ import { useDeals, useDisplayOf, useWorldSelector, type World } from '../world';
 import { Latest, LatestSkeleton, MAX_ROWS, type LatestProps } from './Latest';
 import { DealRow1 } from './rows';
 import { Reveal as Rise, RevealGroup } from '../../../design/Reveal';
-import { Reveal } from './stagger';
+import { Staged } from './stagger';
 
 const selModuleOf = (w: World) => w.moduleOfDeal;
 /** At or under this many waiting rows the list takes its own height (and the decided strip shows). */
@@ -29,13 +30,14 @@ const SHORT_LIST = 8;
 export const WAITING_ROW = 50;
 
 type Filter = Module | 'all';
+const keyOf = (n: AttentionItem): string => n.deal_id;
 
 export function Waiting({ queue, module, onFilter, onPick, onDeal }: {
   queue: readonly AttentionItem[]; module: Module | undefined; onFilter: (m: Module | undefined) => void; onPick: (dealId: string) => void;
   /** Opens a deal (the "decided lately" strip under a short list). */
   onDeal?: (dealId: string) => void;
 }) {
-  const rows = module ? queue.filter((n) => n.module === module) : queue;
+  const rows = useMemo(() => (module ? queue.filter((n) => n.module === module) : queue), [queue, module]);
   const counts = new Map<Module, number>();
   for (const n of queue) counts.set(n.module, (counts.get(n.module) ?? 0) + 1);
   const options: FilterOption<Filter>[] = [
@@ -44,7 +46,10 @@ export function Waiting({ queue, module, onFilter, onPick, onDeal }: {
   ];
   // The first decision the owner can actually make: it alone carries the filled action.
   const firstCall = rows.find((n) => n.kind === 'gate')?.deal_id;
-  const list = useWindowedRows({ rows, getKey: (n: AttentionItem) => n.deal_id, estimateSize: WAITING_ROW });
+  // A decision joining or leaving while the list is in view (design/presets.ts): keyed by deal over the
+  // whole queue, so the module filter and a scroll never play it; a decided row fades where it stood.
+  const motion = useRowMotion(queue, rows, keyOf);
+  const list = useWindowedRows({ rows: motion.rows, getKey: keyOf, estimateSize: WAITING_ROW });
   // A short list takes its own height, and what was decided lately fills the room under it (rebuild
   // WP4a: no dead band). A long list keeps the whole sheet.
   const moduleOfDeal = useWorldSelector(selModuleOf);
@@ -73,10 +78,11 @@ export function Waiting({ queue, module, onFilter, onPick, onDeal }: {
         renderRows={() => (<>
           {/* Read per row through its accessible name, so the heads are for the eye only. */}
           <div className="cs-whead" aria-hidden="true"><span>{WAITING_COLS.who}</span><span className="r">{WAITING_COLS.amount}</span><span>{WAITING_COLS.left}</span><span>{IF_NOTHING}</span><span className="r">{WAITING_COLS.call}</span></div>
-          <div ref={list.scrollRef} onKeyDown={list.onKeyDown} className="cs-wscroll" role="list" aria-label={WAITING_TITLE} style={short ? { flex: 'none', height: rows.length * WAITING_ROW + 4 } : undefined}>
+          <div ref={list.scrollRef} onKeyDown={list.onKeyDown} className="cs-wscroll" role="list" aria-label={WAITING_TITLE} style={short ? { flex: 'none', height: motion.rows.length * WAITING_ROW + 4 } : undefined}>
             <div style={{ height: list.totalSize, position: 'relative' }}>
               {list.items.map((it) => (
-                <WaitingRow key={it.key} item={it.row} props={list.rowProps(it)} top={it.start} onPick={onPick} first={it.row.deal_id === firstCall} />
+                <WaitingRow key={it.key} item={it.row} props={list.rowProps(it)} top={it.start} onPick={onPick} first={it.row.deal_id === firstCall}
+                  motion={motion.cls(it.key)} gone={motion.leaving(it.key)} />
               ))}
             </div>
           </div>
@@ -89,21 +95,30 @@ export function Waiting({ queue, module, onFilter, onPick, onDeal }: {
   );
 }
 
-function WaitingRow({ item, props, top, onPick, first }: { item: AttentionItem; props: RowProps; top: number; onPick: (id: string) => void; first: boolean }) {
-  const now = useNow();
+function WaitingRow({ item, props, top, onPick, first, motion, gone }: {
+  item: AttentionItem; props: RowProps; top: number; onPick: (id: string) => void; first: boolean;
+  /** The row's preset class this render (arrived / left), or ''. */
+  motion: string;
+  /** The row has left the queue and is fading where it stood: drawn, inert, hidden from readers. */
+  gone: boolean;
+}) {
+  // The clock through useClock: the row re-renders when its words change ("3 h left" once a minute),
+  // never on the one-second tick.
+  const leftText = useClock((now) => timeLeft(item.deadline, now)?.text ?? null);
+  const urgent = useClock((now) => timeLeft(item.deadline, now)?.urgent ?? false);
   const disp = useDisplayOf(item.deal_id);
   const amount = formatMinor(item.amount_minor, item.currency);
   // The call beside the amount; a headline that carries a second figure ("Asked $339.00, not $329.00") stays whole.
   const [verb] = splitHeadline(item.headline, amount);
   const call = /\d/.test(verb) ? item.headline : verb;
-  const left = timeLeft(item.deadline, now);
+  const left = leftText === null ? null : { text: leftText, urgent };
   const who = item.counterparty ? houseWords(item.counterparty) : null;
   const title = disp ? shortTitle(disp.title) : null;
   const say = `${[item.headline, who, title].filter(Boolean).join(', ')}. ${IF_NOTHING}: ${item.on_silence}. ${[left?.text, MODULE[item.module].name].filter(Boolean).join(', ')}`;
   const style = { position: 'absolute', left: 0, right: 0, top, height: WAITING_ROW, '--c': MODULE[item.module].cssVar } as CSSProperties;
   return (
-    <div role="listitem" style={style} className="cs-wrow-wrap">
-      <button type="button" {...props} className={`cs-wrow${first ? ' first' : ''}`} aria-label={say} onClick={() => onPick(item.deal_id)} data-fk={`w-${item.deal_id}`}>
+    <div role="listitem" style={style} className="cs-wrow-wrap" aria-hidden={gone || undefined} inert={gone || undefined}>
+      <button type="button" {...props} className={`cs-wrow${first ? ' first' : ''}${motion ? ` ${motion}` : ''}`} aria-label={say} onClick={() => onPick(item.deal_id)} data-fk={gone ? undefined : `w-${item.deal_id}`}>
         <span className="t">
           <b>{who ? who.split(' · ')[0] : title}</b>
           {who && title ? <span>{title}</span> : null}
@@ -123,5 +138,5 @@ function DecidedLately({ decided, onDeal, who }: { decided: readonly Deal[]; onD
     title: LATEST_OF.decided, total: decided.length, rowGuess: 40,
     rows: decided.slice(0, MAX_ROWS).map((d) => ({ key: d.id, label: `${decidedBy(d).text}, ${OPEN_THE_DEAL}`, onOpen: () => onDeal(d.id), node: <DealRow1 deal={d} who={who(d)} note={decidedBy(d).text} /> })),
   };
-  return <Reveal wave={2} sizeKey="waiting:decided" skeleton={<LatestSkeleton {...strip} />}><Latest {...strip} /></Reveal>;
+  return <Staged wave={2} sizeKey="waiting:decided" skeleton={<LatestSkeleton {...strip} />}><Latest {...strip} /></Staged>;
 }

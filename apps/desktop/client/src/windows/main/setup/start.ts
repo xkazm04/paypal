@@ -5,17 +5,19 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { connectionFacts, gettingStarted, rulesInForce, settingsFacts, takeSetupIntent, type GettingStarted } from '../../../lib/firstRun';
 import { agentAppAvailable, useAgentApp } from '../../../lib/engine';
-import { useEvent, useNow, useQuery } from '../../../lib/hooks';
+import { useClock, useEvent, useQuery } from '../../../lib/hooks';
 import type { SetupStepKey } from '../../../lib/words';
 import { useSettings } from '../world';
 
-/** The getting-started path for this wallet, from settings, the signed rules and the connections. */
+/** The getting-started path for this wallet, from settings, the signed rules and the connections.
+ *  The clock is read through useClock: the caller (the whole console) re-renders only when the count
+ *  of rules in force changes (a rule expiring), never on the one-second tick. */
 export function useStart(): GettingStarted {
-  const now = useNow();
   const s = useSettings().data;
   const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
   const cps = useQuery('counterparty_list', null, { refreshOn: ['pairing:pinned', 'settings:changed'] });
-  const inForce = rulesInForce(mandates.data, now);
+  const list = mandates.data;
+  const inForce = useClock((now) => rulesInForce(list, now));
   const conn = cps.data;
   // Whether the chosen agent app is installed and ready: engine_brief, the same answer every window reads.
   const engineAvailable = agentAppAvailable(useAgentApp(s?.selected_engine).state);

@@ -39,7 +39,7 @@ import { useSheetView, type LayerNav } from '../../layers';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { DealRow, WhoChip } from '../../rows';
 import { PlaceFrame, type LensCard } from '../settings/frame';
-import { Reveal as Wave } from '../../stagger';
+import { Staged } from '../../stagger';
 import { Reveal, RevealGroup } from '../../../../../design/Reveal';
 import { DealDecision, StateStrip, Summary } from './Decision';
 import { InstructionsValue } from './InstructionsValue';
@@ -181,7 +181,7 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
           {disp.fallback ? <Hint>{DEAL_ACT.fallback}</Hint> : null}
           <Reveal><StateStrip strip={strip} /></Reveal>
           {/* What the owner was shown (its own read of the record) takes the last turn (stagger.tsx). */}
-          {ended ? <Wave wave={3}><ShownStrip deal={deal} /></Wave> : null}
+          {ended ? <Staged wave={3}><ShownStrip deal={deal} /></Staged> : null}
           {atFloor ? <p className="dv-consequence">{atFloor}</p> : null}
           {consequence}
           <DealDecision deal={deal} need={need} canWithdraw={withdrawable} theirName={them} them={them} readings={readings} deadline={deadline} />

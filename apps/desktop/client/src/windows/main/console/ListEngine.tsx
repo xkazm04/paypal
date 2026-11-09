@@ -28,8 +28,9 @@ import type { DataGrid as DataGridFn, DataGridHandle, GridColumn } from '../../.
 import { loadGroup, saveGroup } from '../../../shared/gridState';
 import { useGridTier } from '../../../shared/gridLicence';
 import { Btn, Field } from '../../../shared/ui';
+import { useRowMotion } from '../../../design/presets';
 import { pageCount, Pager } from './Pager';
-import { Reveal, Skeleton } from './stagger';
+import { Skeleton, Staged } from './stagger';
 
 /** How long the search waits after the last keystroke. */
 export const SEARCH_DEBOUNCE_MS = 120;
@@ -212,7 +213,10 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
   const pickedRow = hasDetail && picked !== null ? shown.find((r) => getKey(r) === picked) : undefined;
   const detailRef = useRef<HTMLElement>(null);
 
-  const list = useWindowedRows({ rows: isGrid ? NO_ROWS as readonly T[] : pageRows, getKey, estimateSize: p.estimateSize, measure: p.measure });
+  // Rows joining or leaving while the list is in view (design/presets.ts): one-shot, keyed by the row's
+  // key over every row the list knows, so a filter, a search, a page or a scroll never plays it.
+  const motion = useRowMotion(rows, isGrid ? NO_ROWS as readonly T[] : pageRows, getKey);
+  const list = useWindowedRows({ rows: isGrid ? NO_ROWS as readonly T[] : motion.rows, getKey, estimateSize: p.estimateSize, measure: p.measure });
   const toolbar = rows.length > (p.toolbarMin ?? TOOLBAR_MIN) && (!isGrid || hasSearch || !!filters?.length);
 
   /** A click or Space: pick when there is a pane, else open. */
@@ -325,9 +329,12 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
                   {list.items.map((it) => {
                     const rp = list.rowProps(it);
                     const st: RowState = { focused: list.focusedKey === it.key, selected: hasDetail && picked === it.key };
+                    const gone = motion.leaving(it.key);
+                    const mo = motion.cls(it.key);
                     return (
-                      <div key={it.key} role="listitem" className="le-item" style={{ transform: `translateY(${it.start}px)`, height: p.measure ? undefined : it.size }}>
-                        <button type="button" {...rp} className={`le-row${st.selected ? ' on' : ''}`} data-fk={`le-${it.key}`} aria-label={p.rowLabel?.(it.row)}
+                      <div key={it.key} role="listitem" className="le-item" style={{ transform: `translateY(${it.start}px)`, height: p.measure ? undefined : it.size }}
+                        aria-hidden={gone || undefined} inert={gone || undefined}>
+                        <button type="button" {...rp} className={`le-row${st.selected ? ' on' : ''}${mo ? ` ${mo}` : ''}`} data-fk={gone ? undefined : `le-${it.key}`} aria-label={p.rowLabel?.(it.row)}
                           aria-current={st.selected || undefined} onClick={() => activate(it.row)}
                           onKeyDown={(e) => { if (e.key === 'Enter' && !e.defaultPrevented && !e.repeat) { e.preventDefault(); enter(it.row); } }}>
                           {p.renderRow(it.row, st)}
@@ -343,7 +350,7 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
         {hasDetail ? (
           <aside className="le-detail" aria-live="polite" ref={detailRef}>
             {/* The picked row's pane takes its turn after the list (stagger.tsx; a pane is often evidence-backed). */}
-            <Reveal wave={2} sizeKey={`list:${p.label}:detail`} skeleton={<Skeleton h="3rem" />}>{pickedRow !== undefined && p.detail ? p.detail(pickedRow) : <p className="le-empty">{LIST_DETAIL_EMPTY}</p>}</Reveal>
+            <Staged wave={2} sizeKey={`list:${p.label}:detail`} skeleton={<Skeleton h="3rem" />}>{pickedRow !== undefined && p.detail ? p.detail(pickedRow) : <p className="le-empty">{LIST_DETAIL_EMPTY}</p>}</Staged>
           </aside>
         ) : null}
       </div>

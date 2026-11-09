@@ -1,10 +1,9 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setCalm } from '../../design/motion';
 import { Crumbs } from './components';
 import { Depth, Facts, FilterChips, ListShell, ModuleTab, nextTab, pileCount, shownCount, Stack, TabStrip, toggleFilter } from './console';
-import { Presence } from './Presence';
 
 afterEach(() => { cleanup(); setCalm(false); vi.useRealTimers(); });
 
@@ -143,31 +142,5 @@ describe('Depth and Crumbs', () => {
     expect(screen.getByText('Spend').getAttribute('aria-current')).toBe('page');
     rerender(<Crumbs items={[{ label: 'Home' }]} depth={1} />);
     expect(container.querySelectorAll('.ui-depth i.on')).toHaveLength(1);
-  });
-});
-
-describe('Presence', () => {
-  it('keeps children through the exit, then unmounts', () => {
-    vi.useFakeTimers();
-    const { rerender, container } = render(<Presence show exitMs={200}><p>sheet</p></Presence>);
-    expect(container.querySelector('.ui-presence')?.getAttribute('data-state')).toBe('open');
-    rerender(<Presence show={false} exitMs={200}><p>sheet</p></Presence>);
-    expect(container.querySelector('.ui-presence')?.getAttribute('data-state')).toBe('closing');
-    act(() => { vi.advanceTimersByTime(199); });
-    expect(container.textContent).toBe('sheet');
-    act(() => { vi.advanceTimersByTime(2); });
-    expect(container.textContent).toBe('');
-  });
-  it('unmounts at once when motion is calm, and mounts again on show', () => {
-    setCalm(true);
-    const { rerender, container } = render(<Presence show><p>sheet</p></Presence>);
-    rerender(<Presence show={false}><p>sheet</p></Presence>);
-    expect(container.textContent).toBe('');
-    rerender(<Presence show><p>sheet</p></Presence>);
-    expect(container.textContent).toBe('sheet');
-  });
-  it('renders nothing when it starts hidden', () => {
-    const { container } = render(<Presence show={false}><p>sheet</p></Presence>);
-    expect(container.textContent).toBe('');
   });
 });

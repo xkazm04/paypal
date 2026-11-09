@@ -12,7 +12,8 @@ import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
 import type { Money } from '@bindings/Money';
 import { clockLabel, formatMinor } from '../../../lib/format';
-import { useNow } from '../../../lib/hooks';
+import { useClock } from '../../../lib/hooks';
+import { useChangeMotion } from '../../../design/presets';
 import { AMOUNT_UNKNOWN_TITLE, houseWords, IF_NOTHING, NO_DEADLINE, STATE_UNKNOWN, STATE_UNKNOWN_TITLE, stateWord, WHO_UNKNOWN, type WordTone } from '../../../lib/words';
 import { Countdown as Ticking } from '../../../shared/honesty';
 import { MODULE } from '../../../shared/modules';
@@ -24,21 +25,29 @@ import { useDisplayOf, useWorldSelector, type World } from '../world';
 /** How an amount reads: money that moved, money on hold, a proposal, or money that never moved. */
 export type AmountTone = 'moved' | 'held' | 'proposed' | 'struck';
 
-/** An amount from integer minor units. `null` (not known yet) is the dash, never $0.00. */
-export function Amount({ money, minor, currency, tone, className }: {
-  money?: Money | null; minor?: number | null; currency?: Currency | null; tone?: AmountTone; className?: string;
+/** An amount from integer minor units. `null` (not known yet) is the dash, never $0.00. With `id`
+ *  (the deal's), a new amount shown in front of the owner plays the "changed" preset once
+ *  (design/presets.ts): never on mount, never on a refetch with the same amount. */
+export function Amount({ money, minor, currency, tone, className, id }: {
+  money?: Money | null; minor?: number | null; currency?: Currency | null; tone?: AmountTone; className?: string; id?: string;
 }) {
   const m = money !== undefined ? money : minor !== undefined && minor !== null && currency ? { minor, currency } : null;
-  if (!m || !Number.isSafeInteger(m.minor)) return <span className={`cs-amt unknown${className ? ` ${className}` : ''}`} title={AMOUNT_UNKNOWN_TITLE}>{UNKNOWN}</span>;
-  return <span className={`cs-amt num${tone ? ` ${tone}` : ''}${className ? ` ${className}` : ''}`}>{formatMinor(m.minor, m.currency)}</span>;
+  const known = !!m && Number.isSafeInteger(m.minor);
+  const text = known && m ? formatMinor(m.minor, m.currency) : UNKNOWN;
+  const moved = useChangeMotion(id, text, 'changed');
+  if (!known) return <span className={`cs-amt unknown${className ? ` ${className}` : ''}`} title={AMOUNT_UNKNOWN_TITLE}>{UNKNOWN}</span>;
+  return <span key={text} className={`cs-amt num${tone ? ` ${tone}` : ''}${className ? ` ${className}` : ''}${moved ? ` ${moved}` : ''}`}>{text}</span>;
 }
 
 const KNOWN_TONES: ReadonlySet<WordTone> = new Set(['teal', 'gold', 'ok', 'red', 'coral', 'line']);
 
 /** A deal's state in plain words, coloured by its meaning (never by colour alone: the words are
- *  there). A state the words have no entry for is "Not available yet" on a dashed chip. */
-export function StateChip({ state, deal }: { state?: DealState | string | null; deal?: Pick<Deal, 'state' | 'side' | 'kind'> }) {
+ *  there). A state the words have no entry for is "Not available yet" on a dashed chip. A deal's
+ *  state changing in front of the owner plays the "advanced" preset once (design/presets.ts), keyed
+ *  on the deal id and the state: never on mount, a refetch or a row scrolled back into view. */
+export function StateChip({ state, deal }: { state?: DealState | string | null; deal?: Pick<Deal, 'state' | 'side' | 'kind'> & { id?: string } }) {
   const s = deal?.state ?? state ?? null;
+  const moved = useChangeMotion(deal?.id, s, 'advanced');
   let w: { text: string; tone: WordTone; means: string } | null = null;
   try {
     w = s ? stateWord(s as DealState, deal ? { side: deal.side, kind: deal.kind } : {}) : null;
@@ -48,18 +57,21 @@ export function StateChip({ state, deal }: { state?: DealState | string | null; 
   if (!w || typeof w.text !== 'string' || !KNOWN_TONES.has(w.tone)) {
     return <span className="cs-state dashed" title={STATE_UNKNOWN_TITLE}>{STATE_UNKNOWN}</span>;
   }
-  return <span className={`cs-state t-${w.tone}`} title={w.means}>{w.text}</span>;
+  return <span key={s ?? ''} className={`cs-state t-${w.tone}${moved ? ` ${moved}` : ''}`} title={w.means}>{w.text}</span>;
 }
 
 /** Time left to a deadline as a chip that never wraps (tabular figures). No deadline is said so,
- *  dimmed; the time is up reads urgent. `ticking` shows the running clock instead of "2 h left". */
+ *  dimmed; the time is up reads urgent. `ticking` shows the running clock instead of "2 h left".
+ *  It reads the clock through useClock: it re-renders when its words change (once a minute), never
+ *  its row, and it never plays a change gesture. */
 export function Countdown({ deadline, ticking, className }: { deadline: number | null | undefined; ticking?: boolean; className?: string }) {
-  const now = useNow();
-  if (deadline === null || deadline === undefined) return <span className={`cs-cd none${className ? ` ${className}` : ''}`}>{NO_DEADLINE}</span>;
-  const left = timeLeft(deadline, now);
+  const has = deadline !== null && deadline !== undefined;
+  const text = useClock((now) => (has && !ticking ? timeLeft(deadline, now)?.text ?? null : null));
+  const urgent = useClock((now) => (has ? timeLeft(deadline, now)?.urgent ?? false : false));
+  if (!has) return <span className={`cs-cd none${className ? ` ${className}` : ''}`}>{NO_DEADLINE}</span>;
   return (
-    <span className={`cs-cd${left?.urgent ? ' urgent' : ''}${className ? ` ${className}` : ''}`}>
-      {ticking ? <Ticking deadline={deadline} /> : left?.text}
+    <span className={`cs-cd${urgent ? ' urgent' : ''}${className ? ` ${className}` : ''}`}>
+      {ticking ? <Ticking deadline={deadline} /> : text}
     </span>
   );
 }
@@ -100,7 +112,7 @@ export function DealRow({ deal, need, who, extra }: {
         <b>{disp ? shortTitle(disp.title) : UNKNOWN}</b>
         <span className="sub"><WhoChip name={who} />{extra ? <> · {extra}</> : null}</span>
       </span>
-      <Amount money={dealTotal(deal)} tone={amountTone(deal)} />
+      <Amount money={dealTotal(deal)} tone={amountTone(deal)} id={deal.id} />
       <StateChip deal={deal} />
       {need ? <Countdown deadline={need.deadline} /> : null}
     </span>
@@ -150,7 +162,7 @@ export function DealRow1({ deal, need, who, note, picked }: {
         <WhoChip name={who} />
       </span>
       <span className="c-state"><StateChip deal={deal} /></span>
-      <Amount money={dealTotal(deal)} tone={amountTone(deal)} />
+      <Amount money={dealTotal(deal)} tone={amountTone(deal)} id={deal.id} />
       <span className="c-time">{need ? <Countdown deadline={need.deadline} /> : at ? clockLabel(at) : UNKNOWN}</span>
     </Row1>
   );

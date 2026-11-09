@@ -1,0 +1,30 @@
+/* The motion presets (design/presets.ts holds the vocabulary: intent, duration, easing, reduced
+   fallback). The only keyframes a preset uses live here. Tokens only: durations from --dur-*, easings
+   from --ease*; opacity and transform only, so nothing reflows and nothing repaints a shadow.
+   Reduced motion and calm: no preset plays; the final state shows at once (presets.ts sets no class
+   under calm, and these rules stop any that slipped through). */
+
+/* changed: a figure took a new value. A transform needs a box: an inline figure becomes inline-block
+   only while it wears the class (one line, same baseline). */
+.mo-changed { display: inline-block; animation: mo-changed var(--dur-slow) var(--ease) both; }
+@keyframes mo-changed { from { opacity: .35; transform: translateY(-.2em); } }
+
+/* advanced: a state chip's new state slides into the old one's place. */
+.mo-advanced { animation: mo-advanced var(--dur-med) var(--ease-out) both; }
+@keyframes mo-advanced { from { opacity: 0; transform: translateX(.35rem); } }
+
+/* arrived / left: a list row joins, or fades where it stood before the rows below close up. */
+.mo-arrived { animation: mo-arrived var(--dur-med) var(--ease-out) both; }
+@keyframes mo-arrived { from { opacity: 0; transform: translateY(-.25rem); } }
+.mo-left { animation: mo-left var(--dur-med) var(--ease-in) both; pointer-events: none; }
+@keyframes mo-left { to { opacity: 0; transform: translateX(.5rem); } }
+
+/* settled: money landed, or a hold completed. One calm press and release. */
+.mo-settled { animation: mo-settled var(--dur-sheet) var(--ease) both; }
+@keyframes mo-settled { 35% { opacity: .8; transform: scale(.97); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mo-changed, .mo-advanced, .mo-arrived, .mo-left, .mo-settled { animation: none; }
+}
+:root.calm .mo-changed, :root.calm .mo-advanced, :root.calm .mo-arrived, :root.calm .mo-left, :root.calm .mo-settled,
+body.calm .mo-changed, body.calm .mo-advanced, body.calm .mo-arrived, body.calm .mo-left, body.calm .mo-settled { animation: none; }

@@ -1,7 +1,8 @@
-/* Calibre console kit (rebuild WP1a): styles for src/shared/ui/console.tsx, HoldGesture.tsx and
-   Presence.tsx, and (last section) the Proof Table's class-only pieces, which markup wears directly.
-   Imported at the top of ui.css. Tokens only. Targets are at least 24px (--target), readable text
-   at least 12px (--fs-small). */
+@import './presets.css';
+/* Calibre console kit (rebuild WP1a): styles for src/shared/ui/console.tsx and HoldGesture.tsx, and
+   (last section) the Proof Table's class-only pieces, which markup wears directly. Imported at the
+   top of ui.css; it brings the motion presets (presets.css) to every window. Tokens only. Targets are
+   at least 24px (--target), readable text at least 12px (--fs-small). */
 
 /* ---- Stack: the front sheet, the pile beneath, tabs on the top edge ------------------------------ */
 .ui-stack { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
@@ -115,23 +116,13 @@
 .ui-hgest-l small { font-size: var(--fs-small); opacity: .85; }
 .ui-hgest[data-phase="holding"] { transform: scale(.985);
   box-shadow: 0 0 calc(1rem + var(--p) * 3rem) color-mix(in srgb, var(--gold-l) calc((25 + var(--p) * 40) * 1%), transparent), inset 0 1px 0 color-mix(in srgb, var(--hi) 40%, transparent); }
-.ui-hgest[data-phase="sealed"] { cursor: default; animation: ui-emboss var(--dur-sheet) var(--ease); }
+/* A completed hold plays the "settled" preset (design/presets.css: transform and opacity only). */
+.ui-hgest[data-phase="sealed"] { cursor: default; animation: mo-settled var(--dur-sheet) var(--ease); }
 .ui-hgest[data-phase="sealed"] .ui-hgest-ros { box-shadow: 0 0 0 .3rem color-mix(in srgb, var(--gold-l) 50%, transparent), 0 0 2.4rem var(--gold-l); }
 .ui-hgest:disabled { filter: grayscale(.8) brightness(.75); cursor: not-allowed; }
 .ui-hgest:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
-@keyframes ui-emboss { 0% { transform: scale(1); } 30% { transform: scale(.95); filter: brightness(1.25); } 100% { transform: scale(1); } }
 :root[data-theme="light"] .ui-hgest { background: linear-gradient(180deg, var(--gold), var(--gold-d)); border-color: var(--gold-d); }
 @media (forced-colors: active) { .ui-hgest { border: 2px solid ButtonText; } }
-
-/* ---- presence: enter and exit ------------------------------------------------------------------- */
-.ui-presence { animation: ui-pres-in var(--presence-ms, var(--dur-med)) var(--ease-out) both; }
-.ui-presence[data-motion="rise"] { animation-name: ui-pres-rise; }
-.ui-presence[data-motion="drop"] { animation-name: ui-pres-drop; }
-.ui-presence[data-state="closing"] { animation: ui-pres-out var(--presence-ms, var(--dur-med)) var(--ease-in) both; pointer-events: none; }
-@keyframes ui-pres-in { from { opacity: 0; } }
-@keyframes ui-pres-rise { from { opacity: 0; transform: translateY(1rem); } }
-@keyframes ui-pres-drop { from { opacity: 0; transform: translateY(-.75rem); } }
-@keyframes ui-pres-out { to { opacity: 0; transform: translateY(.4rem); } }
 
 /* ---- the Proof Table's language (spark the-proof-table; prototype ai-ux-board-r2 B-2) ---------------
    The night look of the board as kit classes: a ruled ground, one large sentence whose figures are
