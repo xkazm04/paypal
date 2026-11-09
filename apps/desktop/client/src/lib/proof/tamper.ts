@@ -11,8 +11,12 @@ import { canonical } from './jcs';
 // A browser cannot seal a file again, so a file without an entry here is not offered this tamper.
 import forgedPractice from './sample/forged.json';
 import forgedHouse from './sample/d-0205.forged.json';
+// The `decisions stripped` edits (sample_proof.rs `stripped_decisions`): every owner signature taken off and
+// the record chained again; the practice deal's sealed again with its agent key, the house haggle's not.
+import strippedFiles from './sample/stripped.json';
 
 const FORGED: Readonly<Record<string, Edit[]>> = { ...(forgedPractice as Record<string, Edit[]>), ...(forgedHouse as Record<string, Edit[]>) };
+const STRIPPED: Readonly<Record<string, Edit[]>> = strippedFiles as Record<string, Edit[]>;
 const headHex = (doc: Doc): string => {
   const head = readAt(doc, '/evidence_head');
   if (!Array.isArray(head)) throw new Error('no evidence head');
@@ -29,7 +33,7 @@ const decisionEdit = (doc: Doc, n: number, edit: (d: Record<string, unknown>) =>
 export type TamperId =
   | 'price' | 'paypal-amount' | 'payee' | 'receipt' | 'audit-line' | 'audit-gap' | 'signature' | 'refund' | 'rules' | 'relabel' | 'owner-key'
   | 'shield-release' | 'market-price' | 'group-winner' | 'group-agreed' | 'request-id' | 'transcript-head' | 'checklist'
-  | 'forged-decision' | 'decision-signature' | 'decision-unsigned' | 'decision-step';
+  | 'forged-decision' | 'decision-signature' | 'decision-unsigned' | 'decision-step' | 'decisions-stripped';
 
 type Doc = unknown;
 const rows = (doc: Doc): Array<{ action: string; at: number }> => {
@@ -178,6 +182,15 @@ export const TAMPERS: ReadonlyArray<{ id: TamperId; edits: (doc: Doc) => Edit[] 
   { id: 'decision-unsigned', edits: (d) => decisionEdit(d, 1, (detail) => { delete detail.signature; delete detail.owner_key; }) },
   // The first decision said to start the capture.
   { id: 'decision-step', edits: (d) => decisionEdit(d, 0, (detail) => { detail.operation = 'capture'; }) },
+  {
+    // The owner key's signature taken off every approval, the record chained again.
+    id: 'decisions-stripped',
+    edits: (d) => {
+      const edits = STRIPPED[headHex(d)];
+      if (!edits) throw new Error('no stripped copy made for this file');
+      return structuredClone(edits);
+    },
+  },
 ];
 
 /** The edits for one tamper on this file, or null when the file has nothing there to change. */

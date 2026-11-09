@@ -379,17 +379,26 @@ async function signedByOwner(run: Run, row: AuditRow, d: unknown): Promise<boole
 /** One decision as the file lets a checker read it: its checklist and whether the owner key signed it. */
 type Seen = { lines: Lines; signed: boolean };
 
+/** A decision recorded with its checklist's lines but no owner key signature (when no decision in the file
+ *  is signed): taken off, or the wallet could not read the owner key then; the file cannot tell which, so
+ *  the line reads "not checked" and holds the file back, neither passed nor called tampered. A row with only
+ *  the checklist's hash is an older wallet's and still reads "hash only" (v2.rs `lines_without_signature`). */
+function linesWithoutSignature(decisions: ReadonlyArray<{ row: AuditRow }>, seen: readonly Seen[]): void {
+  const at = seen.findIndex((x) => !x.signed && x.lines.k !== 'hash-only');
+  if (at >= 0) {
+    throw unmade(`not checked: the owner's decision (record #${decisions[at]!.row.seq}) records the checklist the owner saw but carries no signature by the owner key, so nothing in this file shows the owner key approved it (the signatures were taken off, or the wallet could not read the owner key then)`);
+  }
+}
+
 /** How the decisions' checklists were checked and signed, counted (v2.rs `tally`). */
 function tally(all: readonly Seen[]): string {
   const n = (k: Lines['k']) => all.filter((s) => s.lines.k === k).length;
   const signed = all.filter((s) => s.signed).length;
-  const unsigned = all.filter((s) => !s.signed && s.lines.k !== 'hash-only').length;
   const parts: string[] = [];
   if (n('again') > 0) parts.push(`${n('again')} checklist(s) hashed again from the lines in the file`);
   if (n('hash-only') > 0) parts.push(`${n('hash-only')} hash only (the lines are not in this file)`);
   if (n('unkept') > 0) parts.push(`${n('unkept')} not checked: a line names an address the record does not keep`);
   if (signed > 0) parts.push(`${signed} signed by the owner key after unlock`);
-  if (unsigned > 0) parts.push(`${unsigned} not signed`);
   return parts.join('; ');
 }
 
@@ -416,6 +425,7 @@ async function ownerSaw(run: Run): Promise<string> {
   const decided = b.operations.filter((op) => owner(op.decided_by) && op.operation !== 'void');
   if (steps.length === 0 && decided.length === 0) {
     if (seen.every((x) => x.lines.k === 'hash-only' && !x.signed)) throw absent('not checked: no money step in this deal was the owner\'s decision');
+    linesWithoutSignature(decisions, seen);
     return `${decisions.length} owner decision(s), no money step yet; ${tally(seen)}`;
   }
   for (const op of decided) {
@@ -443,6 +453,7 @@ async function ownerSaw(run: Run): Promise<string> {
     else if (why !== null) throw new Why(why);
     else throw new Why(`the owner's ${op} step (record #${row.seq}) has no earlier record of the checklist the owner saw`);
   }
+  linesWithoutSignature(decisions, seen);
   return `${steps.length} owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; ${tally(behind)}`;
 }
 

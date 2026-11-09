@@ -97,7 +97,7 @@ describe('the recorded samples', () => {
 describe('the tampered copies cover what a person would try', () => {
   it('on the monitor deal', () => {
     expect((wallet.monitor as Entry).variants.map((v) => v.name)).toEqual(
-      ['price', 'audit-line', 'audit-gap', 'signature', 'payee', 'paypal-amount', 'refund', 'receipt', 'rules', 'relabel', 'owner-key', 'checklist', 'forged-decision', 'decision-signature', 'decision-unsigned', 'decision-step', 'not-a-proof'],
+      ['price', 'audit-line', 'audit-gap', 'signature', 'payee', 'paypal-amount', 'refund', 'receipt', 'rules', 'relabel', 'owner-key', 'checklist', 'forged-decision', 'decision-signature', 'decision-unsigned', 'decision-step', 'decisions-stripped', 'not-a-proof'],
     );
   });
   it('on the busy deal, the records only it has', () => {
@@ -118,5 +118,22 @@ describe('the tampered copies cover what a person would try', () => {
     expect(editsFor('forged-decision', JSON.parse(house))).not.toBeNull();
     // A forgery is made only where the file's own agent key was at hand.
     expect(editsFor('forged-decision', JSON.parse(busy))).toBeNull();
+  });
+  it('and every owner signature taken off holds the file back, in Rust and here alike, without calling it tampered', async () => {
+    // The practice deal, sealed again with its agent key: nothing red, but the owner's checklist is not
+    // checked and the file does not verify (a key the wallet could not read looks the same).
+    const monitor = (wallet.monitor as Entry).variants.find((v) => v.name === 'decisions-stripped') as Variant;
+    expect(monitor.red).toEqual([]);
+    expect(monitor.outcome.report?.verified).toBe(false);
+    expect(monitor.outcome.report?.checks.find((c) => c.id === 'owner_saw')).toMatchObject({ ok: false, checked: false, applies: true });
+    // The house haggle's file (the Proof page's), whose run key is gone: the seal breaks as well.
+    const house = recorded.find(([name]) => name === 'd-0205.tableproof')?.[1] ?? '';
+    const edits = editsFor('decisions-stripped', JSON.parse(house));
+    expect(edits).not.toBeNull();
+    const outcome = await checkProofText(tampered(house, edits ?? []), AUTHORITY_MANIFEST);
+    if (!('report' in outcome)) throw new Error(outcome.refused);
+    expect(red(outcome.report)).toEqual(['evidence']);
+    expect(outcome.report.checks.find((c) => c.id === 'owner_saw')).toMatchObject({ ok: false, checked: false, applies: true });
+    expect(outcome.report.checks.find((c) => c.id === 'owner_saw')?.detail).toMatch(/^not checked: .*carries no signature by the owner key/);
   });
 });

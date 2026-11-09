@@ -4,13 +4,14 @@ import { formatMoney } from '../../lib/format';
 import type { CheckLine } from '../../lib/proof/checks';
 import { readAt } from '../../lib/proof/edits';
 import type { editsFor, TamperId } from '../../lib/proof/tamper';
-import { PROOF_CHECKER as W, PROOF_CHECKS, PROOF_NOT_APPLICABLE, PROOF_NOT_CHECKED, PROOF_NOTHING, PROOF_NOTHING_SAID } from '../../lib/words';
+import { PROOF_CHECKER as W, PROOF_CHECKS, PROOF_NOT_APPLICABLE, PROOF_NOT_CHECKED, PROOF_NOTHING, PROOF_NOTHING_SAID, PROOF_UNSIGNED, PROOF_UNSIGNED_SAID } from '../../lib/words';
 
 /** The reason a dashed line is dashed: nothing of its kind in the deal, or a check not made. */
 export function dashedWords(line: CheckLine): string {
   if (vacuous(line)) return PROOF_NOTHING[line.id] ?? W.nothing;
   if (!line.applies) return PROOF_NOT_APPLICABLE[line.id] ?? PROOF_CHECKER_OLDER;
   if (line.detail.includes('cannot check Ed25519')) return W.noEd25519;
+  if (line.id === 'owner_saw' && PROOF_UNSIGNED_SAID.test(line.detail)) return PROOF_UNSIGNED;
   if (line.detail.includes('this page does not') || line.detail.includes('this page ran into')) return W.notYetBuilt;
   return PROOF_NOT_CHECKED;
 }
@@ -97,6 +98,12 @@ export function caption(tid: TamperId, doc: unknown, edits: ReturnType<typeof ed
       return 'the owner key’s signature on one approval: there → gone';
     case 'decision-step':
       return 'the first approval: for the order → for the capture';
+    case 'decisions-stripped': {
+      const audit = readAt(doc, '/audit');
+      const n = Array.isArray(audit) ? audit.filter((r) => (r as { action?: unknown }).action === 'owner.decision').length : 0;
+      const resealed = edits.some((e) => e.path === '/evidence_sig');
+      return `the owner key’s signature on ${n === 1 ? 'the one approval' : `all ${n} approvals`}: there → gone, ${resealed ? 'then the file sealed again with the agent’s key' : 'the record chained again'}`;
+    }
     case 'request-id':
       return `${String(before).slice(0, 14)}… → a-second-request-id`;
     default:

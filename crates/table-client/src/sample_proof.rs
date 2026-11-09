@@ -67,6 +67,11 @@ pub const RECORDED: &str = "recorded.json";
 pub const FORGED: &str = "forged.json";
 /// The same for the house haggle's recorded deal, written by the haggle recorder with its run's key.
 pub const HOUSE_FORGED: &str = "d-0205.forged.json";
+/// The house haggle's recorded deal, which the Proof page opens on.
+pub const HOUSE_PROOF: &str = "d-0205.tableproof";
+/// The `decisions stripped` tamper's edits, by the file's evidence head (hex): the monitor deal's,
+/// sealed again with its agent key, and the house haggle's, whose seal is left to break.
+pub const STRIPPED: &str = "stripped.json";
 
 const ITEM: &str = "monitor-24-ips";
 const PAYEE: &str = "maya-monitors";
@@ -1328,6 +1333,13 @@ pub fn variants(bundle: &ProofBundle) -> Made<Vec<Variant>> {
             red: &["audit", "owner_saw", "evidence"],
         },
         Variant {
+            name: "decisions-stripped",
+            edits: stripped_decisions(bundle, Some(&key("agent")))?,
+            // Not red: the file cannot tell stripped signatures from a key the wallet could not
+            // read, so the owner's checklist reads "not checked" and the file does not verify.
+            red: &[],
+        },
+        Variant {
             name: "not-a-proof",
             edits: vec![Edit::remove("/deal")],
             red: &[],
@@ -1415,6 +1427,73 @@ pub fn forged_decision(bundle: &ProofBundle, agent: &SigningKey) -> Made<Vec<Edi
         serde_json::to_value(forged.evidence_head)?,
     ));
     edits.push(Edit::set("/evidence_sig", serde_json::to_value(seal)?));
+    Ok(edits)
+}
+
+/// The `decisions stripped` tamper: the owner key's signature taken off every owner decision, so the
+/// file looks as if no decision was ever signed. Each changed row is chained again (and the rows that
+/// follow it without a gap), as someone holding the database would; with the deal's agent key the file
+/// is sealed again too, so the record and the seal hold and only the owner's checklist can notice.
+/// Without that key (a file whose run key is gone) the seal is left as it was and breaks as well.
+pub fn stripped_decisions(bundle: &ProofBundle, agent: Option<&SigningKey>) -> Made<Vec<Edit>> {
+    let mut stripped = bundle.clone();
+    let mut edits = Vec::new();
+    let mut previous: Option<(i64, H256)> = None;
+    for (index, row) in stripped.audit.iter_mut().enumerate() {
+        let mut touched = false;
+        if row.action == "owner.decision" {
+            let mut detail: Value = serde_json::from_str(&row.detail_json)?;
+            let object = detail.as_object_mut().ok_or("not an object")?;
+            let signed = object.remove("signature").is_some();
+            let keyed = object.remove("owner_key").is_some();
+            if signed || keyed {
+                row.detail_json = String::from_utf8(canonical_bytes(&detail)?)?;
+                touched = true;
+            }
+        }
+        if let Some((seq, hash)) = previous
+            && seq + 1 == row.seq
+            && row.prev_hash != hash
+        {
+            row.prev_hash = hash;
+            touched = true;
+        }
+        if touched {
+            let detail: Value = serde_json::from_str(&row.detail_json)?;
+            let preimage = json!({
+                "seq": row.seq, "at": row.at, "actor": row.actor, "action": row.action,
+                "deal_id": bundle.deal.id, "detail_json": detail,
+            });
+            row.hash = H256::chain(row.prev_hash, &canonical_bytes(&preimage)?);
+            edits.push(Edit::set(
+                format!("/audit/{index}"),
+                serde_json::to_value(&*row)?,
+            ));
+        }
+        previous = Some((row.seq, row.hash));
+    }
+    if edits.is_empty() {
+        return Err("no owner decision signature to take off".into());
+    }
+    if let Some((seq, hash)) = previous
+        && seq == stripped.audit_head.seq
+        && hash != stripped.audit_head.hash
+    {
+        stripped.audit_head.hash = hash;
+        edits.push(Edit::set(
+            "/audit_head",
+            serde_json::to_value(&stripped.audit_head)?,
+        ));
+    }
+    if let Some(agent) = agent {
+        stripped.evidence_head = stripped.evidence_commitment()?;
+        let seal = AgentSigner::from_key(agent.clone()).sign_commitment(stripped.evidence_head);
+        edits.push(Edit::set(
+            "/evidence_head",
+            serde_json::to_value(stripped.evidence_head)?,
+        ));
+        edits.push(Edit::set("/evidence_sig", serde_json::to_value(seal)?));
+    }
     Ok(edits)
 }
 
@@ -1820,6 +1899,7 @@ pub fn files() -> Made<Vec<(String, Vec<u8>)>> {
     let mut out = Vec::new();
     let mut reports = serde_json::Map::new();
     let mut forged = serde_json::Map::new();
+    let mut stripped = serde_json::Map::new();
     for sample in &SAMPLES {
         let bundle = (sample.bundle)()?;
         let golden = serde_json::to_vec_pretty(&bundle)?;
@@ -1828,6 +1908,9 @@ pub fn files() -> Made<Vec<(String, Vec<u8>)>> {
         for variant in (sample.variants)(&bundle)? {
             if variant.name == "forged-decision" {
                 forged.insert(bundle.evidence_head.hex(), json!(variant.edits));
+            }
+            if variant.name == "decisions-stripped" {
+                stripped.insert(bundle.evidence_head.hex(), json!(variant.edits));
             }
             let mut copy = document.clone();
             apply(&mut copy, &variant.edits)?;
@@ -1850,6 +1933,20 @@ pub fn files() -> Made<Vec<(String, Vec<u8>)>> {
     let mut forged = serde_json::to_vec_pretty(&forged)?;
     forged.push(b'\n');
     out.push((FORGED.to_owned(), forged));
+    // The house haggle's file (the Proof page opens on it): its run key is gone, so its signatures
+    // are taken off and the record chained again, but the seal is left to break too.
+    let house: ProofBundle = serde_json::from_slice(&std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join(CLIENT_DIR)
+            .join(HOUSE_PROOF),
+    )?)?;
+    stripped.insert(
+        house.evidence_head.hex(),
+        json!(stripped_decisions(&house, None)?),
+    );
+    let mut stripped = serde_json::to_vec_pretty(&stripped)?;
+    stripped.push(b'\n');
+    out.push((STRIPPED.to_owned(), stripped));
     Ok(out)
 }
 
@@ -2120,6 +2217,90 @@ mod tests {
         assert!(
             house,
             "{HOUSE_FORGED} has no tamper for the house haggle's file"
+        );
+        Ok(())
+    }
+
+    /// Each `decisions stripped` tamper the browser offers is for a file in the directory and holds the
+    /// file back: `owner_saw` reads "not checked" in words that say the signature is missing, and the
+    /// file does not verify. On the practice deal (sealed again with its agent key) nothing is red; on
+    /// the house haggle's file the seal breaks too. The record holds on both, chained again.
+    #[test]
+    fn stripped_signatures_hold_the_file_back() -> Made<()> {
+        let mut heads = std::collections::BTreeMap::new();
+        for entry in std::fs::read_dir(dir())? {
+            let path = entry?.path();
+            if path.extension().is_some_and(|e| e == "tableproof") {
+                let bundle: ProofBundle = serde_json::from_slice(&std::fs::read(&path)?)?;
+                heads.insert(bundle.evidence_head.hex(), path);
+            }
+        }
+        let map: serde_json::Map<String, Value> =
+            serde_json::from_slice(&std::fs::read(dir().join(STRIPPED))?)?;
+        let mut seen = Vec::new();
+        for (head, edits) in map {
+            let path = heads
+                .get(&head)
+                .ok_or(format!("{STRIPPED}: no file has head {head}"))?;
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .ok_or("file name")?;
+            let edits: Vec<Value> = serde_json::from_value(edits)?;
+            let edits: Vec<Edit> = edits
+                .into_iter()
+                .map(|e| Edit {
+                    op: "set",
+                    path: e["path"].as_str().unwrap_or_default().to_owned(),
+                    value: e.get("value").cloned(),
+                })
+                .collect();
+            let mut document: Value = serde_json::from_slice(&std::fs::read(path)?)?;
+            apply(&mut document, &edits)?;
+            let report = report(&serde_json::to_vec(&document)?)?;
+            let expected: &[&str] = if name == GOLDEN { &[] } else { &["evidence"] };
+            assert!(!report.verified, "{name}");
+            assert_eq!(red(&report), expected, "{name}: {:#?}", report.checks);
+            let line = report
+                .checks
+                .iter()
+                .find(|c| c.id == "owner_saw")
+                .ok_or("no line")?;
+            assert!(
+                !line.ok
+                    && !line.checked
+                    && line.applies
+                    && line.detail.starts_with("not checked: ")
+                    && line
+                        .detail
+                        .contains("carries no signature by the owner key"),
+                "{line:?}"
+            );
+            seen.push(name.to_owned());
+        }
+        seen.sort();
+        assert_eq!(seen, [HOUSE_PROOF, GOLDEN]);
+        Ok(())
+    }
+
+    /// Files whose decisions carry only the checklist's hash (written before the wallet recorded the
+    /// lines and signed) keep reading "hash only", never red: the rule is for rows that carry the lines.
+    #[test]
+    fn older_rows_with_only_the_hash_stay_as_they_were() -> Made<()> {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(REAL_DIR);
+        let bundle: ProofBundle =
+            serde_json::from_slice(&std::fs::read(dir.join("seller-resolved.tableproof"))?)?;
+        let report = report(&serde_json::to_vec(&bundle)?)?;
+        let line = report
+            .checks
+            .iter()
+            .find(|c| c.id == "owner_saw")
+            .ok_or("no line")?;
+        assert!(line.ok && line.applies, "{line:?}");
+        assert!(
+            line.detail
+                .ends_with("hash only (the lines are not in this file)"),
+            "{line:?}"
         );
         Ok(())
     }

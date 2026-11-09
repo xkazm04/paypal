@@ -183,6 +183,13 @@ export const PROOF_CAUGHT: Readonly<Record<string, string>> = {
   evidence: 'The deal’s agent signed the whole file when it was saved, so any change at all breaks that seal. It says something changed, not what; the lines above say what.',
 };
 
+/** The owner's checklist not checked because an approval recorded with its checklist carries no owner key
+ *  signature: every signature taken off the file, or the wallet could not read the owner key at the time.
+ *  The file cannot tell which, so the line holds the file back without calling it tampered. */
+export const PROOF_UNSIGNED = 'Not checked: the file keeps the checklist the owner was shown for an approval, but not the owner key’s signature on it. The signatures were taken off, or the wallet could not read the owner key then; the file can’t tell which. Either way, nothing in it shows the owner key approved, so the file does not pass.';
+/** What the checker writes when it fails that way (checks.ts `linesWithoutSignature`). */
+export const PROOF_UNSIGNED_SAID = /carries no signature by the owner key/;
+
 /** The checks that compare the price and payee. When some read “not checked” the seal alone caught a change to them. */
 export const PROOF_PRICE_PAYEE_CHECKS: readonly string[] = ['countersign', 'paypal_order', 'receipt', 'market'];
 /** The seal's red note when price/payee checks were skipped: which ones, and that only the whole-file seal caught the change. */
@@ -212,6 +219,7 @@ export const TAMPER_WORDS: Readonly<Record<TamperId, { label: string; what: stri
   'decision-signature': { label: 'Damage the owner key’s signature', what: 'one byte of the owner key’s signature on an approval' },
   'decision-unsigned': { label: 'Take the signature off one approval', what: 'the owner key’s signature on one approval, while the others keep theirs' },
   'decision-step': { label: 'Point an approval at another step', what: 'which payment step an owner approval was for' },
+  'decisions-stripped': { label: 'Take every owner signature off', what: 'the owner key’s signature on every approval, so none looks signed' },
 };
 /** The Proof page's "Owner's checklist": each owner decision in the file, read as a receipt. */
 export const PROOF_RECEIPT = {
@@ -252,4 +260,5 @@ export const PROOF_RECEIPT = {
 export const TAMPERS_SHOWN: readonly TamperId[] = [
   'price', 'paypal-amount', 'payee', 'receipt', 'audit-line', 'audit-gap', 'signature', 'refund', 'rules', 'owner-key',
   'shield-release', 'market-price', 'group-winner', 'group-agreed', 'request-id', 'transcript-head', 'checklist', 'forged-decision',
+  'decisions-stripped',
 ];

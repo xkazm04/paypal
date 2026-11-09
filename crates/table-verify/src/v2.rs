@@ -150,9 +150,37 @@ struct Seen {
     signed: bool,
 }
 
+/// A decision whose row carries the lines of the checklist the owner saw comes from a wallet that
+/// signs every decision it records that way, unless it could not read the owner key then. Such a
+/// row without the owner key's signature is either that honest case or a row whose signature was
+/// taken off, and nothing in the file tells the two apart (no other record claims the decision was
+/// signed). So the line is not passed and not called tampered: it reads "not checked" and holds
+/// the file back from "verified". A row that carries only the checklist's hash comes from an older
+/// wallet that signed nothing, and still reads "hash only".
+fn lines_without_signature(
+    decisions: &[(&ProofAuditRow, Value)],
+    seen: &[Seen],
+) -> Result<(), Miss> {
+    match decisions
+        .iter()
+        .zip(seen)
+        .find(|(_, s)| !s.signed && s.lines != Lines::HashOnly)
+    {
+        Some(((row, _), _)) => Err(Miss {
+            detail: format!(
+                "not checked: the owner's decision (record #{}) records the checklist the owner saw but carries no signature by the owner key, so nothing in this file shows the owner key approved it (the signatures were taken off, or the wallet could not read the owner key then)",
+                row.seq
+            ),
+            checked: false,
+            applies: true,
+        }),
+        None => Ok(()),
+    }
+}
+
 /// How the decisions' checklists were checked and signed, counted, for the line's detail.
 fn tally<'a>(seen: impl Iterator<Item = &'a Seen>) -> String {
-    let (mut again, mut hash_only, mut unkept, mut signed, mut unsigned) = (0, 0, 0, 0, 0);
+    let (mut again, mut hash_only, mut unkept, mut signed) = (0, 0, 0, 0);
     for Seen {
         lines: l,
         signed: s,
@@ -160,8 +188,6 @@ fn tally<'a>(seen: impl Iterator<Item = &'a Seen>) -> String {
     {
         if *s {
             signed += 1;
-        } else if *l != Lines::HashOnly {
-            unsigned += 1;
         }
         match l {
             Lines::Recomputed(_) => again += 1,
@@ -188,9 +214,6 @@ fn tally<'a>(seen: impl Iterator<Item = &'a Seen>) -> String {
     if signed > 0 {
         parts.push(format!("{signed} signed by the owner key after unlock"));
     }
-    if unsigned > 0 {
-        parts.push(format!("{unsigned} not signed"));
-    }
     parts.join("; ")
 }
 
@@ -201,7 +224,9 @@ fn tally<'a>(seen: impl Iterator<Item = &'a Seen>) -> String {
 /// that follows. Rows that carry only the hash (older files) read "hash only". A row the owner key
 /// signed must verify against the owner key the file names: "signed by the owner key after
 /// unlock" says which key signed, never that a person was present. When any decision in the file
-/// is signed, every decision must be.
+/// is signed, every decision must be; and a decision recorded with its checklist's lines but no
+/// decision signed reads "not checked" and holds the file back (`lines_without_signature`), so
+/// taking every signature off no longer passes.
 pub(crate) fn owner_saw(bundle: &ProofBundle) -> Result<String, Miss> {
     if let Some(miss) = older(bundle) {
         return Err(miss);
@@ -247,6 +272,7 @@ pub(crate) fn owner_saw(bundle: &ProofBundle) -> Result<String, Miss> {
                 "not checked: no money step in this deal was the owner's decision",
             ));
         }
+        lines_without_signature(&decisions, &seen)?;
         return Ok(format!(
             "{} owner decision(s), no money step yet; {}",
             decisions.len(),
@@ -296,6 +322,7 @@ pub(crate) fn owner_saw(bundle: &ProofBundle) -> Result<String, Miss> {
             }
         }
     }
+    lines_without_signature(&decisions, &seen)?;
     Ok(format!(
         "{} owner decision(s), each recorded with the hash of the checklist the owner saw, before its money step; {}",
         steps.len(),

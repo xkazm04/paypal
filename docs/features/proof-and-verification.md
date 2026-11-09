@@ -284,20 +284,45 @@ IPC commands (from `crates/table-client/src/authority_table.rs`):
     `{deal_id, decision, operation, attempt, terms_hash, checks_hash, at}` under
     `table.owner-decision.v1\0` (`table_proto::DecisionStatement`), and `owner_saw` verifies it
     against the file's owner key ("not signed by the owner key" is red). This proves which key
-    signed, not that a person was present: the owner key sits in the OS vault the wallet reads. A
-    row written while the owner key could not be read, and every older row, carries no signature
-    and reads "not signed" or "hash only". Once any decision in a file is signed, an unsigned one
-    is red, so a signature cannot be taken off one decision and a row cannot be added unsigned.
-    Stripping every signature from a file is still a downgrade the checker shows in words but does
-    not refuse, because a file with no signature looks like one written with the key unreadable. Owner ACCEPT proofs are signatures
-    and are checked.
+    signed, not that a person was present: the owner key sits in the OS vault the wallet reads.
+    Once any decision in a file is signed, an unsigned one is red, so a signature cannot be taken
+    off one decision and a row cannot be added unsigned.
+  - **Narrowed (2026-11-09): stripping every signature no longer passes.** The rule, the same in
+    `table-verify` (`v2.rs` `lines_without_signature`) and the browser (`checks.ts`
+    `linesWithoutSignature`): when no decision in the file is signed, a decision row that carries
+    the lines of the checklist the owner saw reads "not checked: ... records the checklist the
+    owner saw but carries no signature by the owner key ..." and the file does not verify ("Not
+    every check could be made", the Proof page's plain words say why). It is not red, because the
+    file cannot tell a stripped row from the honest one the wallet writes when it cannot read the
+    owner key (`service.rs` `record_decision`): both have the lines and no `owner_key` or
+    `signature`, and no other record in the file claims the decision was signed. Before this
+    change both passed ("N not signed"); now both are held back and neither is called tampered.
+    A row that carries only the checklist's hash (older files, the eight `real/` files among them)
+    reads "hash only" as before, and a deal that never reached an owner decision (refused, lapsed,
+    withdrawn before approval) has no decision row and stays "not checked" without holding the
+    file back. Parity: the `decisions-stripped` tamper (every signature off, the record chained
+    again, the practice file sealed again with its agent key) gives the same report in Rust and in
+    the browser; the house haggle's copy (no run key, so its seal also breaks) is offered on the
+    Proof page.
+  - **Still open, to fail it red:** the file needs a claim the stripper cannot remove. Proposed:
+    the wallet refuses an owner decision when it cannot read the owner key (then an unsigned row
+    with lines is never honest and can be red), or the owner-signed rules carry a flag that every
+    decision under them is signed. Both are runtime or format changes. A file whose decision rows
+    are cut back further, to the older hash-only shape (lines and step taken off too), still reads
+    "hash only". Owner ACCEPT proofs are signatures and are checked.
   - Removal of the newest rows from the end of the wallet's audit log cannot be seen from the
     file alone (`KNOWN_LIMIT`). External anchoring is deferred.
   - The checks trust the keys inside the file, so a person must compare the owner key
     (`KEY_ANCHOR`).
 - A deal owner-decided before the T5 checklist has no `owner.decision` row, so its v2 file fails
-  `owner_saw`. An order record saved before migration 0007 reads "not checked" and holds the file
-  back.
+  `owner_saw` (unchanged by the signature rule above, which asks nothing new of such a file). An
+  order record saved before migration 0007 reads "not checked" and holds the file back.
+- **Closed (2026-11-09): a month of proofs.** The Book's ledger has "Save proof files": one file
+  per deal for the rows in view or a chosen month, through the deal page's own per-deal export
+  (`deal_export_proof`, no new command), at most eight at once, with progress, a stop, and a count
+  of saved files, closed save windows and deals with no proof file and why. **Still open:** the
+  shell's export asks where to save each file, so a month is one save window per deal; one folder
+  for the whole month needs a new command. There is no archive: the client has no zip helper.
 - Since inbound NOTE envelopes are committed to the transcript, a bundle can carry the other
   side's note text inside a signed message. It is never printed or parsed. Selective disclosure
   (T13) is not built.

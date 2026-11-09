@@ -389,7 +389,9 @@ async fn a_forged_a_damaged_and_a_repointed_decision_are_not_signed_by_the_owner
 }
 
 /// Taking the signature off one decision while another keeps its own is red: only `owner_saw`
-/// catches it. Taking every signature off stays a downgrade the line states in words.
+/// catches it. Taking every signature off cannot be told from a wallet that could not read the
+/// owner key, so it is not red, but it no longer passes either: `owner_saw` reads "not checked"
+/// and the file does not verify (before 2026-11-09 it passed, "2 not signed").
 #[tokio::test]
 async fn an_unsigned_decision_beside_a_signed_one_is_red_and_all_unsigned_reads_not_signed() {
     let (r, deal) = captured().await;
@@ -416,16 +418,32 @@ async fn an_unsigned_decision_beside_a_signed_one_is_red_and_all_unsigned_reads_
     rewrite_row(&mut all, create, strip);
     r.sign_proof(&mut all).unwrap();
     let saw = proof_line(&all, "owner_saw");
-    assert!(saw.ok && saw.detail.ends_with("2 not signed"), "{saw:?}");
+    assert!(
+        !saw.ok
+            && !saw.checked
+            && saw.applies
+            && saw.detail.starts_with("not checked: ")
+            && saw.detail.contains("carries no signature by the owner key"),
+        "{saw:?}"
+    );
+    let report = table_verify::verify_bundle(&all);
+    assert!(!report.verified(), "{:#?}", report.checks);
+    assert!(
+        report.checks.iter().all(|c| c.ok || !c.checked),
+        "nothing is called tampered: {:#?}",
+        report.checks
+    );
 }
 
 /// When the owner key cannot be read after unlock, the decision goes ahead exactly as before (the
-/// gates did not change) and its row is written without a signature: the checker reads it "not
-/// signed", never "signed".
+/// gates did not change) and its row is written without a signature: the checker says so, never
+/// "signed". Since 2026-11-09 the line reads "not checked" and holds the file back (it passed
+/// before, "2 not signed"): the file cannot tell this honest row from one whose signature was
+/// taken off, so it neither passes it nor calls it tampered. Every other line still passes.
 #[tokio::test]
 async fn an_unreadable_owner_key_leaves_the_row_unsigned_and_the_line_says_so() {
     let (r, deal) = decided(true).await;
-    let bundle = assert_proof_verifies(&r, deal.id);
+    let bundle = r.export_proof(deal.id).unwrap();
     for i in decisions(&bundle) {
         let d = detail_of(&bundle, i);
         assert!(
@@ -435,10 +453,21 @@ async fn an_unreadable_owner_key_leaves_the_row_unsigned_and_the_line_says_so() 
     }
     let saw = proof_line(&bundle, "owner_saw");
     assert!(
-        saw.ok
-            && saw
-                .detail
-                .ends_with("2 checklist(s) hashed again from the lines in the file; 2 not signed"),
+        !saw.ok
+            && !saw.checked
+            && saw.applies
+            && saw.detail.starts_with("not checked: ")
+            && saw.detail.contains("could not read the owner key"),
         "{saw:?}"
+    );
+    let report = table_verify::verify_bundle(&bundle);
+    assert!(!report.verified(), "{:#?}", report.checks);
+    assert!(
+        report
+            .checks
+            .iter()
+            .all(|c| c.id == "owner_saw" || c.ok || !c.applies),
+        "{:#?}",
+        report.checks
     );
 }

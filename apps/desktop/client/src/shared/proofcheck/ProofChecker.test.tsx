@@ -102,6 +102,40 @@ describe('a tamper', () => {
   });
 });
 
+describe('owner signatures', () => {
+  it('taken off every approval keep the file from passing, and the row says what is missing', async () => {
+    const { container } = mount();
+    await checked();
+    fireEvent.click(screen.getByRole('button', { name: /Take every owner signature off/ }));
+    // the record was chained again and the file sealed again: nothing is red, but the file does not pass
+    // (the file cannot tell this from a wallet that could not read the owner key, so it is not called tampered)
+    await screen.findAllByText('Not every check could be made', {}, TIMEOUT);
+    const r = rows(container);
+    expect(CHECK_IDS.filter((id) => kind(r[id]) === 'bad')).toEqual([]);
+    expect(kind(r.owner_saw)).toBe('dashed');
+    const row = r.owner_saw as HTMLElement;
+    expect(row.querySelector('.pk-note')?.textContent).toMatch(/not the owner key’s signature on it/);
+    expect(row.querySelector('.pk-note')?.textContent).toMatch(/the file does not pass/);
+    expect(within(row).getByText(/carries no signature by the owner key/)).toBeTruthy();
+    expect(container.querySelector('.pk-changed')?.textContent).toMatch(/all 2 approvals: there → gone, then the file sealed again/);
+  });
+
+  it('are not asked of a deal that ended with no owner decision, nor of an older file that kept only the checklist’s hash', async () => {
+    const files = import.meta.glob(['../../lib/proof/sample/arena-fifty-monitors.tableproof', '../../lib/proof/real/seller-resolved.tableproof'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+    const [refused, older] = [files['../../lib/proof/sample/arena-fifty-monitors.tableproof'] as string, files['../../lib/proof/real/seller-resolved.tableproof'] as string];
+    // refused before anything was agreed: no owner decision, no signature, and the line stays neutral
+    const first = render(<ProofChecker source={{ name: 'refused.tableproof', text: refused }} own={AUTHORITY_MANIFEST} />);
+    await checked();
+    expect(kind(rows(first.container).owner_saw)).toBe('dashed');
+    first.unmount();
+    // decided before the wallet kept the checklist's lines and signed: hash only, still a pass
+    const second = render(<ProofChecker source={{ name: 'older.tableproof', text: older }} own={AUTHORITY_MANIFEST} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check this proof' }));
+    await waitFor(() => expect(kind(rows(second.container).owner_saw)).toBe('ok'), TIMEOUT);
+    expect(within(rows(second.container).owner_saw as HTMLElement).getByText(/hash only/)).toBeTruthy();
+  });
+});
+
 describe('the person’s own edits and files', () => {
   it('checks a hand edit of the file’s text', async () => {
     const { container } = mount();
