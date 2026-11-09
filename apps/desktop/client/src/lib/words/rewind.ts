@@ -7,6 +7,8 @@
 
 export const REWIND_KICKER = (week: string): string => `Rewind · ${week}`;
 export const REWIND_THIS_WEEK = 'This week';
+/** The one button that opens the Say it panel over the replay. */
+export const REWIND_SAY = { open: 'Say a rule' } as const;
 export const REWIND_ANSWER = {
   reading: 'Reading the week…',
   unread: 'The week’s record couldn’t be read right now',
@@ -18,7 +20,9 @@ export const REWIND_ANSWER = {
     if (partial) return `At least ${calls === 1 ? 'one PayPal money step' : `${calls.toLocaleString('en-US')} PayPal money steps`} this week${r}. Waiting never sent money.`;
     return `${calls === 0 ? 'No PayPal money step' : c} this week${r}. Waiting never sent money.`;
   },
-  sub: 'Replayed from the wallet’s own record, then on into the next 72 hours as the wallet forecasts them. Play it, drag the playhead, or open any step to see its deal.',
+  sub: 'Replayed from the wallet’s own record, then the next 72 hours.',
+  subHint: 'How the Rewind works',
+  subLong: 'Replayed from the wallet’s own record, then on into the next 72 hours as the wallet forecasts them. Play it, drag the playhead, or open any step to see its deal.',
 } as const;
 
 export const REWIND_CARD = {
@@ -49,7 +53,6 @@ export const REWIND_BAR = {
   now: 'Back to now',
   nowTitle: 'Leave Rewind and go back to the console as it is now (Esc)',
   playhead: 'Playhead',
-  opens: 'opens the deal',
   failed: 'The week’s record',
   days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   jump: 'Jump to a day',

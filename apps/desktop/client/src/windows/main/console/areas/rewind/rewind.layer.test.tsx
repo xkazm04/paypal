@@ -4,7 +4,8 @@ import { act, cleanup, fireEvent, waitFor, within } from '@testing-library/react
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setClockOffset } from '../../../../../lib/clock';
 import { sayClear } from '../../../../../lib/say/store';
-import { REWIND_AHEAD, REWIND_ANSWER, REWIND_BAR, REWIND_TAPE, REWIND_TRUNCATED, SAY } from '../../../../../lib/words';
+import { REWIND_AHEAD, REWIND_ANSWER, REWIND_BAR, REWIND_SAY, REWIND_TAPE, REWIND_TRUNCATED, SAY } from '../../../../../lib/words';
+import { shortStep } from './RewindLayer';
 import { frameUrls, storyFor } from '../../../../../director/stories';
 import { expectLayerHealthy, renderLayerAtScale } from '../../testing/scaleSmoke';
 
@@ -51,7 +52,7 @@ describe('the Rewind', () => {
     const small = await renderLayerAtScale({ level: 'rewind' }, 'small');
     await waitFor(() => expect(small.layer.querySelector('[data-layer-title]')?.textContent).not.toBe(REWIND_ANSWER.reading));
     expect(small.layer.querySelector('[data-layer-title]')?.textContent).not.toMatch(/^At least /);
-    expect(small.layer.querySelector('.pf-sub')?.textContent).toBe(REWIND_ANSWER.sub);
+    expect(small.layer.querySelector('.pf-sub')?.textContent).toContain(REWIND_ANSWER.sub);
   }, 60_000);
 
   // The playhead runs on past now into the forecast's 72 hours, so the Mon 12:00 anchor lands there even
@@ -155,6 +156,7 @@ describe('the Rewind', () => {
   it('says a rule, shows what it allows over the same hours, and lines her open tables up against it', async () => {
     // Maya's own week (no scale): her two open tables for the 27-inch 4K monitor
     const r = await renderLayerAtScale({ level: 'rewind' }, null);
+    fireEvent.click(await within(r.layer).findByRole('button', { name: REWIND_SAY.open }));
     const box = await within(r.layer).findByRole('textbox', { name: SAY.label });
     fireEvent.change(box, { target: { value: 'Haggle for a monitor, up to $340, ask me above $320, six offers, for 3 days' } });
     fireEvent.click(within(r.layer).getByRole('button', { name: SAY.read }));
@@ -184,6 +186,16 @@ describe('the Rewind', () => {
 // The director's film switch: Maya's film ends on the Rewind as it always did (`film_ending=today`, the story's
 // default) or on Say it and the timeline past now (`say`). The main frame's address carries it; the app itself
 // has none, and always shows both.
+describe('a tape row', () => {
+  it('drops the deal’s name, keeps a short sentence whole and cuts a long one to twelve words', () => {
+    expect(shortStep('Monitor arm started.', 'Monitor arm')).toBe('It started.');
+    expect(shortStep('The hold on Desk ran out and released itself. Nothing was paid.', 'Desk')).toBe('The hold on it ran out and released itself. Nothing was paid.');
+    const long = shortStep('PayPal’s answer about Desk didn’t arrive, so the wallet is asking PayPal what happened. Nothing more is sent until it knows.', 'Desk');
+    expect(long.split(' ').length).toBeLessThanOrEqual(12);
+    expect(long.endsWith('…')).toBe(true);
+  });
+});
+
 describe('the film ending', () => {
   /** The main frame's address for a director page, as the director builds it, opened on the Rewind. */
   const frameSearch = (directorSearch: string) => new URL(frameUrls(storyFor(directorSearch)).main('#r=rewind'), 'http://preview/').search.slice(1);
@@ -215,7 +227,9 @@ describe('the film ending', () => {
     for (const search of [frameSearch('?film_ending=say'), '']) {
       const layer = await drawn(search);
       await waitFor(() => expect(layer.querySelector('.rw-now')).not.toBeNull());
-      expect(layer.querySelector('.say')).not.toBeNull();
+      // the film's Say ending shows the panel at once; the app opens on the replay, the panel one button away
+      if (!search) { expect(layer.querySelector('.say')).toBeNull(); fireEvent.click(within(layer).getByRole('button', { name: REWIND_SAY.open })); }
+      await waitFor(() => expect(layer.querySelector('.say')).not.toBeNull());
       expect(layer.querySelector('.rw-walk')?.textContent).toMatch(/^If you walk away: \$0 leaves\./);
       cleanup();
     }

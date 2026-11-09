@@ -89,7 +89,7 @@ const PAYS = /^\s*(pay|approve|accept|capture|release|confirm)\b/i;
 
 /** What each beat's settled screen must show (the rehearsal rig, takes.ts). */
 export const SAY_EXPECT: Readonly<Record<string, readonly Expect[]>> = {
-  'say-open': [{ window: 'main', open: true }, { window: 'approval', open: false }, { in: 'main', text: 'Say a rule, then see it below' }],
+  'say-open': [{ window: 'main', open: true }, { window: 'approval', open: false }, { in: 'main', text: 'Say a rule' }],
   'say-type': [{ in: 'main', text: 'Which monitor do you mean?' }, { in: 'main', text: 'no AI involved' }],
   'say-pick': [{ in: 'main', text: 'Which monitor do you mean?', absent: true }, { in: 'main', text: 'Most you’ll pay' }, { in: 'main', text: 'I filled in' }],
   'see-ahead': [{ in: 'main', text: 'If you walk away' }, { in: 'main', text: '$0 leaves' }],

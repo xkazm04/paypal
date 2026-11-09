@@ -63,7 +63,7 @@ function spread<T extends { at: number }>(items: readonly T[], r: { start: numbe
   return out;
 }
 
-export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: RewindState; labelOf: Labeller; onOpenDeal: (id: string) => void; onExit: () => void; ahead?: Ahead }) {
+export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: RewindState; labelOf: Labeller; onOpenDeal: (id: string) => void; /** Draws "Back to now" (the Charter's timeline; the Rewind has the console's Back and Esc). */ onExit?: () => void; ahead?: Ahead }) {
   const track = useRef<HTMLDivElement>(null);
   const drag = useRef(false);
   // The track shows the whole week, or (the current week only) the last day and the 72 hours ahead, in more room.
@@ -120,7 +120,6 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
     return best;
   };
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).closest('.rw-tick')) return;
     drag.current = true;
     e.currentTarget.setPointerCapture(e.pointerId);
     r.pause();
@@ -192,8 +191,8 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
             <button type="button" aria-pressed={zoomed} onClick={() => setZoom(true)} title={REWIND_AHEAD.zoom.aheadTitle}>{REWIND_AHEAD.zoom.ahead}</button>
           </span>
         ) : null}
+        {onExit ? <button type="button" className="rw-live" onClick={onExit} title={REWIND_BAR.nowTitle}>{REWIND_BAR.now}</button> : null}
         {r.ahead ? <button type="button" className="rw-tonow" onClick={() => { r.pause(); r.seek(r.now); }} title={REWIND_AHEAD.jumpNow} disabled={Math.abs(r.t - r.now) < 2}>{REWIND_AHEAD.nowFlag}</button> : null}
-        <button type="button" className="rw-live" onClick={onExit} title={REWIND_BAR.nowTitle}>{REWIND_BAR.now}</button>
       </div>
       {r.ahead && ahead ? (
         <p className={`rw-walk${ahead.headline.known ? '' : ' unknown'}${isAhead ? ' ahead' : ''}`} role="status" aria-live="polite">
@@ -229,12 +228,12 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
             if (!who) return null;
             const said = narrate(s, { title: who.title, side: who.deal.side, ...endingCtx(r.steps, s, r.unshown, r.unread) });
             return (
-              <button key={`${s.deal_id}-${s.seq}`} type="button" className={`rw-tick t-${tone} ${s.at <= r.t ? 'on' : ''}`} tabIndex={-1}
+              <span key={`${s.deal_id}-${s.seq}`} className={`rw-tick t-${tone} ${s.at <= r.t ? 'on' : ''}`}
                 style={{ left: `calc(${f * 100}% + ${dx}px)` } as CSSProperties}
-                aria-label={said} title={`${said}\n${TICK_WORD[tone]} · ${REWIND_BAR.opens}`}
-                onClick={(e) => { e.stopPropagation(); onOpenDeal(s.deal_id); }}>
+                title={`${said}\n${TICK_WORD[tone]}`}
+                onPointerDown={(e) => { e.stopPropagation(); r.pause(); r.seek(s.at); }}>
                 <TickMark tone={tone} />
-              </button>
+              </span>
             );
           })}
           {future.map(({ x: t, f, dx }) => {
@@ -242,12 +241,12 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit, ahead }: { r: Rewind
             const said = futureSaid(t.line, title);
             const note = t.conditional ? REWIND_AHEAD.tickIf : t.untimed ? REWIND_AHEAD.tickNow : stepTime(t.at);
             return (
-              <button key={t.key} type="button" className={`rw-tick fut f-${t.tone}${t.conditional ? ' maybe' : ''} ${t.at <= r.t ? 'on' : ''}`} tabIndex={-1}
+              <span key={t.key} className={`rw-tick fut f-${t.tone}${t.conditional ? ' maybe' : ''} ${t.at <= r.t ? 'on' : ''}`}
                 style={{ left: `calc(${f * 100}% + ${dx}px)` } as CSSProperties}
-                aria-label={`${REWIND_AHEAD.legend}: ${said}`} title={`${said}\n${REWIND_AHEAD.who[t.tone]} · ${note} · ${REWIND_AHEAD.noMoney}`}
-                onClick={(e) => { e.stopPropagation(); onOpenDeal(t.line.deal_id); }}>
+                title={`${said}\n${REWIND_AHEAD.who[t.tone]} · ${note} · ${REWIND_AHEAD.noMoney}`}
+                onPointerDown={(e) => { e.stopPropagation(); r.pause(); r.seek(t.at); }}>
                 <i className="rw-fm" aria-hidden="true" />
-              </button>
+              </span>
             );
           })}
         </div>
