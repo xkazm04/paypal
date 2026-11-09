@@ -3897,7 +3897,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/home/model.ts:2 These are pure Home view-model modules. Searching apps/desktop/client/src/windows/main/home for CLAUDE.md, AGENTS.md, cursorrules, copilot-instructions and SKILL.md found nothing, so no agent instruction file is authored, loaded or gated here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:9b02cf004a7ce444",
+          "evaluatedRevision": 32
         }
       ],
       "governance": "governed"

@@ -10919,13 +10919,13 @@
       "bundle": "software-engineering",
       "state": "unknown",
       "evaluatedAt": "2026-11-09",
-      "evaluatedTs": "2026-11-09T03:39:34.929Z",
+      "evaluatedTs": "2026-11-09T23:31:32.481Z",
       "techniques": [],
       "withdrawn": {
-        "worker": "19a862ca-186b-4478-ba34-756e82623ae7",
+        "worker": "cafdd523-26ba-432e-8b3b-b8be3fe901b0",
         "state": "not-applicable",
-        "at": "2026-11-09T03:39:54.884451+00:00",
-        "reason": "reviewer (sonnet): The evidence says a search of apps/desktop/client/src/lib found nothing, but lib/format.test.ts:7 cites AGENTS.md and lib/assistant/bridge/assistantBridge.test.ts sets CLAUDE_BIN and launches the claude CLI, so the search claim is false."
+        "at": "2026-11-09T23:31:55.021685+00:00",
+        "reason": "reviewer (sonnet): The search terms left out AGENTS.md, which is the repo's real instruction file (format.test.ts and spend/gate.ts cite it), and the anchor at fairPrice.ts:3 is a comment about the certificate that doesn't show an agent instruction file is absent."
       }
     },
     "e89814cc-f4e5-4bd4-bc27-9f356e7de9d4/agent-instruction-files": {
@@ -11463,6 +11463,16 @@
       "evaluatedAt": "2026-11-09",
       "evaluatedTs": "2026-11-09T23:26:20.581Z",
       "worker": "4125cf5f-cc07-439d-9dde-274d9c1f5e63",
+      "techniques": []
+    },
+    "e48f3567-2c9c-4ab3-9c0b-fe0c962e55bd/agent-instruction-files": {
+      "context": "home-overview",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:31:32.481Z",
+      "worker": "cafdd523-26ba-432e-8b3b-b8be3fe901b0",
       "techniques": []
     }
   }
