@@ -1,0 +1,117 @@
+{
+  "schema": "conform-run/1",
+  "worker": "293040a1-b8a5-41d0-a9a4-c71bb2063123",
+  "subject": "quality-gates",
+  "evaluatedAt": "2026-11-09T02:30:58.348649+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "runtime-money-controls",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "crates/table-runtime/src/history.rs:390 The audit-action guard stops reading each file at its first #[cfg(test)], and because service.rs has that attribute on a struct field at line 175 and engines.rs on a statement at line 474, the live writers owner.decision (service.rs:693) and run.finish (engines.rs:481) are never read, so a new writer placed after those points would ship unclassified with the test green.",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/history.rs:390 A raw text split stands in for 'what executes'. Measured by re-running the same logic: 13 of 190 scanned files have a non-module #[cfg(test)] first, and the scan sees 56 action literals where 58 exist. Both hidden actions happen to have rows today, so the result is green by luck."
+        },
+        {
+          "technique": "unparseable-form-is-a-finding",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/history.rs:391 Only two literal spellings are recognised and any other form (a constant, format!, a variable) is silently not a writer rather than a failure, while the doc comment at line 377-378 claims a new writer file cannot escape the check."
+        },
+        {
+          "technique": "chokepoint-tag-registry",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/history.rs:849 Only written-to-row is asserted; row-to-writer is not. Three rows (money.resent, money.parked, edited.offline) have no literal writer in the tree. They may be kept for older ledgers, but no exclusion entry says so."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/history.rs:385 The walk asserts its instrument with a file floor, and line 848 adds a floor on actions found, so an empty scan cannot pass."
+        },
+        {
+          "technique": "blocking-by-input-determinism",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/history.rs:380 The guard's verdict is a function of the checked-out tree only, so it has earned the right to block."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/reached_paypal_tests.rs:533 The agreement between the two copies is mechanised as a test rather than left as a convention."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/safety.rs:71 The total is taken from the full population before the display cap at line 87, so the cap is not consumed as a data cap."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/limits.rs:82 Limits that cannot be verified are a hole in the gate's vision and resolve to a distinct Unverified status with money out refused, not to no limits."
+        }
+      ],
+      "registryProposal": "match-the-resolved-artifact could name a further variant: truncating a file at the first occurrence of a test-only marker, on the assumption it opens a trailing test module. In languages where the same attribute also decorates single fields and statements, this silently discards production code, and comment stripping does not catch it."
+    }
+  ],
+  "declined": [
+    {
+      "subject": "quality-gates",
+      "context": "deal-review",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "quality-gates",
+      "context": "table-engine-agent-process",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "quality-gates",
+      "context": "tumbler-window",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "quality-gates",
+      "context": "attention-forecast-and-window-placement",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor crates/table-attention/src/lib.rs:1 is only a doc comment saying the crate is pure projections, so it is incidental and does not itself show that no gate exists. My own greps for std::fs, env!, CARGO_MANIFEST_DIR and Command::new in that crate's src also found nothing, which fits the clai"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-09T02:30:58.348649+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [
+        "blocking-by-input-determinism",
+        "chokepoint-tag-registry",
+        "gate-liveness",
+        "match-the-resolved-artifact",
+        "policy-projection",
+        "prose-rule-drift",
+        "unmeasurable-criteria",
+        "unparseable-form-is-a-finding"
+      ],
+      "deviations": 1,
+      "context": "runtime-money-controls",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-09T02:30:58.348649+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "attention-forecast-and-window-placement",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

@@ -7576,7 +7576,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-runtime/src/history.rs:390 The audit-action guard stops reading each file at its first #[cfg(test)], and because service.rs has that attribute on a struct field at line 175 and engines.rs on a statement at line 474, the live writers owner.decision (service.rs:693) and run.finish (engines.rs:481) are never read, so a new writer placed after those points would ship unclassified with the test green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "audit-logging",

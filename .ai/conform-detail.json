@@ -10555,6 +10555,73 @@
         }
       ],
       "registryProposal": "pin-the-call-not-the-name could name the section-boundary case: a needle used to cut a file at its test section also matches the same attribute on single fields and statements, and a count floor cannot see that partial truncation because the remaining files still clear it."
+    },
+    "2388265b-2923-4e49-b59f-7f4453fa4f88/quality-gates": {
+      "context": "runtime-money-controls",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:30:58.348Z",
+      "worker": "293040a1-b8a5-41d0-a9a4-c71bb2063123",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/history.rs:390 A raw text split stands in for 'what executes'. Measured by re-running the same logic: 13 of 190 scanned files have a non-module #[cfg(test)] first, and the scan sees 56 action literals where 58 exist. Both hidden actions happen to have rows today, so the result is green by luck."
+        },
+        {
+          "technique": "unparseable-form-is-a-finding",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/history.rs:391 Only two literal spellings are recognised and any other form (a constant, format!, a variable) is silently not a writer rather than a failure, while the doc comment at line 377-378 claims a new writer file cannot escape the check."
+        },
+        {
+          "technique": "chokepoint-tag-registry",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/history.rs:849 Only written-to-row is asserted; row-to-writer is not. Three rows (money.resent, money.parked, edited.offline) have no literal writer in the tree. They may be kept for older ledgers, but no exclusion entry says so."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/history.rs:385 The walk asserts its instrument with a file floor, and line 848 adds a floor on actions found, so an empty scan cannot pass."
+        },
+        {
+          "technique": "blocking-by-input-determinism",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/history.rs:380 The guard's verdict is a function of the checked-out tree only, so it has earned the right to block."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/reached_paypal_tests.rs:533 The agreement between the two copies is mechanised as a test rather than left as a convention."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/safety.rs:71 The total is taken from the full population before the display cap at line 87, so the cap is not consumed as a data cap."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/limits.rs:82 Limits that cannot be verified are a hole in the gate's vision and resolve to a distinct Unverified status with money out refused, not to no limits."
+        }
+      ],
+      "registryProposal": "match-the-resolved-artifact could name a further variant: truncating a file at the first occurrence of a test-only marker, on the assumption it opens a trailing test module. In languages where the same attribute also decorates single fields and statements, this silently discards production code, and comment stripping does not catch it."
+    },
+    "b093c233-9d42-4fdb-8b3c-b9b5460ac5ad/quality-gates": {
+      "context": "attention-forecast-and-window-placement",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:30:58.348Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "293040a1-b8a5-41d0-a9a4-c71bb2063123",
+        "state": "not-applicable",
+        "at": "2026-11-09T02:31:20.859860+00:00",
+        "reason": "reviewer (sonnet): The anchor crates/table-attention/src/lib.rs:1 is only a doc comment saying the crate is pure projections, so it is incidental and does not itself show that no gate exists. My own greps for std::fs, env!, CARGO_MANIFEST_DIR and Command::new in that crate's src also found nothing, which fits the clai"
+      }
     }
   }
 }
