@@ -71,6 +71,7 @@ export const STAGE = {
   colAmount: 'Amount',
   colState: 'State',
   nothing: 'Nothing here yet.',
+  readingList: 'your list',
   noMatch: (q: string): string => `Nothing here matches “${q}”.`,
   fateOnly: (word: string): string => `Only: ${word}`,
   clearFate: 'Show all states',

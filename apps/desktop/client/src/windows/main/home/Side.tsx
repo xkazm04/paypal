@@ -13,6 +13,7 @@ import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import type { Module } from '@bindings/Module';
 import { BOARD_FATE } from '../../../lib/words';
 import { Glyph, MODULE, MODULES } from '../../../shared/modules';
+import { Placeholder } from '../../../shared/ui/components';
 import { amountText } from '../switchboard/parts';
 import type { BoardModel } from '../switchboard/useBoardModel';
 import type { ModuleList, ModuleRow, RowCell } from './rows/rows';
@@ -124,10 +125,12 @@ export function Side({ lists, nav, model, selected, calm, onScope, onQuery, onCl
         ) : null}
         <span className="fs-count" aria-live="polite">
           <AnimatePresence mode="popLayout" initial={false}>
-            <motion.span key={STAGE.count(rows.length, total)} className="fs-countn"
-              initial={{ opacity: 0, y: -TRAVEL.tick }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: TRAVEL.tick }} transition={fast}>
-              {STAGE.count(rows.length, total)}
-            </motion.span>
+            {model.ready ? (
+              <motion.span key={STAGE.count(rows.length, total)} className="fs-countn"
+                initial={{ opacity: 0, y: -TRAVEL.tick }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: TRAVEL.tick }} transition={fast}>
+                {STAGE.count(rows.length, total)}
+              </motion.span>
+            ) : null}
           </AnimatePresence>
         </span>
       </div>
@@ -141,7 +144,9 @@ export function Side({ lists, nav, model, selected, calm, onScope, onQuery, onCl
           {columns.map((c, i) => <span key={i} className={isAll ? (i === 0 ? '' : i === 1 ? 'is-num' : '') : ((mod ? lists[mod] : undefined)?.rows[0]?.cells[i]?.num ? 'is-num' : '')}>{c}</span>)}
         </div>
         <AnimatePresence mode="popLayout" initial={false}>
-        {rows.length === 0 ? (
+        {!model.ready ? (
+          <Placeholder key="reading" what={STAGE.readingList} shape="rows" />
+        ) : rows.length === 0 ? (
           <motion.p key="empty" className="fs-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fast}>
             {nav.query.trim() ? STAGE.noMatch(nav.query.trim()) : isAll ? STAGE.nothing : (mod ? lists[mod] : undefined)?.empty}
           </motion.p>
