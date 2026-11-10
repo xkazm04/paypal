@@ -3941,7 +3941,11 @@
           "revision": 3,
           "changedAt": "2026-11-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/home/away.ts:2 The context's modules decide what the Home 'while you were away' card says with pure, deterministic code over the deal_history record, and no model chooses, places or arranges a view anywhere in them. A case-insensitive search of the whole home/ directory found no hits for composition, workspace, recompos, view_choice/viewChoice, prompt or llm. The subject's precondition (a model composing the screen) is therefore absent here; it lives elsewhere in the repo, in the assistant's region and vocabulary.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:7c6aa8f4a4d53a56",
+          "evaluatedRevision": 3
         },
         {
           "subject": "agent-instruction-files",

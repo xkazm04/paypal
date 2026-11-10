@@ -12392,6 +12392,32 @@
           "evidence": "crates/table-core/src/exposure.rs:215 The absolute instant is chosen and signed by the owner, not stamped by an issuer into an artifact that leaves it. There is no minting path whose clock would need a warrant."
         }
       ]
+    },
+    "e48f3567-2c9c-4ab3-9c0b-fe0c962e55bd/model-composed-workspace": {
+      "context": "home-overview",
+      "subject": "model-composed-workspace",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T22:59:50.770Z",
+      "worker": "5a6075ba-9650-40dc-b704-ea456164a4fb",
+      "techniques": [
+        {
+          "technique": "answer-form-routing",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/home/away.ts:298 A fixed rule decides whether the card shows. No model routes an answer form here."
+        },
+        {
+          "technique": "composition-region",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/home/away.ts:268 Figures are computed from the deals' own terms rather than typed by a model. That matches the spirit of 'views own their numbers', but there is no model-placed region in these files."
+        },
+        {
+          "technique": "reversible-screen-ops",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/home/useAway.ts:69 The only screen change here is the user's own dismiss. The model emits no screen operations from this context."
+        }
+      ]
     }
   }
 }
