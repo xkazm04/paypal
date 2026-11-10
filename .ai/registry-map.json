@@ -2612,8 +2612,12 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/windows/main/deal/story.ts:1 The deal view turns deal data into display text. 'Transcript' here means the deal's negotiation record (deal_transcript, TranscriptStep), not a speech transcript, and searching for SpeechRecognition, speechSynthesis, getUserMedia and microphone found nothing.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "quality-gates",
@@ -3888,8 +3892,12 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/windows/main/home/model.ts:2 The home model calls itself pure, with no IO, and searching the home directory for SpeechRecognition, speechSynthesis, getUserMedia and microphone found nothing, so the subject's precondition (the product listens or speaks) does not hold here.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "model-composed-workspace",
@@ -7002,8 +7010,12 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/windows/main/modules/spend/gate.ts:1 The rescue, spend and shield modules are pure money-gate logic and panels. Searching their directories for SpeechRecognition, speechSynthesis, getUserMedia and microphone found nothing; the only 'voice' hits are inside the word 'invoice', so there is no capture or synthesis pipeline here.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "test-harness",
@@ -10254,8 +10266,12 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:1 These are list, find, crumb and footer surfaces with typed search only. Searching the whole console tree for SpeechRecognition, speechSynthesis, getUserMedia and microphone found nothing, so no voice input or output is wired into navigation.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "client-fetch-cache",
@@ -10581,8 +10597,12 @@
           "revision": 23,
           "changedAt": "2026-10-18",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx:3 The Settings layer lists its cards as Approving, Your agents, Appearance and Notifications, with no voice or speech card. Searching the rules/settings areas, layers and lib/words for getUserMedia, microphone and AudioContext found nothing, and none of these files import the speech module, so this context neither listens nor speaks.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:ad2538ae80ec48fd",
+          "evaluatedRevision": 24
         },
         {
           "subject": "hitl-approval",

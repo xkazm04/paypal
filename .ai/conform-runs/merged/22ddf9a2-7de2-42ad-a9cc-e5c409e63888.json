@@ -1,0 +1,142 @@
+{
+ "schema": "conform-run/1",
+ "worker": "22ddf9a2-7de2-42ad-a9cc-e5c409e63888",
+ "subject": "voice-io",
+ "evaluatedAt": "2026-11-10T00:08:39.423933+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "rules-and-settings-areas",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx:3 The Settings layer lists its cards as Approving, Your agents, Appearance and Notifications, with no voice or speech card. Searching the rules/settings areas, layers and lib/words for getUserMedia, microphone and AudioContext found nothing, and none of these files import the speech module, so this context neither listens nor speaks.",
+   "techniques": [],
+   "absenceTerms": [
+    "getUserMedia",
+    "microphone",
+    "AudioContext"
+   ]
+  },
+  {
+   "context": "rescue-spend-shield-modules",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/modules/spend/gate.ts:1 The rescue, spend and shield modules are pure money-gate logic and panels. Searching their directories for SpeechRecognition, speechSynthesis, getUserMedia and microphone found nothing; the only 'voice' hits are inside the word 'invoice', so there is no capture or synthesis pipeline here.",
+   "techniques": [],
+   "absenceTerms": [
+    "SpeechRecognition",
+    "speechSynthesis",
+    "getUserMedia",
+    "microphone"
+   ]
+  },
+  {
+   "context": "deal-detail",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/deal/story.ts:1 The deal view turns deal data into display text. 'Transcript' here means the deal's negotiation record (deal_transcript, TranscriptStep), not a speech transcript, and searching for SpeechRecognition, speechSynthesis, getUserMedia and microphone found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "SpeechRecognition",
+    "speechSynthesis",
+    "getUserMedia",
+    "microphone"
+   ]
+  },
+  {
+   "context": "console-navigation-and-lists",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:1 These are list, find, crumb and footer surfaces with typed search only. Searching the whole console tree for SpeechRecognition, speechSynthesis, getUserMedia and microphone found nothing, so no voice input or output is wired into navigation.",
+   "techniques": [],
+   "absenceTerms": [
+    "SpeechRecognition",
+    "speechSynthesis",
+    "getUserMedia",
+    "microphone"
+   ]
+  },
+  {
+   "context": "home-overview",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/home/model.ts:2 The home model calls itself pure, with no IO, and searching the home directory for SpeechRecognition, speechSynthesis, getUserMedia and microphone found nothing, so the subject's precondition (the product listens or speaks) does not hold here.",
+   "techniques": [],
+   "absenceTerms": [
+    "SpeechRecognition",
+    "speechSynthesis",
+    "getUserMedia",
+    "microphone"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-10T00:08:39.423933+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "rules-and-settings-areas",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T00:08:39.423933+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "rescue-spend-shield-modules",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T00:08:39.423933+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "deal-detail",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T00:08:39.423933+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "console-navigation-and-lists",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T00:08:39.423933+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "home-overview",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
