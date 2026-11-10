@@ -1,0 +1,65 @@
+{
+ "schema": "conform-run/1",
+ "worker": "76c30832-9da2-4666-b4a4-1370ccd51f1d",
+ "subject": "guest-execution-bounding",
+ "evaluatedAt": "2026-11-10T00:52:11.475040+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "counter-and-tables-modules",
+   "subject": "guest-execution-bounding",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:1 This context is pure TypeScript view and model code for the Counter and Tables pages and embeds no interpreter or script engine; a search of its files for interpreter, QuickJS, new Function, WebAssembly, eval(, terminate and recursion turned up nothing, so it has no guest code to bound.",
+   "techniques": [],
+   "absenceTerms": [
+    "interpreter",
+    "QuickJS",
+    "new Function",
+    "WebAssembly"
+   ]
+  },
+  {
+   "context": "safety-and-setup",
+   "subject": "guest-execution-bounding",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/setup/limits.ts:2 The 'limits' here are spending-mandate clauses shown to the owner, and the 'engine' is a paired agent app, not an embedded guest runtime; a search of its files for interpreter, QuickJS, new Function, WebAssembly, eval( and terminate found nothing, so no guest execution exists for a ceiling to bound.",
+   "techniques": [],
+   "absenceTerms": [
+    "interpreter",
+    "QuickJS",
+    "new Function",
+    "WebAssembly"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-10T00:52:11.475040+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "guest-execution-bounding"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "counter-and-tables-modules",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T00:52:11.475040+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "guest-execution-bounding"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "safety-and-setup",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

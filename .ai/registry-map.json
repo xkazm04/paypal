@@ -2374,7 +2374,11 @@
           "revision": 3,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:1 This context is pure TypeScript view and model code for the Counter and Tables pages and embeds no interpreter or script engine; a search of its files for interpreter, QuickJS, new Function, WebAssembly, eval(, terminate and recursion turned up nothing, so it has no guest code to bound.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:a59e479b7cea486b",
+          "evaluatedRevision": 3
         },
         {
           "subject": "embedded-db",
@@ -7984,7 +7988,11 @@
           "revision": 3,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/setup/limits.ts:2 The 'limits' here are spending-mandate clauses shown to the owner, and the 'engine' is a paired agent app, not an embedded guest runtime; a search of its files for interpreter, QuickJS, new Function, WebAssembly, eval( and terminate found nothing, so no guest execution exists for a ceiling to bound.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:a59e479b7cea486b",
+          "evaluatedRevision": 3
         },
         {
           "subject": "retry-backoff",
