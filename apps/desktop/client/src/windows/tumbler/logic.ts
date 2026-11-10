@@ -43,7 +43,8 @@ export const TICKER_MS = { default: 8000, receipt: 5000, info: 5000 } as const;
 
 /** What a screen reader hears for a ticker: both lines as one sentence (the visual pill may leave before it is read). */
 export function tickerSpeech(t: Pick<Ticker, 'l1' | 'l2'>): string {
-  return `${t.l1.join('').replace(/\s+/g, ' ').trim()}. ${t.l2}`;
+  // line one may already end its sentence (the all-clear headline does): one full stop, never two
+  return `${t.l1.join('').replace(/\s+/g, ' ').trim().replace(/\.$/, '')}. ${t.l2}`;
 }
 
 // ---------------------------------------------------------------------------------------

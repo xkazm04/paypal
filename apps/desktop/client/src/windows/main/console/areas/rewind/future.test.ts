@@ -123,8 +123,12 @@ describe('the Tumbler says the same thing when the last decision is gone', () =>
     const f = [line({ action: 'auto_void', at: NOW + 5 * H }), line({ action: 'auto_void', at: NOW + 8 * H, deal_id: '01JD00000000000000000000A2' })];
     const t = allClearTicker({ forecast: f, wallet_spend_today_currency: 'USD' }, 'sandbox');
     const h = headlineOf(f);
-    expect(t?.l1.join('')).toBe(`${h.lead}: ${h.rest}`);
-    expect(t?.l1.join('')).toBe('If you walk away: $0 leaves. 2 holds end on their own.');
+    // The ticker carries the headline over its two lines (the first sentence, then the rest), so no
+    // sentence is cut off at the ticker's width; read together they are still exactly the headline.
+    const said = `${t?.l1.join('')} ${t?.l2}`;
+    expect(said).toBe(`${h.lead}: ${h.rest}`);
+    expect(said).toBe('If you walk away: $0 leaves. 2 holds end on their own.');
+    expect(t?.l1.join('')).toBe('If you walk away: $0 leaves.');
     expect(t?.kind).toBe('info');
   });
   it('says nothing at all when the forecast could not be read', () => {
