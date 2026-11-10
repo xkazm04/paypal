@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2deb97b4-c83f-4911-93a4-af81dc6425b7",
+ "subject": "keyboard-shortcuts",
+ "evaluatedAt": "2026-11-10T22:56:29.630509+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "keyboard-shortcuts",
+   "context": "main-window-shell",
+   "reason": "evidence leans on lib/words/framework.ts, which is not a tracked file"
+  }
+ ],
+ "consults": []
+}
