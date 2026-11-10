@@ -8789,7 +8789,11 @@
           "revision": 3,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-core/src/exposure.rs:314 This context gates agents' spend intents against owner-signed wallet limits and returns Allow/Refuse, which the golden path files under authorization (a yes or no about an operation). It has no issuer that mints a certificate, signed key or login shaped by a role. A case-insensitive search of crates/table-core for issuance, issuer, verbatim, allow_any and mint found zero hits.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:fc31943d5d78e4d2",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"

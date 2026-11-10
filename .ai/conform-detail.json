@@ -12366,6 +12366,32 @@
           "evidence": "crates/table-core/src/lib.rs:1 No user-authored multilingual records."
         }
       ]
+    },
+    "93ab9629-27c8-4024-bd9e-06c9761ea24d/issuance-policy-ladder": {
+      "context": "spend-firewall-and-agent-policy",
+      "subject": "issuance-policy-ladder",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T22:50:37.352Z",
+      "worker": "a6e83545-10b1-4b9d-920a-ef5fe48b3863",
+      "techniques": [
+        {
+          "technique": "require-one-constraint",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/exposure.rs:299 The envelope validator refuses zero limits when the envelope is signed. It is a spend-limit sanity check, not an issuer role's constraint count, so the precondition does not hold."
+        },
+        {
+          "technique": "bounds-as-modes",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/exposure.rs:331 The envelope's expiry is checked as a gate on spending. No minted artifact lifetime is composed from request, role and issuer caps."
+        },
+        {
+          "technique": "stamped-instants-name-their-clock",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/exposure.rs:215 The absolute instant is chosen and signed by the owner, not stamped by an issuer into an artifact that leaves it. There is no minting path whose clock would need a warrant."
+        }
+      ]
     }
   }
 }
