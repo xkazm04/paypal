@@ -11793,6 +11793,16 @@
       "evaluatedTs": "2026-11-10T00:21:30.793Z",
       "worker": "a7d52858-6a5e-4db6-979b-cda0c9c15fde",
       "techniques": []
+    },
+    "d56b5605-88e1-456c-9b76-8c604a502ecc/deployment-contract": {
+      "context": "overnight-build-report",
+      "subject": "deployment-contract",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:37:22.651Z",
+      "worker": "f0607226-ce16-4c7b-891d-36a03b265b2a",
+      "techniques": []
     }
   }
 }

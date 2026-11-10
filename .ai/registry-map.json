@@ -6056,7 +6056,11 @@
           "revision": 5,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "docs/report/report.css:1 The context is one static stylesheet for an in-repo report page. A search of docs/report found no deploy, render.yaml, Dockerfile, Cache-Control or hosting reference, and no workflow or blueprint in the repo publishes docs/report, so no hosting platform builds or serves it.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:dc1097a08c9022d9",
+          "evaluatedRevision": 5
         },
         {
           "subject": "background-jobs",
