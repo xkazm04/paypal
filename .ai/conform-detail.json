@@ -12199,6 +12199,36 @@
           "evidence": "crates/table-shield/src/lib.rs:73 The model here is a product component that can only add caution (combine = max), not a judge scoring outputs; the tests stub it out and nothing is scored."
         }
       ]
+    },
+    "cb008556-f52a-4b0f-b095-b677defb4bfd/prompt-assembly": {
+      "context": "rules-and-settings-areas",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T22:22:11.412Z",
+      "worker": "6d30d4d2-6a74-40b1-b251-c1176f9a485a",
+      "techniques": []
+    },
+    "a1a41cac-6c94-418e-8740-5d1188336cb0/prompt-assembly": {
+      "context": "director-takes-rig",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T22:22:11.412Z",
+      "worker": "6d30d4d2-6a74-40b1-b251-c1176f9a485a",
+      "techniques": []
+    },
+    "e2d9b89f-2eb9-4157-b0fd-b7560f70a75c/prompt-assembly": {
+      "context": "rendezvous-relay",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T22:22:11.412Z",
+      "worker": "6d30d4d2-6a74-40b1-b251-c1176f9a485a",
+      "techniques": []
     }
   }
 }

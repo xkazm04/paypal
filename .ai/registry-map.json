@@ -3762,8 +3762,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/scripts/takes.mjs:2 This is a Playwright capture and fixture-export rig: stills, video and a rehearsal check. It never assembles a model prompt. A search of scripts/ and scripts/lib found no compaction, max_tokens, 'context window' or 'token budget'. The 'prompt' hits in sibling scripts (assistantBridge.ts, evalBoard.ts) are outside this context's files.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "table",
@@ -6901,8 +6905,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "services/rendezvous/src/lib.rs:1 This is an axum mailbox relay that stores and forwards JWS strings. A search of services/rendezvous found no prompt, system_prompt, compaction or max_tokens, so no prompt is ever assembled here.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "embedded-db",
@@ -10735,8 +10743,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/lib/mandateRules.ts:1 These files are a read-only view of mandate rules, a mirror of the Rust validator, settings copy and the settings frame; none of them builds or sends a model prompt. A search of the context's directories found no hits for compaction, max_tokens, 'context window' or 'token budget'. 'prompt' does appear elsewhere under src/lib (lib/assistant), which is not this context.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         }
       ],
       "governance": "governed"
