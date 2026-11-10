@@ -6270,8 +6270,12 @@
           "revision": 44,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 8
+          "state": "not-applicable",
+          "priorNotApplicable": 8,
+          "evidence": "apps/desktop/client/src/windows/approval/OwnerConfig.tsx:2 Owner configuration only shapes mandate drafts and signing input for Rust; the agent app is shown read-only, and a recursive search of src/windows/approval found no hit for systemPrompt, system_prompt, playbook, compaction or max_tokens (the word 'prompt' appears only for the Windows Hello and native credential dialogs), so no prompt is assembled here.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "table",

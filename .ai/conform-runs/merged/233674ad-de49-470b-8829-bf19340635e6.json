@@ -1,0 +1,61 @@
+{
+ "schema": "conform-run/1",
+ "worker": "233674ad-de49-470b-8829-bf19340635e6",
+ "subject": "prompt-assembly",
+ "evaluatedAt": "2026-11-10T01:28:51.762464+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "owner-mandate-config",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/approval/OwnerConfig.tsx:2 Owner configuration only shapes mandate drafts and signing input for Rust; the agent app is shown read-only, and a recursive search of src/windows/approval found no hit for systemPrompt, system_prompt, playbook, compaction or max_tokens (the word 'prompt' appears only for the Windows Hello and native credential dialogs), so no prompt is assembled here.",
+   "techniques": [],
+   "absenceTerms": [
+    "systemPrompt",
+    "system_prompt",
+    "playbook",
+    "compaction",
+    "max_tokens"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "prompt-assembly",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "rules-and-settings-areas",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "director-takes-rig",
+   "reason": "evidence leans on scripts/assistantBridge.ts, which is not a tracked file"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "design-theme-and-copy",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-10T01:28:51.762464+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "owner-mandate-config",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

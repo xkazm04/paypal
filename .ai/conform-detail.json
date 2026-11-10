@@ -12128,6 +12128,16 @@
       "evaluatedTs": "2026-11-10T01:23:23.877Z",
       "worker": "19afd45a-cbfa-4de1-83fc-06bb1de9f431",
       "techniques": []
+    },
+    "7fde48d9-00af-4ebc-868e-cb93d7cdedfd/prompt-assembly": {
+      "context": "owner-mandate-config",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:28:51.762Z",
+      "worker": "233674ad-de49-470b-8829-bf19340635e6",
+      "techniques": []
     }
   }
 }
