@@ -339,6 +339,10 @@ export type StackProps = {
   onTable: () => void;
   onPin: () => void;
   onDnd: () => void;
+  /** a pin or do-not-disturb write is in flight: both controls wait for it */
+  controlsBusy?: boolean;
+  /** the settings were never read: do-not-disturb has nothing to write onto yet */
+  dndUnavailable?: boolean;
 };
 
 export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<HTMLDivElement>) {
@@ -359,12 +363,12 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
         {p.dnd ? <Chip tone="line" title="Do not disturb: no notifications, no breathing; the ring and count stay">Quiet</Chip> : null}
         <span className="s-tools">
           {p.pinned !== null ? (
-            <Btn kind="plain" sm className={`t-ico${p.pinned ? ' on' : ''}`} onClick={p.onPin} aria-pressed={p.pinned}
+            <Btn kind="plain" sm className={`t-ico${p.pinned ? ' on' : ''}`} onClick={p.onPin} aria-pressed={p.pinned} disabled={p.controlsBusy} aria-busy={p.controlsBusy || undefined}
               aria-label="Always on top" title={p.pinned ? 'Always on top · click to let other windows cover it' : 'Not on top · click to keep it above other windows'}>
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2h4l-.6 4 2.6 2.4V10H4V8.4L6.6 6z" fill="currentColor" /><path d="M8 10v4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
             </Btn>
           ) : null}
-          <Btn kind="plain" sm className={`t-ico${p.dnd ? ' on' : ''}`} onClick={p.onDnd} aria-pressed={p.dnd}
+          <Btn kind="plain" sm className={`t-ico${p.dnd ? ' on' : ''}`} onClick={p.onDnd} aria-pressed={p.dnd} disabled={p.controlsBusy || p.dndUnavailable} aria-busy={p.controlsBusy || undefined}
             aria-label="Do not disturb" title={p.dnd ? 'Do not disturb is on · click to turn it off' : 'Do not disturb · no notifications and no glowing; the ring and count stay'}>
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 9.6A5.4 5.4 0 0 1 6.4 3a5.4 5.4 0 1 0 6.6 6.6z" fill="currentColor" /></svg>
           </Btn>

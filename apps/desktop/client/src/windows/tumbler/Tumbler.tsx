@@ -416,8 +416,12 @@ export function Tumbler() {
 
   // Rust owns the snooze (deal_snooze: GATE, deadline > 45 min, 30 min, persisted); the page
   // pre-filters with the same rule and then only reflects the next snapshot, where the item is gone.
+  // Armed in the press itself, as for Withdraw: `snoozing` only shows after a render, so two S presses
+  // (or two clicks) in one round trip would send two deal_snooze.
+  const snoozeSent = useRef(false);
   const snooze = useCallback(async (it: AttentionItem) => {
-    if (!snoozeEligible(it, nowUnix())) return;
+    if (!snoozeEligible(it, nowUnix()) || snoozeSent.current) return;
+    snoozeSent.current = true;
     setSnoozing(it.deal_id);
     // hold the card on this item while Rust's next snapshot drops it, until the ticker takes over
     if (ack.current) clearTimeout(ack.current.timer);
@@ -435,6 +439,7 @@ export function Tumbler() {
       }
       fail(it.deal_id, 'Snooze', e);
     } finally {
+      snoozeSent.current = false;
       setSnoozing(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -472,26 +477,39 @@ export function Tumbler() {
     else void openInTable(it.deal_id);
   };
 
-  const togglePin = async () => {
-    const next = !(pinned ?? true);
+  // Pin and Do not disturb share one write lane: settings_write re-applies the pin, so the two must
+  // never overlap. Armed in the press itself (like the Withdraw guard), shown by `controlBusy`.
+  const controlLane = useRef(false);
+  const [controlBusy, setControlBusy] = useState(false);
+  const pinnedRef = useRef(pinned);
+  pinnedRef.current = pinned;
+  const inControlLane = async (what: string, run: () => Promise<void>) => {
+    if (controlLane.current) return;
+    controlLane.current = true;
+    setControlBusy(true);
     try {
-      await backend().invoke('tumbler_pin', { pinned: next });
-      setPinned(next);
+      await run();
     } catch (e) {
-      fail(null, 'Pin', e);
+      fail(null, what, e);
+    } finally {
+      controlLane.current = false;
+      setControlBusy(false);
     }
   };
-  const toggleDnd = async () => {
+  const togglePin = () => inControlLane('Pin', async () => {
+    const next = !(pinnedRef.current ?? true);
+    await backend().invoke('tumbler_pin', { pinned: next });
+    pinnedRef.current = next;
+    setPinned(next);
+  });
+  const toggleDnd = () => inControlLane('Do not disturb', async () => {
     if (!settings) return;
-    try {
-      // settings_write replaces the whole record; the snapshot may predate a native drag or snap.
-      const fresh = await backend().invoke('get_settings', null);
-      await backend().invoke('settings_write', dndPreferences(fresh.preferences, { form: formRef.current, pinned }, !dnd));
-      await refetchSettings();
-    } catch (e) {
-      fail(null, 'Do not disturb', e);
-    }
-  };
+    // settings_write replaces the whole record; the snapshot may predate a native drag or snap.
+    const fresh = await backend().invoke('get_settings', null);
+    // the pin is read now, from the ref (kept current by Pin), not from the render this press came from
+    await backend().invoke('settings_write', dndPreferences(fresh.preferences, { form: formRef.current, pinned: pinnedRef.current }, !fresh.preferences.dnd));
+    await refetchSettings();
+  });
 
   // ------------------------------------------------------------------ puck: click, drag
   const onPuckClick = () => {
@@ -595,7 +613,7 @@ export function Tumbler() {
       <StackForm ref={formEl} snapshot={snapshot} items={items} now={now} locked={locked} mode={mode}
         metersAvailable={!!settings?.meters_available} paused={!!settings?.agents_paused} pinned={pinned} dnd={dnd}
         failure={failure && failure.dealId === null ? failure : null}
-        onOpen={(id) => { setFocusId(id); open('card'); }} onTable={() => void openInTable(null)} onPin={() => void togglePin()} onDnd={() => void toggleDnd()} />
+        onOpen={(id) => { setFocusId(id); open('card'); }} onTable={() => void openInTable(null)} onPin={() => void togglePin()} onDnd={() => void toggleDnd()} controlsBusy={controlBusy} dndUnavailable={!settings} />
     );
   else if (form === 'handoff')
     body = <HandoffForm ref={formEl} handoff={handoff} item={handoffItem} display={display} now={now} locked={locked} mode={mode} onTable={() => void openInTable(handoff.dealId)} onRest={rest} />;
