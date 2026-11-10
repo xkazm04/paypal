@@ -12413,6 +12413,48 @@
           "evidence": "apps/desktop/client/src/windows/main/home/useAway.ts:69 The only screen change here is the user's own dismiss. The model emits no screen operations from this context."
         }
       ]
+    },
+    "44983015-e31a-41fb-92ee-ab6637c0cc3e/proof-carrying-agent-actions": {
+      "context": "book-module",
+      "subject": "proof-carrying-agent-actions",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T23:05:28.688Z",
+      "worker": "9b51d7ae-25c0-41bf-bc15-b6ff6a835e0e",
+      "techniques": [
+        {
+          "technique": "proof-class-bound-to-action-class",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/ProofCheck.tsx:38 The version floor comes from the file's own label: crates/table-verify/src/v2.rs:21 sets applies:false on every v2 check when bundle.format == PROOF_FORMAT_V1. The view shows that result green, and proofV2.test.tsx:67 asserts PROOF_ALL_THAT_APPLY for an older file. This is the format-downgrade failure the technique names."
+        },
+        {
+          "technique": "claims-never-decide",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/ProofCheck.tsx:61 Each check's wording comes from the wallet's own table and never from the file. The verdict is report.verified, which the checker computes (table-client lib.rs:288 calls report.verified()), not a field read from the file. Values taken from the file are clipped and shown as plain text only."
+        },
+        {
+          "technique": "inconclusive-routes-to-wait",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/ProofCheck.tsx:32 The view keeps three outcomes apart: verified, failed (only when a check was actually made and is false) and gold 'Not every check could be made'. Each line shows passed, did-not-pass or not-checked, so a not-checked line is never shown as a pass. The empty-set vacuity is in the checker, outside this context (see notes)."
+        },
+        {
+          "technique": "negative-fixtures-prove-the-verifier",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/proofMarket.test.tsx:52 The view's tests include dishonest and incomplete cases: a forged market record, a failed shield check (proofV2.test.tsx:47) and three not-checked reasons, each asserted never to read 'Every check passed'. This covers the display layer only; fixtures for the verifier itself are in the Rust crates."
+        },
+        {
+          "technique": "evidence-binds-to-the-measured-change",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/book/Proof.tsx:31 The report is recomputed every time a file is picked and is never stored as a verdict for a later gate to read, so there is no stale verdict to pin. The authority_manifest/same_version shown is the permission version the deal ran under, not a checker-build identity."
+        },
+        {
+          "technique": "test-not-weakened-check",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/book/BookLayer.tsx:6 The proofs checked here cover deals (signed transcripts, PayPal order records, audit rows), not agent-authored diffs. No test oracle is part of any proof, so there is nothing to weaken."
+        }
+      ],
+      "registryProposal": "The subject is written for agent code changes and merge gates, but the same shape fits a signed per-action proof file (here, a payment deal) that a person checks offline with a deterministic checker. The format-downgrade rule in proof-class-bound-to-action-class carries over directly. A short note that the subject also covers signed action records with no merge gate, and that a viewer must not render a lighter older-format verdict in the same 'passed' tone, would help."
     }
   }
 }

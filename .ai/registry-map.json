@@ -1556,7 +1556,11 @@
           "revision": 2,
           "changedAt": "2026-11-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/ProofCheck.tsx:38 When a proof file is labelled with the first format, the checker skips every newer check (applies:false, based only on the file's own format field). The view then shows its green ok chip, 'Every check that applies passed', and proofV2.test.tsx:63-67 locks that in as expected behaviour. So someone holding the owner key could remove the newer records (shield, one_request, owner_saw), relabel the file as v1, re-sign it, and still be shown a pass instead of an inconclusive result.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:472e39b0fe4e3a6b",
+          "evaluatedRevision": 2
         },
         {
           "subject": "supply-chain",
