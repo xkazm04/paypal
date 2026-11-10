@@ -6,12 +6,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { clockNow } from '../../../lib/clock';
-import { useNow, useQuery } from '../../../lib/hooks';
+import { useClock, useQuery } from '../../../lib/hooks';
 import { readEach } from '../../../lib/readEach';
 import { backend } from '../../../lib/runtime';
 import type { StatementRead } from '../../../lib/words';
 import { ENDING_READS_MAX, useEndedUnshown } from '../unshown';
-import { awaySummary, readLastSeen, statementReadIds, SEEN_AFTER_MS, worthShowing, writeLastSeen, type AwaySummary } from './away';
+import { awaySummary, QUIET_NEWS_AFTER, readLastSeen, startOfToday, statementReadIds, SEEN_AFTER_MS, worthShowing, writeLastSeen, type AwaySummary } from './away';
 
 const NO_STEPS: readonly HistoryStep[] = [];
 
@@ -28,7 +28,12 @@ export function useAway(o: { active: boolean; enabled: boolean; needs: number; d
   const [dismissed, setDismissed] = useState(false);
   const on = o.enabled && !dismissed;
   const q = useQuery('deal_history', { deal_id: null, from: seen.at, to: null }, { enabled: on, refreshOn: ['deal:changed'] });
-  const now = useNow();
+  // `now` reaches the summary through three things only: its "since ..." words (the local day), whether a
+  // quiet stretch is long enough to be news (QUIET_NEWS_AFTER) and the window's upper bound. The first two
+  // are followed as discrete values, so this re-renders at midnight and when the threshold passes, not
+  // every second; the bound is read from the clock when the record or any other input changes.
+  const day = useClock(startOfToday);
+  const longAway = useClock((n) => n - seen.at >= QUIET_NEWS_AFTER);
   const data = q.data;
   // Whether a statement read came back unmatched, for the deals whose line is an unconfirmed ending in
   // this window's steps (the only line that uses it), capped like the endings' reads. A read that
@@ -72,8 +77,8 @@ export function useAway(o: { active: boolean; enabled: boolean; needs: number; d
   const { unshown, unread, pending } = useEndedUnshown(data?.steps ?? NO_STEPS, on && !!data && !q.error);
   const summary = useMemo(() => {
     if (!on || !data || q.error || pending) return null;
-    const s = awaySummary(data.steps, o.deals, seen.at, Math.max(now, seen.at), { needs: o.needs, truncated: data.truncated, reads, unshown, unread });
+    const s = awaySummary(data.steps, o.deals, seen.at, Math.max(clockNow(), seen.at), { needs: o.needs, truncated: data.truncated, reads, unshown, unread });
     return worthShowing(s) ? s : null;
-  }, [on, data, q.error, o.deals, seen.at, now, o.needs, reads, unshown, unread, pending]);
+  }, [on, data, q.error, o.deals, seen.at, day, longAway, o.needs, reads, unshown, unread, pending]);
   return { summary, dismiss };
 }
