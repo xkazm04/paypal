@@ -128,7 +128,7 @@ describe('film record: the haggle', () => {
     expect(usdText(1234)).toBe('$1,234.00');
     const rec = haggleRecord(upTo(Number.MAX_SAFE_INTEGER), mandate.payload.clauses);
     expect(recordShown(rec, `Accept Dan’s $329.00? … ${usdText(F.herLast)}`)).toEqual([]);
-    expect(recordShown(rec, 'Accept Dan’s $329.00?')).toEqual([`the record says ${usdText(F.herLast)}, The Table does not show it`]);
+    expect(recordShown(rec, 'Accept Dan’s $329.00?')).toEqual([`the record says ${usdText(F.herLast)}, Signet does not show it`]);
   });
 });
 
@@ -321,7 +321,7 @@ describe('film record: shown on stage', () => {
     expect(miss[0]).toMatch(/deadlines record names \$64\.00/);
     expect(miss[1]).toMatch(/decisions record names \$64\.00/);
     // the haggle's check stays on The Table
-    expect(recordShownOnStage({ offersMaya: [327] }, { ...none, tumbler: '$327.00' })).toEqual(['the record says $327.00, The Table does not show it']);
+    expect(recordShownOnStage({ offersMaya: [327] }, { ...none, tumbler: '$327.00' })).toEqual(['the record says $327.00, Signet does not show it']);
   });
 });
 

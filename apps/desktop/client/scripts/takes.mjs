@@ -75,7 +75,7 @@ const USAGE = `takes: stills, video and a rehearsal check of the director (brows
   --check                 run every beat; exit 1 on a page or console error, a missing banner or
                           preview badge, or a beat whose end state is not on screen
   --stills <dir>          one 1920x1080 PNG per beat: <dir>/<theme>/NN-chapter-beat.png
-  --theme dark|light|both theme of The Table and the stage for --stills (default dark)
+  --theme dark|light|both theme of Signet and the stage for --stills (default dark)
   --video <file.webm>     the whole story at 1920x1080 in real time (cue sheet: <file>.cues.json)
   --chapter <n|id>        with --video: one chapter (2 = the haggle, as the caption rail counts)
   --story <id>            the story to play (default: Maya's week, maya): first-run is the

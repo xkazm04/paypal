@@ -53,7 +53,7 @@ const ACCEPTED = 4;
 export const BEATS: readonly Beat[] = [
   {
     id: 'intro', chapter: 'intro', at: 0, focus: 'desk',
-    caption: 'Maya runs a small monitor shop. Her AI agents haggle, buy and sell for her. Three windows: The Table, the small Tumbler on her desk, and the approval window, where only she decides.',
+    caption: 'Maya runs a small monitor shop. Her AI agents haggle, buy and sell for her. Three windows: Signet, the small Tumbler on her desk, and the approval window, where only she decides.',
     do: [
       { do: 'rewind', deal: HAGGLE, upTo: OPENING },
       { do: 'rewind', deal: MISMATCH, upTo: COUNTERED, interim: { state: 'NEGOTIATING', shield: 'CLEAR' } },
@@ -157,7 +157,7 @@ export const BEATS: readonly Beat[] = [
   },
   {
     id: 'closed-table', chapter: 'closed', at: 135, focus: 'tumbler',
-    caption: 'Maya closes The Table. The Tumbler stays on her desk and carries what is still open.',
+    caption: 'Maya closes Signet. The Tumbler stays on her desk and carries what is still open.',
     do: [{ do: 'approval', deal: null }, { do: 'main', open: false }, ...h.tableClosedFirstTime()],
   },
   {
@@ -182,7 +182,7 @@ export const BEATS: readonly Beat[] = [
   },
   {
     id: 'end-table', chapter: 'end', at: 171, focus: 'main',
-    caption: 'When she opens The Table again, the deal says what happened and who decided: the deadline, not an agent.',
+    caption: 'When she opens Signet again, the deal says what happened and who decided: the deadline, not an agent.',
     do: [{ do: 'main', open: true, route: '#d=D-0190' }, ...h.undock()],
   },
   {

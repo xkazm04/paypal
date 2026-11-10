@@ -690,7 +690,7 @@ export function Director({ story }: { story: Story }) {
           </div>
           <div className="dir-opts">
             <button className="dir-chip" aria-pressed={follow} onClick={() => setFollow((f) => !f)} title="Move the camera to the window the story is about">Follow the story</button>
-            <button className="dir-chip" onClick={toggleTheme} title="Light or dark for The Table">{theme === 'dark' ? 'Light' : 'Dark'}</button>
+            <button className="dir-chip" onClick={toggleTheme} title="Light or dark for Signet">{theme === 'dark' ? 'Light' : 'Dark'}</button>
           </div>
         </div>
 

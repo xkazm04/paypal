@@ -15,7 +15,7 @@ export type FirstRunChapterId = 'start' | 'table' | 'tumbler' | 'approval' | 'en
 
 export const FIRST_RUN_CHAPTERS: readonly Chapter<FirstRunChapterId>[] = [
   { id: 'start', title: 'Day one' },
-  { id: 'table', title: 'The Table' },
+  { id: 'table', title: 'Signet' },
   { id: 'tumbler', title: 'The Tumbler' },
   { id: 'approval', title: 'The approval window' },
   { id: 'end', title: 'Ready for a first deal' },
@@ -26,7 +26,7 @@ const tour = (win: 'main' | 'tumbler' | 'approval', at: Extract<Action, { do: 't
 export const FIRST_RUN_BEATS: readonly Beat<FirstRunChapterId>[] = [
   {
     id: 'start', chapter: 'start', at: 0, focus: 'desk',
-    caption: 'Day one. Maya has just installed The Table: no PayPal keys, no signed rules, nobody connected. Three windows, and nothing can pay yet.',
+    caption: 'Day one. Maya has just installed Signet: no PayPal keys, no signed rules, nobody connected. Three windows, and nothing can pay yet.',
     do: [
       { do: 'main', open: true, route: '' },
       { do: 'approval', deal: null },
@@ -56,7 +56,7 @@ export const FIRST_RUN_BEATS: readonly Beat<FirstRunChapterId>[] = [
   },
   {
     id: 'table-approval', chapter: 'table', at: 34, focus: 'main',
-    caption: 'Paying, saving her keys and signing rules happen in one other window. The Table only opens it.',
+    caption: 'Paying, saving her keys and signing rules happen in one other window. Signet only opens it.',
     do: [tour('main', 'main.approval')],
   },
   {
@@ -71,7 +71,7 @@ export const FIRST_RUN_BEATS: readonly Beat<FirstRunChapterId>[] = [
   },
   {
     id: 'tumbler-engine', chapter: 'tumbler', at: 51, focus: 'tumbler',
-    caption: 'The agent app is chosen in The Table. From here, that step only opens it.',
+    caption: 'The agent app is chosen in Signet. From here, that step only opens it.',
     do: [tour('tumbler', 'tumbler.engine')],
   },
   {

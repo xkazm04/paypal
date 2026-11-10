@@ -80,7 +80,7 @@ describe('the films say only the prices their beat shows', () => {
   it('reads a price the way a narrator says it', () => {
     expect(spokenPrices('Her signed rules: three hundred forty, tops. Dan asks three forty.')).toEqual([340, 340]);
     expect(spokenPrices('Dan counters at three twenty-nine. Above two fifty, her rule says: ask me.')).toEqual([329, 250]);
-    expect(spokenPrices('Three windows: The Table, the Tumbler')).toEqual([]);
+    expect(spokenPrices('Three windows: Signet, the Tumbler')).toEqual([]);
   });
 
   it('cuts each table where the director has it: Dan’s last counter is not on screen before the gate', () => {

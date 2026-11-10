@@ -102,7 +102,7 @@ describe('each beat’s end state', () => {
   it('passes when the stage shows it and names what is missing when it does not', () => {
     expect(checkBeat('intro', seen())).toEqual([]);
     expect(checkBeat('intro', seen({ text: { main: `${CENTRE_TITLE} ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: '' } })))
-      .toEqual([`The Table should show “${IF_NOTHING}”`, `The Table should show “${SAFE_DEFAULT_LINE}”`]);
+      .toEqual([`Signet should show “${IF_NOTHING}”`, `Signet should show “${SAFE_DEFAULT_LINE}”`]);
     expect(checkBeat('intro', seen({ open: { main: true, approval: true }, text: { main: `${CENTRE} ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: MOCK_BADGE } })))
       .toEqual(['the approval window should be closed']);
     expect(checkBeat('intro', seen({ states: { [HAGGLE]: 'WITHDRAWN', [MISMATCH]: 'NEGOTIATING' } }))).toEqual([`${HAGGLE} should be NEGOTIATING, is WITHDRAWN`]);
@@ -128,7 +128,7 @@ describe('each beat’s end state', () => {
   it('always wants the preview banner and a badge in every open window', () => {
     expect(checkBeat('intro', seen({ banner: '' }))).toEqual(['the preview banner is missing']);
     expect(checkBeat('intro', seen({ text: { main: CENTRE, tumbler: '', approval: '' } }))).toEqual([
-      `The Table shows no “${MOCK_BADGE}” badge`,
+      `Signet shows no “${MOCK_BADGE}” badge`,
       `the Tumbler shows no “${MOCK_BADGE}” badge`,
     ]);
     // a closed window needs no badge, an open one does
@@ -215,11 +215,11 @@ describe('the second story: First run', () => {
     // the ending: no mark left in The Table or the Tumbler
     const end = firstRun({ text: { main: `${CHARTER_TITLE} ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: '' }, tour: { main: null, tumbler: null, approval: null } });
     expect(check('end', end)).toEqual([]);
-    expect(check('end', { ...end, tour: { main: 'main.approval', tumbler: null, approval: null } })).toEqual(['The Table should show no tour mark, shows “main.approval”']);
+    expect(check('end', { ...end, tour: { main: 'main.approval', tumbler: null, approval: null } })).toEqual(['Signet should show no tour mark, shows “main.approval”']);
     // a Maya beat id is not a First run beat
     expect(check('haggle-card', firstRun())).toEqual(['no expected end state is written for beat “haggle-card”']);
     // The Table draws its steps as the charter's lines, not the four steps' list
-    expect(check('end', { ...end, text: { main: `${FIRST_RUN_TITLE} ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: '' } })).toEqual([`The Table should show “${CHARTER_TITLE}”`]);
+    expect(check('end', { ...end, text: { main: `${FIRST_RUN_TITLE} ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: '' } })).toEqual([`Signet should show “${CHARTER_TITLE}”`]);
   });
 
   it('reads The Table’s charter lines as the four steps, in the charter’s order', () => {
@@ -257,7 +257,7 @@ describe('the no-pay rule and Break The Table’s attack cards', () => {
     expect(labels).toContain('Pay $64.00');
     const rule = { beat: [NO_PAY] };
     const miss = checkBeat('beat', seen({ buttons: { main: labels, tumbler: [], approval: [] } }), rule);
-    expect(miss).toEqual([`The Table should offer no button like ${String(PAYS)}, offers “Pay $64.00”`]);
+    expect(miss).toEqual([`Signet should offer no button like ${String(PAYS)}, offers “Pay $64.00”`]);
     expect(checkBeat('beat', seen({ buttons: { main: drawnButtonLabels(doc(ARENA), drawn), tumbler: [], approval: [] } }), rule)).toEqual([]);
   });
 

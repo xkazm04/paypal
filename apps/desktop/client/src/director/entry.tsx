@@ -23,7 +23,7 @@ async function start(): Promise<void> {
   // brand-new wallet's world before the core is made.
   const search = directorSearchFor(story, location.search);
   if (search !== null) history.replaceState(history.state, '', `${location.pathname}${search}${location.hash}`);
-  if (story.id !== 'maya') document.title = `The Table · ${story.title} (preview)`;
+  if (story.id !== 'maya') document.title = `Signet · ${story.title} (preview)`;
   const { Director } = await import('./Director');
   createRoot(el).render(
     <StrictMode>

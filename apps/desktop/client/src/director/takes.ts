@@ -445,7 +445,7 @@ export function charterSteps(classes: readonly string[]): Record<string, StartSt
 const show = (t: string | RegExp) => (typeof t === 'string' ? `“${t}”` : String(t));
 const fold = (s: string) => s.replace(/\s+/g, ' ');
 const has = (hay: string, t: string | RegExp) => (typeof t === 'string' ? fold(hay).includes(fold(t)) : t.test(fold(hay)));
-const WINDOW_WORD: Record<FrameName, string> = { main: 'The Table', tumbler: 'the Tumbler', approval: 'the approval window' };
+const WINDOW_WORD: Record<FrameName, string> = { main: 'Signet', tumbler: 'the Tumbler', approval: 'the approval window' };
 
 /**
  * What is wrong with a settled beat, in words a rehearsal log can print (empty: all good).
@@ -714,7 +714,7 @@ export function usdText(n: number): string {
 export function recordShown(rec: Partial<HaggleRecord> | Record<string, unknown>, text: string): string[] {
   const last = (v: unknown) => (Array.isArray(v) ? v.at(-1) : undefined);
   const want = [last(rec.offersMaya), last(rec.offersDan), rec.gateAt].filter((n): n is number => typeof n === 'number');
-  return [...new Set(want.map(usdText))].filter((t) => !text.includes(t)).map((t) => `the record says ${t}, The Table does not show it`);
+  return [...new Set(want.map(usdText))].filter((t) => !text.includes(t)).map((t) => `the record says ${t}, Signet does not show it`);
 }
 
 // ---- chapter records: shopping around, the week's deadlines and who decided each money step ----
