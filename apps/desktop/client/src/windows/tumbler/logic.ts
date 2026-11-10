@@ -479,8 +479,10 @@ export function allClearTicker(s: Pick<AttentionSnapshot, 'forecast' | 'wallet_s
   return {
     key: key('clear'),
     kind: 'info',
-    l1: [`${h.lead}: `, h.sentences[0] ?? '', h.sentences.length > 1 ? ` ${h.sentences.slice(1).join(' ')}` : ''],
-    l2: SAY_TICKER.clear,
+    // Line one is the lead and the first sentence (what leaves) only; the other sentences take line two
+    // whole, so none is cut off. A lone sentence keeps the all-clear line under it.
+    l1: [`${h.lead}: `, h.sentences[0] ?? '', ''],
+    l2: h.sentences.length > 1 ? h.sentences.slice(1).join(' ') : SAY_TICKER.clear,
     mode,
     dealId: null,
     ms: TICKER_MS.default,

@@ -139,7 +139,7 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .f.ticker .l1 { font: var(--fw-semibold) var(--fs-title3)/1.3 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .f.ticker .l1 b { font-family: var(--num); font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); color: var(--tk-l, var(--gold-l)); }
 .f.ticker .l2 { display: flex; align-items: center; gap: var(--sp-2); margin-top: 2px; font-size: var(--fs-small); color: var(--dim); white-space: nowrap; }
-.f.ticker .l2 > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.f.ticker .l2 > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
 .f.ticker .l2 .badge { flex: none; }
 .f.ticker.gate { --tk: var(--gold); --tk-l: var(--gold-l); }
 .f.ticker.receipt { --tk: var(--ok); --tk-l: var(--ok); }

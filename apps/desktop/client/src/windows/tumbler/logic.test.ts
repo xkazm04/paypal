@@ -6,10 +6,11 @@ import type { AttentionItem } from '@bindings/AttentionItem';
 import { clockLabel } from '../../lib/format';
 import { MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_SILENCE, MONEY_CHECK_SILENCE, SELLER_SAYS_PAID } from '../../lib/words';
 import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
+import type { ForecastLine } from '@bindings/ForecastLine';
 import {
   FORM_SIZE, NO_HANDOFF, SECONDS, approveWindow, arrivals, cardActions, cardClock, cardQuestion, canReview, handoffEnded, nextFocus, puckLook, puckTarget,
-  ackTicker, arrivalTicker, arrivalsTicker, snoozeTicker, plainItems,
-  cardWhy, puckName, dndPreferences, ladderCaption, ladderFill, ringFill, receiptTicker, restForm, rung, rungNotice, snoozeEligible, sortItems, spendMeter, splitHeadline, stateChip, tickerMayShow, untilLabel,
+  ackTicker, allClearTicker, arrivalTicker, arrivalsTicker, snoozeTicker, plainItems,
+  cardWhy, puckName, dndPreferences, ladderCaption, ladderFill, ringFill, receiptTicker, restForm, rung, rungNotice, snoozeEligible, sortItems, spendMeter, splitHeadline, stateChip, tickerMayShow, tickerSpeech, untilLabel,
 } from './logic';
 
 const NOW = 1_800_000_000;
@@ -434,6 +435,31 @@ describe('shield slice 2: a paused card says which check paused it', () => {
     expect(why).toBe('A scam check paused it: the price is more than 1.4 × the usual price. It can’t be paid until you decide.');
     expect(cardWhy(item({ deal_id: 'g', shield_rule: 'price_over_market' }))[0]).toBe('It needs your decision before it can go ahead.');
     expect(cardWhy(item({ deal_id: 'n', kind: 'hold', clause: null }))[0]).toBe('It is paused, so it can’t be paid until you decide.');
+  });
+});
+
+describe('allClearTicker: no sentence is cut off', () => {
+  const fl = (o: Partial<ForecastLine>): ForecastLine => ({
+    deal_id: 'a', label: 'D-1', trigger: 'next_tick', at: null, authority: 'seller_mandate', direction: 'in', action: 'capture',
+    amount_minor: 1234567, currency: 'USD', end_state: 'RECEIPTED', before: null, ...o,
+  });
+  const clear = (forecast: ForecastLine[]) => allClearTicker({ forecast, wallet_spend_today_currency: 'USD' }, 'sandbox');
+
+  it('keeps the lead and what leaves on line one, and everything else whole on line two', () => {
+    const t = clear([
+      fl({}), fl({ currency: 'EUR' }), fl({ action: 'auto_void', direction: 'none', trigger: 'deadline', at: 1 }),
+      fl({ trigger: 'buyer_approves', currency: 'GBP' }),
+    ]);
+    expect(t?.l1.join('')).toBe('If you walk away: $0 + €0 + £0 leaves.');
+    expect(t?.l2).toBe('1 hold ends on its own. $12,345.67 + €12,345.67 comes in. Up to $12,345.67 + €12,345.67 + £12,345.67 comes in only if a buyer approves.');
+    // the full text stays reachable: every sentence is in the spoken text
+    expect(tickerSpeech(t!)).toContain('Up to $12,345.67');
+  });
+
+  it('a lone sentence keeps the all-clear line under it', () => {
+    const t = clear([fl({ trigger: 'deadline', at: 9, action: 'lapse', direction: 'none' })]);
+    expect(t?.l1.join('')).toBe('If you walk away: $0 leaves.');
+    expect(t?.l2).toBe('all clear · nothing moves without you');
   });
 });
 

@@ -140,7 +140,7 @@ export function TickerForm({ ticker, onOpen, onHold }: { ticker: Ticker | null; 
   if (!ticker) return <div className="f ticker info still" />;
   const [lead, strong, tail] = ticker.l1;
   return (
-    <div className={`f ticker ${ticker.kind}`} role="button" tabIndex={0} aria-label={`${tickerSpeech(ticker)} Press Enter to open.`} onClick={onOpen} key={ticker.key}
+    <div className={`f ticker ${ticker.kind}`} role="button" tabIndex={0} title={tickerSpeech(ticker)} aria-label={`${tickerSpeech(ticker)} Press Enter to open.`} onClick={onOpen} key={ticker.key}
       onMouseEnter={() => onHold?.(true)} onMouseLeave={() => onHold?.(false)} onFocus={() => onHold?.(true)} onBlur={() => onHold?.(false)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}>
       <span className="stripe" aria-hidden="true" />
