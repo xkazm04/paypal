@@ -611,7 +611,7 @@ function NeedCard({ k, n, host, onAll, onDetails }: { k: BoardKey; n: number; ho
   const meta = MODULE[k.module];
   const own = useOwnOpen(host);
   return (
-    <div className="fs-need"style={{ '--mc': meta.cssVar } as React.CSSProperties} data-need={k.id} data-region="need">
+    <div className="fs-need" style={{ '--mc': meta.cssVar } as React.CSSProperties} data-need={k.id} data-region="need">
       <div className="fs-need-h">
         <Glyph module={k.module} className="fs-need-g" />
         <b className="fs-need-t">{k.title}</b>
