@@ -1,0 +1,117 @@
+{
+ "schema": "conform-run/1",
+ "worker": "a7d52858-6a5e-4db6-979b-cda0c9c15fde",
+ "subject": "concurrency-guards",
+ "evaluatedAt": "2026-11-10T00:21:30.793365+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "shared-ui-primitives",
+   "subject": "concurrency-guards",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "apps/desktop/client/src/shared/ui/HoldGesture.tsx:82 The two guarded UI operations here are a hold-to-confirm and the Try again retry. The hold refuses to start a second time and fires onComplete at most once. The retry is refused while it is busy, and the guard is released on every exit path. Layer entries are removed by their own identity. The file, database and cluster techniques have no precondition in this context.",
+   "techniques": [
+    {
+     "technique": "single-flight-primitives",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/components.tsx:136 The second caller is refused: the button is disabled while the retry runs, and aria-busy plus a spinner tell the user why, so the refusal does not look like a failed read."
+    },
+    {
+     "technique": "release-guarantees",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/HoldGesture.tsx:130 Every way out of a hold (pointer up, pointer cancel, pointer leave, blur) releases the holding guard. Line 108 cancels the animation frame on unmount, and lines 111-116 re-arm the guard when the button is disabled, so the latch cannot jam."
+    },
+    {
+     "technique": "critical-section-across-a-suspension",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/components.tsx:130 The busy guard deliberately stays held across the await rather than being split around it, so a second retry cannot start mid-flight. The finally releases it even when onRetry throws."
+    },
+    {
+     "technique": "guard-key-design",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/HoldGesture.tsx:82 The key is the component instance, which is the narrowest key that still catches the real duplicate (a re-press of the same seal). The key carries no per-invocation id."
+    },
+    {
+     "technique": "idempotency-by-design",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/HoldGesture.tsx:74 A latch makes the completion effect happen at most once per armed hold, and holdGesture.test.tsx checks that a second hold does not fire again. Real idempotency of the money action has to live behind onComplete, which is outside this context."
+    },
+    {
+     "technique": "preparation-is-the-staleness-window",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/HoldGesture.tsx:112 A lock, or a decision starting, while a hold is under way cancels the hold, so the go-ahead granted when the hold began is not trusted to the end. Residual gap: tick (line 74) re-reads holding.current but not disabled itself, so there is a window of up to one frame before the passive effect runs."
+    },
+    {
+     "technique": "attempt-attribution",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/layers.ts:34 Unregistering removes the caller's own entry by identity rather than popping whatever is on top. A late cleanup from a layer that Esc already closed is therefore a no-op and cannot remove a newer layer."
+    },
+    {
+     "technique": "race-catalog-with-two-histories",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/ui/layers.ts:10 A comment spells out what happens when Esc-close and the owner's cleanup collide: two quick Escs close two layers, and the owner's later cleanup does nothing."
+    },
+    {
+     "technique": "cross-process-exclusion",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/shared/ui/layers.ts:18 Guard state is in-process and belongs to one window. Esc handling is local to each window, so no other process can produce a duplicate that this guard would need to see."
+    }
+   ],
+   "registryProposal": "The golden path hands UI-side async races to client-state/async-race-guards, yet the context map still matches UI primitive contexts to this subject. Only about 9 of the 17 techniques can apply to a UI context. A note on when a single-component busy flag or latch is acceptable (the guard key is the component instance), rather than the shared keyed primitive, would stop reviewers reading those flags as bespoke mutexes."
+  },
+  {
+   "context": "wallet-domain-primitives",
+   "subject": "concurrency-guards",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-core/src/lib.rs:1 table-core is a pure, side-effect-free domain crate. Its dependencies (Cargo.toml) are only serde, serde_json, serde_jcs, thiserror, sha2, ulid and ts-rs, with no async runtime. Searching the whole crate for Mutex, RwLock, tokio, std::sync, Atomic and idempot found nothing, so no operation here can run concurrently with itself or needs a guard.",
+   "techniques": [],
+   "absenceTerms": [
+    "Mutex",
+    "RwLock",
+    "tokio",
+    "std::sync",
+    "idempot"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-10T00:21:30.793365+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "concurrency-guards"
+   ],
+   "techniques": [
+    "attempt-attribution",
+    "critical-section-across-a-suspension",
+    "cross-process-exclusion",
+    "guard-key-design",
+    "idempotency-by-design",
+    "preparation-is-the-staleness-window",
+    "race-catalog-with-two-histories",
+    "release-guarantees",
+    "single-flight-primitives"
+   ],
+   "deviations": 0,
+   "context": "shared-ui-primitives",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T00:21:30.793365+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "concurrency-guards"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "wallet-domain-primitives",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

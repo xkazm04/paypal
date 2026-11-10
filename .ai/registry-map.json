@@ -8308,7 +8308,11 @@
           "revision": 16,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/HoldGesture.tsx:82 The two guarded UI operations here are a hold-to-confirm and the Try again retry. The hold refuses to start a second time and fires onComplete at most once. The retry is refused while it is busy, and the guard is released on every exit path. Layer entries are removed by their own identity. The file, database and cluster techniques have no precondition in this context.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:27a9237dc933e4e4",
+          "evaluatedRevision": 18
         },
         {
           "subject": "prompt-assembly",
@@ -9913,7 +9917,11 @@
           "revision": 16,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-core/src/lib.rs:1 table-core is a pure, side-effect-free domain crate. Its dependencies (Cargo.toml) are only serde, serde_json, serde_jcs, thiserror, sha2, ulid and ts-rs, with no async runtime. Searching the whole crate for Mutex, RwLock, tokio, std::sync, Atomic and idempot found nothing, so no operation here can run concurrently with itself or needs a guard.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:27a9237dc933e4e4",
+          "evaluatedRevision": 18
         },
         {
           "subject": "retrieval",

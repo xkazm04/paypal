@@ -11715,6 +11715,73 @@
       "evaluatedTs": "2026-11-10T00:08:39.423Z",
       "worker": "22ddf9a2-7de2-42ad-a9cc-e5c409e63888",
       "techniques": []
+    },
+    "9a477925-2fcc-4133-982d-849ca52dbe7f/concurrency-guards": {
+      "context": "shared-ui-primitives",
+      "subject": "concurrency-guards",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:21:30.793Z",
+      "worker": "a7d52858-6a5e-4db6-979b-cda0c9c15fde",
+      "techniques": [
+        {
+          "technique": "single-flight-primitives",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/components.tsx:136 The second caller is refused: the button is disabled while the retry runs, and aria-busy plus a spinner tell the user why, so the refusal does not look like a failed read."
+        },
+        {
+          "technique": "release-guarantees",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/HoldGesture.tsx:130 Every way out of a hold (pointer up, pointer cancel, pointer leave, blur) releases the holding guard. Line 108 cancels the animation frame on unmount, and lines 111-116 re-arm the guard when the button is disabled, so the latch cannot jam."
+        },
+        {
+          "technique": "critical-section-across-a-suspension",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/components.tsx:130 The busy guard deliberately stays held across the await rather than being split around it, so a second retry cannot start mid-flight. The finally releases it even when onRetry throws."
+        },
+        {
+          "technique": "guard-key-design",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/HoldGesture.tsx:82 The key is the component instance, which is the narrowest key that still catches the real duplicate (a re-press of the same seal). The key carries no per-invocation id."
+        },
+        {
+          "technique": "idempotency-by-design",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/HoldGesture.tsx:74 A latch makes the completion effect happen at most once per armed hold, and holdGesture.test.tsx checks that a second hold does not fire again. Real idempotency of the money action has to live behind onComplete, which is outside this context."
+        },
+        {
+          "technique": "preparation-is-the-staleness-window",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/HoldGesture.tsx:112 A lock, or a decision starting, while a hold is under way cancels the hold, so the go-ahead granted when the hold began is not trusted to the end. Residual gap: tick (line 74) re-reads holding.current but not disabled itself, so there is a window of up to one frame before the passive effect runs."
+        },
+        {
+          "technique": "attempt-attribution",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/layers.ts:34 Unregistering removes the caller's own entry by identity rather than popping whatever is on top. A late cleanup from a layer that Esc already closed is therefore a no-op and cannot remove a newer layer."
+        },
+        {
+          "technique": "race-catalog-with-two-histories",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/layers.ts:10 A comment spells out what happens when Esc-close and the owner's cleanup collide: two quick Escs close two layers, and the owner's later cleanup does nothing."
+        },
+        {
+          "technique": "cross-process-exclusion",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/ui/layers.ts:18 Guard state is in-process and belongs to one window. Esc handling is local to each window, so no other process can produce a duplicate that this guard would need to see."
+        }
+      ],
+      "registryProposal": "The golden path hands UI-side async races to client-state/async-race-guards, yet the context map still matches UI primitive contexts to this subject. Only about 9 of the 17 techniques can apply to a UI context. A note on when a single-component busy flag or latch is acceptable (the guard key is the component instance), rather than the shared keyed primitive, would stop reviewers reading those flags as bespoke mutexes."
+    },
+    "e89814cc-f4e5-4bd4-bc27-9f356e7de9d4/concurrency-guards": {
+      "context": "wallet-domain-primitives",
+      "subject": "concurrency-guards",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:21:30.793Z",
+      "worker": "a7d52858-6a5e-4db6-979b-cda0c9c15fde",
+      "techniques": []
     }
   }
 }
