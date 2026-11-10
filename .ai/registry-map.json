@@ -1302,8 +1302,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "crates/table-attention/src/lib.rs:1 A pure projection crate for forecasts, silence lines and window placement. A search of crates/table-attention/src for hook, plugin, checkpoint and middleware returned nothing, so there is no runtime for this subject to govern.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "table",
@@ -5186,8 +5190,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "apps/desktop/client/src/windows/main/App.tsx:1 This is the React shell of the main window: routing, palette, shortcuts and the quit sheet. A recursive search of apps/desktop/client/src/windows/main for plugin, checkpoint, middleware and interceptor returned nothing, so no agent runtime is assembled here.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         }
       ],
       "governance": "governed"
@@ -10610,8 +10618,8 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "priorNotApplicable": 4,
+          "state": "unknown"
         },
         {
           "subject": "prompt-assembly",

@@ -11630,6 +11630,41 @@
           "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:1 The ladder ranks prices, not memories to recall."
         }
       ]
+    },
+    "cb008556-f52a-4b0f-b095-b677defb4bfd/agent-runtime-assembly": {
+      "context": "rules-and-settings-areas",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:04:20.445Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "3fffc030-daaa-4adc-85fd-978eb555e678",
+        "state": "not-applicable",
+        "at": "2026-11-10T00:04:47.681621+00:00",
+        "reason": "reviewer (sonnet): The evidence calls both areas read-only, but the anchor comment at RulesLayer.tsx:8 says that only of Rules. The Settings files in the same context send agent_pause, agent_resume and agent_start (SettingsLayer.tsx:89, AgentPause.tsx, resume.ts) to the runtime, so the claim is contradicted and the an"
+      }
+    },
+    "b093c233-9d42-4fdb-8b3c-b9b5460ac5ad/agent-runtime-assembly": {
+      "context": "attention-forecast-and-window-placement",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:04:20.445Z",
+      "worker": "3fffc030-daaa-4adc-85fd-978eb555e678",
+      "techniques": []
+    },
+    "defa1695-a720-4e76-9d97-b09ece4d4394/agent-runtime-assembly": {
+      "context": "main-window-shell",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:04:20.445Z",
+      "worker": "3fffc030-daaa-4adc-85fd-978eb555e678",
+      "techniques": []
     }
   }
 }
