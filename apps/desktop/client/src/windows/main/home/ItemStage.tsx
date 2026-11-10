@@ -18,7 +18,7 @@ import { mirrorStrip, stepWords, timelineRows } from '../deal/model';
 import { dealAnswer, standingFacts } from '../deal/story';
 import { formatHash, isTerminal } from '../logic';
 import type { GettingStarted } from '../../../lib/firstRun';
-import { Answer, type PanelHost } from '../switchboard/Answer';
+import { Answer, useOwnOpen, type PanelHost } from '../switchboard/Answer';
 import { useCpLookup } from '../ui';
 import { useDisplayOf, useNeedOf, useWorldSelector } from '../world';
 import type { ModuleList, ModuleRow } from './rows/rows';
@@ -109,6 +109,7 @@ function DealStage({ id, row, facts, host }: { id: string; row: ModuleRow; facts
   const cp = useCpLookup()(deal?.counterparty ?? '');
   const tr = useQuery('deal_transcript', { deal_id: id }, { refreshOn: ['deal:changed'] });
   const k = host.model.byId.get(id);
+  const own = useOwnOpen(host);
   if (!deal) return <p className="fs-quiet">{STAGE.gone}</p>;
 
   const them = cp.name.split(' · ')[0] ?? cp.name;
@@ -134,10 +135,11 @@ function DealStage({ id, row, facts, host }: { id: string; row: ModuleRow; facts
       {silence ? <p className="fs-isilence"><Silence text={silenceWords(silence)} deadline={deadline} /></p> : null}
       <div className="fs-acts">
         {k?.review ? (
-          <Btn kind="gold" locked={host.locked} disabled={host.pending} onClick={() => host.run({ kind: 'approval', deal_id: id, target: null })}>{GREET.review}</Btn>
+          <Btn kind="gold" locked={host.locked} disabled={host.pending} onClick={() => own.run({ kind: 'approval', deal_id: id, target: null })}>{GREET.review}</Btn>
         ) : null}
         <Btn kind={k?.review ? 'plain' : 'default'} title={STAGE.openFullTitle} onClick={() => host.run({ kind: 'console', hash: formatHash({ level: 'deal', deal: id }) })}>{STAGE.openFull}</Btn>
       </div>
+      {own.notice}
       <div className="fs-igrid">
         <section className="fs-isec" aria-label={STAGE.story}>
           <h2 className="fs-kick">{STAGE.story}</h2>

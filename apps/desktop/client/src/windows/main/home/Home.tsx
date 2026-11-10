@@ -31,7 +31,7 @@ import { DUR, useCalm } from '../../../design/motion';
 import { useAway } from './useAway';
 import { readLastSeen, startOfToday, writeLastSeen } from './away';
 import { useStart } from '../setup/start';
-import { Answer, type PanelHost } from '../switchboard/Answer';
+import { Answer, useOwnOpen, type PanelHost } from '../switchboard/Answer';
 import { Amount } from '../switchboard/parts';
 import { hasProposals, Proposals, type Acted, type Proposal } from '../switchboard/Proposals';
 import { resolveAction, type BoardFacts, type Consent, type Run } from '../switchboard/resolve';
@@ -609,8 +609,9 @@ function Opening({ g, gsDone, gsTotal, host, onAllNeeds, onDetails }: {
 
 function NeedCard({ k, n, host, onAll, onDetails }: { k: BoardKey; n: number; host: PanelHost; onAll: () => void; onDetails: (() => void) | null }) {
   const meta = MODULE[k.module];
+  const own = useOwnOpen(host);
   return (
-    <div className="fs-need" style={{ '--mc': meta.cssVar } as React.CSSProperties} data-need={k.id} data-region="need">
+    <div className="fs-need"style={{ '--mc': meta.cssVar } as React.CSSProperties} data-need={k.id} data-region="need">
       <div className="fs-need-h">
         <Glyph module={k.module} className="fs-need-g" />
         <b className="fs-need-t">{k.title}</b>
@@ -625,11 +626,12 @@ function NeedCard({ k, n, host, onAll, onDetails }: { k: BoardKey; n: number; ho
       {k.on_silence ? <p className="fs-need-s"><b>{GREET.ifNothing}:</b> {k.on_silence}</p> : null}
       <div className="fs-acts">
         {k.review
-          ? <Btn kind="gold" locked={host.locked} disabled={host.pending} onClick={() => host.run({ kind: 'approval', deal_id: k.id, target: null })}>{GREET.review}</Btn>
+          ? <Btn kind="gold" locked={host.locked} disabled={host.pending} onClick={() => own.run({ kind: 'approval', deal_id: k.id, target: null })}>{GREET.review}</Btn>
           : null}
         {onDetails ? <Btn kind={k.review ? 'plain' : 'default'} onClick={onDetails}>{STAGE.details}</Btn> : null}
         {n > 1 ? <Btn kind="plain" onClick={onAll}>{GREET.allNeeds(n)}</Btn> : null}
       </div>
+      {own.notice}
     </div>
   );
 }

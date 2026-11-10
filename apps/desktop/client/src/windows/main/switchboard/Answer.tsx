@@ -3,7 +3,7 @@
 // button of the view is either the decision panel's "Review in approval window" or, on a brand-new
 // wallet, the next setup step's hand-off; both go through `host.run`, which is approval_open or a
 // plain navigation to the console. Nothing here approves, signs, captures, voids or releases.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { WalletError } from '../../../lib/contract';
 import { formatMinor, formatMoney } from '../../../lib/format';
 import { useQuery } from '../../../lib/hooks';
@@ -61,16 +61,33 @@ export function Answer({ panel, host, primary = true }: { panel: PanelSpec; host
 
 // ---- the one gold hand-off ---------------------------------------------------------------------------
 
-function HandOff({ label, title, host, run, gold }: { label: string; title: string; host: PanelHost; run: Run; gold: boolean }) {
+function HandOff({ label, title, host, run, gold, onRun }: { label: string; title: string; host: PanelHost; run: Run; gold: boolean; onRun?: (r: Run) => void }) {
   return (
-    <Btn kind={gold ? 'gold' : 'default'} locked={host.locked} disabled={host.pending} onClick={() => host.run(run)} title={host.locked ? APPROVAL_LOCKED_TITLE : title} data-handoff={run.kind === 'approval' ? 'approval' : 'console'}>
+    <Btn kind={gold ? 'gold' : 'default'} locked={host.locked} disabled={host.pending} onClick={() => (onRun ?? host.run)(run)} title={host.locked ? APPROVAL_LOCKED_TITLE : title} data-handoff={run.kind === 'approval' ? 'approval' : 'console'}>
       {host.pending ? BOARD_DECISION.opening : label}
     </Btn>
   );
 }
 
-function ErrorLine({ host }: { host: PanelHost }) {
-  return host.error ? <WalletNotice error={host.error} what={BOARD_DECISION.review} /> : null;
+/** A failed hand-off to the approval window says so ONCE, beside the control that was pressed: the
+ *  host holds one error for the whole page, so each surface that hands off (a panel here, the home's
+ *  need card and item page) sends its runs through `run` and draws `notice`, which shows only the
+ *  failure its own press started. It clears on the next open (the host clears its error) and when
+ *  the surface goes away. */
+export function useOwnOpen(host: PanelHost): { run: (r: Run) => void; notice: ReactNode } {
+  const [armed, setArmed] = useState(false);
+  const [owned, setOwned] = useState<WalletError | null>(null);
+  const wasPending = useRef(host.pending);
+  useEffect(() => {
+    if (wasPending.current && !host.pending && armed) { setArmed(false); setOwned(host.error); }
+    wasPending.current = host.pending;
+  }, [host.pending, host.error, armed]);
+  const run = (r: Run) => {
+    if (r.kind === 'approval') { setArmed(true); setOwned(null); }
+    host.run(r);
+  };
+  const notice = owned && host.error === owned ? <WalletNotice error={owned} what={BOARD_DECISION.review} /> : null;
+  return { run, notice };
 }
 
 const consoleHash = (id: string): string => formatHash({ level: 'deal', deal: id });
@@ -110,6 +127,7 @@ function KeyRow({ k, host, silence }: { k: BoardKey; host: PanelHost; silence?: 
 }
 
 function DecisionPanel({ id, host, primary }: { id: string; host: PanelHost; primary: boolean }) {
+  const own = useOwnOpen(host);
   const k = host.model.byId.get(id);
   if (!k) return <p className="sb-quiet">{BOARD_DECISION.gone}</p>;
   if (k.fate !== 'needs') return <DealPanel id={id} host={host} note={BOARD_DECISION.notWaiting} />;
@@ -127,10 +145,10 @@ function DecisionPanel({ id, host, primary }: { id: string; host: PanelHost; pri
       <p className="sb-quiet">{BOARD_DECISION.handoff}</p>
       <div className="sb-actions">
         {k.review
-          ? <HandOff label={BOARD_DECISION.review} title={BOARD_DECISION.reviewTitle} host={host} run={{ kind: 'approval', deal_id: k.id, target: null }} gold={primary} />
+          ? <HandOff label={BOARD_DECISION.review} title={BOARD_DECISION.reviewTitle} host={host} run={{ kind: 'approval', deal_id: k.id, target: null }} gold={primary} onRun={own.run} />
           : <HandOff label={BOARD_DEAL.open} title={BOARD_DEAL.openTitle} host={host} run={{ kind: 'console', hash: consoleHash(k.id) }} gold={false} />}
       </div>
-      <ErrorLine host={host} />
+      {own.notice}
     </div>
   );
 }
@@ -292,12 +310,13 @@ function WeekPanel({ host }: { host: PanelHost }) {
 
 function SetupPanel({ host, primary }: { host: PanelHost; primary: boolean }) {
   const gs = useStart();
+  const own = useOwnOpen(host);
   const runFor = (key: StartStepKey): Run => {
     if (key === 'paypal') return { kind: 'approval', deal_id: null, target: 'credentials' };
     if (key === 'rules') return { kind: 'approval', deal_id: null, target: 'mandate' };
     return { kind: 'console', hash: formatHash({ level: 'setup', step: SETUP_STEP_OF[key] }) };
   };
-  const action = (key: StartStepKey): StepAction => ({ label: START_STEP[key].act, title: START_STEP[key].where, run: () => host.run(runFor(key)) });
+  const action = (key: StartStepKey): StepAction => ({ label: START_STEP[key].act, title: START_STEP[key].where, run: () => own.run(runFor(key)) });
   const next = gs.next;
   return (
     <div className="sb-setup" data-setup>
@@ -306,10 +325,10 @@ function SetupPanel({ host, primary }: { host: PanelHost; primary: boolean }) {
       <p className="sb-quiet">{host.model.keys.length ? BOARD_SETUP.promise : `${BOARD_SETUP.empty} ${BOARD_SETUP.promise}`}</p>
       <div className="sb-actions">
         {next
-          ? <HandOff label={BOARD_SETUP.next(START_STEP[next].title)} title={START_STEP[next].where} host={host} run={runFor(next)} gold={primary} />
+          ? <HandOff label={BOARD_SETUP.next(START_STEP[next].title)} title={START_STEP[next].where} host={host} run={runFor(next)} gold={primary} onRun={own.run} />
           : gs.done === gs.total ? <span className="sb-quiet">{BOARD_SETUP.allDone}</span> : null}
       </div>
-      <ErrorLine host={host} />
+      {own.notice}
     </div>
   );
 }
