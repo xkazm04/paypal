@@ -5,7 +5,7 @@
 // watches mandate_list for the new set the approval window signed.
 import { useEffect, useMemo, useState } from 'react';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
-import { Btn } from '../../../../shared/ui';
+import { Btn, ReadFailed } from '../../../../shared/ui';
 import { clockNow } from '../../../../lib/clock';
 import { ruleInForce } from '../../../../lib/firstRun';
 import { formatMinor } from '../../../../lib/format';
@@ -28,7 +28,8 @@ const keyOf = (m: MandateListEntry): string => `${m.payload.id}:${m.payload.vers
 const SETTLE_MS = 1600;
 
 /** The limits now in force, read from the first in-force set that has a per-deal clause. */
-export function currentRules(list: readonly MandateListEntry[], now: number): { ask: RulesAsk; expires: number | null } {
+/** `suggested` is true when no signed rule is in force: the ask is then Signet's starting values, not the owner's limits. */
+export function currentRules(list: readonly MandateListEntry[], now: number): { ask: RulesAsk; expires: number | null; suggested: boolean } {
   for (const m of list) {
     if (!ruleInForce(m, now)) continue;
     const cs = m.payload.clauses;
@@ -44,9 +45,10 @@ export function currentRules(list: readonly MandateListEntry[], now: number): { 
         ends: RULES_START.ends,
       },
       expires: m.payload.expires,
+      suggested: false,
     };
   }
-  return { ask: RULES_START, expires: null };
+  return { ask: RULES_START, expires: null, suggested: true };
 }
 
 /** A day never holds less than one deal; asking above more than a deal means never asking. */
@@ -65,12 +67,14 @@ function Live({ turn }: { turn: FlowTurn }) {
   const q = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
   const list = q.data;
   const cur = useMemo(() => (list ? currentRules(list, now) : null), [list, now]);
-  const ask: RulesAsk | null = (turn.data.ask as RulesAsk | undefined) ?? cur?.ask ?? (q.error ? RULES_START : null);
+  const ask: RulesAsk | null = (turn.data.ask as RulesAsk | undefined) ?? cur?.ask ?? null;
 
   useEffect(() => { if (locked) endFlow(W.locked); }, [locked]);
   const n = Math.max(1, STEPS.indexOf(turn.step as (typeof STEPS)[number]) + 1);
 
   if (locked) return <FlowCard turn={turn}><p>{W.locked}</p></FlowCard>;
+  // A failed read with nothing held is a failure, never the built-in defaults dressed as her limits.
+  if (!ask && q.error) return <FlowCard turn={turn} n={n} of={STEPS.length}><ReadFailed error={q.error} what={W.readWhat} onRetry={q.refetch} /></FlowCard>;
   if (!ask) return <FlowCard turn={turn} n={n} of={STEPS.length}><p className="fc-quiet">{W.loading}</p></FlowCard>;
 
   const moneyStep = (field: Money3) => {
@@ -83,6 +87,7 @@ function Live({ turn }: { turn: FlowTurn }) {
     return (
       <>
         <p>{W[field].ask}</p>
+        {cur?.suggested ? <p className="fc-quiet">{W.suggested}</p> : null}
         <div className="fc-choices">
           <Btn kind="primary" onClick={() => pick(ask[field])}>{W.keep(usd(ask[field]))}</Btn>
           {shown.map((v) => <Btn key={v} onClick={() => pick(v)}>{usd(v)}</Btn>)}

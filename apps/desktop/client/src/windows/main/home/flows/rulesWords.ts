@@ -1,6 +1,8 @@
 // Words of the Rules flow (spark chat-configure): one question per card, the owner's words.
 export const RULES_FLOW = {
   loading: 'Reading your current limits…',
+  readWhat: 'Your current limits',
+  suggested: 'You have no signed limits yet, so these are Signet’s suggested starting values, not your current limits.',
   perDeal: {
     ask: 'The most an agent may spend on one deal?',
     sum: (v: string): string => `Most per deal: ${v}`,

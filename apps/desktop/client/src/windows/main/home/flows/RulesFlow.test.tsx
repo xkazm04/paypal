@@ -10,7 +10,10 @@ import { resetReadBudget } from '../../../../lib/data/invoke';
 import { mockBackend, resetMockState } from '../../../../mock/backend';
 import { setHarnessBackend } from '../../console/testing/runtime';
 import type { SecureStepProps } from '../secure/contract';
+import { UI_WORDS } from '../../../../lib/words';
+import { WalletError } from '../../../../lib/contract';
 import { FlowTurnView } from './FlowTurnView';
+import { currentRules } from './RulesFlow';
 import { resetFlows, startFlow, useFlows } from './store';
 import { FLOW_WORDS } from './words';
 import { RULES_FLOW as W } from './rulesWords';
@@ -26,6 +29,7 @@ vi.mock('../secure/SecureStep', () => ({
 MotionGlobalConfig.skipAnimations = true;
 
 let calls: string[] = [];
+let failList = false;
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-06T09:30:00'));
@@ -37,7 +41,8 @@ beforeEach(() => {
   resetFlows();
   const real = mockBackend('main');
   calls = [];
-  const wrapped: Backend = { kind: real.kind, label: real.label, invoke: async (cmd, args, opts) => { calls.push(cmd); return real.invoke(cmd, args, opts); }, listen: real.listen };
+  failList = false;
+  const wrapped: Backend = { kind: real.kind, label: real.label, invoke: async (cmd, args, opts) => { calls.push(cmd); if (failList && cmd === 'mandate_list') throw new WalletError({ code: 'REFUSED', message: 'no' }); return real.invoke(cmd, args, opts); }, listen: real.listen };
   setHarnessBackend(wrapped);
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); history.replaceState(null, '', '/'); localStorage.clear(); });
@@ -113,5 +118,25 @@ describe('the rules flow', () => {
     act(() => { startFlow('rules', 'perDeal'); });
     await waitFor(() => expect(folded()).toEqual([W.locked]));
     expect(live()).toBeNull();
+  });
+
+  it('a failed limits read says so, offers no amounts, and Try again reads again', async () => {
+    failList = true;
+    render(<Host />);
+    act(() => { startFlow('rules', 'perDeal'); });
+    await waitFor(() => expect(live()?.querySelector('.ui-failed')).not.toBeNull(), { timeout: 5000 });
+    expect(btns()).toEqual([]);
+    expect(live()?.textContent).not.toMatch(/Keep /);
+    const reads = () => calls.filter((c) => c === 'mandate_list').length;
+    const before = reads();
+    failList = false;
+    fireEvent.click([...live()!.querySelectorAll('button')].find((b) => b.textContent === UI_WORDS.tryAgain)!);
+    await waitFor(() => expect(btns().length).toBeGreaterThan(1), { timeout: 5000 });
+    expect(reads()).toBeGreaterThan(before);
+    expect(live()?.querySelector('.ui-failed')).toBeNull();
+  });
+
+  it('with no signed rules, currentRules marks the starting values as suggested', () => {
+    expect(currentRules([], 1_000).suggested).toBe(true);
   });
 });
