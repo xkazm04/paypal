@@ -30,6 +30,8 @@ MotionGlobalConfig.skipAnimations = true;
 
 let calls: string[] = [];
 let failList = false;
+let emptyList = false;
+const handlers: Record<string, ((p: never) => void)[]> = {};
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-06T09:30:00'));
@@ -42,7 +44,9 @@ beforeEach(() => {
   const real = mockBackend('main');
   calls = [];
   failList = false;
-  const wrapped: Backend = { kind: real.kind, label: real.label, invoke: async (cmd, args, opts) => { calls.push(cmd); if (failList && cmd === 'mandate_list') throw new WalletError({ code: 'REFUSED', message: 'no' }); return real.invoke(cmd, args, opts); }, listen: real.listen };
+  emptyList = false;
+  for (const k of Object.keys(handlers)) delete handlers[k];
+  const wrapped: Backend = { kind: real.kind, label: real.label, invoke: async (cmd, args, opts) => { calls.push(cmd); if (failList && cmd === 'mandate_list') throw new WalletError({ code: 'REFUSED', message: 'no' }); if (emptyList && cmd === 'mandate_list') return []; return real.invoke(cmd, args, opts); }, listen: (ev, cb) => { (handlers[ev] ??= []).push(cb as (p: never) => void); return real.listen(ev, cb); } };
   setHarnessBackend(wrapped);
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); history.replaceState(null, '', '/'); localStorage.clear(); });
@@ -138,5 +142,33 @@ describe('the rules flow', () => {
 
   it('with no signed rules, currentRules marks the starting values as suggested', () => {
     expect(currentRules([], 1_000).suggested).toBe(true);
+  });
+
+  it('a held answer survives a failed refresh: the choices stay and no failure shows', async () => {
+    render(<Host />);
+    act(() => { startFlow('rules', 'perDeal'); });
+    await waitFor(() => expect(btns().length).toBeGreaterThan(1), { timeout: 5000 });
+    const before = calls.filter((c) => c === 'mandate_list').length;
+    failList = true;
+    await act(async () => { (handlers['settings:changed'] ?? []).forEach((h) => h(undefined as never)); });
+    await waitFor(() => expect(calls.filter((c) => c === 'mandate_list').length).toBeGreaterThan(before), { timeout: 5000 });
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(btns().length).toBeGreaterThan(1);
+    expect(live()?.querySelector('.ui-failed')).toBeNull();
+  });
+
+  it('suggested starting values are offered as Use, with the suggested line; signed limits stay Keep', async () => {
+    emptyList = true;
+    render(<Host />);
+    act(() => { startFlow('rules', 'perDeal'); });
+    await waitFor(() => expect(btns().length).toBeGreaterThan(1), { timeout: 5000 });
+    expect(btns()[0]!.textContent).toMatch(/^Use \$/);
+    expect(live()?.textContent).toContain(W.suggested);
+    cleanup(); resetFlows(); resetReadBudget(); emptyList = false;
+    render(<Host />);
+    act(() => { startFlow('rules', 'perDeal'); });
+    await waitFor(() => expect(btns().length).toBeGreaterThan(1), { timeout: 5000 });
+    expect(btns()[0]!.textContent).toMatch(/^Keep \$/);
+    expect(live()?.textContent).not.toContain(W.suggested);
   });
 });

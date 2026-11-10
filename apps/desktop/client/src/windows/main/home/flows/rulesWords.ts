@@ -21,6 +21,7 @@ export const RULES_FLOW = {
     sum: (v: string): string => `Lasts: ${v}`,
   },
   keep: (v: string): string => `Keep ${v}`,
+  use: (v: string): string => `Use ${v}`,
   durations: ['for a day', 'for 3 days', 'for a week', 'for a month'] as readonly string[],
   review: {
     ask: 'Here is what you would sign. Does it read right?',

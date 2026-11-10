@@ -92,7 +92,7 @@ function Live({ turn }: { turn: FlowTurn }) {
         <p>{W[field].ask}</p>
         {cur?.suggested ? <p className="fc-quiet">{W.suggested}</p> : null}
         <div className="fc-choices">
-          <Btn kind="primary" onClick={() => pick(ask[field])}>{W.keep(usd(ask[field]))}</Btn>
+          <Btn kind="primary" onClick={() => pick(ask[field])}>{(cur?.suggested ? W.use : W.keep)(usd(ask[field]))}</Btn>
           {shown.map((v) => <Btn key={v} onClick={() => pick(v)}>{usd(v)}</Btn>)}
         </div>
       </>
