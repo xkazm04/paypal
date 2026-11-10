@@ -245,12 +245,18 @@ function InstructionsFor({ dealId, onClose }: { dealId: string; onClose: () => v
 
 /** Start a mandate-bound agent run (haggles at the table), or show the one running. While the deal
  *  needs the owner, the gold Review is the one decision on the page: this stays quiet. */
-function AgentAction({ deal, label, needs }: { deal: Deal; label: string; needs: boolean }) {
-  const s = useSettings().data;
-  const runs = useRuns().data;
+export function AgentAction({ deal, label, needs }: { deal: Deal; label: string; needs: boolean }) {
+  const sq = useSettings();
+  const rq = useRuns();
+  const s = sq.data;
+  const runs = rq.data;
   const toast = useToast();
   const start = useMutation('agent_start');
   if (!canStartAgent(deal)) return null;
+  // Unknown is not "none": until the wallet has answered both reads (a held answer stays, even when
+  // a later refresh fails) Start agent is not offered, and a read that failed says so.
+  const unknown = !s || !runs;
+  const unread = unknown && !!(sq.error || rq.error);
   const paused = !!s?.agents_paused;
   const run = (runs ?? []).find((r) => r.deal_id === deal.id && (r.state === 'running' || r.state === 'starting'));
   if (run) return <><Chip tone="ok" title={DEAL_ACT.agentRunTitle(run.engine)}>{DEAL_ACT.agentRun(run.state)}</Chip><RunBadge run={run} /></>;
@@ -258,7 +264,8 @@ function AgentAction({ deal, label, needs }: { deal: Deal; label: string; needs:
   return (
     <>
       {ended ? <Chip tone={ended.state === 'clean' ? 'ok' : ended.state === 'failed' ? 'gold' : 'line'}>{DEAL_ACT.lastRun[ended.state as 'clean' | 'failed' | 'cancelled']}</Chip> : null}
-      <Btn sm kind={needs ? undefined : 'primary'} disabled={paused || start.pending} title={paused ? DEAL_ACT.agentsPausedTitle : DEAL_ACT.startAgentTitle}
+      <Btn sm kind={needs ? undefined : 'primary'} disabled={unknown || paused || start.pending}
+        title={unread ? DEAL_ACT.startAgentUnread : unknown ? DEAL_ACT.startAgentReading : paused ? DEAL_ACT.agentsPausedTitle : DEAL_ACT.startAgentTitle}
         onClick={async () => { const r = await start.run({ deal_id: deal.id }); if (r) toast(DEAL_ACT.agentIs(r.state, label), 'ok'); }}>
         {paused ? DEAL_ACT.agentsPaused : DEAL_ACT.startAgent}
       </Btn>

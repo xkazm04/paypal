@@ -47,6 +47,8 @@ export const DEAL_ACT = {
   export: 'Export record',
   startAgent: 'Start agent',
   startAgentTitle: 'Let your agent bargain for this deal, inside your rules',
+  startAgentReading: 'Signet is still reading whether an agent is running',
+  startAgentUnread: 'Signet could not read whether an agent is running or paused',
   agentsPaused: 'Agents paused',
   agentsPausedTitle: 'All agents are paused; resume them in Settings',
   agentIs: (state: string, label: string): string => `Your agent is ${state} on ${label}`,
