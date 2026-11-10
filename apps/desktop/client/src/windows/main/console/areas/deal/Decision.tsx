@@ -54,7 +54,8 @@ export function Summary({ deal, strip, deadline, check }: { deal: Deal; strip: M
         <span className="k">{DEAL_FIGS.moneyNow}</span>
         <span className="v">{check ? moneyCheckNow(ended) : moneyNow(deal)}</span>
       </div>
-      {deadline ? (
+      {/* An ended deal keeps its stored deadline; it has no time left to show. */}
+      {deadline && !ended ? (
         <div className="dv-f">
           <span className="k">{DEAL_FIGS.timeLeft(clockLabel(deadline))}</span>
           <Countdown deadline={deadline} className="dv-cd" />

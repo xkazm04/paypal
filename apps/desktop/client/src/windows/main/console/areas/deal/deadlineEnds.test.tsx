@@ -8,7 +8,8 @@ import { cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AUTHORITY } from '@bindings/authority';
 import type { Backend, CommandName } from '../../../../../lib/contract';
-import { DEAL_CARD, DEAL_DECIDED, stateWord } from '../../../../../lib/words';
+import { DEAL_CARD, DEAL_DECIDED, IF_NOTHING, stateWord } from '../../../../../lib/words';
+import type { MockBackend } from '../../../../../mock/backend';
 import { renderLayerAtScale, settle } from '../../testing/scaleSmoke';
 
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
@@ -77,5 +78,23 @@ describe('a deadline that passes, on the deal page', () => {
     expect(money).toEqual([]);
     expect(acts).toEqual([]);
     expect(r.errors).toEqual([]);
+  }, 60_000);
+});
+
+/** An ended deal that still carries the deadline the wallet stored while it was live. */
+describe('an ended deal that kept its stored deadline', () => {
+  it.each(['AUTO_VOIDED', 'LAPSED'] as const)('%s: no time left, no countdown, no "if you do nothing"', async (how) => {
+    const r = await renderLayerAtScale(async (w) => {
+      const id = await endedDeal(w, how);
+      const label = (await w.invoke('deal_display', { deal_id: id })).label;
+      const held = (w as MockBackend).world.deal(label);
+      if (!held) throw new Error('no deal to give a deadline');
+      held.display.deadline = Math.floor(Date.now() / 1000) + 3600;
+      return { level: 'deal' as const, deal: id };
+    }, null);
+    await settle();
+    expect(r.layer.textContent).not.toMatch(/Time left/);
+    expect(r.layer.querySelector('[role="timer"]')).toBeNull();
+    expect(r.layer.textContent).not.toContain(IF_NOTHING);
   }, 60_000);
 });

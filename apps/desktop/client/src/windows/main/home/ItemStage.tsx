@@ -115,11 +115,12 @@ function DealStage({ id, row, facts, host }: { id: string; row: ModuleRow; facts
   const steps: TranscriptStep[] | undefined = tr.data ?? undefined;
   const latest = (steps ?? []).reduce<TranscriptStep | null>((a, s) => (!a || s.seq > a.seq ? s : a), null);
   const strip = mirrorStrip(deal, { needsYou: !!need });
-  const deadline = need?.deadline ?? disp?.deadline ?? null;
+  // An ended deal keeps its stored deadline; nothing on the page may count down to it.
+  const deadline = isTerminal(deal) ? null : need?.deadline ?? disp?.deadline ?? null;
   const answer = dealAnswer(deal, { need, them, latest, band: null, mayWithdraw: false, check: null });
   const standing = standingFacts(deal, disp?.band ?? null, latest, them, null, steps).map((f) => [f.k, <span className={f.tone ? `fs-tn-${f.tone}` : ''}>{f.v}</span>] as [string, ReactNode]);
   const story = steps ? timelineRows(steps, deal) : [];
-  const silence = k?.on_silence ?? (!isTerminal(deal) ? disp?.on_silence ?? null : null);
+  const silence = isTerminal(deal) ? null : k?.on_silence ?? disp?.on_silence ?? null;
 
   return (
     <>

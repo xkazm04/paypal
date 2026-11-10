@@ -92,7 +92,8 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
   const check = evidence?.money_check ?? need?.money_check ?? null;
   const strip = check ? { ...mirrored, steps: mirrored.steps.map((s) => (s.status === 'cur' ? { ...s, label: DEAL_FIGS.checking } : s)) } : mirrored;
   const withdrawable = mayWithdraw(deal, need) && !check;
-  const deadline = need?.deadline ?? disp.deadline;
+  // An ended deal keeps its stored deadline; nothing on the page may count down to it.
+  const deadline = isTerminal(deal) ? null : need?.deadline ?? disp.deadline;
   const them = cp.name.split(' · ')[0] ?? cp.name;
   const latest = useMemo(() => (tr.data ?? []).reduce<TranscriptStep | null>((a, s) => (!a || s.seq > a.seq ? s : a), null), [tr.data]);
   const bandReading = deal.kind === 'haggle' ? (readings.find((r) => r.n === 4)?.reading ?? null) : null;
