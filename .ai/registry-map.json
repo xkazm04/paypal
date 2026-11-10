@@ -1536,7 +1536,11 @@
           "revision": 8,
           "changedAt": "2026-10-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/rules.ts:17 The Book is a merchant's read-only ledger and query mirror. Its only 'subscription' vocabulary is a ledger view over the merchant's own PayPal billing records (paypal.subscription on a deal), not a plan the product sells to its tenant. Searching the context's directories (modules/book, console/areas, lib/words) found no entitlement, paywall, premium, pricing or plan_id, and no tier model, capability gate or upgrade prompt, so the precondition of the subject (a product with paid tiers that gate features) does not hold here.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:66961f93b3ce02ba",
+          "evaluatedRevision": 8
         },
         {
           "subject": "proof-carrying-agent-actions",

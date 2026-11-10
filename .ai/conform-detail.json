@@ -4375,19 +4375,21 @@
       "context": "book-module",
       "subject": "plan-entitlements",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-25",
-      "evaluatedTs": "2026-10-25T23:47:33.295Z",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T23:01:41.691Z",
+      "worker": "de824727-1702-4843-861d-77089b2e8afd",
       "techniques": [
-        {
-          "technique": "tier-model-single-source",
-          "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/modules/book/rules.ts:17 The closed lists here cover ledger views, not tiers; the context has no tier model to single-source."
-        },
         {
           "technique": "capability-gate-predicates",
           "verdict": "not-applicable",
-          "evidence": "apps/desktop/client/src/windows/main/console/areas/book/Ask.tsx:183 The only refusal state in the area is a query or lens that can't run ('this view can't run yet'), not a plan-inclusion gate."
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/rules.ts:33 This is the only gate-like predicate in the module. It rejects a query by its shape (views, metrics, filters) and never asks about a plan, so no plan capability is being gated."
+        },
+        {
+          "technique": "tier-model-single-source",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/rules.ts:17 The closed lists here cover ledger views, not tiers; the context has no tier model to single-source.",
+          "carriedFrom": "2026-10-25"
         },
         {
           "technique": "deployment-mode-short-circuit",
@@ -4437,14 +4439,7 @@
           "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.ts:376 Counterparty selection narrows a query; it is not a per-subscription capability removal.",
           "carriedFrom": "2026-10-17"
         }
-      ],
-      "registryProposal": "The match was lexical only ('book', 'model', 'capability'): 'Book' here means a merchant ledger, not a price book. The mapper could treat 'book' as ambiguous for this subject unless it appears next to price, plan or tier tokens.",
-      "withdrawn": {
-        "worker": "eff7754f-53a1-4e83-90ca-d429158d58b9",
-        "state": "not-applicable",
-        "at": "2026-10-25T23:48:08.011548+00:00",
-        "reason": "reviewer (sonnet): The anchor at rules.ts:17 shows the closed view list includes a 'subscriptions' view, which the claim of \"no plan or tier view\" and \"only subscription ids on deal records\" does not account for; the anchor is incidental, since a list of ledger views cannot show that no plan-inclusion gating exists, a"
-      }
+      ]
     },
     "9c2b67dc-8b1f-43ca-af72-23ddf95baf03/plan-entitlements": {
       "context": "market-data",
