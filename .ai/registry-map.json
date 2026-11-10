@@ -5879,7 +5879,11 @@
           "revision": 2,
           "changedAt": "2026-11-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-verify/src/lib.rs:104 The verifier takes the file's own format label as the class of proof it owes: a v1-labelled bundle with no v2 fields passes the format check, every v2 check then reads applies:false and drops out of Report::verified, and the only signature over the relabelled file is the producer's agent key. So a producer can strip the v2 records, relabel and re-sign, and the file still verifies; nothing in the file it cannot re-sign (e.g. the owner-signed decision rows) sets a floor.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:472e39b0fe4e3a6b",
+          "evaluatedRevision": 2
         },
         {
           "subject": "agent-instruction-files",

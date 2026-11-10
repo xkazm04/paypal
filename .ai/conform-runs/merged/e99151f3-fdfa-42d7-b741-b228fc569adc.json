@@ -1,0 +1,78 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e99151f3-fdfa-42d7-b741-b228fc569adc",
+ "subject": "proof-carrying-agent-actions",
+ "evaluatedAt": "2026-11-10T01:17:10.135684+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "offline-proof-verifier",
+   "subject": "proof-carrying-agent-actions",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-verify/src/lib.rs:104 The verifier takes the file's own format label as the class of proof it owes: a v1-labelled bundle with no v2 fields passes the format check, every v2 check then reads applies:false and drops out of Report::verified, and the only signature over the relabelled file is the producer's agent key. So a producer can strip the v2 records, relabel and re-sign, and the file still verifies; nothing in the file it cannot re-sign (e.g. the owner-signed decision rows) sets a floor.",
+   "techniques": [
+    {
+     "technique": "proof-class-bound-to-action-class",
+     "verdict": "deviation",
+     "evidence": "crates/table-verify/src/lib.rs:104 The version comes from the file's label, not from evidence the producer cannot re-sign. The obvious relabel is refused (line 101, has_v2_fields), but a stripped and re-signed v1 file is read under the lighter rules. authority.rs:152 also relaxes the owner-decision demand for Reader::Verifier on v1. This is exactly the downgrade the technique names."
+    },
+    {
+     "technique": "inconclusive-routes-to-wait",
+     "verdict": "deviation",
+     "evidence": "crates/table-verify/src/main.rs:29 Each check line keeps three states (ok / checked / applies, printed as \u2713 \u2717 -), but Report::verified is a bool and the CLI exits 1 for both 'failed' and 'could not be checked'. The third value dies at the process boundary, so a not-checked file falls through to fail. Exit 2 covers only unreadable input."
+    },
+    {
+     "technique": "claims-never-decide",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/lib.rs:528 The verifier recomputes the evidence commitment, the checklist hashes (v2.rs:76), the transcript chain and the bindings. It never reads a stated verdict from the file. The format-label issue is recorded under proof-class."
+    },
+    {
+     "technique": "negative-fixtures-prove-the-verifier",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/authority_tests.rs:192 Dishonest bundles go through verify_bundle and must fail with their reason named; one forgery per test. The CLI exit mapping is not exercised in this context."
+    },
+    {
+     "technique": "evidence-binds-to-the-measured-change",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-verify/src/main.rs:95 The verdict is printed, not stored for a later merge gate. The Report names the deal and owner key but not a bundle digest or the verifier build; that would matter only if verdicts were stored."
+    },
+    {
+     "technique": "test-not-weakened-check",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-verify/src/lib.rs:557 The verifier judges signed deal bundles, not code diffs, so no test file is in its input."
+    }
+   ],
+   "registryProposal": "The format-version downgrade rule fits a non-code domain here: a signed deal-evidence bundle whose producer (the agent key) can re-sign a v1 relabel. That is a good application example. Separately, the technique could say what 'wait' means for an offline, person-run verifier that has no gate: a distinct exit code is the whole remedy."
+  }
+ ],
+ "declined": [
+  {
+   "subject": "proof-carrying-agent-actions",
+   "context": "book-module",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-10T01:17:10.135684+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "proof-carrying-agent-actions"
+   ],
+   "techniques": [
+    "claims-never-decide",
+    "evidence-binds-to-the-measured-change",
+    "inconclusive-routes-to-wait",
+    "negative-fixtures-prove-the-verifier",
+    "proof-class-bound-to-action-class",
+    "test-not-weakened-check"
+   ],
+   "deviations": 1,
+   "context": "offline-proof-verifier",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
