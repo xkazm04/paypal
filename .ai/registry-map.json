@@ -6112,7 +6112,11 @@
           "revision": 6,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "docs/report/report.css:1 The context is one static stylesheet (161 lines) for a static HTML report with no script tag; a search of docs/report/ for setInterval, setTimeout, cancel, supervisor, cadence, job and <script found zero hits, so it has no loops, ticks, jobs or background runtime for this subject to govern.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:e3e7a428140a2fbb",
+          "evaluatedRevision": 6
         },
         {
           "subject": "fleet-orchestration",

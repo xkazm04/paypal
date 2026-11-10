@@ -1,0 +1,102 @@
+{
+ "schema": "conform-run/1",
+ "worker": "ae8dd1ba-7471-4c42-a59e-f77c0c6f7af0",
+ "subject": "background-jobs",
+ "evaluatedAt": "2026-11-10T22:31:24.786335+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "overnight-build-report",
+   "subject": "background-jobs",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "docs/report/report.css:1 The context is one static stylesheet (161 lines) for a static HTML report with no script tag; a search of docs/report/ for setInterval, setTimeout, cancel, supervisor, cadence, job and <script found zero hits, so it has no loops, ticks, jobs or background runtime for this subject to govern.",
+   "techniques": [
+    {
+     "technique": "loop-supervision",
+     "verdict": "not-applicable",
+     "evidence": "docs/report/report.css:1 Static CSS only; there are no timers or loops to register."
+    },
+    {
+     "technique": "tick-isolation",
+     "verdict": "not-applicable",
+     "evidence": "docs/report/report.css:1 There are no ticks."
+    },
+    {
+     "technique": "adaptive-cadence",
+     "verdict": "not-applicable",
+     "evidence": "docs/report/report.css:1 There is no polling loop."
+    },
+    {
+     "technique": "loop-health-telemetry",
+     "verdict": "not-applicable",
+     "evidence": "docs/report/report.css:1 There are no loops to report health on."
+    },
+    {
+     "technique": "startup-sweeps",
+     "verdict": "not-applicable",
+     "evidence": "docs/report/report.css:1 There is no process lifecycle."
+    },
+    {
+     "technique": "job-progress-and-cancellation",
+     "verdict": "not-applicable",
+     "evidence": "docs/report/report.css:1 The report's 'progress' means build waves described in prose, not a running job; grep found no 'cancel' or 'job'."
+    },
+    {
+     "technique": "timeout-is-a-status-not-a-consumption",
+     "verdict": "not-applicable",
+     "evidence": "docs/report/report.css:1 There are no bounded waits."
+    },
+    {
+     "technique": "first-tick-gates-readiness",
+     "verdict": "not-applicable",
+     "evidence": "docs/report/report.css:1 There is no loop-filled state."
+    },
+    {
+     "technique": "failed-start-kept-and-retried-at-cadence",
+     "verdict": "not-applicable",
+     "evidence": "docs/report/report.css:1 There is no runtime start."
+    },
+    {
+     "technique": "problem-set-change-logging",
+     "verdict": "not-applicable",
+     "evidence": "docs/report/report.css:1 There is no poll loop and no logging."
+    }
+   ],
+   "absenceTerms": [
+    "setInterval",
+    "setTimeout",
+    "cancel",
+    "supervisor",
+    "cadence"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-10T22:31:24.786335+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "background-jobs"
+   ],
+   "techniques": [
+    "adaptive-cadence",
+    "failed-start-kept-and-retried-at-cadence",
+    "first-tick-gates-readiness",
+    "job-progress-and-cancellation",
+    "loop-health-telemetry",
+    "loop-supervision",
+    "problem-set-change-logging",
+    "startup-sweeps",
+    "tick-isolation",
+    "timeout-is-a-status-not-a-consumption"
+   ],
+   "deviations": 0,
+   "context": "overnight-build-report",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
