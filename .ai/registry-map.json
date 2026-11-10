@@ -1344,7 +1344,11 @@
           "revision": 19,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-attention/src/forecast.rs:19 The attention crate computes pure projections from inputs the caller builds and touches no store. A case-insensitive grep of crates/table-attention for sql, rusqlite, transaction, repository and connection found nothing, so data-access has nothing to govern here.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         },
         {
           "subject": "windowed-inference-over-oversized-inputs",

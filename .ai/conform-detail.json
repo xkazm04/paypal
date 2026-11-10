@@ -7441,16 +7441,27 @@
       "context": "attention-forecast-and-window-placement",
       "subject": "data-access",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T04:34:27.439Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "aca8cb38-cd94-4a57-98e6-903ed9a79975",
-        "state": "not-applicable",
-        "at": "2026-10-24T04:34:51.555083+00:00",
-        "reason": "reviewer (sonnet): The anchor forecast.rs:19 is a deadline constant and does not show that no store seam exists. The Cargo.toml dependency list and the absence search carry the claim, and the cited line carries neither."
-      }
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:28:03.913Z",
+      "worker": "3656d99a-4e27-4887-b1a3-50bee9834a1d",
+      "techniques": [
+        {
+          "technique": "read-models-and-projections",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/src/forecast.rs:127 These are domain computations over caller-supplied sources, not store-backed read models. The output is a plain record with no write path."
+        },
+        {
+          "technique": "layering-rules",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/Cargo.toml:10 Its only workspace dependency is the domain-type crate. It is not a data layer."
+        },
+        {
+          "technique": "transactions-and-units-of-work",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/src/forecast.rs:3 Read-only and pure, so there is no unit of work to bound."
+        }
+      ]
     },
     "d477836b-8d3f-42dd-93ce-bf0a9f5bbf53/data-access": {
       "context": "counter-and-tables-modules",
