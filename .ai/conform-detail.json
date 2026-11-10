@@ -12036,6 +12036,98 @@
         }
       ],
       "registryProposal": "The format-version downgrade rule fits a non-code domain here: a signed deal-evidence bundle whose producer (the agent key) can re-sign a v1 relabel. That is a good application example. Separately, the technique could say what 'wait' means for an offline, person-run verifier that has no gate: a distinct exit code is the whole remedy."
+    },
+    "065d4555-d9ad-478c-b637-3d8eb494f76c/fleet-orchestration": {
+      "context": "runtime-actor-and-engines",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:23:23.877Z",
+      "worker": "19afd45a-cbfa-4de1-83fc-06bb1de9f431",
+      "techniques": [
+        {
+          "technique": "session-registry",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:368 One registry (`runs` keyed by a minted ULID RunId, engines.rs:271). The Init event is a transition the registry checks and rejects when the run is not in Starting. RunState is single-sourced in table-client and generated into the client bindings."
+        },
+        {
+          "technique": "lifecycle-signals",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/engines.rs:431 Tier one is present (EngineEvent::Init, EngineFinished). Tier two is missing: there is no staleness sweeper, no last-heard-from field and no lost state. Expiry is consulted only at the gate."
+        },
+        {
+          "technique": "durable-fleet-state",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/service.rs:300 Live runs and run history are only in memory. run.start and run.finish go to the audit chain, but startup begins with empty `runs` and `run_history` and does not reconcile a run.start that has no run.finish (left by a crash), so such a run is never declared lost."
+        },
+        {
+          "technique": "parallel-dispatch",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:206 Hard concurrency cap of 4. Write scopes are disjoint: one run per deal (engines.rs:203 refuses a second run on the same deal). Each refusal reason is reported as itself."
+        },
+        {
+          "technique": "substrate-reconciliation",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:253 ANCHOR NOTE: the reaper itself is ActiveRun's Drop (engines.rs:31-42), which revokes the MCP grant, cancels the adapter's child and aborts the task. Removing the registry entry is what reclaims the substrate. The cited line belongs to brief-carries-the-session."
+        },
+        {
+          "technique": "brief-carries-the-session",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:253 Each run's brief is put together in full from the ledger projection plus the role's compiled-in playbook (and a typed brief for the policy engine), so it does not rely on the worker remembering earlier context."
+        },
+        {
+          "technique": "result-harvest",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:468 Each run ends in a named terminal state (Clean, Failed with a typed cause, or Cancelled) that is written to history and the audit chain, so no run silently drops off the list. There is no multi-member fan-out roster."
+        },
+        {
+          "technique": "evidence-outranks-a-liveness-claim",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:496 Whether a table can be restarted is decided from the ledger projection's `allowed` set, not from what the previous run's record says."
+        },
+        {
+          "technique": "hibernation-and-resume",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/engines.rs:17 Runs are capped at 120 s. A pause ends runs, and resuming starts a fresh run with a new RunId, so no parked session exists to wear an old identity."
+        },
+        {
+          "technique": "heterogeneous-model-panels",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/engines.rs:213 Each run uses the one selected engine. No panel of models is convened on a single question."
+        },
+        {
+          "technique": "outbound-compute-plane",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/engines.rs:117 The executors are local CLI children on the same machine. There is no remote executor plane."
+        },
+        {
+          "technique": "deliberation-as-an-elected-turn",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/engines.rs:195 Runs are started one per deal by the owner or policy. No dispatcher model chooses how wide to fan out."
+        }
+      ],
+      "registryProposal": "For short, hard-capped runs (120 s, enforced by the engine's own timeout), the rule that the tier-two sweeper is mandatory could say whether a per-run hard deadline inside the run's own task counts as the sweeper or not. Here it is the only upper bound on how long a dead run can pose as live."
+    },
+    "dfab992a-8315-4db9-b496-6aa38639cf8c/fleet-orchestration": {
+      "context": "ledger-repositories-audit-evidence",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:23:23.877Z",
+      "worker": "19afd45a-cbfa-4de1-83fc-06bb1de9f431",
+      "techniques": []
+    },
+    "d56b5605-88e1-456c-9b76-8c604a502ecc/fleet-orchestration": {
+      "context": "overnight-build-report",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:23:23.877Z",
+      "worker": "19afd45a-cbfa-4de1-83fc-06bb1de9f431",
+      "techniques": []
     }
   }
 }

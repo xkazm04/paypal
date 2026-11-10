@@ -4792,8 +4792,12 @@
           "revision": 28,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "crates/table-ledger/src/lib.rs:1 The ledger is SQLite persistence and an audit chain. A case-insensitive search of crates/table-ledger/src found no fleet, orchestrat, hibernat, heartbeat or RunState, and the run registry lives in table-runtime. The only spawn hits are std::thread::spawn in groups_tests.rs concurrency tests.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28
         },
         {
           "subject": "transactions-over-a-replicated-log",
@@ -6108,8 +6112,12 @@
           "revision": 28,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "docs/report/report.css:1 The context's only file is a stylesheet. A search of docs/report found no fleet, orchestrat, dispatch, heartbeat or hibernat, so nothing here orchestrates sessions.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28
         }
       ],
       "governance": "governed"
@@ -7468,8 +7476,12 @@
           "revision": 28,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "deviation",
+          "priorNotApplicable": 3,
+          "evidence": "crates/table-runtime/src/engines.rs:431 A run's expiry is only checked when an intent passes the gate. No sweep in the actor's 1 s tick (scheduler.rs tick, actor.rs loop) ever removes an expired or silent run from `runs`, and RunState has no `lost` member, so a run whose finished signal never arrives keeps its MAX_RUNS slot and shows as running.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28
         },
         {
           "subject": "agent-cli-transport",
