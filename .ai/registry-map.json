@@ -908,8 +908,12 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 6
+          "state": "not-applicable",
+          "priorNotApplicable": 6,
+          "evidence": "crates/table-mcp/src/lib.rs:1 This context is the MCP tool server and the shield's rule engine; its tests post JSON-RPC to the tools directly and run the shield with an injected model callback, so no model or agent is run against scored scenarios; a search of crates/table-mcp and crates/table-shield for rubric, benchmark, holdout, pass rate and trials found nothing.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         }
       ],
       "governance": "governed"
@@ -2419,8 +2423,12 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 6
+          "state": "not-applicable",
+          "priorNotApplicable": 6,
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:1 The Counter and Tables modules are pure price-ladder and grouping logic plus React layers with deterministic unit tests, and no model is run against scenarios; a search of the modules, console, lib/words and mock directories for rubric, benchmark, holdout, pass rate and trials found nothing.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-memory",
@@ -2661,8 +2669,12 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 6
+          "state": "not-applicable",
+          "priorNotApplicable": 6,
+          "evidence": "apps/desktop/client/src/windows/main/deal/story.ts:1 The deal view is made of pure presentation models and React views with deterministic tests and no model or agent being scored; a search of the deal and console/areas directories for rubric, benchmark, holdout, pass rate and trials found nothing.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "client-fetch-cache",
@@ -6452,8 +6464,12 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 6
+          "state": "not-applicable",
+          "priorNotApplicable": 6,
+          "evidence": "prototype/build-index.mjs:1 This context is a static HTML/JS prototype gallery and design system that runs no agent or model against scenarios; a case-insensitive search of prototype/ for rubric, benchmark, holdout, pass rate and trials found nothing (the word 'verdict' here means an owner picking a design variant, not a scored eval).",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "fleet-orchestration",
@@ -8301,8 +8317,12 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 6
+          "state": "not-applicable",
+          "priorNotApplicable": 6,
+          "evidence": "apps/desktop/client/src/shared/honesty.tsx:1 These are React display components (badges, money, countdowns, tour and onboarding) with deterministic unit tests and no model-scoring harness; a search of apps/desktop/client/src/shared for rubric, benchmark, holdout, pass rate and trials found nothing.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "supply-chain",

@@ -12138,6 +12138,67 @@
       "evaluatedTs": "2026-11-10T01:28:51.762Z",
       "worker": "233674ad-de49-470b-8829-bf19340635e6",
       "techniques": []
+    },
+    "ed618215-bf0a-4dfc-8c2c-3c3a805321b1/eval-harness": {
+      "context": "prototype-dial-shell-and-design-system",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T22:13:34.230Z",
+      "worker": "2077ff03-3c4c-47b3-80ca-bcce5678d10c",
+      "techniques": []
+    },
+    "877e3281-ae38-485a-a404-4476986454a5/eval-harness": {
+      "context": "shared-surfaces-onboarding-honesty",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T22:13:34.230Z",
+      "worker": "2077ff03-3c4c-47b3-80ca-bcce5678d10c",
+      "techniques": []
+    },
+    "f4937131-9b2b-4830-92bf-e739e6fbaab4/eval-harness": {
+      "context": "deal-detail",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T22:13:34.230Z",
+      "worker": "2077ff03-3c4c-47b3-80ca-bcce5678d10c",
+      "techniques": []
+    },
+    "d477836b-8d3f-42dd-93ce-bf0a9f5bbf53/eval-harness": {
+      "context": "counter-and-tables-modules",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T22:13:34.230Z",
+      "worker": "2077ff03-3c4c-47b3-80ca-bcce5678d10c",
+      "techniques": []
+    },
+    "4a906b90-6f4d-4f72-92fb-1091ca69ebff/eval-harness": {
+      "context": "agent-tool-surface",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T22:13:34.230Z",
+      "worker": "2077ff03-3c4c-47b3-80ca-bcce5678d10c",
+      "techniques": [
+        {
+          "technique": "green-through-the-model",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-mcp/tests/server.rs:37 Acceptance tests call the tool over HTTP with no model in between, so there is no through-the-agent pass that could mask a broken tool."
+        },
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-shield/src/lib.rs:73 The model here is a product component that can only add caution (combine = max), not a judge scoring outputs; the tests stub it out and nothing is scored."
+        }
+      ]
     }
   }
 }

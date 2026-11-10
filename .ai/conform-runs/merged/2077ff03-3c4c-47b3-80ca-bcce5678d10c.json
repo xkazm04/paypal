@@ -1,0 +1,157 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2077ff03-3c4c-47b3-80ca-bcce5678d10c",
+ "subject": "eval-harness",
+ "evaluatedAt": "2026-11-10T22:13:34.230844+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "prototype-dial-shell-and-design-system",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "prototype/build-index.mjs:1 This context is a static HTML/JS prototype gallery and design system that runs no agent or model against scenarios; a case-insensitive search of prototype/ for rubric, benchmark, holdout, pass rate and trials found nothing (the word 'verdict' here means an owner picking a design variant, not a scored eval).",
+   "techniques": [],
+   "absenceTerms": [
+    "rubric",
+    "benchmark",
+    "holdout",
+    "trials"
+   ]
+  },
+  {
+   "context": "shared-surfaces-onboarding-honesty",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/shared/honesty.tsx:1 These are React display components (badges, money, countdowns, tour and onboarding) with deterministic unit tests and no model-scoring harness; a search of apps/desktop/client/src/shared for rubric, benchmark, holdout, pass rate and trials found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "rubric",
+    "benchmark",
+    "holdout",
+    "trials"
+   ]
+  },
+  {
+   "context": "deal-detail",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/deal/story.ts:1 The deal view is made of pure presentation models and React views with deterministic tests and no model or agent being scored; a search of the deal and console/areas directories for rubric, benchmark, holdout, pass rate and trials found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "rubric",
+    "benchmark",
+    "holdout",
+    "trials"
+   ]
+  },
+  {
+   "context": "counter-and-tables-modules",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:1 The Counter and Tables modules are pure price-ladder and grouping logic plus React layers with deterministic unit tests, and no model is run against scenarios; a search of the modules, console, lib/words and mock directories for rubric, benchmark, holdout, pass rate and trials found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "rubric",
+    "benchmark",
+    "holdout",
+    "trials"
+   ]
+  },
+  {
+   "context": "agent-tool-surface",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-mcp/src/lib.rs:1 This context is the MCP tool server and the shield's rule engine; its tests post JSON-RPC to the tools directly and run the shield with an injected model callback, so no model or agent is run against scored scenarios; a search of crates/table-mcp and crates/table-shield for rubric, benchmark, holdout, pass rate and trials found nothing.",
+   "techniques": [
+    {
+     "technique": "green-through-the-model",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-mcp/tests/server.rs:37 Acceptance tests call the tool over HTTP with no model in between, so there is no through-the-agent pass that could mask a broken tool."
+    },
+    {
+     "technique": "assertion-vs-judgment",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-shield/src/lib.rs:73 The model here is a product component that can only add caution (combine = max), not a judge scoring outputs; the tests stub it out and nothing is scored."
+    }
+   ],
+   "absenceTerms": [
+    "rubric",
+    "benchmark",
+    "holdout",
+    "trials"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-10T22:13:34.230844+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "prototype-dial-shell-and-design-system",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T22:13:34.230844+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shared-surfaces-onboarding-honesty",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T22:13:34.230844+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "deal-detail",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T22:13:34.230844+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "counter-and-tables-modules",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T22:13:34.230844+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "assertion-vs-judgment",
+    "green-through-the-model"
+   ],
+   "deviations": 0,
+   "context": "agent-tool-surface",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
