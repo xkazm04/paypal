@@ -460,7 +460,7 @@ export function Tumbler() {
     try {
       await backend().invoke('main_open', { deal_id: dealId });
     } catch (e) {
-      fail(dealId, 'Open in Table', e);
+      fail(dealId, 'Open in Signet', e);
     }
   }, []);
 
