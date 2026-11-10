@@ -1,0 +1,37 @@
+{
+ "schema": "conform-run/1",
+ "worker": "1a4b4e78-04ba-4961-9dd5-9c000b57d5a3",
+ "subject": "agent-runtime-assembly",
+ "evaluatedAt": "2026-11-10T22:05:26.515212+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "spend-firewall-and-agent-policy",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "wallet-app-services",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "rules-and-settings-areas",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "client-foundation",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "director-takes-rig",
+   "reason": "absence contradicted: apps/desktop/client/scripts/assistantBridge.ts:3 contains 'llm' (8 hit(s) in the context's directories)"
+  }
+ ],
+ "consults": []
+}
