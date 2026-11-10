@@ -230,7 +230,6 @@ impl Ledger {
         }
         let names = statement
             .column_names()
-            .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let mut rows = statement.query(params_from_iter(values))?;
