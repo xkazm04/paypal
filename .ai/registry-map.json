@@ -5153,7 +5153,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/Shortcuts.tsx:3 The shortcut sheet (SHORTCUT_GROUPS in lib/words) and the key handlers spread across Console.tsx, Centre.tsx, Ladder, Prices, Picks and others each record which keys exist. They are kept in step by a comment and a few hand-written negative assertions in Shortcuts.test.tsx, so adding a key changes several places and nothing structural keeps them together.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "mcp-tools",
@@ -6527,7 +6531,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "prototype/shared/shell.js:22 The owner's variant picks and the page list are written out separately in shell.js (PAGES/CHOSEN, lines 13-22) and build-index.mjs (PAGES/CHOSEN, lines 15-31), and the two copies have already drifted (build-index has home: 3, shell.js has no home entry), so every new verdict means two edits and one of them gets missed.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "concurrent-vcs",

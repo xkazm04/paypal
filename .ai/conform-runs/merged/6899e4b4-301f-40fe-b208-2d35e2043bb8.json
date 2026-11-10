@@ -1,0 +1,116 @@
+{
+ "schema": "conform-run/1",
+ "worker": "6899e4b4-301f-40fe-b208-2d35e2043bb8",
+ "subject": "module-design",
+ "evaluatedAt": "2026-11-10T01:05:17.896774+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "prototype-dial-shell-and-design-system",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "prototype/shared/shell.js:22 The owner's variant picks and the page list are written out separately in shell.js (PAGES/CHOSEN, lines 13-22) and build-index.mjs (PAGES/CHOSEN, lines 15-31), and the two copies have already drifted (build-index has home: 3, shell.js has no home entry), so every new verdict means two edits and one of them gets missed.",
+   "techniques": [
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "deviation",
+     "evidence": "prototype/shared/shell.js:22 Same decision (chosen variant per page) also at build-index.mjs:31 `const CHOSEN = { home: 3, deal: 1, ...`; things that change together live apart and have already diverged."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "deviation",
+     "evidence": "prototype/main/modules.js:951 window.App hands out its raw internal state object S, and index.html already depends on it (A.state.level, A.state.locked, A.state.engine, 8 reads). The representation is observable instead of hidden, alongside a ~30-member surface."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "deviation",
+     "evidence": "prototype/build-index.mjs:67 The PAGES.map pipeline also updates outer lastWin/built/missing tallies (several outputs from one pass), so it is a loop wearing pipeline clothes that 'had mutation anyway'. shell.js:48-50 does the same with `last`."
+    }
+   ]
+  },
+  {
+   "context": "main-window-shell",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/Shortcuts.tsx:3 The shortcut sheet (SHORTCUT_GROUPS in lib/words) and the key handlers spread across Console.tsx, Centre.tsx, Ladder, Prices, Picks and others each record which keys exist. They are kept in step by a comment and a few hand-written negative assertions in Shortcuts.test.tsx, so adding a key changes several places and nothing structural keeps them together.",
+   "techniques": [
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/Shortcuts.tsx:3 The comment itself admits one decision is restated in several places; Shortcuts.test.tsx:21-33 only pins a few known-wrong keys and does not derive the sheet from the handlers."
+    },
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/logic.ts:3 Module mapping, bead/chip state, strips, money and routing are pure functions of values; logic.test.ts calls them with no doubles."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/world.tsx:93 Four query subscriptions, display memoization by identity and the store-then-notify ordering sit behind selector hooks. Small blemish: World repeats health fields as 'Shorthands of health.' (world.tsx:63)."
+    },
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/world.test.tsx:27 The Backend interface (invoke/listen) is the seam: production and mockBackend are two adapters of it, and the choice is made at lib/runtime's backend(), outside the World code."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/quit.ts:23 One input, one output, each step a total function of its element: the case where a pipeline is the right form."
+    },
+    {
+     "technique": "mirror-type-at-the-edge",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/quit.ts:25 Inputs are plain generated binding types that a test builds as literals (quit.test.ts), so no host-only input type exists here."
+    },
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/logic.ts:286 Time is passed in as a parameter instead of read from the clock (the io-free-core 'time is a parameter' rule)."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-10T01:05:17.896774+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "declarative-or-sequential",
+    "locality-and-leverage",
+    "module-depth"
+   ],
+   "deviations": 1,
+   "context": "prototype-dial-shell-and-design-system",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T01:05:17.896774+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "mirror-type-at-the-edge",
+    "module-depth",
+    "seams-and-adapters"
+   ],
+   "deviations": 1,
+   "context": "main-window-shell",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

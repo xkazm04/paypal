@@ -11854,6 +11854,78 @@
         "at": "2026-11-10T01:00:07.616799+00:00",
         "reason": "reviewer (sonnet): The sheet does call mandate_sign with the privileged flag behind an unlock (SignSheet.tsx:53, 61-69), and the object shown at line 133 is the same `args` that is sent. The central claims are not shown by the cited lines, though. First, 'PRIVILEGED/Owner in the authority table' and 'the agent cannot "
       }
+    },
+    "ed618215-bf0a-4dfc-8c2c-3c3a805321b1/module-design": {
+      "context": "prototype-dial-shell-and-design-system",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:05:17.896Z",
+      "worker": "6899e4b4-301f-40fe-b208-2d35e2043bb8",
+      "techniques": [
+        {
+          "technique": "locality-and-leverage",
+          "verdict": "deviation",
+          "evidence": "prototype/shared/shell.js:22 Same decision (chosen variant per page) also at build-index.mjs:31 `const CHOSEN = { home: 3, deal: 1, ...`; things that change together live apart and have already diverged."
+        },
+        {
+          "technique": "module-depth",
+          "verdict": "deviation",
+          "evidence": "prototype/main/modules.js:951 window.App hands out its raw internal state object S, and index.html already depends on it (A.state.level, A.state.locked, A.state.engine, 8 reads). The representation is observable instead of hidden, alongside a ~30-member surface."
+        },
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "deviation",
+          "evidence": "prototype/build-index.mjs:67 The PAGES.map pipeline also updates outer lastWin/built/missing tallies (several outputs from one pass), so it is a loop wearing pipeline clothes that 'had mutation anyway'. shell.js:48-50 does the same with `last`."
+        }
+      ]
+    },
+    "defa1695-a720-4e76-9d97-b09ece4d4394/module-design": {
+      "context": "main-window-shell",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:05:17.896Z",
+      "worker": "6899e4b4-301f-40fe-b208-2d35e2043bb8",
+      "techniques": [
+        {
+          "technique": "locality-and-leverage",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/Shortcuts.tsx:3 The comment itself admits one decision is restated in several places; Shortcuts.test.tsx:21-33 only pins a few known-wrong keys and does not derive the sheet from the handlers."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/logic.ts:3 Module mapping, bead/chip state, strips, money and routing are pure functions of values; logic.test.ts calls them with no doubles."
+        },
+        {
+          "technique": "module-depth",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/world.tsx:93 Four query subscriptions, display memoization by identity and the store-then-notify ordering sit behind selector hooks. Small blemish: World repeats health fields as 'Shorthands of health.' (world.tsx:63)."
+        },
+        {
+          "technique": "seams-and-adapters",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/world.test.tsx:27 The Backend interface (invoke/listen) is the seam: production and mockBackend are two adapters of it, and the choice is made at lib/runtime's backend(), outside the World code."
+        },
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/quit.ts:23 One input, one output, each step a total function of its element: the case where a pipeline is the right form."
+        },
+        {
+          "technique": "mirror-type-at-the-edge",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/quit.ts:25 Inputs are plain generated binding types that a test builds as literals (quit.test.ts), so no host-only input type exists here."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/logic.ts:286 Time is passed in as a parameter instead of read from the clock (the io-free-core 'time is a parameter' rule)."
+        }
+      ]
     }
   }
 }
