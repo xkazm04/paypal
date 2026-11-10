@@ -9,7 +9,7 @@ import { Btn, ReadFailed } from '../../../../shared/ui';
 import { clockNow } from '../../../../lib/clock';
 import { ruleInForce } from '../../../../lib/firstRun';
 import { formatMinor } from '../../../../lib/format';
-import { useNow, useQuery } from '../../../../lib/hooks';
+import { useClock, useQuery } from '../../../../lib/hooks';
 import { RULES_START, proposalOf, rulesCtx, type RulesAsk } from '../guide/rules';
 import { useHousePayees } from '../guide/useHousePayees';
 import { SecureStep } from '../secure/SecureStep';
@@ -63,10 +63,13 @@ export function RulesFlow({ turn }: { turn: FlowTurn }) {
 
 function Live({ turn }: { turn: FlowTurn }) {
   const locked = useLocked();
-  const now = useNow();
   const q = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
   const list = q.data;
-  const cur = useMemo(() => (list ? currentRules(list, now) : null), [list, now]);
+  // The clock only decides which signed sets are in force. Follow that as a value (the keys of the sets in
+  // force, "" for none) so the card renders when a set starts or ends, to the second, never on every tick.
+  const forceKey = useClock((n) => (list ? list.filter((m) => ruleInForce(m, n)).map(keyOf).join('|') : null));
+  const inForce = useMemo(() => (list && forceKey !== null ? list.filter((m) => ruleInForce(m, clockNow())) : null), [list, forceKey]);
+  const cur = useMemo(() => (inForce ? currentRules(inForce, clockNow()) : null), [inForce]);
   const ask: RulesAsk | null = (turn.data.ask as RulesAsk | undefined) ?? cur?.ask ?? null;
 
   useEffect(() => { if (locked) endFlow(W.locked); }, [locked]);
@@ -112,7 +115,7 @@ function Live({ turn }: { turn: FlowTurn }) {
       );
       break;
     case 'review': body = <Review ask={ask} known={list ?? []} />; break;
-    case 'sign': body = <Sign ask={ask} known={(turn.data.known as string[] | undefined) ?? []} list={list ?? []} now={now} />; break;
+    case 'sign': body = <Sign ask={ask} known={(turn.data.known as string[] | undefined) ?? []} list={inForce ?? []} />; break;
     default: body = null;
   }
   return <FlowCard turn={turn} n={n} of={STEPS.length}>{body}</FlowCard>;
@@ -139,13 +142,14 @@ function Review({ ask, known }: { ask: RulesAsk; known: readonly MandateListEntr
   );
 }
 
-function Sign({ ask, known, list, now }: { ask: RulesAsk; known: readonly string[]; list: readonly MandateListEntry[]; now: number }) {
+/** `list` holds only the sets in force now (Live follows that, so this never needs the clock). */
+function Sign({ ask, known, list }: { ask: RulesAsk; known: readonly string[]; list: readonly MandateListEntry[] }) {
   const payees = useHousePayees();
   const p = useMemo(() => proposalOf(ask, ctxFor(payees)), [ask, payees]);
   const draft = useMemo(() => (p ? JSON.stringify(p.draft) : null), [p]);
   // The wallet reports the new rules: a set in force that was not there before and says the same limits.
   const done = !!p && list.some((m) => {
-    if (!ruleInForce(m, now) || known.includes(keyOf(m))) return false;
+    if (known.includes(keyOf(m))) return false;
     const per = m.payload.clauses.find((c) => c.type === 'per_deal');
     const day = m.payload.clauses.find((c) => c.type === 'velocity');
     return per?.type === 'per_deal' && per.max_amount.minor === p.summary.perDeal
