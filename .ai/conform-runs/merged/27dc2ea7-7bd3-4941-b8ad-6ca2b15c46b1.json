@@ -1,0 +1,119 @@
+{
+ "schema": "conform-run/1",
+ "worker": "27dc2ea7-7bd3-4941-b8ad-6ca2b15c46b1",
+ "subject": "prompt-safety",
+ "evaluatedAt": "2026-11-10T01:13:41.807963+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "shared-ui-primitives",
+   "subject": "prompt-safety",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/shared/ui/why.tsx:3 These primitives never build a prompt and never render model output as markup: a case-insensitive search of shared/ui and shared/boundary for prompt, untrusted, dangerouslySetInnerHTML, sanitiz and canary found nothing, and every caller-supplied string is rendered as escaped React children, so no prompt-safety boundary runs through this context.",
+   "techniques": [
+    {
+     "technique": "output-sanitization",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/shared/ui/why.tsx:3 The explainers show deterministic text the caller writes, not model text. No innerHTML sink exists in the context."
+    }
+   ],
+   "absenceTerms": [
+    "prompt",
+    "untrusted",
+    "dangerouslySetInnerHTML",
+    "sanitiz",
+    "canary"
+   ]
+  },
+  {
+   "context": "agent-tool-surface",
+   "subject": "prompt-safety",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-mcp/src/lib.rs:578 Merchant brand and title text is cut to 80 characters by `plain_text`'s `.chars().take(max)` with no truncation marker, so the model reads a clipped span as if it were the whole title. The technique names this silent clamp as the failure, while the rest of the surface (closed per-role grammar, labelled merchant text, a shield where the model can only add caution) is realized.",
+   "techniques": [
+    {
+     "technique": "input-caps-and-clamps",
+     "verdict": "deviation",
+     "evidence": "crates/table-mcp/src/lib.rs:578 Per-class ceilings exist: an 80-char title, a 200-byte query that is rejected when too long rather than clipped, a result limit clamped to 1..5, and a 64 KiB body limit. But the prose clamp on titles and brands is silent: plain_text (table-core market_hits.rs:156) uses take(max) and adds no marker."
+    },
+    {
+     "technique": "untrusted-span-fencing",
+     "verdict": "conformant",
+     "evidence": "crates/table-mcp/src/lib.rs:587 Merchant text arrives in tool-result JSON fields, a structural boundary the transport enforces, with a provenance flag and a data-not-instructions notice. plain_text strips tags, entities, markdown and bracket characters, links, and control/bidi characters. Counterparty notes never reach the agent at all."
+    },
+    {
+     "technique": "canary-tripwires",
+     "verdict": "deviation",
+     "evidence": "crates/table-mcp/src/lib.rs:135 The trusted framing around untrusted merchant text plants no canary, and handle() screens no tool argument for one. A repo-wide search for canary/tripwire found only an environment-stripping test and a deploy health canary, neither a prompt tripwire."
+    },
+    {
+     "technique": "model-output-as-untrusted",
+     "verdict": "conformant",
+     "evidence": "crates/table-mcp/src/lib.rs:693 Closed per-role tool grammar. Call and Rpc use deny_unknown_fields, AgentRequest::decode parses typed arguments, and refusals use closed codes and are audited. The deal scope comes from the grant, so a model-supplied other deal_id is refused out_of_scope (server.rs:759). No tool moves money."
+    },
+    {
+     "technique": "payoff-removal",
+     "verdict": "conformant",
+     "evidence": "crates/table-shield/src/lib.rs:67 The shield's model verdict can only raise caution over the deterministic rules (tested at s2_model_can_never_lower_caution). BLOCK short-circuits before the model runs. A successful injection cannot buy a lower verdict."
+    },
+    {
+     "technique": "inspection-coverage-is-a-verdict",
+     "verdict": "conformant",
+     "evidence": "crates/table-mcp/src/lib.rs:741 An oversize tool result is withheld whole with a coded refusal and an audit row, never forwarded truncated. Oversize requests hit DefaultBodyLimit, and an oversize query is rejected. No uninspected residue travels."
+    },
+    {
+     "technique": "session-capability-conjunction",
+     "verdict": "conformant",
+     "evidence": "crates/table-mcp/tests/server.rs:653 The roster cuts legs per role (catalog, lib.rs:312-323). The Negotiator holds its private band and send_offer, but counterparty free text is projected out of table_view (this test). The Shopper reads merchant text, but its only write, propose_purchase, waits for the owner. The Assistant reads books and has no outbound tool."
+    },
+    {
+     "technique": "trusted-author-verdict-channel",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-shield/src/lib.rs:73 The model's verdict arrives as a typed enum through an in-process callback, never read back from a shared text surface other parties write."
+    }
+   ],
+   "registryProposal": "input-caps-and-clamps could say whether a short display-only title slot, whose tool description already promises 'a short title', still needs an in-band truncation marker, or whether disclosing the ceiling in the tool contract is enough. The present text makes every unmarked prose clamp a deviation."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-10T01:13:41.807963+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-safety"
+   ],
+   "techniques": [
+    "output-sanitization"
+   ],
+   "deviations": 0,
+   "context": "shared-ui-primitives",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T01:13:41.807963+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-safety"
+   ],
+   "techniques": [
+    "canary-tripwires",
+    "input-caps-and-clamps",
+    "inspection-coverage-is-a-verdict",
+    "model-output-as-untrusted",
+    "payoff-removal",
+    "session-capability-conjunction",
+    "trusted-author-verdict-channel",
+    "untrusted-span-fencing"
+   ],
+   "deviations": 1,
+   "context": "agent-tool-surface",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

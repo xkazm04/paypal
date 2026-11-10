@@ -11926,6 +11926,74 @@
           "evidence": "apps/desktop/client/src/windows/main/logic.ts:286 Time is passed in as a parameter instead of read from the clock (the io-free-core 'time is a parameter' rule)."
         }
       ]
+    },
+    "9a477925-2fcc-4133-982d-849ca52dbe7f/prompt-safety": {
+      "context": "shared-ui-primitives",
+      "subject": "prompt-safety",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:13:41.807Z",
+      "worker": "27dc2ea7-7bd3-4941-b8ad-6ca2b15c46b1",
+      "techniques": [
+        {
+          "technique": "output-sanitization",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/ui/why.tsx:3 The explainers show deterministic text the caller writes, not model text. No innerHTML sink exists in the context."
+        }
+      ]
+    },
+    "4a906b90-6f4d-4f72-92fb-1091ca69ebff/prompt-safety": {
+      "context": "agent-tool-surface",
+      "subject": "prompt-safety",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:13:41.807Z",
+      "worker": "27dc2ea7-7bd3-4941-b8ad-6ca2b15c46b1",
+      "techniques": [
+        {
+          "technique": "input-caps-and-clamps",
+          "verdict": "deviation",
+          "evidence": "crates/table-mcp/src/lib.rs:578 Per-class ceilings exist: an 80-char title, a 200-byte query that is rejected when too long rather than clipped, a result limit clamped to 1..5, and a 64 KiB body limit. But the prose clamp on titles and brands is silent: plain_text (table-core market_hits.rs:156) uses take(max) and adds no marker."
+        },
+        {
+          "technique": "untrusted-span-fencing",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/src/lib.rs:587 Merchant text arrives in tool-result JSON fields, a structural boundary the transport enforces, with a provenance flag and a data-not-instructions notice. plain_text strips tags, entities, markdown and bracket characters, links, and control/bidi characters. Counterparty notes never reach the agent at all."
+        },
+        {
+          "technique": "canary-tripwires",
+          "verdict": "deviation",
+          "evidence": "crates/table-mcp/src/lib.rs:135 The trusted framing around untrusted merchant text plants no canary, and handle() screens no tool argument for one. A repo-wide search for canary/tripwire found only an environment-stripping test and a deploy health canary, neither a prompt tripwire."
+        },
+        {
+          "technique": "model-output-as-untrusted",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/src/lib.rs:693 Closed per-role tool grammar. Call and Rpc use deny_unknown_fields, AgentRequest::decode parses typed arguments, and refusals use closed codes and are audited. The deal scope comes from the grant, so a model-supplied other deal_id is refused out_of_scope (server.rs:759). No tool moves money."
+        },
+        {
+          "technique": "payoff-removal",
+          "verdict": "conformant",
+          "evidence": "crates/table-shield/src/lib.rs:67 The shield's model verdict can only raise caution over the deterministic rules (tested at s2_model_can_never_lower_caution). BLOCK short-circuits before the model runs. A successful injection cannot buy a lower verdict."
+        },
+        {
+          "technique": "inspection-coverage-is-a-verdict",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/src/lib.rs:741 An oversize tool result is withheld whole with a coded refusal and an audit row, never forwarded truncated. Oversize requests hit DefaultBodyLimit, and an oversize query is rejected. No uninspected residue travels."
+        },
+        {
+          "technique": "session-capability-conjunction",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/tests/server.rs:653 The roster cuts legs per role (catalog, lib.rs:312-323). The Negotiator holds its private band and send_offer, but counterparty free text is projected out of table_view (this test). The Shopper reads merchant text, but its only write, propose_purchase, waits for the owner. The Assistant reads books and has no outbound tool."
+        },
+        {
+          "technique": "trusted-author-verdict-channel",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-shield/src/lib.rs:73 The model's verdict arrives as a typed enum through an in-process callback, never read back from a shared text surface other parties write."
+        }
+      ],
+      "registryProposal": "input-caps-and-clamps could say whether a short display-only title slot, whose tool description already promises 'a short title', still needs an in-band truncation marker, or whether disclosing the ceiling in the tool contract is enough. The present text makes every unmarked prose clamp a deviation."
     }
   }
 }

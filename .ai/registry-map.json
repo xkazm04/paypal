@@ -831,7 +831,11 @@
           "revision": 8,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-mcp/src/lib.rs:578 Merchant brand and title text is cut to 80 characters by `plain_text`'s `.chars().take(max)` with no truncation marker, so the model reads a clipped span as if it were the whole title. The technique names this silent clamp as the failure, while the rest of the surface (closed per-role grammar, labelled merchant text, a shield where the model can only add caution) is realized.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:33b072141695f2eb",
+          "evaluatedRevision": 8
         },
         {
           "subject": "quality-gates",
@@ -8434,7 +8438,11 @@
           "revision": 8,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/ui/why.tsx:3 These primitives never build a prompt and never render model output as markup: a case-insensitive search of shared/ui and shared/boundary for prompt, untrusted, dangerouslySetInnerHTML, sanitiz and canary found nothing, and every caller-supplied string is rendered as escaped React children, so no prompt-safety boundary runs through this context.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:33b072141695f2eb",
+          "evaluatedRevision": 8
         },
         {
           "subject": "concurrent-vcs",
