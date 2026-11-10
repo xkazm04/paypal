@@ -11793,6 +11793,67 @@
       "evaluatedTs": "2026-11-10T00:37:22.651Z",
       "worker": "f0607226-ce16-4c7b-891d-36a03b265b2a",
       "techniques": []
+    },
+    "7fde48d9-00af-4ebc-868e-cb93d7cdedfd/hitl-approval": {
+      "context": "owner-mandate-config",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:59:49.443Z",
+      "techniques": [
+        {
+          "technique": "gate-state-machines",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx:53 Signing is a privileged call (mandate_sign is PRIVILEGED/Owner in the authority table) behind an unlock, so the agent cannot open this gate itself."
+        },
+        {
+          "technique": "resume-after-decision",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx:133 The object shown is the object sent at line 53, with no re-derivation after approval. Small caveat: the byte count comes from canonical(), but the bytes shown are pretty-printed."
+        },
+        {
+          "technique": "decision-records",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx:115 Approval binds to a version: the signature makes vN+1, and work still open stays tied to the version it was approved under. Whether the disclosure shown is stored with the signature lives in Rust and was not checked."
+        },
+        {
+          "technique": "consent-gates",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx:123 The grant is tied to one agent slot plus payees/counterparties clauses, not to the whole capability. Revoking takes effect at once (MandateEditor.tsx:248: refused from their next request)."
+        },
+        {
+          "technique": "unattended-mode",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx:124 The mandate is the honest standing grant: scoped, required to expire, applied at the gate to each new request, with a human_present_over threshold that brings asking back above an amount."
+        },
+        {
+          "technique": "oracle-before-gate",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/data.ts:2 Before signing, the owner compares the draft with this week's real deals as replayed by the wallet's own check. The owner reviews against an oracle, not a summary."
+        },
+        {
+          "technique": "fail-loud-classification-default",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/simulation.ts:19 The switch is exhaustive with no fall-through arm. A deal the check could not rebuild is labelled 'not checked' and counted apart, and it is never folded into 'agent may'."
+        },
+        {
+          "technique": "fixed-policy-amendable-plan",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/MandateEditor.tsx:9 Drafts handed over from Main (floor or rules-from-a-sentence seeds) only pre-fill an editable draft. Only the owner's Sign changes the policy: proposed, never adopted."
+        },
+        {
+          "technique": "human-performed-steps",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/RescueReplay.tsx:1 This capability works around a tooling gap and names that gap as its reason (labelled REPLAY, never counted as recovered). It has no explicit 'delete when PayPal supports it' sentence."
+        }
+      ],
+      "withdrawn": {
+        "worker": "af6fdffc-39e8-4bbf-b24f-b16528fb3442",
+        "state": "conformant",
+        "at": "2026-11-10T01:00:07.616799+00:00",
+        "reason": "reviewer (sonnet): The sheet does call mandate_sign with the privileged flag behind an unlock (SignSheet.tsx:53, 61-69), and the object shown at line 133 is the same `args` that is sent. The central claims are not shown by the cited lines, though. First, 'PRIVILEGED/Owner in the authority table' and 'the agent cannot "
+      }
     }
   }
 }
