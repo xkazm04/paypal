@@ -12290,6 +12290,82 @@
           "evidence": "docs/report/report.css:1 There is no poll loop and no logging."
         }
       ]
+    },
+    "e89814cc-f4e5-4bd4-bc27-9f356e7de9d4/data-access": {
+      "context": "wallet-domain-primitives",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T22:37:22.553Z",
+      "worker": "fd6d8370-a8a0-4d6a-bfc2-c734fb6905f7",
+      "techniques": [
+        {
+          "technique": "query-construction",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/book.rs:14 Analytical queries are a closed serde enum vocabulary (BookView/BookField/BookOp/BookGroup/BookMetric) with deny_unknown_fields; an unknown field token fails to deserialize and is never passed through. The crate-level doc at book.rs:1 states no SQL string is in the public schema. The token-to-column mapping lives in table-ledger and is outside this context."
+        },
+        {
+          "technique": "layering-rules",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/lib.rs:38 The domain imports nothing above it. Time is injected through a trait, and IO and storage are supplied by callers, so the arrow points one way: the data layer depends on these types and never the other way round."
+        },
+        {
+          "technique": "row-mapping",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/deal.rs:139 No row decode happens here. The crate only supplies one authoritative state list (RELEASED) that the ledger's SQL filter reuses, which is a vocabulary authority rather than a mapper."
+        },
+        {
+          "technique": "transactions-and-units-of-work",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/lib.rs:1 There are no writes and no transaction boundary; all IO belongs to callers."
+        },
+        {
+          "technique": "batching-and-n-plus-one",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/lib.rs:1 There is no fetch surface, so there are no round trips."
+        },
+        {
+          "technique": "repo-testing",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/lib.rs:1 There is no repository to test against an engine."
+        },
+        {
+          "technique": "sequence-token-write-ordering",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/lib.rs:37 Nothing here writes to a stream; the crate only defines the timestamp type, which callers supply."
+        },
+        {
+          "technique": "cross-driver-invariant-parity",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/lib.rs:1 No storage drivers are present."
+        },
+        {
+          "technique": "capability-declared-in-the-type",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/lib.rs:1 No store interface has multiple implementations."
+        },
+        {
+          "technique": "existence-authority-written-last",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/lib.rs:1 No dual-store writes."
+        },
+        {
+          "technique": "read-models-and-projections",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/book.rs:5 The crate names the views as a closed vocabulary, but projection queries are computed in the ledger, not here."
+        },
+        {
+          "technique": "operator-defined-tables",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/lib.rs:1 No runtime-defined record types."
+        },
+        {
+          "technique": "localized-record-identity",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/lib.rs:1 No user-authored multilingual records."
+        }
+      ]
     }
   }
 }

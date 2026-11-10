@@ -9891,7 +9891,11 @@
           "revision": 19,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-core/src/lib.rs:1 table-core is the pure domain crate the data layer depends on: its Cargo.toml declares only serde/serde_json/serde_jcs/thiserror/sha2/ulid/ts-rs, and a case-insensitive search of the crate for rusqlite, sqlx, transaction, repository and connection found nothing, so no store seam exists here and the repository doctrine has nothing to govern beyond the closed query vocabulary it hands down.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         },
         {
           "subject": "module-design",
