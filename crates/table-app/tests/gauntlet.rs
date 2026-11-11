@@ -2021,10 +2021,15 @@ fn seeds() -> Vec<u64> {
             .expect("TABLE_GAUNTLET_SEED is a decimal or 0x-hex u64");
         return vec![seed];
     }
-    let sessions = std::env::var("TABLE_GAUNTLET_SESSIONS")
-        .ok()
-        .and_then(|n| n.trim().parse().ok())
-        .unwrap_or(CI_SESSIONS);
+    // A set-but-unusable count must fail loudly: zero sessions would pass the predicate having
+    // checked nothing, and an unparsable one would silently run the default instead.
+    let sessions = match std::env::var("TABLE_GAUNTLET_SESSIONS") {
+        Ok(n) => match n.trim().parse::<u64>() {
+            Ok(count) if count > 0 => count,
+            _ => panic!("TABLE_GAUNTLET_SESSIONS is a positive integer, not {n:?}"),
+        },
+        Err(_) => CI_SESSIONS,
+    };
     (0..sessions)
         .map(|i| BASE_SEED.wrapping_add(i.wrapping_mul(SEED_STEP)))
         .collect()

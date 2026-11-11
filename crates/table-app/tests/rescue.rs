@@ -473,7 +473,6 @@ async fn the_owner_approves_one_discounted_invoice_and_only_a_paid_receipted_one
         rows.iter()
             .all(|row| !row.detail.to_string().contains("subscriber14@"))
     );
-    let _ = (&r.owner, r.agent_key);
     r.p.wallet.ledger.verify_audit().unwrap();
 }
 
